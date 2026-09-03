@@ -1,0 +1,20 @@
+/**
+ * NativeWind entrypoint. Imported once, from `app/_layout.tsx`.
+ *
+ * Deliberately kept to the three Tailwind directives. Two reasons not to add
+ * custom CSS here:
+ *
+ *  1. NativeWind v4 compiles this stylesheet into React Native style objects.
+ *     Anything it cannot express natively (pseudo-elements, keyframes on
+ *     unsupported props, `calc()`, filters) is silently dropped on native while
+ *     still working on web, which produces bugs that only appear on device.
+ *  2. Design values live in `theme/tokens.js`, which is the single source of
+ *     truth shared by `tailwind.config.js` and the TypeScript components.
+ *     A colour or radius written here would be invisible to both.
+ *
+ * Reusable visual patterns belong in `components/ui/*` — see its README.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

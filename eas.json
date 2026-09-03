@@ -1,0 +1,36 @@
+{
+  "cli": {
+    "version": ">= 13.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "local-api": {
+      "//": "APK for testing on a real phone against the DEV machine, not production. opescare.test is a hosts-file entry that only resolves on that PC, so the phone must use its LAN address; the Apache vhost carries a matching ServerAlias, without which the phone's Host header falls through to the default vhost and gets a 403. The phone must be on the same Wi-Fi, and this IP is DHCP-assigned — re-check it before rebuilding.",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "http://192.168.1.33/api"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://opescare.cloud/api"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://opescare.cloud/api"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

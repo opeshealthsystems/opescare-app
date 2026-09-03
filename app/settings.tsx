@@ -80,7 +80,6 @@ import { colors, radii, sizing, spacing, typography } from '../theme/tokens';
 const ROUTES = {
   editProfile: '/edit-profile',
   family: '/family',
-  insurance: '/insurance',
   notifications: '/notifications',
   privacy: '/privacy',
   accessLogs: '/privacy/access-logs',
@@ -261,13 +260,6 @@ export default function SettingsScreen() {
                 title={t('settings.account.family')}
                 subtitle={t('settings.account.familyBody')}
                 onPress={() => router.push(ROUTES.family)}
-                divider
-              />
-              <ListRow
-                icon={CreditCard}
-                title={t('settings.account.insurance')}
-                subtitle={t('settings.account.insuranceBody')}
-                onPress={() => router.push(ROUTES.insurance)}
               />
             </GroupCard>
 

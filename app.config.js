@@ -10,7 +10,7 @@
  * of thing nobody notices until it is shipped. So it is derived instead: it
  * turns on only when the configured API base URL is actually `http://`, which
  * is true for the LAN dev profile and false for anything pointing at
- * https://opescare.cloud.
+ * https://finder.opescare.cloud.
  *
  * Everything else comes from app.json unchanged.
  */

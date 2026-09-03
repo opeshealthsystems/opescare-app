@@ -326,7 +326,7 @@ export function useReferrals() {
 // Records / Timeline (app/(tabs)/records.tsx)
 // ---------------------------------------------------------------------------
 
-/** Records/Timeline screen — chronological feed of visits, resulted labs, prescriptions. */
+/** Records/Timeline screen — chronological feed of visits, results, prescriptions. */
 export function useTimeline(limit = 50) {
   return useQuery({
     queryKey: ['timeline', limit],
@@ -420,87 +420,6 @@ export function usePrescriptionDetail(id: string | undefined) {
     enabled: !!id,
   });
 }
-// ---------------------------------------------------------------------------
-// Insurance — policies + marketplace (screens: app/insurance/*)
-// ---------------------------------------------------------------------------
-
-export type InsurancePolicyStatus = 'pending' | 'active' | 'inactive' | 'expired' | 'cancelled';
-
-export interface InsurancePolicy {
-  id: string;
-  policy_number: string;
-  member_id: string | null;
-  group_number: string | null;
-  status: InsurancePolicyStatus;
-  relationship_to_primary: string;
-  effective_date: string | null;
-  expiry_date: string | null;
-  is_active: boolean;
-  is_expired: boolean;
-  plan: {
-    id: string;
-    name: string;
-    provider_name: string | null;
-    plan_type: string | null;
-  } | null;
-}
-
-export interface InsurancePlanSummary {
-  id: string;
-  name: string;
-  plan_type: string | null;
-  description: string | null;
-  monthly_premium: string | null;
-  annual_premium: string | null;
-  deductible: string | null;
-  copay_percentage: string | null;
-  cashless_available: boolean;
-  requires_preauthorization: boolean;
-}
-
-export interface InsurancePlanDetail extends InsurancePlanSummary {
-  covered_services: string | null;
-  provider: {
-    id: string;
-    name: string;
-    contact_email: string | null;
-    contact_phone: string | null;
-  } | null;
-}
-
-export interface InsuranceMarketplaceProvider {
-  id: string;
-  name: string;
-  code: string | null;
-  logo_url: string | null;
-  contact_email: string | null;
-  contact_phone: string | null;
-  plans: InsurancePlanSummary[];
-}
-
-export interface PurchaseInsurancePlanPayload {
-  payment_method: 'mobile_money' | 'card' | 'bank_transfer';
-  payment_reference?: string;
-}
-
-export interface PurchaseInsurancePlanResponse {
-  message: string;
-  policy_id: string;
-  policy_number: string;
-  status: string;
-  effective_date: string;
-  expiry_date: string;
-}
-
-export function useInsurancePolicies() {
-  return useQuery({
-    queryKey: ['insurance', 'policies'],
-    queryFn: async () =>
-      (await apiClient.get<{ data: InsurancePolicy[] }>(endpoints.insurance)).data,
-  });
-}
-
-
 
 // ── Family: members + invitations ──────────────────────────────────────────
 // Backend: App\Http\Controllers\Api\Mobile\MobileFamilyController.
@@ -605,7 +524,7 @@ export function useRegisterDependent() {
     },
   });
 }
-// --- Care Plans (owned by the Care Plans & Surveys screen agent — additive only) ---
+// --- Care Plans (additive only) ---
 
 export interface CarePlanGoal {
   id: string;
@@ -661,66 +580,6 @@ export function useCarePlan(id: string | null) {
     queryFn: async () =>
       (await apiClient.get<{ data: CarePlanSummary }>(endpoints.carePlan(id as string))).data.data,
     enabled: !!id,
-  });
-}
-
-// --- Surveys (owned by the Care Plans & Surveys screen agent — additive only) ---
-export type SurveyQuestionType = 'rating_5' | 'rating_10' | 'yes_no' | 'text';
-
-export interface SurveyQuestion {
-  key: string;
-  text: string;
-  type: SurveyQuestionType;
-}
-
-export interface Survey {
-  id: string;
-  patient_id: string;
-  facility_id: string;
-  visit_id: string | null;
-  template_key: string;
-  status: 'pending' | 'sent' | 'completed' | 'expired';
-  sent_at: string | null;
-  completed_at: string | null;
-  expires_at: string | null;
-}
-
-export interface SurveyWithTemplate {
-  survey: Survey;
-  template: SurveyQuestion[];
-}
-
-export type SurveyResponseValue = number | boolean | string;
-
-export function useSurveys() {
-  return useQuery({
-    queryKey: ['surveys'],
-    queryFn: async () => (await apiClient.get<{ data: Survey[] }>(endpoints.surveys)).data.data,
-  });
-}
-
-export function useSurvey(id: string | null) {
-  return useQuery({
-    queryKey: ['surveys', id],
-    queryFn: async (): Promise<SurveyWithTemplate> => {
-      const { data } = await apiClient.get<{ data: Survey; template: SurveyQuestion[] }>(
-        endpoints.survey(id as string),
-      );
-      return { survey: data.data, template: data.template };
-    },
-    enabled: !!id,
-  });
-}
-
-export function useSubmitSurvey(id: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (responses: Record<string, SurveyResponseValue>) =>
-      (await apiClient.post<{ data: Survey }>(endpoints.submitSurvey(id), { responses })).data.data,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['surveys'] });
-      queryClient.invalidateQueries({ queryKey: ['surveys', id] });
-    },
   });
 }
 
@@ -994,7 +853,7 @@ export function useAppointmentsForMessaging() {
 }
 
 // ── Messaging ────────────────────────────────────────────────────────────
-// Backend: routes/mobile_telehealth.php + MobileMessagingController — the
+// Backend: MobileMessagingController — the
 // real, additive patient-facing entry point onto the Messaging module.
 
 export interface MessageThreadSummary {
@@ -1369,80 +1228,6 @@ export function useResetPassword() {
       (await apiClient.post<ApiMessageResponse>(endpoints.resetPassword, payload)).data,
   });
 }
-// ---------------------------------------------------------------------------
-// Labs — lab orders + full parameter results (screens: app/labs/*).
-// Distinct from Records/Timeline, which only ever surfaces a resulted lab
-// order as a single feed row with no reference ranges/flags. Backed by
-// GET /mobile/labs and GET /mobile/labs/{id} (MobileLabController).
-// ---------------------------------------------------------------------------
-
-export type LabOrderStatus = 'pending' | 'collected' | 'processing' | 'resulted' | 'cancelled';
-export type LabUrgency = 'routine' | 'urgent' | 'stat';
-
-export interface LabOrderSummary {
-  id: string;
-  test_name: string;
-  test_code: string | null;
-  urgency: string;
-  status: string;
-  status_color: 'success' | 'info' | 'warning' | 'default';
-  facility_name: string | null;
-  ordered_at: string | null;
-  resulted_at: string | null;
-  result_count: number;
-  has_abnormal: boolean;
-}
-
-export interface LabResultParameter {
-  id: string;
-  parameter_name: string;
-  value: string;
-  unit: string | null;
-  reference_range: string | null;
-  flag: string | null;
-  flag_label: string;
-  is_abnormal: boolean;
-  notes: string | null;
-  resulted_at: string | null;
-}
-
-export interface LabOrderDetail extends LabOrderSummary {
-  clinical_indication: string | null;
-  notes: string | null;
-  collected_at: string | null;
-  results: LabResultParameter[];
-}
-
-export interface PaginatedLabOrders {
-  data: LabOrderSummary[];
-  pagination: { total: number; per_page: number; current_page: number; last_page: number };
-}
-
-/** List of the patient's lab orders, optionally filtered by status
- * ('pending' | 'collected' | 'processing' | 'resulted' | 'cancelled'). */
-export function useLabOrders(status?: string) {
-  return useQuery({
-    queryKey: ['labs', status ?? 'all'],
-    queryFn: async () =>
-      (
-        await apiClient.get<PaginatedLabOrders>(endpoints.labs, {
-          params: status ? { status } : undefined,
-        })
-      ).data,
-  });
-}
-
-/** Single lab order with its full set of result parameters (value, unit,
- * reference range, abnormal flag). */
-export function useLabOrderDetail(id: string | undefined) {
-  return useQuery({
-    queryKey: ['labs', id],
-    queryFn: async () =>
-      (await apiClient.get<{ data: LabOrderDetail }>(endpoints.lab(id as string))).data.data,
-    enabled: !!id,
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Medical record export — direct PDF/FHIR download (app/export-records.tsx).
 // Distinct from the Privacy hub's data-export-requests approval workflow

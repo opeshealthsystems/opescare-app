@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "OpesCare",
-    "slug": "opescare-patient",
-    "scheme": "opescare",
+    "name": "OpesCare Finder",
+    "slug": "opescare-finder",
+    "scheme": "opescarefinder",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,11 +10,11 @@
     "backgroundColor": "#FDF8F0",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.opescare.patient",
+      "bundleIdentifier": "cloud.opescare.finder",
       "buildNumber": "1"
     },
     "android": {
-      "package": "com.opescare.patient",
+      "package": "cloud.opescare.finder",
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
@@ -66,7 +66,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "c1ae70c8-48c1-48fc-bdd7-448e641792b6"
+        "//": "projectId removed on fork — a fork must NOT push to the source app's EAS project. Run `eas init` to create a NEW EAS project for OpesCare Finder, which will write the new projectId here."
       }
     },
     "owner": "opesware",

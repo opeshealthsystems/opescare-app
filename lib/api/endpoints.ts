@@ -5,7 +5,7 @@
  * staging/production host confirmed reachable during development.
  */
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://opescare.cloud/api';
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://finder.opescare.cloud/api';
 
 export const endpoints = {
   loginEmail: '/mobile/auth/login-email',
@@ -29,9 +29,6 @@ export const endpoints = {
   clinical: '/mobile/clinical',
   immunizations: '/mobile/immunizations',
 
-  labs: '/mobile/labs',
-  lab: (id: string) => `/mobile/labs/${id}`,
-
   prescriptions: '/mobile/prescriptions',
   prescription: (id: string) => `/mobile/prescriptions/${id}`,
 
@@ -53,16 +50,10 @@ export const endpoints = {
   carePlans: '/mobile/care-plans',
   carePlan: (id: string) => `/mobile/care-plans/${id}`,
 
-  surveys: '/mobile/surveys',
-  survey: (id: string) => `/mobile/surveys/${id}`,
-  submitSurvey: (id: string) => `/mobile/surveys/${id}/submit`,
-
   exportRecordsPdf: '/mobile/medical-records/export/pdf',
   exportRecordsFhir: '/mobile/medical-records/export/fhir',
 
   referrals: '/mobile/referrals',
-
-  insurance: '/mobile/insurance',
 
   family: '/mobile/family',
   familyInvitations: '/mobile/family/invitations',
@@ -84,7 +75,7 @@ export const endpoints = {
   markNotificationRead: (id: string) => `/mobile/notifications/${id}/read`,
   markAllNotificationsRead: '/mobile/notifications/mark-all-read',
 
-  // Messaging — patient-facing entry point (see routes/mobile_telehealth.php).
+  // Messaging — patient-facing entry point (secure patient/provider threads).
   messageThreads: '/mobile/messages/threads',
   messageThread: (id: string | number) => `/mobile/messages/threads/${id}`,
   sendThreadMessage: (id: string | number) => `/mobile/messages/threads/${id}/messages`,

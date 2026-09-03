@@ -137,13 +137,6 @@ export function resolveResourceRoute(resource?: StructuredResourceRef | null): s
   if (!resource?.kind) return null;
   const id = resource.id ? String(resource.id) : null;
   switch (resource.kind.toLowerCase()) {
-    case 'survey':
-    case 'questionnaire':
-    case 'form':
-      return id ? `/surveys/${id}` : '/surveys';
-    case 'lab_result':
-    case 'lab':
-      return id ? `/labs/${id}` : '/labs';
     case 'prescription':
       return id ? `/prescriptions/${id}` : '/prescriptions';
     case 'appointment':

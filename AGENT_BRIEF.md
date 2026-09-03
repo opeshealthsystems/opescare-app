@@ -1,9 +1,14 @@
 # Screen Parity Brief — read this before touching anything
 
-You are upgrading ONE slice of the OpesCare Expo patient app so it matches its
-design references and is genuinely wired up. Another 19 agents are working on
-other screens **in parallel**, so the file-ownership rules below are hard
-requirements, not style advice.
+This is the **OpesCare Finder** patient mobile app (Expo / React Native): drug &
+blood finder, appointment booking, facility directory, and portable **Health
+ID**. It is forked from the OpesCare platform patient app and pointed at the
+Finder backend at **finder.opescare.cloud** (`EXPO_PUBLIC_API_BASE_URL`).
+
+You are upgrading ONE slice of this app so it matches its design references and
+is genuinely wired up. Another 19 agents are working on other screens **in
+parallel**, so the file-ownership rules below are hard requirements, not style
+advice.
 
 ## The references
 `C:\laragon\www\opescare\Mobile app screens\` — 173 PNGs plus `MANIFEST.csv`.
@@ -13,7 +18,7 @@ renders images), and compare against what is actually built. If no reference
 matches your screen, say so and use the established visual language instead.
 
 ## Environment
-- App: `C:\laragon\www\opescare\apps\mobile-expo` — Expo SDK 57, expo-router,
+- App: `C:\laragon\www\opescare-finder-mobile` — Expo SDK 57, expo-router,
   NativeWind v4, TanStack Query, Zustand.
 - **Read https://docs.expo.dev/versions/v57.0.0/ before writing code** — the API changed.
 - Typecheck (must be clean): `npx tsc --noEmit --ignoreDeprecations 6.0`
@@ -62,7 +67,7 @@ registered. Use inline `style` for those, or it silently does nothing.
   data.** If a needed endpoint doesn't exist, say so in your report rather than
   faking it.
 - Handle loading, empty, and error states explicitly — the demo patient has no
-  labs/prescriptions/documents, so empty states WILL be seen and must look
+  prescriptions/documents, so empty states WILL be seen and must look
   deliberate, not broken.
 
 ## Verification before you report

@@ -20,13 +20,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://opescare.cloud/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://finder.opescare.cloud/api"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://opescare.cloud/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://finder.opescare.cloud/api"
       }
     }
   },

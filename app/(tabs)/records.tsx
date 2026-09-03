@@ -162,8 +162,8 @@ export default function RecordsScreen() {
 
       if (ev.event_type === 'lab_result') {
         // The tail is the test name — real clinical data, shown as-is.
-        href = `/labs/${ev.id}`;
-        actionLabel = t('records.action.viewLab');
+        // The dedicated lab detail screen is not part of the finder build, so
+        // the entry stays in the record feed but no longer links out.
       } else if (ev.event_type === 'prescription') {
         // "3 item(s)" — recover the real count so it can be pluralised properly.
         const n = tail ? Number.parseInt(tail, 10) : Number.NaN;
@@ -380,13 +380,6 @@ export default function RecordsScreen() {
           {t('records.browse.heading')}
         </Text>
         <View className="flex-row gap-3">
-          <BrowseTile
-            icon={FlaskConical}
-            color={colors.semantic.info}
-            surface={colors.semantic.infoSurface}
-            label={t('records.browse.labs')}
-            onPress={() => router.push('/labs')}
-          />
           <BrowseTile
             icon={Pill}
             color={colors.brand[600]}

@@ -26,7 +26,6 @@ import {
   Copy,
   Droplet,
   Droplets,
-  FlaskConical,
   FolderHeart,
   Gauge,
   Hand,
@@ -80,8 +79,6 @@ import { colors } from '../../theme/tokens';
  *     under `app/`; a control that opens nothing is worse than no control.
  *   - The Health ID avatar is a monogram, not a photo. There is no
  *     photo-upload endpoint, so a stock face would be a fabrication.
- *   - The reference's "Health Check" quick action has no screen. Its slot is
- *     Lab Results (`/labs`), which exists.
  *   - Inside the narrow Vitals column each reading is label-over-value rather
  *     than the reference's single line. French labels ("Fréq. respiratoire")
  *     do not fit beside a value in ~150pt, and truncating a clinical label is
@@ -117,21 +114,19 @@ interface QuickActionSpec {
 }
 
 /**
- * Five real destinations in one row, matching the reference's single
+ * Four real destinations in one row, matching the reference's single
  * quick-action card. Every route is a file under `app/`:
- * appointments/book.tsx, (tabs)/records.tsx, labs/index.tsx,
- * prescriptions/index.tsx, blood-finder.tsx.
+ * appointments/book.tsx, (tabs)/records.tsx, prescriptions/index.tsx,
+ * blood-finder.tsx.
  *
- * The reference's third slot, "Health Check", has no screen anywhere in the
- * app — Lab Results takes it. The fifth, "View All Services", is Find Blood
- * here: `/blood-finder` has NO other entry point in the whole app, whereas
- * "all services" (`/care-map`) is still reachable from this section's header
- * action and from the Records tab.
+ * Find Blood stands in for the reference's "View All Services": `/blood-finder`
+ * has NO other entry point in the whole app, whereas "all services"
+ * (`/care-map`) is still reachable from this section's header action and from
+ * the Records tab.
  */
 const QUICK_ACTIONS: QuickActionSpec[] = [
   { key: 'book', icon: CalendarPlus, labelKey: 'home.quickActions.bookAppointment', route: '/appointments/book' },
   { key: 'records', icon: FolderHeart, labelKey: 'home.quickActions.healthRecords', route: '/(tabs)/records' },
-  { key: 'labs', icon: FlaskConical, labelKey: 'home.quickActions.labResults', route: '/labs' },
   { key: 'prescriptions', icon: Pill, labelKey: 'home.quickActions.prescriptions', route: '/prescriptions' },
   { key: 'blood', icon: Droplets, labelKey: 'home.quickActions.findBlood', route: '/blood-finder' },
 ];

@@ -1,5 +1,5 @@
 {
-  "name": "mobile-expo",
+  "name": "opescare-finder-mobile",
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {

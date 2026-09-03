@@ -82,7 +82,6 @@ const PORTAL_PATH_ROUTES: Record<string, Destination> = {
 /** Fallback by notification `type`, for the emitters that send no action at all. */
 const TYPE_ROUTES: { match: string; destination: Destination }[] = [
   { match: 'appointment', destination: { route: '/appointments', labelKey: 'notifications.action.appointments' } },
-  { match: 'lab', destination: { route: '/labs', labelKey: 'notifications.action.labs' } },
   { match: 'prescription', destination: { route: '/prescriptions', labelKey: 'notifications.action.prescriptions' } },
   { match: 'health_id', destination: { route: '/(tabs)/health-id', labelKey: 'notifications.action.healthId' } },
   { match: 'message', destination: { route: '/(tabs)/messages', labelKey: 'notifications.action.messages' } },

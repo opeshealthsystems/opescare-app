@@ -12,7 +12,6 @@ import {
   Globe,
   Mail,
   MapPin,
-  Navigation,
   Phone,
   ShieldCheck,
   Stethoscope,
@@ -31,7 +30,6 @@ import {
   type FacilityProviderSummary,
 } from '../../lib/api/queries';
 import {
-  directionsUrl,
   iconForFacilityType,
   joinLocationParts,
   openStateToday,
@@ -193,7 +191,6 @@ export default function FacilityDetailScreen() {
 
   const openState = useMemo<OpenState>(() => openStateToday(hours), [hours]);
 
-  const mapsUrl = facility ? directionsUrl(facility) : null;
   const todayIndex = new Date().getDay();
 
   const openUrl = (url: string) => {
@@ -309,18 +306,6 @@ export default function FacilityDetailScreen() {
                   <Phone size={15} color={colors.white} />
                   <Text className="ml-2 text-sm font-semibold text-white">
                     {t('facility.callAction')}
-                  </Text>
-                </Pressable>
-              ) : null}
-              {mapsUrl ? (
-                <Pressable
-                  onPress={() => openUrl(mapsUrl)}
-                  className="flex-1 flex-row items-center justify-center rounded-2xl border py-3"
-                  style={{ borderColor: colors.brand[300] }}
-                >
-                  <Navigation size={15} color={colors.brand[600]} />
-                  <Text className="ml-2 text-sm font-semibold text-brand-600">
-                    {t('facility.getDirections')}
                   </Text>
                 </Pressable>
               ) : null}

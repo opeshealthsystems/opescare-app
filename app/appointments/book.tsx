@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   FlatList,
   Linking,
-  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -31,7 +30,6 @@ import {
   Info,
   MapPin,
   Microscope,
-  Navigation,
   Phone,
   Pill,
   Scan,
@@ -227,23 +225,6 @@ function providerInitials(name: string): string {
   if (parts.length === 0) return '—';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-}
-
-/** Deep-link to a maps app for directions, same pattern as care-map.tsx. */
-function directionsUrl(facility: BookingFacility): string | null {
-  const label = encodeURIComponent(facility.facility_name);
-  if (facility.latitude != null && facility.longitude != null) {
-    const { latitude: lat, longitude: lng } = facility;
-    return (
-      Platform.select({
-        ios: `maps:0,0?q=${label}@${lat},${lng}`,
-        android: `geo:${lat},${lng}?q=${lat},${lng}(${label})`,
-        default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
-      }) ?? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
-    );
-  }
-  const address = [facility.address, facility.city, facility.region].filter(Boolean).join(', ');
-  return address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : null;
 }
 
 const openUrl = (url: string) => {
@@ -773,7 +754,6 @@ export default function BookAppointmentScreen() {
   const facilityHasSlotsOnDay = slotsOnDay(slotWindow, selectedDate).length > 0;
 
   const facilityPhone = selectedFacility?.phone_primary ?? null;
-  const facilityMapsUrl = selectedFacility ? directionsUrl(selectedFacility) : null;
 
   const facilityTypeLabel = useCallback(
     (value: string | null | undefined) => {
@@ -859,10 +839,6 @@ export default function BookAppointmentScreen() {
         },
       },
     );
-  };
-
-  const handleGetDirections = () => {
-    if (facilityMapsUrl) openUrl(facilityMapsUrl);
   };
 
   const handleCallFacility = () => {
@@ -1158,13 +1134,6 @@ export default function BookAppointmentScreen() {
                   icon={Phone}
                   label={t('appointments.book.callFacility')}
                   onPress={handleCallFacility}
-                />
-              ) : null}
-              {facilityMapsUrl ? (
-                <SecondaryAction
-                  icon={Navigation}
-                  label={t('appointments.book.getDirections')}
-                  onPress={handleGetDirections}
                 />
               ) : null}
               <Button
@@ -1896,21 +1865,6 @@ export default function BookAppointmentScreen() {
                       .filter(Boolean)
                       .join(', ') || null
                   : null
-              }
-              action={
-                facilityMapsUrl ? (
-                  <Pressable
-                    onPress={handleGetDirections}
-                    hitSlop={8}
-                    className="ml-2 flex-row items-center rounded-full border px-3 py-1.5"
-                    style={{ borderColor: colors.brand[300] }}
-                  >
-                    <Navigation size={12} color={colors.brand[600]} />
-                    <Text className="ml-1 text-xs font-semibold text-brand-600">
-                      {t('appointments.book.getDirections')}
-                    </Text>
-                  </Pressable>
-                ) : undefined
               }
             />
             {/* "Any available clinician" still books a real person — the API

@@ -23,7 +23,6 @@ import {
   Info,
   MapPin,
   Minus,
-  Navigation,
   Phone,
   Plus,
   Send,
@@ -200,13 +199,6 @@ export default function BloodRequestScreen() {
   const backToSearch = () =>
     router.canGoBack() ? router.back() : router.replace('/blood-finder');
 
-  const openDirections = () => {
-    if (!facility || facility.latitude == null || facility.longitude == null) return;
-    Linking.openURL(
-      `https://www.google.com/maps/search/?api=1&query=${facility.latitude},${facility.longitude}`,
-    ).catch(() => undefined);
-  };
-
   if (!facilityId || !bloodGroup) {
     return (
       <Screen>
@@ -309,7 +301,6 @@ export default function BloodRequestScreen() {
             phone={null}
             hasCoords={false}
             onCall={() => undefined}
-            onDirections={() => undefined}
             onBack={backToSearch}
           />
         ) : (
@@ -344,9 +335,9 @@ export default function BloodRequestScreen() {
               </View>
             </View>
 
-            {/* Call / directions sit above the form: the safety notice tells
-                every patient to phone before travelling, so the phone must be
-                reachable without scrolling past the whole request form. */}
+            {/* Call sits above the form: the safety notice tells every patient
+                to phone before travelling, so the phone must be reachable
+                without scrolling past the whole request form. */}
             <View className="mt-3 flex-row" style={{ gap: 8 }}>
               <Pressable
                 onPress={() => dial(phone)}
@@ -360,23 +351,10 @@ export default function BloodRequestScreen() {
                   {phone ? t('bloodFinder.callShort') : t('bloodFinder.noPhone')}
                 </Text>
               </Pressable>
-              <Pressable
-                onPress={openDirections}
-                disabled={!hasCoords}
-                accessibilityRole="button"
-                className="h-11 flex-1 flex-row items-center justify-center rounded-xl border border-cream-300 bg-white"
-                style={{ opacity: hasCoords ? 1 : 0.45 }}
-              >
-                <Navigation size={14} color={colors.navy.secondary} />
-                <Text className="ml-2 text-xs font-bold text-navy-text">
-                  {t('bloodFinder.getDirections')}
-                </Text>
-              </Pressable>
             </View>
 
             {/* Embedded map — a real in-app OpenStreetMap view of this facility
-                with a locate-me/directions control that never leaves the app.
-                The external maps button above stays as the native-nav path. */}
+                with a locate-me/directions control that never leaves the app. */}
             {hasCoords ? (
               <View className="mt-3">
                 <FacilityMap facilities={facility} height={200} directions />
@@ -563,7 +541,6 @@ export default function BloodRequestScreen() {
                 phone={phone}
                 hasCoords={hasCoords}
                 onCall={() => dial(phone)}
-                onDirections={openDirections}
                 onBack={() => router.replace('/blood-finder')}
               />
             ) : errorCode === 'BLOOD_NOT_AVAILABLE' || errorCode === 'FACILITY_NOT_FOUND' ? (
@@ -573,7 +550,6 @@ export default function BloodRequestScreen() {
                 phone={phone}
                 hasCoords={hasCoords}
                 onCall={() => dial(phone)}
-                onDirections={openDirections}
                 onBack={backToSearch}
               />
             ) : errorCode ? (
@@ -722,7 +698,6 @@ function NotAvailablePanel({
   phone,
   hasCoords,
   onCall,
-  onDirections,
   onBack,
 }: {
   group: string;
@@ -730,7 +705,6 @@ function NotAvailablePanel({
   phone: string | null;
   hasCoords: boolean;
   onCall: () => void;
-  onDirections: () => void;
   onBack: () => void;
 }) {
   const { t } = useTranslation();
@@ -778,19 +752,6 @@ function NotAvailablePanel({
           </Pressable>
         ) : null}
 
-        {hasCoords ? (
-          <Pressable
-            onPress={onDirections}
-            accessibilityRole="button"
-            className="h-11 flex-row items-center justify-center rounded-xl bg-white"
-          >
-            <Navigation size={15} color={colors.navy.text} />
-            <Text className="ml-2 text-xs font-bold text-navy-text">
-              {t('bloodFinder.getDirections')}
-            </Text>
-          </Pressable>
-        ) : null}
-
         <Pressable
           onPress={onBack}
           accessibilityRole="button"
@@ -817,7 +778,6 @@ function SuccessPanel({
   phone,
   hasCoords,
   onCall,
-  onDirections,
   onBack,
 }: {
   request: BloodRequest;
@@ -825,7 +785,6 @@ function SuccessPanel({
   phone: string | null;
   hasCoords: boolean;
   onCall: () => void;
-  onDirections: () => void;
   onBack: () => void;
 }) {
   const { t } = useTranslation();
@@ -896,18 +855,6 @@ function SuccessPanel({
               <Phone size={14} color={colors.brand[600]} />
               <Text className="ml-2 text-xs font-bold text-brand-600">
                 {t('bloodFinder.call')}
-              </Text>
-            </Pressable>
-          ) : null}
-          {hasCoords ? (
-            <Pressable
-              onPress={onDirections}
-              accessibilityRole="button"
-              className="h-11 flex-row items-center justify-center rounded-xl border border-cream-300"
-            >
-              <Navigation size={14} color={colors.navy.secondary} />
-              <Text className="ml-2 text-xs font-bold text-navy-text">
-                {t('bloodFinder.getDirections')}
               </Text>
             </Pressable>
           ) : null}

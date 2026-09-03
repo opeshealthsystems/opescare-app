@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -42,6 +41,7 @@ import {
 } from 'lucide-react-native';
 import { Screen } from '../../components/ui/Screen';
 import { Button } from '../../components/ui/Button';
+import { FacilityMap } from '@/components/map/FacilityMap';
 import { colors } from '../../theme/tokens';
 import {
   useCancelMedicineReservation,
@@ -834,6 +834,13 @@ export default function MedicineDetailScreen() {
               </View>
             ) : null}
 
+            {/* Where it is: embedded, in-app map (no external maps app) */}
+            {pharmacy && pharmacy.latitude != null && pharmacy.longitude != null ? (
+              <View className="mt-4">
+                <FacilityMap facilities={pharmacy} height={180} directions />
+              </View>
+            ) : null}
+
             {/* Actions */}
             <View className="mt-5" style={{ gap: 12 }}>
               <Button
@@ -844,17 +851,6 @@ export default function MedicineDetailScreen() {
                 loading={reserve.isPending}
                 disabled={!canReserve}
               />
-
-              {directionsUrl(pharmacy) ? (
-                <Button
-                  label={t('pharmacy.getDirections')}
-                  variant="outline"
-                  onPress={() => {
-                    const url = directionsUrl(pharmacy);
-                    if (url) Linking.openURL(url).catch(() => undefined);
-                  }}
-                />
-              ) : null}
 
               {callablePhone(pharmacy) ? (
                 <Button
@@ -1043,29 +1039,6 @@ function callablePhone(pharmacy: NearbyPharmacy | null): string | null {
   if (!raw) return null;
   const digits = raw.replace(/\D/g, '');
   return digits.length >= 4 ? raw : null;
-}
-
-/** Deep-link to the platform maps app — same shape as care-map / facility. */
-function directionsUrl(pharmacy: NearbyPharmacy | null): string | null {
-  if (!pharmacy) return null;
-  const label = encodeURIComponent(pharmacy.name);
-
-  if (pharmacy.latitude != null && pharmacy.longitude != null) {
-    const lat = pharmacy.latitude;
-    const lng = pharmacy.longitude;
-    return (
-      Platform.select({
-        ios: `maps:0,0?q=${label}@${lat},${lng}`,
-        android: `geo:${lat},${lng}?q=${lat},${lng}(${label})`,
-        default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
-      }) ?? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
-    );
-  }
-
-  const address = [pharmacy.address, pharmacy.city, pharmacy.region].filter(Boolean).join(', ');
-  return address
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
-    : null;
 }
 
 function localeTag(language: string): string {

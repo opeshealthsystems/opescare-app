@@ -1,5 +1,4 @@
 import type { ComponentType } from 'react';
-import { Platform } from 'react-native';
 import {
   Building2,
   Camera,
@@ -264,27 +263,6 @@ export function sortFacilities<T extends FacilityLike>(
     if (delta !== 0) return delta;
     return collator.compare(a.facility_name, b.facility_name);
   });
-}
-
-/**
- * Deep-link to the device's maps app. Prefers real coordinates and falls back
- * to a text query built from address/city/region for the 508 rows without GPS,
- * so "Directions" is never a dead button on a row we can still name a place for.
- */
-export function directionsUrl(facility: FacilityLike): string | null {
-  const label = encodeURIComponent(facility.facility_name);
-  if (facility.latitude != null && facility.longitude != null) {
-    const { latitude: lat, longitude: lng } = facility;
-    return (
-      Platform.select({
-        ios: `maps:0,0?q=${label}@${lat},${lng}`,
-        android: `geo:${lat},${lng}?q=${lat},${lng}(${label})`,
-        default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
-      }) ?? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
-    );
-  }
-  const query = joinLocationParts(facility.facility_name, facility.address, facility.city, facility.region);
-  return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : null;
 }
 
 /** `tel:` URL with everything but digits and a leading + stripped. */

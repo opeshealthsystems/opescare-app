@@ -34,7 +34,6 @@ import {
   CITY_SCOPES,
   DEFAULT_CITY_SCOPE,
   TYPE_FILTERS,
-  directionsUrl,
   facilityDistanceKm,
   formatDistance,
   iconForFacilityType,
@@ -242,12 +241,10 @@ function LocationPrompt({
 function NearestFacilityCard({
   row,
   onOpen,
-  onDirections,
   t,
 }: {
   row: FacilityRow;
   onOpen: () => void;
-  onDirections: () => void;
   t: TFunction;
 }) {
   const Icon = iconForFacilityType(row.facility.facility_type);
@@ -281,14 +278,6 @@ function NearestFacilityCard({
             {meta}
           </Text>
         </View>
-        <Pressable
-          onPress={onDirections}
-          hitSlop={6}
-          className="ml-3 h-12 w-12 items-center justify-center rounded-full"
-          style={{ backgroundColor: colors.brand[500] }}
-        >
-          <Navigation size={18} color={colors.white} />
-        </Pressable>
       </View>
       <Pressable
         onPress={onOpen}
@@ -315,11 +304,6 @@ function FacilityCard({
 }) {
   const { facility } = row;
   const Icon = iconForFacilityType(facility.facility_type);
-
-  const handleDirections = () => {
-    const url = directionsUrl(facility);
-    if (url) Linking.openURL(url).catch(() => {});
-  };
 
   const handleCall = () => {
     if (!facility.phone_primary) return;
@@ -372,16 +356,6 @@ function FacilityCard({
       </Pressable>
 
       <View className="mt-3 flex-row" style={{ gap: 8 }}>
-        <Pressable
-          onPress={handleDirections}
-          className="flex-1 flex-row items-center justify-center rounded-xl border py-2.5"
-          style={{ borderColor: colors.brand[300] }}
-        >
-          <Navigation size={14} color={colors.brand[600]} />
-          <Text className="ml-2 text-xs font-semibold text-brand-600">
-            {t('careMap.directions')}
-          </Text>
-        </Pressable>
         {facility.phone_primary ? (
           <Pressable
             onPress={handleCall}
@@ -558,16 +532,11 @@ export default function CareMapScreen() {
 
   const openFacility = (id: string) => router.push(`/facility/${id}`);
 
-  const openDirections = (facility: CareFacilitySummary) => {
-    const url = directionsUrl(facility);
-    if (url) Linking.openURL(url).catch(() => {});
-  };
-
   const listHeader = (
     <View>
       {/* Real embedded OpenStreetMap of every loaded facility — the in-app answer
-          to "where are these"; the per-row "Directions" button stays as the
-          optional hand-off to the device's native maps app. */}
+          to "where are these". Directions are handled inside the app; nothing
+          hands off to the device's native maps app. */}
       <View className="mb-4">
         <FacilityMap facilities={mapFacilities} height={260} />
       </View>
@@ -610,7 +579,6 @@ export default function CareMapScreen() {
         <NearestFacilityCard
           row={nearest}
           onOpen={() => openFacility(nearest.facility.id)}
-          onDirections={() => openDirections(nearest.facility)}
           t={t}
         />
       ) : null}

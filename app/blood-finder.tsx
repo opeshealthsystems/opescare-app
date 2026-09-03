@@ -40,6 +40,7 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 import { Screen } from '../components/ui/Screen';
+import { FacilityMap } from '../components/map/FacilityMap';
 import { colors } from '../theme/tokens';
 import { useAuthStore } from '../lib/store/auth';
 import { useNationwideBloodSearch } from '../lib/api/bloodQueries';
@@ -252,6 +253,14 @@ export default function BloodFinderScreen() {
         (row.city ?? '').toLowerCase().includes(debouncedTerm),
     );
   }, [rows, debouncedTerm]);
+
+  // Only the results that actually carry coordinates can be plotted; the map is
+  // suppressed entirely when none do (embedMapUrl would also return null, but
+  // guarding here keeps the surrounding spacing from rendering an empty gap).
+  const mappable = useMemo(
+    () => results.filter((row) => row.latitude != null && row.longitude != null),
+    [results],
+  );
 
   const openRequests = requests.data ?? [];
   const nextRadius = RADIUS_OPTIONS.find((r) => r > radiusKm) ?? null;
@@ -700,6 +709,11 @@ export default function BloodFinderScreen() {
               />
             ) : (
               <View className="mt-3" style={{ gap: 12 }}>
+                {/* Real embedded map of the blood banks, in-app (no external maps
+                    app). Only shown when at least one result has coordinates. */}
+                {mappable.length > 0 ? (
+                  <FacilityMap facilities={mappable} height={240} />
+                ) : null}
                 {results.map((facility) => (
                   <BloodBankCard
                     key={facility.id}

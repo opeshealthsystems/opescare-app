@@ -34,6 +34,7 @@ import {
 } from 'lucide-react-native';
 import { Screen } from '../../components/ui/Screen';
 import { Button } from '../../components/ui/Button';
+import { FacilityMap } from '@/components/map/FacilityMap';
 import { colors } from '../../theme/tokens';
 import { useNationwideBloodSearch } from '../../lib/api/bloodQueries';
 import {
@@ -372,6 +373,15 @@ export default function BloodRequestScreen() {
                 </Text>
               </Pressable>
             </View>
+
+            {/* Embedded map — a real in-app OpenStreetMap view of this facility
+                with a locate-me/directions control that never leaves the app.
+                The external maps button above stays as the native-nav path. */}
+            {hasCoords ? (
+              <View className="mt-3">
+                <FacilityMap facilities={facility} height={200} directions />
+              </View>
+            ) : null}
 
             {/* What is actually being asked for */}
             <View className="mt-3 flex-row items-center justify-between rounded-2xl border border-cream-300 bg-white p-4">

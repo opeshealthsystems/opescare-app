@@ -21,6 +21,7 @@ import {
 } from 'lucide-react-native';
 import { Screen } from '../../components/ui/Screen';
 import { Button } from '../../components/ui/Button';
+import { FacilityMap } from '../../components/map/FacilityMap';
 import { colors } from '../../theme/tokens';
 import {
   useFacilityDetail,
@@ -325,6 +326,13 @@ export default function FacilityDetailScreen() {
               ) : null}
             </View>
           </View>
+
+          {/* ── Where it is: embedded, in-app map (no external maps app) ─ */}
+          {facility.latitude != null && facility.longitude != null ? (
+            <View className="mt-4">
+              <FacilityMap facilities={facility} height={200} directions />
+            </View>
+          ) : null}
 
           {/* ── Appointments: state of the real slot link ─────────────── */}
           <SectionTitle title={t('facility.booking.title')} />

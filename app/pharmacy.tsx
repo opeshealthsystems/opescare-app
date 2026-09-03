@@ -31,6 +31,7 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 import { Screen } from '../components/ui/Screen';
+import { FacilityMap } from '@/components/map/FacilityMap';
 import { colors } from '../theme/tokens';
 import {
   useCancelMedicineReservation,
@@ -586,6 +587,13 @@ export default function PharmacyScreen() {
           )
         ) : (
           <View className="mt-3" style={{ gap: 12 }}>
+            {/* Real embedded OpenStreetMap of the nearby pharmacies — the in-app
+                answer to "where are these". FacilityMap skips coordinate-less
+                rows, so only render it when at least one row has coordinates. */}
+            {pharmacyRows.some((p) => p.latitude != null && p.longitude != null) ? (
+              <FacilityMap facilities={pharmacyRows} height={240} />
+            ) : null}
+
             {(showAllPharmacies ? pharmacyRows : pharmacyRows.slice(0, NEARBY_PREVIEW)).map(
               (pharmacy) => (
                 <PharmacyCard

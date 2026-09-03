@@ -25,6 +25,7 @@ import {
   Search,
   Settings,
 } from 'lucide-react-native';
+import { FacilityMap } from '@/components/map/FacilityMap';
 import { Screen } from '../components/ui/Screen';
 import { TextField } from '../components/ui/TextField';
 import { flattenFacilityPages, useFacilityDirectory } from '../lib/api/careMapQueries';
@@ -518,6 +519,22 @@ export default function CareMapScreen() {
     }));
   }, [facilities, sort, coords, i18n.language]);
 
+  // The subset of the loaded rows the embedded map can plot. FacilityMap skips
+  // items without coordinates and renders nothing when none have any, so this
+  // safely carries the 508-of-903 coordinate-less rows through untouched.
+  const mapFacilities = useMemo(
+    () =>
+      rows.map((row) => ({
+        id: row.facility.id,
+        name: row.facility.facility_name,
+        latitude: row.facility.latitude,
+        longitude: row.facility.longitude,
+        city: row.facility.city,
+        distance: row.distanceKm,
+      })),
+    [rows],
+  );
+
   const nearest = useMemo<FacilityRow | null>(() => {
     if (!coords) return null;
     let best: FacilityRow | null = null;
@@ -548,6 +565,13 @@ export default function CareMapScreen() {
 
   const listHeader = (
     <View>
+      {/* Real embedded OpenStreetMap of every loaded facility — the in-app answer
+          to "where are these"; the per-row "Directions" button stays as the
+          optional hand-off to the device's native maps app. */}
+      <View className="mb-4">
+        <FacilityMap facilities={mapFacilities} height={260} />
+      </View>
+
       <LocationPrompt
         state={locationState}
         cityLabel={cityLabel}

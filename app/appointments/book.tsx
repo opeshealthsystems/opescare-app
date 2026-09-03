@@ -49,6 +49,7 @@ import {
 import { Screen } from '../../components/ui/Screen';
 import { Button } from '../../components/ui/Button';
 import { TextField } from '../../components/ui/TextField';
+import { FacilityMap } from '@/components/map/FacilityMap';
 import { useAuthStore } from '../../lib/store/auth';
 import {
   useFacilityDetail,
@@ -1126,6 +1127,15 @@ export default function BookAppointmentScreen() {
             onViewFacility={() => router.push(`/facility/${selectedFacility.id}`)}
             onChangeFacility={handleChangeFacility}
           />
+
+          {/* Embedded map — a real in-app OpenStreetMap view of the chosen
+              facility with a locate-me/directions control that never leaves the
+              app. The external "Get Directions" buttons stay as native-nav paths. */}
+          {selectedFacility.latitude != null && selectedFacility.longitude != null ? (
+            <View className="mb-4">
+              <FacilityMap facilities={selectedFacility} height={180} directions />
+            </View>
+          ) : null}
 
           {providersQuery.isPending ? (
             <View className="items-center py-10">

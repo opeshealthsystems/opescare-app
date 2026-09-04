@@ -363,6 +363,12 @@ export function useImmunizations() {
 
 export interface PrescriptionSummary {
   id: string;
+  /**
+   * The human-quotable handle (RX-XXXX-XXXX) a pharmacy is given. Nullable
+   * because an older backend does not send it; never derive one from `id` to
+   * fill the gap — a number the pharmacy cannot look up is worse than none.
+   */
+  reference: string | null;
   facility_name: string | null;
   status: string;
   status_color: 'success' | 'info' | 'warning' | 'default';

@@ -60,6 +60,11 @@ function writePalette(p: PaletteName): void {
 
 export default function RootLayout() {
   const status = useAuthStore((s) => s.status);
+  // The guard below has to know WHICH kind of session is authenticated.
+  // A clinician sent to the patient tabs fires every /mobile/* patient query
+  // with a provider bearer token, gets a wall of 401s, and the session-expired
+  // handler signs them out of a perfectly valid session.
+  const provider = useAuthStore((s) => s.provider);
   const bootstrap = useAuthStore((s) => s.bootstrap);
   const segments = useSegments();
   const router = useRouter();
@@ -120,9 +125,15 @@ export default function RootLayout() {
     if (status !== 'authenticated' && !inAuthGroup) {
       router.replace('/(auth)/welcome');
     } else if (status === 'authenticated' && (inAuthGroup || atRootIndex)) {
-      router.replace('/(tabs)/home');
+      // Where an authenticated session belongs is a property of the session, not
+      // of how fast a navigation settles. `enterClinicianArea` used to flip to
+      // 'authenticated' in the same tick as router.replace(), but replace() is
+      // async: this effect still saw the (auth) group and replaced the clinician
+      // route with /(tabs)/home. Reading `provider` here makes the destination
+      // correct regardless of ordering.
+      router.replace(provider ? '/clinician/home' : '/(tabs)/home');
     }
-  }, [status, segments, router]);
+  }, [status, segments, router, provider]);
 
   return (
     <SafeAreaProvider>

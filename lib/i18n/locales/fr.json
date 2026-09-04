@@ -4969,7 +4969,7 @@
       "idLabel": "Identifiant santé",
       "idNoAnswerBody": "Soit aucun dossier ne porte {{healthId}}, soit ce serveur ne dessert pas encore le service soignant — les deux cas donnent la même réponse, et cet écran ne vous dira pas lequel. Vérifiez l’identifiant sur la carte du patient, puis réessayez une fois l’accès soignant activé.",
       "idNoAnswerTitle": "Aucun patient ne correspond à cet identifiant santé",
-      "idPlaceholder": "ex. OPES-24-AEDL-4L8D",
+      "idPlaceholder": "ex. CM-HID-XXXX-XXXX-XXXX",
       "idPromptBody": "Saisissez l’identifiant santé complet figurant sur la carte du patient, puis appuyez sur Rechercher. Cette application ne recherche jamais par nom et ne liste jamais les patients : un identifiant santé exact est la seule voie d’accès.",
       "idPromptTitle": "Rechercher un patient par identifiant santé",
       "idSubtitle": "Recherche par identifiant santé exact",

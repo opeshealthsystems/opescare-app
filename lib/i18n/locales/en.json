@@ -4969,7 +4969,7 @@
       "idLabel": "Health ID",
       "idNoAnswerBody": "Either no record carries {{healthId}}, or this server does not serve the clinician service yet — both answer the same way, so this screen will not tell you which. Check the ID against the patient’s card, and try again once clinician access is switched on.",
       "idNoAnswerTitle": "No patient came back for that Health ID",
-      "idPlaceholder": "e.g. OPES-24-AEDL-4L8D",
+      "idPlaceholder": "e.g. CM-HID-XXXX-XXXX-XXXX",
       "idPromptBody": "Type the full Health ID from the patient’s card, then press Look up. This app never searches by name and never lists patients — an exact Health ID is the only way in.",
       "idPromptTitle": "Look a patient up by Health ID",
       "idSubtitle": "Exact Health ID lookup",

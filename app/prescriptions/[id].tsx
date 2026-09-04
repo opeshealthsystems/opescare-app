@@ -170,7 +170,9 @@ export default function PrescriptionDetailScreen() {
   async function share(rx: PrescriptionDetail, s: ReturnType<typeof readState>) {
     const lines = rx.items ?? [];
     const message = [
-      vocab.tx('opesMeds.prescription.shareHeading', { reference: referenceCode(rx.id) }),
+      vocab.tx('opesMeds.prescription.shareHeading', {
+        reference: referenceCode(rx.id, rx.reference),
+      }),
       rx.facility_name ? `${t('prescriptions.issuedBy')}: ${rx.facility_name}` : '',
       `${t('opesMeds.prescription.status')}: ${vocab.statusLabel(rx.status)}`,
       rx.prescribed_at ? `${t('prescriptions.prescribedAt')}: ${fmtShortDate(rx.prescribed_at)}` : '',
@@ -745,7 +747,7 @@ function IssuerCard({
         : t('prescriptions.expiresInDays', { count: state.expiringInDays });
 
   const facility = prescription.facility_name ?? t('prescriptions.unknownFacility');
-  const reference = referenceCode(prescription.id);
+  const reference = referenceCode(prescription.id, prescription.reference);
 
   const status = (prescription.status ?? '').toLowerCase();
   // When the status word already IS "Expired", the dated label replaces it

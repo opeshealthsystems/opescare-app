@@ -422,7 +422,9 @@ function PrescriptionRow({
   const dateLine = prescription.prescribed_at
     ? t('prescriptions.prescribedOn', { date: fmtShortDate(prescription.prescribed_at) })
     : t('prescriptions.dateUnknown');
-  const reference = t('prescriptions.reference', { code: referenceCode(prescription.id) });
+  const reference = t('prescriptions.reference', {
+    code: referenceCode(prescription.id, prescription.reference),
+  });
 
   const progressLine =
     counts.total > 0 && (partial || counts.cancelled > 0)

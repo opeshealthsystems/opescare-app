@@ -127,9 +127,25 @@ export function daysUntil(iso: string | null | undefined): number | null {
   return Math.ceil((target.getTime() - Date.now()) / 86_400_000);
 }
 
-/** Short human handle for a prescription — the record UUID is all the API gives. */
-export function referenceCode(id: string): string {
+/**
+ * The handle to show for a prescription.
+ *
+ * Prefers the server's own `reference` (RX-XXXX-XXXX) — that is the number a
+ * pharmacy can actually look up. The UUID slice below is a display-only
+ * fallback for a backend that does not send one; it is NOT a prescription
+ * number, and a patient who reads it out at a counter will not be found, so it
+ * must never be presented as one. `hasRealReference` exists so callers can tell
+ * the two apart instead of guessing from the shape of the string.
+ */
+export function referenceCode(id: string, serverReference?: string | null): string {
+  const trimmed = typeof serverReference === 'string' ? serverReference.trim() : '';
+  if (trimmed !== '') return trimmed;
   return id.replace(/-/g, '').slice(0, 8).toUpperCase();
+}
+
+/** True when the value from `referenceCode` came from the server, not the UUID. */
+export function hasRealReference(serverReference?: string | null): boolean {
+  return typeof serverReference === 'string' && serverReference.trim() !== '';
 }
 
 /** Days inside which an approaching expiry is worth flagging in warning colour. */

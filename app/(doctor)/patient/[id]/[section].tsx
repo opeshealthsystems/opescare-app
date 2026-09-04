@@ -407,7 +407,7 @@ function SectionData<T>({
 }
 
 /** The "the clinician service is off" body, once, for every data section. */
-function notServedBody(tx: Tx, section: PatientChartSectionName): string {
+function notServedFor(tx: Tx, section: PatientChartSectionName): string {
   return tx(
     'shared.notServedSection',
     '{{section}} will appear here once the clinician service is enabled for this app. Nothing on this screen is a statement about the patient’s record.',
@@ -453,7 +453,7 @@ function DiagnosesFull({
         tx={tx}
         tr={tr}
         loadingLabel={tx('section.loading', 'Loading…')}
-        notServedBody={notServedBody(tx, 'diagnoses')}
+        notServedBody={notServedFor(tx, 'diagnoses')}
         isEmpty={(rows) => rows.length === 0}
         empty={
           <Card>
@@ -529,7 +529,7 @@ function DiagnosesFull({
         tx={tx}
         tr={tr}
         loadingLabel={tx('section.loadingDiagnoses', 'Loading diagnoses…')}
-        notServedBody={notServedBody(tx, 'diagnoses')}
+        notServedBody={notServedFor(tx, 'diagnoses')}
         isEmpty={(d) => d.items.length === 0 && d.failed === 0}
         empty={
           <Card>
@@ -627,7 +627,7 @@ function MedicationsFull({
       tx={tx}
       tr={tr}
       loadingLabel={tx('section.loading', 'Loading…')}
-      notServedBody={notServedBody(tx, 'medications')}
+      notServedBody={notServedFor(tx, 'medications')}
     >
       {(scan) => {
         const all = scan.items;
@@ -744,7 +744,7 @@ function VitalsFull({
       tx={tx}
       tr={tr}
       loadingLabel={tx('section.loadingVitals', 'Loading vitals…')}
-      notServedBody={notServedBody(tx, 'vitals')}
+      notServedBody={notServedFor(tx, 'vitals')}
       isEmpty={(rows) => rows.length === 0}
       empty={
         <EmptyState
@@ -803,7 +803,7 @@ function EncountersFull({
       tx={tx}
       tr={tr}
       loadingLabel={tx('section.loading', 'Loading…')}
-      notServedBody={notServedBody(tx, 'encounters')}
+      notServedBody={notServedFor(tx, 'encounters')}
       // The encounters endpoint answers the paginated envelope, so the rows are
       // one level in — `page.data`, never the page object itself.
       isEmpty={(page) => (page.data ?? []).length === 0}
@@ -909,7 +909,7 @@ function OrdersFull({
       tx={tx}
       tr={tr}
       loadingLabel={tx('section.loading', 'Loading…')}
-      notServedBody={notServedBody(tx, section)}
+      notServedBody={notServedFor(tx, section)}
     >
       {(scan) => {
         const all = scan.items;

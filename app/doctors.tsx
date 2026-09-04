@@ -79,7 +79,12 @@ import {
   type FacilityProviderSummary,
   type FacilityProvidersResponse,
 } from '@/lib/api/queries';
-import { joinLocationParts, normalizeText, telUrl } from '@/lib/careMap/facilityDisplay';
+import {
+  joinLocationParts,
+  normalizeText,
+  telUrl,
+  usablePhone,
+} from '@/lib/careMap/facilityDisplay';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -257,7 +262,8 @@ export default function FindDoctorScreen() {
   };
 
   const callFacility = (phone: string) => {
-    Linking.openURL(telUrl(phone)).catch(() => {});
+    const url = telUrl(phone);
+    if (url) Linking.openURL(url).catch(() => {});
   };
 
   const facilityTypeLabel = (type: string) =>
@@ -391,7 +397,9 @@ export default function FindDoctorScreen() {
       );
     }
     if (facilityUnlinked) {
-      const phone = facility?.phone_primary ?? null;
+      // "N/A" is what the register stores for a facility with no published
+      // number, so a truthiness test offered a Call button that dialled nothing.
+      const phone = usablePhone(facility?.phone_primary);
       return (
         <Card>
           <EmptyState

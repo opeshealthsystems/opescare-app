@@ -3,8 +3,6 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 import {
   Card,
   GradientButton,
@@ -29,6 +27,7 @@ import {
   useExportMedicalRecordsFhir,
   useExportMedicalRecordsPdf,
 } from '../lib/api/queries';
+import { deliverFile, FileDeliveryError, type FileDeliveryOutcome } from '../lib/fileDelivery';
 
 /**
  * Export Medical Records — the patient's immediate, unmoderated copy of their
@@ -37,8 +36,17 @@ import {
  *   POST /mobile/medical-records/export/fhir → a bare FHIR R4 Bundle (machine)
  *
  * Both endpoints are POST, rate-limited and audit-logged server-side, and both
- * take an empty body. This pass changed presentation only: the two requests,
- * the file writing and the share sheet are what they were.
+ * take an empty body.
+ *
+ * **Delivering the file is `lib/fileDelivery.ts`, not this screen.** This
+ * screen used to write to `FileSystem.documentDirectory` and open the OS share
+ * sheet unconditionally. Neither exists on the web build, so on
+ * finder.opescare.cloud every export threw at the save step and was reported
+ * as a failure — while the API had answered 200 with a valid PDF. On a screen
+ * that promises "no approval, no waiting" and cites the patient's legal right
+ * to their record, that is a false negative about a legal right, not a cosmetic
+ * bug. `deliverFile` now downloads on web and keeps the write + share sheet on
+ * native, and returns WHICH of those happened so the dialog can say it.
  *
  * Distinct from app/privacy/export.tsx, which is the *moderated* export a
  * compliance officer approves — the two are cross-linked below so the
@@ -108,9 +116,16 @@ interface LastExport {
   format: ExportFormat;
   filename: string;
   at: Date;
-  /** True when the file was written but the OS share sheet was unavailable. */
-  savedOnly: boolean;
+  /** How the file actually reached the patient — never assumed, always reported. */
+  outcome: FileDeliveryOutcome;
 }
+
+/** The success dialog title for each way a file can arrive. */
+const OUTCOME_TITLE_KEY: Record<FileDeliveryOutcome, string> = {
+  shared: 'exportRecords.exportReady',
+  saved: 'exportRecords.savedOnly',
+  downloaded: 'exportRecords.downloaded',
+};
 
 export default function ExportRecordsScreen() {
   const { t } = useTranslation();
@@ -131,57 +146,25 @@ export default function ExportRecordsScreen() {
     ? (FORMATS.find((entry) => entry.key === lastExport.format) ?? FORMATS[0]!)
     : null;
 
-  /** Writes the export to app storage. Throws on failure — the caller treats
-   * that as a real export failure. */
-  const saveExport = async (
-    filename: string,
-    content: string,
-    encoding: 'base64' | 'utf8',
-  ): Promise<string> => {
-    const uri = `${FileSystem.documentDirectory}${filename}`;
-    await FileSystem.writeAsStringAsync(uri, content, {
-      encoding:
-        encoding === 'base64' ? FileSystem.EncodingType.Base64 : FileSystem.EncodingType.UTF8,
-    });
-    return uri;
-  };
-
-  /** Opens the OS share sheet. The file is already saved at this point, so a
-   * dismissed share sheet is not a failure — it just means the patient kept
-   * the copy on the device. */
-  const presentShareSheet = async (
-    uri: string,
-    filename: string,
-    mimeType: string,
+  /**
+   * Reports an export that actually reached the patient. `outcome` comes back
+   * from `deliverFile`, so the wording matches what happened — a browser
+   * download, a share sheet, or a file left on the device — instead of one
+   * optimistic sentence covering all three.
+   */
+  const announceDelivered = (
     kind: ExportFormat,
+    filename: string,
+    outcome: FileDeliveryOutcome,
   ) => {
-    const succeed = (savedOnly: boolean) => {
-      setLastExport({ format: kind, filename, at: new Date(), savedOnly });
-      dialog.show({
-        title: savedOnly
-          ? t('exportRecords.savedOnly', { filename })
-          : t('exportRecords.exportReady', { filename }),
-        // An exported copy leaves OpesCare's consent rules behind. The patient
-        // is told that at the moment the file exists, not only in fine print.
-        message: t('exportRecords.privacyNote'),
-        tone: 'success',
-      });
-    };
-
-    try {
-      if (!(await Sharing.isAvailableAsync())) {
-        succeed(true);
-        return;
-      }
-      await Sharing.shareAsync(uri, {
-        mimeType,
-        dialogTitle: t('exportRecords.shareTitle'),
-        UTI: mimeType === 'application/pdf' ? 'com.adobe.pdf' : 'public.json',
-      });
-      succeed(false);
-    } catch {
-      succeed(true);
-    }
+    setLastExport({ format: kind, filename, at: new Date(), outcome });
+    dialog.show({
+      title: t(OUTCOME_TITLE_KEY[outcome], { filename }),
+      // An exported copy leaves OpesCare's consent rules behind. The patient
+      // is told that at the moment the file exists, not only in fine print.
+      message: t('exportRecords.privacyNote'),
+      tone: 'success',
+    });
   };
 
   const handleExport = async (kind: ExportFormat) => {
@@ -190,18 +173,41 @@ export default function ExportRecordsScreen() {
     try {
       if (kind === 'pdf') {
         const result = await exportPdf.mutateAsync();
-        const uri = await saveExport(result.filename, result.file_base64, 'base64');
-        await presentShareSheet(uri, result.filename, result.mime_type, kind);
+        const outcome = await deliverFile({
+          filename: result.filename,
+          mimeType: result.mime_type,
+          data: result.file_base64,
+          encoding: 'base64',
+          uti: 'com.adobe.pdf',
+          shareTitle: t('exportRecords.shareTitle'),
+        });
+        announceDelivered(kind, result.filename, outcome);
       } else {
         // The FHIR endpoint returns the Bundle itself, not a wrapper, so it is
-        // written to disk verbatim and stays a valid FHIR document.
+        // delivered verbatim and stays a valid FHIR document.
         const bundle = await exportFhir.mutateAsync();
         const filename = `medical-record-fhir-${Date.now()}.json`;
-        const uri = await saveExport(filename, JSON.stringify(bundle, null, 2), 'utf8');
-        await presentShareSheet(uri, filename, 'application/fhir+json', kind);
+        const outcome = await deliverFile({
+          filename,
+          mimeType: 'application/fhir+json',
+          data: JSON.stringify(bundle, null, 2),
+          encoding: 'utf8',
+          uti: 'public.json',
+          shareTitle: t('exportRecords.shareTitle'),
+        });
+        announceDelivered(kind, filename, outcome);
       }
     } catch (err) {
-      dialog.alert(t('exportRecords.title'), extractApiErrorMessage(err), 'critical');
+      // Two different failures, two different sentences: the API refused, or
+      // the file was produced and this device could not take it. Neither is
+      // ever reported as a success.
+      dialog.alert(
+        t('exportRecords.title'),
+        err instanceof FileDeliveryError
+          ? t('exportRecords.deliveryFailed')
+          : extractApiErrorMessage(err),
+        'critical',
+      );
     } finally {
       setActiveFormat(null);
     }
@@ -311,11 +317,11 @@ export default function ExportRecordsScreen() {
                 }
               />
             </Card>
-            {lastExport.savedOnly ? (
+            {lastExport.outcome === 'shared' ? null : (
               <Text style={styles.caption}>
-                {t('exportRecords.savedOnly', { filename: lastExport.filename })}
+                {t(OUTCOME_TITLE_KEY[lastExport.outcome], { filename: lastExport.filename })}
               </Text>
-            ) : null}
+            )}
           </View>
         ) : null}
 

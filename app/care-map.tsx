@@ -76,10 +76,12 @@ import {
   TYPE_FILTERS,
   facilityDistanceKm,
   formatDistance,
+  hasUsablePhone,
   joinLocationParts,
   normalizeText,
   sortFacilities,
   telUrl,
+  usablePhone,
   type Coords,
   type FacilitySort,
 } from '@/lib/careMap/facilityDisplay';
@@ -118,15 +120,24 @@ const FACILITY_TYPE_ICON: Record<string, IconName> = {
   diagnostic_center: 'microscope',
   dental: 'smile',
   blood_bank: 'droplet',
+  // Types the register carries but the filter strip never offered.
+  specialist: 'heart-pulse',
+  eye_clinic: 'eye',
+  maternity: 'baby',
+  dispensary: 'capsule',
 };
 
 /** Tint-circle convention from the design spec: green = labs/meds, purple = consultations, blue = the default. */
 const FACILITY_TYPE_TINT: Record<string, Tint> = {
   laboratory: 'green',
   pharmacy: 'green',
+  dispensary: 'green',
   clinic: 'purple',
   dental: 'purple',
+  specialist: 'purple',
+  eye_clinic: 'purple',
   blood_bank: 'red',
+  maternity: 'red',
 };
 
 const facilityIcon = (type: string): IconName => FACILITY_TYPE_ICON[type] ?? 'location';
@@ -269,14 +280,23 @@ function FacilityListRow({
   const typeLabel = typeLabelTr(t, facility.facility_type);
   const where = joinLocationParts(facility.address, facility.city, facility.region);
 
+  // `phone_primary` is the literal string "N/A" on 1 840 of the register's
+  // 2 728 rows, so testing it for truthiness put a Call button on two thirds of
+  // this list that dialled `tel:NA` and did nothing. The row's own honesty rule
+  // is the one below: the button appears only when there is a number to ring.
+  // Why no "phone not listed" text here, when the facility profile does say
+  // that: this is a dense scanning list where the missing case is the majority
+  // case, and repeating it on two of every three rows would bury the rows that
+  // do have a number. The profile screen — one tap away, where a patient goes
+  // to make contact — carries the explicit "Not listed" line instead.
+  const phone = usablePhone(facility.phone_primary);
+
   const handleCall = () => {
-    if (!facility.phone_primary) return;
-    Linking.openURL(telUrl(facility.phone_primary)).catch(() => {});
+    const url = telUrl(phone);
+    if (url) Linking.openURL(url).catch(() => {});
   };
 
-  // Distance stays the row's `value`; the Call action rides alongside it only
-  // when the register actually carries a number — never a dead button.
-  const trailing = facility.phone_primary ? (
+  const trailing = phone ? (
     <View style={styles.rowTrailing}>
       {!!distance && <Text style={styles.rowValue}>{distance}</Text>}
       <TouchableOpacity
@@ -331,6 +351,176 @@ function FacilityRows({
   );
 }
 
+/* ── Filter panel ───────────────────────────────────────────────────────── */
+
+/** One switch-like row inside the panel: label, explanation, on/off mark. */
+function ToggleRow({
+  icon,
+  title,
+  body,
+  on,
+  onPress,
+  divider,
+}: {
+  icon: IconName;
+  title: string;
+  body: string;
+  on: boolean;
+  onPress: () => void;
+  divider: boolean;
+}) {
+  return (
+    <ListRow
+      icon={icon}
+      tint={on ? 'green' : 'blue'}
+      title={title}
+      subtitle={body}
+      chevron={false}
+      divider={divider}
+      onPress={onPress}
+      trailing={
+        <Icon
+          name={on ? 'check-circle' : 'circle'}
+          size={20}
+          color={on ? tintMap.green.fg : colors.textMuted}
+        />
+      }
+      accessibilityLabel={a11yJoin(title, body)}
+    />
+  );
+}
+
+/**
+ * What "Filters" opens.
+ *
+ * Before this existed the button ran the search query and nothing else, so the
+ * only control on the screen labelled "Filters" filtered nothing. The panel now
+ * holds the three things the strip and chip rails cannot: every facility type
+ * the register carries (four of them — specialist, eye clinic, maternity,
+ * dispensary — had no entry in the vocabulary at all and were unreachable), the
+ * area scope, and two refinements over the loaded rows.
+ *
+ * Type and area are query parameters, so changing them refetches across the
+ * whole directory. The two toggles narrow only what is loaded, which the
+ * results header says out loud.
+ */
+function FilterPanel({
+  typeFilter,
+  onTypeChange,
+  cityScope,
+  detectedCity,
+  onCityChange,
+  phoneOnly,
+  onPhoneOnlyChange,
+  mappableOnly,
+  onMappableOnlyChange,
+  matchCount,
+  canClear,
+  onClear,
+  onClose,
+  t,
+}: {
+  typeFilter: string;
+  onTypeChange: (value: string) => void;
+  cityScope: string;
+  detectedCity: string | null;
+  onCityChange: (city: string) => void;
+  phoneOnly: boolean;
+  onPhoneOnlyChange: (value: boolean) => void;
+  mappableOnly: boolean;
+  onMappableOnlyChange: (value: boolean) => void;
+  matchCount: number;
+  canClear: boolean;
+  onClear: () => void;
+  onClose: () => void;
+  t: TFunction;
+}) {
+  const areas = detectedCity && !CITY_SCOPES.some((city) => city === detectedCity)
+    ? [detectedCity, ...CITY_SCOPES]
+    : [...CITY_SCOPES];
+
+  return (
+    <Card style={styles.panel}>
+      <View style={styles.panelSection}>
+        <Text style={styles.panelLabel}>{t('careMap.filterPanel.typeLabel')}</Text>
+        <View style={styles.panelChips}>
+          {TYPE_FILTERS.map((filter) => (
+            <Chip
+              key={filter.key}
+              icon={filter.value ? facilityIcon(filter.value) : 'grid'}
+              label={t(`careMap.filters.${filter.key}`)}
+              selected={typeFilter === filter.value}
+              onPress={() =>
+                onTypeChange(filter.value && typeFilter === filter.value ? '' : filter.value)
+              }
+            />
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.panelSection}>
+        <Text style={styles.panelLabel}>{t('careMap.filterPanel.areaLabel')}</Text>
+        <View style={styles.panelChips}>
+          <Chip
+            label={t('careMap.areaAll')}
+            selected={cityScope === ''}
+            onPress={() => onCityChange('')}
+          />
+          {areas.map((city) => (
+            <Chip
+              key={city}
+              icon={city === detectedCity ? 'location' : undefined}
+              label={city}
+              selected={cityScope === city}
+              onPress={() => onCityChange(city)}
+            />
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.panelSection}>
+        <Text style={styles.panelLabel}>{t('careMap.filterPanel.refineLabel')}</Text>
+        <View style={styles.panelRows}>
+          <ToggleRow
+            icon="phone"
+            title={t('careMap.filterPanel.phoneOnly')}
+            body={t('careMap.filterPanel.phoneOnlyBody')}
+            on={phoneOnly}
+            onPress={() => onPhoneOnlyChange(!phoneOnly)}
+            divider
+          />
+          <ToggleRow
+            icon="location"
+            title={t('careMap.filterPanel.mappableOnly')}
+            body={t('careMap.filterPanel.mappableOnlyBody')}
+            on={mappableOnly}
+            onPress={() => onMappableOnlyChange(!mappableOnly)}
+            divider={false}
+          />
+        </View>
+      </View>
+
+      <View style={styles.panelActions}>
+        {canClear ? (
+          <CareButton
+            label={t('careMap.clearFilters')}
+            variant="secondary"
+            size="sm"
+            icon="refresh"
+            onPress={onClear}
+          />
+        ) : null}
+        <CareButton
+          label={t('careMap.filterPanel.showResults', { count: matchCount })}
+          size="sm"
+          icon="check"
+          onPress={onClose}
+        />
+      </View>
+    </Card>
+  );
+}
+
 /* ── Screen ─────────────────────────────────────────────────────────────── */
 
 export default function CareMapScreen() {
@@ -342,6 +532,17 @@ export default function CareMapScreen() {
   const [typeFilter, setTypeFilter] = useState('');
   const [cityScope, setCityScope] = useState<string>(DEFAULT_CITY_SCOPE);
   const [sort, setSort] = useState<FacilitySort>('relevance');
+  /** Whether the filter panel under the search row is expanded. */
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  /**
+   * Two refinements the endpoint cannot express, applied to the rows already
+   * loaded. Both are honest about the register's gaps rather than hiding them:
+   * 1 840 of 2 728 rows publish no phone number and 508 of 903 carry no
+   * coordinates, so "only ones I can ring" and "only ones on the map" are real
+   * questions a patient has.
+   */
+  const [phoneOnly, setPhoneOnly] = useState(false);
+  const [mappableOnly, setMappableOnly] = useState(false);
   const [coords, setCoords] = useState<Coords | null>(null);
   const [locationState, setLocationState] = useState<LocationState>('checking');
   const [areaAutoMatched, setAreaAutoMatched] = useState(false);
@@ -353,6 +554,18 @@ export default function CareMapScreen() {
     type: typeFilter || undefined,
     city: cityScope || undefined,
   });
+
+  /**
+   * The search box applies itself. It used to need a tap on the "Filters"
+   * button — which ran `applySearch` and nothing else, so the control that said
+   * "Filters" was really a hidden submit button and the one thing it did was
+   * invisible when the text had not changed. The keyboard's own submit still
+   * applies immediately.
+   */
+  useEffect(() => {
+    const handle = setTimeout(() => setAppliedSearch(searchInput.trim()), 300);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
 
   /** Resolves a fix and, when possible, snaps the area scope to the caller's city. */
   const resolvePosition = useCallback(async (announceArea: boolean) => {
@@ -445,13 +658,31 @@ export default function CareMapScreen() {
     [directory.data?.pages],
   );
 
-  const rows = useMemo<FacilityRow[]>(() => {
+  const sortedRows = useMemo<FacilityRow[]>(() => {
     const effectiveSort: FacilitySort = sort === 'distance' && !coords ? 'relevance' : sort;
     return sortFacilities(facilities, effectiveSort, coords, i18n.language).map((facility) => ({
       facility,
       distanceKm: facilityDistanceKm(coords, facility),
     }));
   }, [facilities, sort, coords, i18n.language]);
+
+  /**
+   * The two client-side refinements. Search / type / area are query parameters
+   * the API applies across all 2 728 rows; these two can only narrow the pages
+   * fetched so far, which is why `refinedAway` below states how many loaded
+   * rows they are hiding instead of letting the list quietly shrink.
+   */
+  const rows = useMemo<FacilityRow[]>(
+    () =>
+      sortedRows.filter(({ facility }) => {
+        if (phoneOnly && !hasUsablePhone(facility.phone_primary)) return false;
+        if (mappableOnly && (facility.latitude == null || facility.longitude == null)) return false;
+        return true;
+      }),
+    [sortedRows, phoneOnly, mappableOnly],
+  );
+
+  const refinedAway = sortedRows.length - rows.length;
 
   // The subset of the loaded rows the embedded map can plot. FacilityMap skips
   // items without coordinates and renders nothing when none have any, so this
@@ -492,9 +723,14 @@ export default function CareMapScreen() {
   const total = directory.data?.pages[0]?.pagination.total ?? 0;
   const cityLabel = cityScope || String(t('careMap.areaAll'));
   const isInitialLoading = directory.isLoading;
-  const hasFilters = !!appliedSearch || !!typeFilter || !!cityScope;
+  const hasFilters =
+    !!appliedSearch || !!typeFilter || !!cityScope || phoneOnly || mappableOnly;
   const activeTypeKey = TYPE_FILTERS.find((filter) => filter.value === typeFilter)?.key ?? 'all';
   const loadedAt = directory.dataUpdatedAt ? new Date(directory.dataUpdatedAt) : null;
+
+  /** Drives the count on the Filters button, so it visibly holds something. */
+  const activeFilterCount =
+    (typeFilter ? 1 : 0) + (cityScope ? 1 : 0) + (phoneOnly ? 1 : 0) + (mappableOnly ? 1 : 0);
 
   const resetToArea = (city: string) => {
     setCityScope(city);
@@ -506,6 +742,8 @@ export default function CareMapScreen() {
     setSearchInput('');
     setAppliedSearch('');
     setTypeFilter('');
+    setPhoneOnly(false);
+    setMappableOnly(false);
     resetToArea('');
   };
 
@@ -555,16 +793,41 @@ export default function CareMapScreen() {
               onSubmit={applySearch}
             />
             <TouchableOpacity
-              style={styles.filterButton}
+              style={[styles.filterButton, filtersOpen && styles.filterButtonOn]}
               activeOpacity={0.8}
-              onPress={applySearch}
+              onPress={() => setFiltersOpen((open) => !open)}
               accessibilityRole="button"
               accessibilityLabel={t('opesCare.findFacility.applyFilters')}
+              accessibilityState={{ expanded: filtersOpen }}
+              accessibilityHint={t('careMap.filterPanel.hint')}
             >
               <Icon name="filter" size={18} color={colors.link} />
-              <Text style={styles.filterText}>{t('opesCare.findFacility.filters')}</Text>
+              <Text style={styles.filterText}>
+                {activeFilterCount > 0
+                  ? t('careMap.filterPanel.buttonWithCount', { count: activeFilterCount })
+                  : t('opesCare.findFacility.filters')}
+              </Text>
             </TouchableOpacity>
           </View>
+
+          {filtersOpen ? (
+            <FilterPanel
+              typeFilter={typeFilter}
+              onTypeChange={setTypeFilter}
+              cityScope={cityScope}
+              detectedCity={detectedCity}
+              onCityChange={resetToArea}
+              phoneOnly={phoneOnly}
+              onPhoneOnlyChange={setPhoneOnly}
+              mappableOnly={mappableOnly}
+              onMappableOnlyChange={setMappableOnly}
+              matchCount={rows.length}
+              canClear={hasFilters}
+              onClear={clearAll}
+              onClose={() => setFiltersOpen(false)}
+              t={t}
+            />
+          ) : null}
 
           {/* ── Map hero: real embedded OpenStreetMap of every loaded facility,
                  with in-app directions. Nothing hands off to a native maps app. */}
@@ -601,12 +864,26 @@ export default function CareMapScreen() {
 
           {/* ── Facility types (the CARE-007 type strip) ────────────────── */}
           <View>
+            {/* "All Types" used to clear a type filter that, in that exact
+                state, was already empty — the label only read "All Types" when
+                nothing was selected, so the one time it was visible it did
+                nothing. Now it has a job in both states: clear the active type,
+                or open the panel that holds every type the register carries
+                (the strip below shows them too, but the panel is where the
+                other refinements live). */}
             <SectionHeader
               title={t('careMap.typesTitle', { defaultValue: 'Facility types' })}
               actionLabel={
-                typeFilter ? t(`careMap.filters.${activeTypeKey}`) : t('opesCare.findFacility.allTypes')
+                typeFilter
+                  ? t('careMap.filterPanel.clearType', {
+                      type: t(`careMap.filters.${activeTypeKey}`),
+                    })
+                  : t('opesCare.findFacility.allTypes')
               }
-              onAction={() => setTypeFilter('')}
+              onAction={() => {
+                if (typeFilter) setTypeFilter('');
+                else setFiltersOpen(true);
+              }}
             />
             <ScrollView
               horizontal
@@ -707,6 +984,15 @@ export default function CareMapScreen() {
                   <SectionHeader
                     title={t('careMap.resultCount', { loaded: rows.length, total })}
                   />
+                  {/* The two client-side refinements narrow the pages already
+                      fetched, not the 2 728-row query behind them. Saying how
+                      many loaded rows they hide keeps "showing N of M" from
+                      quietly meaning something else. */}
+                  {refinedAway > 0 ? (
+                    <Text style={styles.sortNote}>
+                      {t('careMap.filterPanel.refinedAway', { count: refinedAway })}
+                    </Text>
+                  ) : null}
                   <View style={styles.sortRow}>
                     {SORTS.map((key) => {
                       const off = key === 'distance' && !coords;
@@ -818,7 +1104,26 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.primarySoft,
   },
+  filterButtonOn: { backgroundColor: colors.surface, borderColor: colors.blue },
   filterText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm, color: colors.link },
+
+  panel: { gap: spacing.md, padding: spacing.md },
+  panelSection: { gap: spacing.sm },
+  panelLabel: {
+    fontFamily: typography.fontFamily.semiBold,
+    fontSize: typography.size.xs,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+  },
+  panelChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  panelRows: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+  },
+  panelActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
 
   typeRow: { gap: spacing.sm + 2, paddingRight: spacing.md },
   type: {

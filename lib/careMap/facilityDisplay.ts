@@ -11,6 +11,7 @@ import {
   type LucideProps,
 } from 'lucide-react-native';
 import { Tooth } from '../../components/icons/Tooth';
+import { hasUsablePhone, telUrl, usablePhone } from '../phone';
 
 /**
  * Presentation helpers shared by the Care Access map (`app/care-map.tsx`) and
@@ -69,6 +70,14 @@ export const TYPE_FILTERS = [
   { value: 'imaging_center', key: 'imagingCenter' },
   { value: 'diagnostic_center', key: 'diagnosticCenter' },
   { value: 'dental', key: 'dental' },
+  // The four below exist in the register (55 rows between them, verified
+  // against the live endpoint on 2026-09-04) but had no entry here, so nothing
+  // in the app could ask for them and the facilities were reachable only by
+  // free-text search or by scrolling the unfiltered list.
+  { value: 'specialist', key: 'specialist' },
+  { value: 'eye_clinic', key: 'eyeClinic' },
+  { value: 'maternity', key: 'maternity' },
+  { value: 'dispensary', key: 'dispensary' },
 ] as const;
 
 /**
@@ -195,12 +204,16 @@ const MAJOR_NAME_PATTERN =
 const TYPE_WEIGHT: Record<string, number> = {
   hospital: 60,
   clinic: 50,
+  maternity: 46,
+  specialist: 44,
   laboratory: 40,
   imaging_center: 38,
   diagnostic_center: 36,
+  eye_clinic: 30,
   health_center: 20,
   pharmacy: 18,
   dental: 14,
+  dispensary: 12,
 };
 
 /**
@@ -215,7 +228,10 @@ export function prominenceScore(facility: FacilityLike): number {
   let score = TYPE_WEIGHT[facility.facility_type] ?? 10;
   if (MAJOR_NAME_PATTERN.test(normalizeText(facility.facility_name))) score += 45;
   if (facility.latitude != null && facility.longitude != null) score += 8;
-  if (facility.phone_primary) score += 4;
+  // `phone_primary` is the placeholder "N/A" on 1 840 of the 2 728 live rows,
+  // so a truthiness test here scored a facility with no number at all as
+  // "completely documented". Only a number a patient could ring counts.
+  if (hasUsablePhone(facility.phone_primary)) score += 4;
   if (facility.website) score += 3;
   if (facility.email) score += 2;
   return score;
@@ -265,10 +281,17 @@ export function sortFacilities<T extends FacilityLike>(
   });
 }
 
-/** `tel:` URL with everything but digits and a leading + stripped. */
-export function telUrl(phone: string): string {
-  return `tel:${phone.replace(/[^+\d]/g, '')}`;
-}
+/**
+ * Phone handling lives in `lib/phone.ts` — one predicate for "is this a number
+ * a patient could ring", shared with the pharmacy, blood-finder and doctor
+ * screens, because two thirds of the register's `phone_primary` values are the
+ * literal placeholder `"N/A"`. Re-exported here so the facility screens keep
+ * importing their display helpers from one place.
+ *
+ * `telUrl` now returns `string | null`: there is nothing to dial when the field
+ * holds a placeholder, and the type says so.
+ */
+export { hasUsablePhone, telUrl, usablePhone };
 
 /** Website values in the register are inconsistently missing their scheme. */
 export function websiteUrl(website: string): string {

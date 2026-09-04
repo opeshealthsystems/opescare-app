@@ -62,6 +62,7 @@ import {
   openStateToday,
   telUrl,
   trimTime,
+  usablePhone,
   weekdayLabel,
   websiteUrl,
   type OpenState,
@@ -429,6 +430,17 @@ export default function FacilityDetailScreen() {
     : '';
   const hasCoords = facility?.latitude != null && facility?.longitude != null;
 
+  /**
+   * The register stores the literal string `"N/A"` where a facility publishes
+   * no number — 1 840 of its 2 728 rows do. Testing the field for truthiness
+   * therefore answered "yes, there is a phone" for two thirds of the directory
+   * and the Call action dialled `tel:NA`, which does nothing. Both numbers go
+   * through the one predicate; everything below reads these, never the raw
+   * field.
+   */
+  const phonePrimary = usablePhone(facility?.phone_primary);
+  const phoneSecondary = usablePhone(facility?.phone_secondary);
+
   const openUrl = (url: string) => {
     Linking.openURL(url).catch(() => {});
   };
@@ -464,7 +476,8 @@ export default function FacilityDetailScreen() {
   };
 
   const callFacility = () => {
-    if (facility?.phone_primary) openUrl(telUrl(facility.phone_primary));
+    const url = telUrl(phonePrimary);
+    if (url) openUrl(url);
   };
 
   const emailFacility = () => {
@@ -477,9 +490,9 @@ export default function FacilityDetailScreen() {
 
   const shareFacility = () => {
     if (!facility) return;
-    const line = [facility.facility_name, address, facility.phone_primary]
-      .filter(Boolean)
-      .join(' · ');
+    // Sharing "CHU de Yaoundé · Yaoundé · N/A" would pass the placeholder off
+    // as a number to whoever receives it.
+    const line = [facility.facility_name, address, phonePrimary].filter(Boolean).join(' · ');
     Share.share({ message: line }).catch(() => {});
   };
 
@@ -674,22 +687,25 @@ export default function FacilityDetailScreen() {
   }
 
   const contactRows = [
-    facility.phone_primary
+    phonePrimary
       ? {
           key: 'phone',
           icon: 'phone' as IconName,
           title: t('facility.phone'),
-          value: facility.phone_primary,
+          value: phonePrimary,
           onPress: callFacility,
         }
       : null,
-    facility.phone_secondary
+    phoneSecondary
       ? {
           key: 'phone2',
           icon: 'phone' as IconName,
           title: t('facility.phoneSecondary', { defaultValue: 'Alternative phone' }),
-          value: facility.phone_secondary,
-          onPress: () => openUrl(telUrl(facility.phone_secondary as string)),
+          value: phoneSecondary,
+          onPress: () => {
+            const url = telUrl(phoneSecondary);
+            if (url) openUrl(url);
+          },
         }
       : null,
     facility.email
@@ -711,6 +727,27 @@ export default function FacilityDetailScreen() {
         }
       : null,
   ].filter((row): row is NonNullable<typeof row> => row !== null);
+
+  /**
+   * When the register carries no number, the phone row says so rather than
+   * vanishing — but only if the facility publishes *something* else, because a
+   * card holding a single "Not listed" line reads worse than the "no contact
+   * details published" empty state below. The row has no `onPress`, so
+   * `ListRow` renders it flat: no chevron, nothing to tap, nothing to dial.
+   */
+  const showPhoneMissingRow = !phonePrimary && contactRows.length > 0;
+  const renderedContactRows = showPhoneMissingRow
+    ? [
+        {
+          key: 'phone',
+          icon: 'phone' as IconName,
+          title: t('facility.phone'),
+          value: t('facility.phoneNotListed'),
+          onPress: undefined,
+        },
+        ...contactRows,
+      ]
+    : contactRows;
 
   const refreshing =
     facilityQuery.isRefetching || providersQuery.isRefetching || slotsQuery.isRefetching;
@@ -780,7 +817,11 @@ export default function FacilityDetailScreen() {
             <CircleAction
               icon="phone"
               label={t('facility.callAction')}
-              disabled={!facility.phone_primary}
+              disabled={!phonePrimary}
+              // Dimmed is not self-explanatory: the hint says why, so a screen
+              // reader announces "no phone number listed" instead of leaving
+              // the action mysteriously unavailable.
+              hint={phonePrimary ? undefined : t('facility.phoneNotListedHint')}
               onPress={callFacility}
             />
             <CircleAction
@@ -825,7 +866,7 @@ export default function FacilityDetailScreen() {
                   label={t('facility.retry')}
                   onPress={() => slotsQuery.refetch()}
                 />
-                {facility.phone_primary ? (
+                {phonePrimary ? (
                   <CareButton
                     variant="ghost"
                     icon="phone"
@@ -842,7 +883,7 @@ export default function FacilityDetailScreen() {
                   title={t('facility.booking.unavailableTitle')}
                   message={t('facility.booking.unavailableBody')}
                 />
-                {facility.phone_primary ? (
+                {phonePrimary ? (
                   <CareButton
                     variant="secondary"
                     icon="phone"
@@ -918,7 +959,7 @@ export default function FacilityDetailScreen() {
                   city: facility.city,
                   region: facility.region,
                   type: facility.facility_type,
-                  phone: facility.phone_primary,
+                  phone: phonePrimary,
                 }}
                 height={200}
                 directions
@@ -1179,7 +1220,7 @@ export default function FacilityDetailScreen() {
         {/* ── Contact ───────────────────────────────────────────────── */}
         <View>
           <SectionHeader title={t('facility.contactTitle')} variant="overline" />
-          {contactRows.length === 0 ? (
+          {renderedContactRows.length === 0 ? (
             <Card>
               <EmptyState
                 icon="phone"
@@ -1190,14 +1231,14 @@ export default function FacilityDetailScreen() {
             </Card>
           ) : (
             <Card variant="flush">
-              {contactRows.map((row, index) => (
+              {renderedContactRows.map((row, index) => (
                 <ListRow
                   key={row.key}
                   icon={row.icon}
                   title={row.title}
                   subtitle={row.value}
                   onPress={row.onPress}
-                  divider={index < contactRows.length - 1}
+                  divider={index < renderedContactRows.length - 1}
                 />
               ))}
             </Card>

@@ -1961,7 +1961,9 @@
     "relatedLogsTitle": "Who has opened my record",
     "relatedLogsBody": "The full, permanent log of every access to your record.",
     "relatedRequestTitle": "Request a reviewed export",
-    "relatedRequestBody": "Need a scoped copy released through a compliance officer, or a correction to your record?"
+    "relatedRequestBody": "Need a scoped copy released through a compliance officer, or a correction to your record?",
+    "downloaded": "Sent to your browser's downloads as {{filename}}.",
+    "deliveryFailed": "Your record was generated, but this device could not take the file. Check your browser's download settings and try again."
   },
   "permissions": {
     "title": "Enable Permissions",

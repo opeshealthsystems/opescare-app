@@ -52,6 +52,7 @@ import {
   joinLocationParts,
   openStateToday,
   telUrl,
+  usablePhone,
   type OpenState,
 } from '@/lib/careMap/facilityDisplay';
 
@@ -172,11 +173,14 @@ function CircleAction({
   label,
   onPress,
   disabled,
+  /** Why the action is dimmed — a grey circle says nothing on its own. */
+  hint,
 }: {
   icon: IconName;
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  hint?: string;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -188,6 +192,7 @@ function CircleAction({
       activeOpacity={0.8}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityHint={hint}
       accessibilityState={{ disabled: !!disabled }}
     >
       <View style={styles.actionCircle}>
@@ -255,8 +260,16 @@ export default function DoctorDetailScreen() {
 
   const goToFacility = (p: ProviderDetail) => router.push(`/facility/${p.care_facility_id}`);
 
+  /**
+   * The register writes the literal string "N/A" where a facility publishes no
+   * number (1 840 of its 2 728 rows), so `phone_primary` being truthy never
+   * meant there was anything to ring. One predicate decides.
+   */
+  const facilityPhone = usablePhone(facility?.phone_primary);
+
   const callFacility = () => {
-    if (facility?.phone_primary) Linking.openURL(telUrl(facility.phone_primary)).catch(() => {});
+    const url = telUrl(facilityPhone);
+    if (url) Linking.openURL(url).catch(() => {});
   };
 
   const submitMessage = async (appointmentId: string) => {
@@ -504,7 +517,8 @@ export default function DoctorDetailScreen() {
             <CircleAction
               icon="phone"
               label={t('facility.callAction')}
-              disabled={!facility?.phone_primary}
+              disabled={!facilityPhone}
+              hint={facilityPhone ? undefined : t('facility.phoneNotListedHint')}
               onPress={callFacility}
             />
             <CircleAction
@@ -657,18 +671,20 @@ export default function DoctorDetailScreen() {
                   />
                 ) : undefined
               }
-              divider={!!facility?.phone_primary}
+              divider
             />
-            {facility?.phone_primary ? (
-              <ListRow
-                icon="phone"
-                tint="green"
-                title={t('facility.phone')}
-                subtitle={facility.phone_primary}
-                onPress={callFacility}
-                accessibilityHint={t('facility.callAction')}
-              />
-            ) : null}
+            {/* Says "Not listed" rather than disappearing: a patient looking
+                for a number learns the register has none, instead of hunting
+                for a row that was silently dropped. No `onPress`, so there is
+                nothing to tap and no chevron. */}
+            <ListRow
+              icon="phone"
+              tint={facilityPhone ? 'green' : 'blue'}
+              title={t('facility.phone')}
+              subtitle={facilityPhone ?? t('facility.phoneNotListed')}
+              onPress={facilityPhone ? callFacility : undefined}
+              accessibilityHint={facilityPhone ? t('facility.callAction') : undefined}
+            />
           </Card>
         </View>
 

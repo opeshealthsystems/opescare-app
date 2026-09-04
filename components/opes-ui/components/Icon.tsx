@@ -157,6 +157,8 @@ const GLYPHS = {
   close: { d: ['m6 6 12 12', 'm18 6-12 12'] },
   check: { d: ['m5 12.5 4.5 4.5L19 7.5'] },
   'check-circle': { d: ['m8 12.2 2.8 2.8L16.5 9.3'], c: [[12, 12, 9]] },
+  /** The empty half of a `check-circle` pair — an off toggle, an unset choice. */
+  circle: { c: [[12, 12, 9]] },
   'x-circle': { d: ['m9 9 6 6', 'm15 9-6 6'], c: [[12, 12, 9]] },
   'alert-circle': { d: ['M12 7.5v5.5'], c: [[12, 12, 9]], fc: [[12, 16.5, 1.1]] },
   'alert-triangle': { d: ['M12 3.8 2.8 20h18.4z', 'M12 9.5v4.5'], fc: [[12, 17.2, 1.1]] },

@@ -10,8 +10,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 import {
   Card,
   Chip,
@@ -47,6 +45,7 @@ import {
   useDataExportRequests,
   useDownloadDataExport,
 } from '../../lib/api/queries';
+import { deliverFile } from '../../lib/fileDelivery';
 
 /**
  * Data export & corrections — the two data rights that go through review.
@@ -231,29 +230,26 @@ function ExportSection({ dialog }: { dialog: DialogController }) {
         onSuccess: async (result) => {
           const filename = `opescare-export-${result.export_type}-${result.id}.json`;
           try {
-            const uri = `${FileSystem.documentDirectory}${filename}`;
-            await FileSystem.writeAsStringAsync(uri, JSON.stringify(result.content, null, 2), {
-              encoding: FileSystem.EncodingType.UTF8,
+            // `deliverFile` downloads in the browser and writes + shares on
+            // native. Before it existed this ran the native path everywhere, so
+            // on the web build the save threw — and because the server has
+            // ALREADY flipped this request to `downloaded` by then, the patient
+            // permanently spent their one collection and received nothing.
+            const outcome = await deliverFile({
+              filename,
+              mimeType: 'application/json',
+              data: JSON.stringify(result.content, null, 2),
+              encoding: 'utf8',
+              uti: 'public.json',
+              shareTitle: t('privacy.downloadShareTitle'),
             });
-            if (await Sharing.isAvailableAsync()) {
-              await Sharing.shareAsync(uri, {
-                mimeType: 'application/json',
-                dialogTitle: t('privacy.downloadShareTitle'),
-                UTI: 'public.json',
-              });
-            } else {
-              setNotice({
-                tone: 'normal',
-                icon: 'check-circle',
-                body: t('privacy.downloadSavedOnly', { filename }),
-              });
-              resolve();
-              return;
-            }
             setNotice({
               tone: 'normal',
               icon: 'check-circle',
-              body: t('privacy.downloadedSuccess'),
+              body:
+                outcome === 'saved'
+                  ? t('privacy.downloadSavedOnly', { filename })
+                  : t('privacy.downloadedSuccess'),
             });
           } catch {
             // The payload arrived; only the save/share step failed.

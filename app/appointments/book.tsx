@@ -84,6 +84,7 @@ import {
   type FacilityBookability,
   type SlotPeriod,
 } from '../../lib/api/bookingQueries';
+import { telUrl, usablePhone } from '../../lib/phone';
 
 /**
  * Book an appointment — facility → clinician → time → confirm.
@@ -606,7 +607,11 @@ export default function BookAppointmentScreen() {
   );
   const facilityHasSlotsOnDay = slotsOnDay(slotWindow, selectedDate).length > 0;
 
-  const facilityPhone = selectedFacility?.phone_primary ?? null;
+  // Not `?? null`: the register stores the literal string "N/A" where a
+  // facility publishes no number, and that read as "there is a phone" — so the
+  // "call the facility instead" fallback, offered exactly when booking is
+  // impossible, handed the patient a button that dialled nothing.
+  const facilityPhone = usablePhone(selectedFacility?.phone_primary);
 
   const facilityTypeLabel = useCallback(
     (value: string | null | undefined) => {
@@ -729,7 +734,8 @@ export default function BookAppointmentScreen() {
   }, [bookingError, showDialog, t]);
 
   const handleCallFacility = () => {
-    if (facilityPhone) openUrl(`tel:${facilityPhone.replace(/\s+/g, '')}`);
+    const url = telUrl(facilityPhone);
+    if (url) openUrl(url);
   };
 
   const handleShareAppointment = async () => {

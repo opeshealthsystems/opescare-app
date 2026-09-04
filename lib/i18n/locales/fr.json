@@ -1961,7 +1961,9 @@
     "relatedLogsTitle": "Qui a ouvert mon dossier",
     "relatedLogsBody": "Le journal complet et permanent de chaque accès à votre dossier.",
     "relatedRequestTitle": "Demander un export contrôlé",
-    "relatedRequestBody": "Besoin d'une copie ciblée validée par un responsable conformité, ou d'une correction dans votre dossier ?"
+    "relatedRequestBody": "Besoin d'une copie ciblée validée par un responsable conformité, ou d'une correction dans votre dossier ?",
+    "downloaded": "Envoyé vers les téléchargements de votre navigateur sous {{filename}}.",
+    "deliveryFailed": "Votre dossier a bien été généré, mais cet appareil n'a pas pu recevoir le fichier. Vérifiez les paramètres de téléchargement de votre navigateur, puis réessayez."
   },
   "permissions": {
     "title": "Activer les autorisations",

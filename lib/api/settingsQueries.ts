@@ -9,11 +9,12 @@
  * actually granted the notification permission, and keeping the running i18n
  * locale in step with the patient's stored `preferred_language`.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
 import { useTranslation } from 'react-i18next';
+import { applyLanguage } from '../i18n';
 import {
   useMobileSettings,
   useRegisterPushToken,
@@ -204,14 +205,29 @@ export function normalizeLanguage(value: string | null | undefined): AppLanguage
 }
 
 /**
- * Language preferences, with the server as the source of truth.
+ * Language preferences: the server carries the choice between devices,
+ * `lib/i18n` applies and remembers it on this one.
  *
- * `lib/i18n/index.ts` boots i18next from the *device* locale, so without this
- * the patient's stored `preferred_language` was written to the API and then
- * ignored. This applies the stored value to the running i18n instance as soon
- * as GET /mobile/settings resolves, and writes the new value back when they
- * change it — so the switch takes effect immediately and survives a restart
- * for every screen mounted after the settings query has resolved.
+ * Two things this used to get wrong, both of which showed up as "the language
+ * switch only translates Settings":
+ *
+ *  1. Nothing applied the stored language at startup. i18next booted from the
+ *     device locale and this hook — mounted by `app/settings.tsx` and nowhere
+ *     else — was the only code that ever corrected it. Every relaunch, and on
+ *     the web build every page reload, came back in the device locale until
+ *     the patient re-opened Settings. `applyLanguage` now persists the choice
+ *     locally and `lib/i18n/index.ts` reads it back before the first paint.
+ *
+ *  2. The "adopt the stored value" effect listed the i18n object in its
+ *     dependencies. That object gets a fresh identity on every
+ *     `languageChanged`, so the effect re-ran the instant the patient's own
+ *     switch took effect and re-applied `stored` — which is still the OLD
+ *     value until PATCH /mobile/settings round-trips. The tap was reverted and
+ *     only stuck once the network answered; on a slow link that is seconds of
+ *     the app sitting in the previous language, and if the PATCH failed it
+ *     never took at all. The effect now depends on `stored` alone and applies
+ *     each server value once, and `setLanguage` records the patient's choice as
+ *     reconciled up front, so an in-flight write can no longer undo it.
  */
 export function useLanguagePreference() {
   const { i18n } = useTranslation();
@@ -221,21 +237,28 @@ export function useLanguagePreference() {
   const stored = settingsQuery.data?.preferred_language;
   const active = normalizeLanguage(i18n.language);
 
+  /** The server value this session has already acted on — see (2) above. */
+  const reconciled = useRef<AppLanguage | null>(null);
+
   useEffect(() => {
     if (!stored) return;
     const target = normalizeLanguage(stored);
-    if (normalizeLanguage(i18n.language) !== target) {
-      void i18n.changeLanguage(target);
-    }
-  }, [stored, i18n]);
+    if (reconciled.current === target) return;
+    reconciled.current = target;
+    void applyLanguage(target);
+  }, [stored]);
 
   const setLanguage = useCallback(
     (next: AppLanguage) => {
-      if (normalizeLanguage(i18n.language) === next && normalizeLanguage(stored) === next) return;
-      void i18n.changeLanguage(next);
-      updateSettings.mutate({ preferred_language: next });
+      reconciled.current = next;
+      // Applied and remembered locally first: the switch must not wait on — or
+      // be undone by — the network.
+      void applyLanguage(next);
+      if (!stored || normalizeLanguage(stored) !== next) {
+        updateSettings.mutate({ preferred_language: next });
+      }
     },
-    [i18n, stored, updateSettings],
+    [stored, updateSettings],
   );
 
   return {

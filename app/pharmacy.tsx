@@ -995,7 +995,30 @@ function NoticeStrip({
 /**
  * One catalogue row. Everything the medicines payload actually carries is on
  * it — brand, generic, strength/form, category, prescription and controlled
- * status, default pack — with the national availability figure on the right.
+ * status, default pack — with the national availability figure underneath.
+ *
+ * ── Why this is not a `ListRow` ───────────────────────────────────────────
+ * `ListRow` is a three-column layout — tint circle, flexible centre, trailing
+ * block allowed up to 45 % of the row — and it clamps its title to one line.
+ * This row's trailing block carried a price range, a "catalogue price" caption
+ * and an availability badge, which at 375 px left the name about 90 px: nine
+ * characters. `Acetazolamide 250mg Tablet` rendered as "Acetazola…".
+ *
+ * For a medicine that is not cosmetic. Across the live catalogue (419 rows,
+ * `GET /mobile/pharmacy/medicines`) many names share their opening characters:
+ * `Coagulation Factor IX 500 IU Powder for Injection` and `Coagulation Factor
+ * VIII 250 IU Powder for Injection` clip to the *same* string, as do the three
+ * `Ciprofloxacin` entries — 0.3 % ear drops, 0.3 % eye drops and the 500 mg
+ * tablet. A clipped drug name is an ambiguous drug name.
+ *
+ * So the name takes the full width of the row and wraps, and everything that
+ * was bidding against it — price, caption, availability badge — moves to a
+ * second tier underneath where it has the whole row to spread across. Three
+ * lines is the clamp: the longest name in the catalogue (`Rifampicin +
+ * Isoniazid + Pyrazinamide + Ethambutol 150/75/400/275mg Tablet`, 74
+ * characters) needs three at 375 px, so nothing in the live catalogue
+ * truncates, while a hypothetical longer one still cannot run the row off the
+ * screen.
  */
 function MedicineRow({
   medicine,
@@ -1014,10 +1037,9 @@ function MedicineRow({
   const quote = priceQuote(medicine, t);
   const dose = strengthForm(medicine, t);
 
-  // `ListRow` clamps its metadata line to two lines, so the row carries the
-  // four facts that decide whether to open it — identity, dose, whether it
-  // needs a prescription, and how widely it is reported. Brand, category and
-  // pack size are on the detail screen, where nothing is truncated.
+  // The row carries the facts that decide whether to open it — identity, dose,
+  // whether it needs a prescription, and how widely it is reported. Brand,
+  // category and pack size are on the detail screen.
   //
   // The catalogue frequently repeats the generic as the display name; printing
   // "Generic: Paracetamol" under "Paracetamol" is noise, so it is dropped and
@@ -1032,47 +1054,21 @@ function MedicineRow({
         ? t('pharmacy.brand', { name: medicine.brand_name, defaultValue: 'Brand: {{name}}' })
         : null;
 
+  const meta = [
+    identity,
+    dose,
+    medicine.prescription_required ? t('pharmacy.filterRx') : null,
+    medicine.is_controlled ? t('pharmacy.controlled') : null,
+    available ? t('pharmacy.pharmacyCount', { count }) : null,
+  ]
+    .filter(Boolean)
+    .join('  •  ');
+
   return (
-    <ListRow
-      icon={CATEGORY_ICONS[medicine.category_icon] ?? 'pill'}
-      tint={medicine.is_controlled ? 'amber' : available ? 'green' : 'blue'}
-      title={medicine.name}
-      meta={[
-        identity,
-        dose,
-        medicine.prescription_required ? t('pharmacy.filterRx') : null,
-        medicine.is_controlled ? t('pharmacy.controlled') : null,
-        available ? t('pharmacy.pharmacyCount', { count }) : null,
-      ]}
-      trailing={
-        <View style={styles.rowAside}>
-          {quote ? (
-            <>
-              <Text style={styles.rowPrice} numberOfLines={1}>
-                {quote.label}
-              </Text>
-              {/* A figure nobody is charging must not look like a quote. */}
-              {!quote.reported ? (
-                <Text style={styles.rowCaption} numberOfLines={1}>
-                  {t('pharmacy.priceIndicative', { defaultValue: 'Catalogue price' })}
-                </Text>
-              ) : null}
-            </>
-          ) : null}
-          <StatusBadge
-            status={available ? 'available' : 'unknown'}
-            tone={available ? 'normal' : 'neutral'}
-            label={
-              available
-                ? t('pharmacy.available')
-                : t('pharmacy.notReported', { defaultValue: 'Not reported' })
-            }
-            size="sm"
-          />
-        </View>
-      }
-      divider={divider}
+    <TouchableOpacity
       onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
       accessibilityLabel={[
         medicine.name,
         dose,
@@ -1087,7 +1083,52 @@ function MedicineRow({
         .filter(Boolean)
         .join(', ')}
       accessibilityHint={t('pharmacy.viewDetails')}
-    />
+      style={[styles.medRow, divider && styles.medRowDivider]}
+    >
+      <View style={styles.medHead}>
+        <TintCircle
+          icon={CATEGORY_ICONS[medicine.category_icon] ?? 'pill'}
+          tint={medicine.is_controlled ? 'amber' : available ? 'green' : 'blue'}
+        />
+        <View style={styles.medBody}>
+          <Text style={styles.medName} numberOfLines={3}>
+            {medicine.name}
+          </Text>
+          {meta ? (
+            <Text style={styles.medMeta} numberOfLines={2}>
+              {meta}
+            </Text>
+          ) : null}
+        </View>
+        <Icon name="chevron-right" size={18} color={colors.textMuted} />
+      </View>
+
+      {/* Second tier: what used to squeeze the name. It wraps, so a long price
+          range and a long badge label stack instead of clipping each other. */}
+      <View style={styles.medFoot}>
+        <StatusBadge
+          status={available ? 'available' : 'unknown'}
+          tone={available ? 'normal' : 'neutral'}
+          label={
+            available
+              ? t('pharmacy.available')
+              : t('pharmacy.notReported', { defaultValue: 'Not reported' })
+          }
+          size="sm"
+        />
+        {quote ? (
+          <View style={styles.medPrice}>
+            <Text style={styles.rowPrice}>{quote.label}</Text>
+            {/* A figure nobody is charging must not look like a quote. */}
+            {!quote.reported ? (
+              <Text style={styles.rowCaption}>
+                {t('pharmacy.priceIndicative', { defaultValue: 'Catalogue price' })}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -1435,6 +1476,34 @@ const makeStyles = (c: Palette) =>
       lineHeight: typography.lineHeight.xs,
       color: c.textSecondary,
     },
+
+    /* Catalogue row — the name owns the full width and wraps; price and
+       availability sit on their own tier underneath. `medBody` needs
+       `minWidth: 0` or the flex child refuses to shrink and the text overflows
+       the row instead of wrapping inside it. */
+    medRow: { paddingVertical: 14, paddingHorizontal: spacing.md, gap: spacing.sm },
+    medRowDivider: { borderBottomWidth: 1, borderBottomColor: c.divider },
+    medHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    medBody: { flex: 1, minWidth: 0, gap: 2 },
+    medName: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      lineHeight: typography.lineHeight.md,
+      color: c.textPrimary,
+    },
+    medMeta: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: c.textSecondary,
+    },
+    medFoot: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      paddingLeft: 52,
+    },
+    medPrice: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 6 },
 
     rowAside: { alignItems: 'flex-end', gap: 4, maxWidth: 132 },
     rowPrice: {

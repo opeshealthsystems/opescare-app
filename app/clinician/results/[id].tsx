@@ -1,5 +1,5 @@
 /**
- * Doctor — Result detail + acknowledgement (`/(doctor)/results/[id]`).
+ * Doctor — Result detail + acknowledgement (`/clinician/results/[id]`).
  *
  * Port of `UIUX/src/screens/doctor/ResultDetailScreen.tsx` onto expo-router,
  * the OPES UI kit and this app's doctor foundation.

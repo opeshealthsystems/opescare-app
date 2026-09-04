@@ -1,5 +1,5 @@
 /**
- * Doctor — Appointment Requests (`/(doctor)/requests`).
+ * Doctor — Appointment Requests (`/clinician/requests`).
  *
  * Port of `UIUX/src/screens/doctor/AppointmentRequestsScreen.tsx` onto
  * expo-router, the OPES UI kit and this app's doctor foundation.

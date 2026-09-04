@@ -1,5 +1,5 @@
 /**
- * Doctor — One chart section, in full (`/(doctor)/patient/[id]/[section]`).
+ * Doctor — One chart section, in full (`/clinician/patient/[id]/[section]`).
  *
  * Port of `UIUX/src/screens/doctor/PatientChartSectionScreen.tsx` onto
  * expo-router, the OPES UI kit and this app's doctor foundation. `[id]` is the

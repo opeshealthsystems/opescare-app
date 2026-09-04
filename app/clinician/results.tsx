@@ -1,5 +1,5 @@
 /**
- * Doctor — Results Inbox (`/(doctor)/results`).
+ * Doctor — Results Inbox (`/clinician/results`).
  *
  * Port of `UIUX/src/screens/doctor/ResultsInboxScreen.tsx` onto expo-router,
  * the OPES UI kit and this app's doctor foundation.
@@ -13,7 +13,7 @@
  * past it or refreshing the list changes no state — acknowledgement is an
  * explicit, confirmed act and lives on the detail screen alone.
  *
- * Deep link: `/(doctor)/results?filter=unread|abnormal|all`. "unread" means
+ * Deep link: `/clinician/results?filter=unread|abnormal|all`. "unread" means
  * "not yet acknowledged" and "abnormal" means "flagged critical" — the
  * server's vocabulary is the one that matters, and this maps onto it.
  *

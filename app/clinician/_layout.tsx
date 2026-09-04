@@ -1,5 +1,5 @@
 /**
- * The clinician area (`/(doctor)/…`) — its gate and its bottom bar.
+ * The clinician area (`/clinician/…`) — its gate and its bottom bar.
  *
  * ── THE GATE ──────────────────────────────────────────────────────────────
  * When `useIsDoctor()` is false this layout renders `WrongAppScreen` INSTEAD
@@ -13,7 +13,7 @@
  * request on the token it was given; this only decides what is worth drawing.
  *
  * Today `useIsDoctor()` is false for every real session — the finder mints
- * only patient tokens — so this screen IS what `/(doctor)` shows unless the
+ * only patient tokens — so this screen IS what `/clinician` shows unless the
  * dev override `EXPO_PUBLIC_DOCTOR_PERSONA=1` is set. See `lib/store/auth.ts`.
  *
  * ── THE BACKEND GAP ───────────────────────────────────────────────────────

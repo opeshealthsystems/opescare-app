@@ -25,7 +25,7 @@ type AuthStatus =
  * Which half of the app this session may see.
  *
  * `patient` is the app everyone gets — the tabs under `app/(tabs)`. `doctor`
- * is the clinician area under `app/(doctor)`: schedule, patient charts,
+ * is the clinician area under `app/clinician`: schedule, patient charts,
  * results inbox, appointment requests.
  *
  * TODAY IT ALWAYS RESOLVES TO `patient`, and that is not a stub for missing
@@ -321,9 +321,9 @@ setSessionExpiredHandler(() => {
 });
 
 /**
- * True when this session may see the clinician area (`app/(doctor)`).
+ * True when this session may see the clinician area (`app/clinician`).
  *
- * The gate in `app/(doctor)/_layout.tsx` reads this: false renders the
+ * The gate in `app/clinician/_layout.tsx` reads this: false renders the
  * "wrong app" screen instead of the clinician tabs, so no clinician screen can
  * be reached by typing a URL. It is a UI gate, not a security boundary — the
  * server authorises every request on its own.

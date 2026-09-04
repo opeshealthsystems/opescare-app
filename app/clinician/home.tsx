@@ -1,5 +1,5 @@
 /**
- * Doctor — Today (`/(doctor)/home`).
+ * Doctor — Today (`/clinician/home`).
  *
  * Port of `UIUX/src/screens/doctor/DoctorHomeScreen.tsx` onto expo-router,
  * the OPES UI kit and this app's doctor foundation.
@@ -13,7 +13,7 @@
  *
  * The one figure the home endpoint does NOT carry is the number of bookings
  * still awaiting a decision. It is read from the requests endpoint itself —
- * the same query `/(doctor)/requests` runs, sharing its cache — and when that
+ * the same query `/clinician/requests` runs, sharing its cache — and when that
  * read fails the row becomes a plain link with NO number, never a zero.
  *
  * Backend gap: the finder does not serve `/mobile/doctor/*` yet, so this hook
@@ -124,7 +124,7 @@ export default function DoctorHomeScreen() {
   );
 
   const home = useDoctorHome();
-  // The same query `/(doctor)/requests` runs (identical key → shared cache),
+  // The same query `/clinician/requests` runs (identical key → shared cache),
   // solely for its server-counted total. A failure here never blanks the
   // screen: the row degrades to a link without a number.
   const requests = useAppointmentRequests();

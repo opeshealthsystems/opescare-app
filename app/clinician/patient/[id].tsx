@@ -1,5 +1,5 @@
 /**
- * Doctor — Patient chart (`/(doctor)/patient/[id]`).
+ * Doctor — Patient chart (`/clinician/patient/[id]`).
  *
  * Port of `UIUX/src/screens/doctor/PatientChartScreen.tsx` onto expo-router,
  * the OPES UI kit and this app's doctor foundation. `[id]` is the OpesCare

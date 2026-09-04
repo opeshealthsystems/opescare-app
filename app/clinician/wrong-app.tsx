@@ -1,13 +1,13 @@
 /**
- * Doctor — "this is the clinician area" (`/(doctor)/wrong-app`).
+ * Doctor — "this is the clinician area" (`/clinician/wrong-app`).
  *
  * Port of `UIUX/src/screens/doctor/WrongAppScreen.tsx`.
  *
  * Two jobs, one screen:
  *
- *  1. THE TERMINAL STATE OF THE GATE. `app/(doctor)/_layout.tsx` renders this
+ *  1. THE TERMINAL STATE OF THE GATE. `app/clinician/_layout.tsx` renders this
  *     component INSTEAD of the clinician tabs whenever the session is not a
- *     clinician one, so a `/(doctor)/…` URL typed, deep-linked or restored
+ *     clinician one, so a `/clinician/…` URL typed, deep-linked or restored
  *     from history lands here rather than on a half-built clinician screen
  *     firing requests the server will refuse.
  *  2. AN HONEST ANSWER. OpesCare has roles this app deliberately does not

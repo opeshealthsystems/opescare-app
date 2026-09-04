@@ -1,5 +1,5 @@
 /**
- * Doctor — one conversation (`/(doctor)/messages/[id]`).
+ * Doctor — one conversation (`/clinician/messages/[id]`).
  *
  * Port of `UIUX/src/screens/doctor/DoctorMessageThreadScreen.tsx` onto
  * expo-router, the OPES UI kit and this app's doctor foundation.

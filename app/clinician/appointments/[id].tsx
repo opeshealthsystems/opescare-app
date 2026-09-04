@@ -1,5 +1,5 @@
 /**
- * Doctor — Appointment record (`/(doctor)/appointments/[id]`).
+ * Doctor — Appointment record (`/clinician/appointments/[id]`).
  *
  * Port of `UIUX/src/screens/doctor/DoctorAppointmentDetailScreen.tsx` onto
  * expo-router, the OPES UI kit and this app's doctor foundation.

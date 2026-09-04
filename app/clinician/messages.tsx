@@ -1,5 +1,5 @@
 /**
- * Doctor — Messages inbox (`/(doctor)/messages`).
+ * Doctor — Messages inbox (`/clinician/messages`).
  *
  * Port of `UIUX/src/screens/doctor/DoctorMessagesScreen.tsx` onto expo-router,
  * the OPES UI kit and this app's doctor foundation.

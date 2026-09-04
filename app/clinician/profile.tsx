@@ -1,5 +1,5 @@
 /**
- * Doctor — the clinician's own account (`/(doctor)/profile`).
+ * Doctor — the clinician's own account (`/clinician/profile`).
  *
  * Port of `UIUX/src/screens/doctor/DoctorProfileScreen.tsx` onto expo-router,
  * the OPES UI kit and this app's doctor foundation.

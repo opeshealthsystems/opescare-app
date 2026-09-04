@@ -1,5 +1,5 @@
 /**
- * Doctor — My Schedule (`/(doctor)/schedule`).
+ * Doctor — My Schedule (`/clinician/schedule`).
  *
  * Port of `UIUX/src/screens/doctor/DoctorScheduleScreen.tsx` onto expo-router,
  * the OPES UI kit and this app's doctor foundation.
@@ -14,7 +14,7 @@
  * clinical screen is worse than no number, so the strip counts what is on
  * screen and claims nothing about the rest of the clinic.
  *
- * Deep link: `/(doctor)/schedule?date=YYYY-MM-DD` opens on that day. An
+ * Deep link: `/clinician/schedule?date=YYYY-MM-DD` opens on that day. An
  * unparseable date falls back to today rather than rendering Invalid Date.
  *
  * Backend gap: the finder does not serve `/mobile/doctor/*` yet, so this hook

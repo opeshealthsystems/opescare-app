@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { typography, type Palette } from '../theme';
 import { useTheme } from '../ThemeProvider';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   size?: 'md' | 'lg';
@@ -10,19 +11,23 @@ type Props = {
 
 export function Wordmark({ size = 'lg', showTagline = true }: Props) {
   const { colors } = useTheme();
+  // The kit shipped the template's own lockup ("OPES EMR" / "ELECTRONIC MEDICAL
+  // RECORD"). This app keeps the OPES layout but its OWN brand, so the wordmark
+  // reads Opes+Care and the tagline comes from the app's strings.
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const fontSize = size === 'lg' ? 34 : 24;
 
   return (
     <View>
       <Text style={styles.row}>
-        <Text style={[styles.opes, { fontSize }]}>OPES </Text>
-        <Text style={[styles.emr, { fontSize }]}>EMR</Text>
+        <Text style={[styles.opes, { fontSize }]}>Opes</Text>
+        <Text style={[styles.emr, { fontSize }]}>Care</Text>
       </Text>
       {showTagline && (
         <View style={styles.taglineRow}>
           <View style={styles.taglineLine} />
-          <Text style={styles.tagline}>ELECTRONIC MEDICAL RECORD</Text>
+          <Text style={styles.tagline}>{t('auth.tagline')}</Text>
           <View style={styles.taglineLine} />
         </View>
       )}

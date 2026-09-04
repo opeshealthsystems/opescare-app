@@ -2213,7 +2213,7 @@
     "auth": {
       "login": {
         "title": "Secure Access to Your Health",
-        "subtitle": "Sign in to your OPES EMR account and manage your health anytime, anywhere.",
+        "subtitle": "Sign in to your OpesCare account and manage your health anytime, anywhere.",
         "welcomeBack": "Welcome Back",
         "emailPlaceholder": "Email or Phone Number",
         "passwordPlaceholder": "Password",
@@ -2222,7 +2222,7 @@
         "badCredentials": "Incorrect email or password.",
         "forgotPassword": "Forgot password?",
         "forgotTitle": "Regaining access to your account",
-        "forgotBody": "Passwords cannot be reset from the app yet. To get back into your account, contact your care facility in person or by phone and give them your OPES Health ID. Reception can verify your identity and help you set a new password.",
+        "forgotBody": "Passwords cannot be reset from the app yet. To get back into your account, contact your care facility in person or by phone and give them your OpesCare Health ID. Reception can verify your identity and help you set a new password.",
         "demoTitle": "Try it without an account",
         "demoBody": "Demo login pre-loaded with sample appointments, visits, and prescriptions.",
         "demoCta": "Continue with Demo Account",
@@ -2234,7 +2234,7 @@
       },
       "signup": {
         "title": "Create Your Account",
-        "subtitle": "Join OPES EMR and take control of your health information.",
+        "subtitle": "Join OpesCare and take control of your health information.",
         "fullName": "Full Name",
         "email": "Email Address",
         "phone": "Phone Number",
@@ -2255,7 +2255,7 @@
       "title": "Profile & Settings",
       "subtitle": "Manage your profile, preferences and app settings.",
       "loading": "Loading your profile…",
-      "healthIdLabel": "OPES Health ID: {{id}}",
+      "healthIdLabel": "OpesCare Health ID: {{id}}",
       "copyHealthIdHint": "Copies your health ID so you can paste it elsewhere",
       "patientSince": "Patient Since {{year}}",
       "quickOverview": "Quick Overview",
@@ -2355,7 +2355,7 @@
       "greetingAfternoon": "Good afternoon",
       "greetingEvening": "Good evening",
       "tagline": "Your health. Connected. Secure. Anywhere.",
-      "idCardTitle": "OPES Health ID",
+      "idCardTitle": "OpesCare Health ID",
       "idCardValue": "ID: {{id}}",
       "idCardLink": "View Health ID",
       "summaryTitle": "Health Summary",
@@ -2409,13 +2409,13 @@
     },
     "healthId": {
       "title": "My Health ID",
-      "subtitle": "Your universal identity across the OPES healthcare ecosystem.",
+      "subtitle": "Your universal identity across the OpesCare network.",
       "about": "About Health ID",
       "loading": "Loading your Health ID…",
-      "shareSubject": "My OPES Health ID",
-      "shareQrSubject": "OPES Health ID QR code",
-      "shareCardSubject": "OPES Health ID card",
-      "shareBody": "{{name}} — OPES Health ID {{id}}\nIssued by {{issuer}}\n{{payload}}",
+      "shareSubject": "My OpesCare Health ID",
+      "shareQrSubject": "OpesCare Health ID QR code",
+      "shareCardSubject": "OpesCare Health ID card",
+      "shareBody": "{{name}} — OpesCare Health ID {{id}}\nIssued by {{issuer}}\n{{payload}}",
       "tileShare": "Share ID",
       "tileShareCaption": "Securely share",
       "tileDepartments": "Departments",
@@ -2439,8 +2439,8 @@
       "scanToVerify": "Scan to verify",
       "lastUpdated": "Last updated: {{date}}",
       "cardFootCopy": "This ID connects you securely to hospitals, clinics, labs, pharmacies and other health providers.",
-      "cardFootBrand": "OPES HEALTH ID",
-      "cardFootBrandSub": "POWERED BY OPES INTEROPERABILITY LAYER",
+      "cardFootBrand": "OpesCareCARE HEALTH ID",
+      "cardFootBrandSub": "POWERED BY OpesCareCARECARE",
       "ecosystemTitle": "CONNECTED TO HEALTHCARE ECOSYSTEM",
       "activeConnections_one": "{{count}} active connection",
       "activeConnections_other": "{{count}} active connections",
@@ -2451,10 +2451,10 @@
       "groupImaging": "Imaging Centers",
       "connected": "{{count}} connected",
       "securityCopy": "Your Health ID is unique to you and protected with enterprise-grade security.",
-      "securityLink": "Learn more about OPES Health ID"
+      "securityLink": "Learn more about OpesCare Health ID"
     },
     "onboarding": {
-      "welcomeTitle": "Welcome to OPES EMR",
+      "welcomeTitle": "Welcome to OpesCare",
       "welcomeTagline": "Your Health. Your Record. Your Control.",
       "welcomeBody": "One place for your complete health information — your visits, your results, your medicines and your care team.",
       "featuresTitle": "Everything you need, in one place",
@@ -2544,7 +2544,7 @@
       "busyTitle": "Too many requests just now",
       "busyBody": "Please wait a moment and try again.",
       "notLinkedTitle": "Connect your medical record",
-      "notLinkedBody": "This account is not connected to a medical record yet. Link your OPES Health ID, or open a new record if you have never been here.",
+      "notLinkedBody": "This account is not connected to a medical record yet. Link your OpesCare Health ID, or open a new record if you have never been here.",
       "validationTitle": "Check what you entered",
       "validationBody": "Some details are missing or not valid. Please review the form and try again.",
       "conflictTitle": "This could not be done",
@@ -2571,7 +2571,7 @@
       "providerReady": "Your provider is ready — please make your way in.",
       "willNotify": "We'll notify you when your provider is ready.",
       "yourAppointment": "YOUR APPOINTMENT",
-      "avatarFallback": "OPES Clinician",
+      "avatarFallback": "OpesCare Clinician",
       "careTeam": "Care team",
       "facilityTbc": "Facility to be confirmed",
       "roomTbc": "Room to be assigned",
@@ -2665,7 +2665,7 @@
       "whileYouWait": "While You Wait",
       "tileTestAv": "Test Audio / Video",
       "tileTestAvSub": "Check your device",
-      "testAvBody": "OPES does not carry the call itself, so it cannot preview your camera. Check your device settings before the visit.",
+      "testAvBody": "OpesCare does not carry the call itself, so it cannot preview your camera. Check your device settings before the visit.",
       "tileMessage": "Send a Message",
       "tileMessageSub": "Message the clinic",
       "tileGuidelines": "Visit Guidelines",
@@ -2925,7 +2925,7 @@
       "scheduledFor": "Scheduled For",
       "bookedOn": "Booked On",
       "bookedVia": "Booked Via",
-      "bookedViaApp": "OPES EMR mobile app",
+      "bookedViaApp": "OpesCare Finder",
       "preVisitHeading": "Pre-Visit Instructions",
       "preVisitArrive": "Please arrive 15 minutes early for check-in.",
       "preVisitId": "Bring a valid photo ID and your Health ID card.",
@@ -3127,7 +3127,7 @@
       "bannerCheckedInText": "Head to the waiting room to see your place in the queue.",
       "bannerAlmostText": "Check in now to save time and help us serve you better.",
       "todaysAppointment": "Today's Appointment",
-      "avatarFallback": "OPES Clinician",
+      "avatarFallback": "OpesCare Clinician",
       "careTeam": "Care team",
       "labelDate": "Date",
       "labelTime": "Time",
@@ -3712,7 +3712,7 @@
     "chrome": {
       "loading": "Loading…",
       "linkTitle": "Link your Health ID",
-      "linkMessage": "This account isn't linked to a clinical record yet. Link your OPES Health ID to see your messages and invoices.",
+      "linkMessage": "This account isn't linked to a clinical record yet. Link your OpesCare Health ID to see your messages and invoices.",
       "linkCta": "Link My Health ID",
       "errorTitle": "Couldn't load this",
       "errorRetry": "Try Again",
@@ -3853,7 +3853,7 @@
     "setup": {
       "title": "Connect your record",
       "subtitle": "Your account is ready. It just needs a medical record behind it.",
-      "haveIdTitle": "I already have an OPES Health ID",
+      "haveIdTitle": "I already have an OpesCare Health ID",
       "haveIdSubtitle": "Link the record this hospital has already opened for you.",
       "newTitle": "I am new to this hospital",
       "newSubtitle": "Verify your phone number and open a record from here.",
@@ -3861,10 +3861,10 @@
     },
     "link": {
       "title": "Link your Health ID",
-      "subtitle": "Enter the ID printed on your OPES card, exactly as it appears.",
-      "idLabel": "OPES Health ID",
-      "idHint": "The ID printed on your OPES card or hospital paperwork",
-      "idPlaceholder": "OPES-00-0000-0000",
+      "subtitle": "Enter the ID printed on your OpesCare card, exactly as it appears.",
+      "idLabel": "OpesCare Health ID",
+      "idHint": "The ID printed on your OpesCare card or hospital paperwork",
+      "idPlaceholder": "OpesCare-00-0000-0000",
       "nameLabel": "Full name on the card",
       "namePlaceholder": "Your full name",
       "submit": "Link my record",
@@ -3921,8 +3921,8 @@
       "checkHint": "Open your profile to see whether your record was created.",
       "provisionalNote": "A record opened from the app has nothing clinical in it yet. Reception confirms your identity at your first visit.",
       "doneTitle": "Your record is open",
-      "doneBody": "This is your OPES Health ID. You will be asked for it at every desk, so keep it.",
-      "doneIdLabel": "YOUR OPES HEALTH ID",
+      "doneBody": "This is your OpesCare Health ID. You will be asked for it at every desk, so keep it.",
+      "doneIdLabel": "YOUR OpesCareCARE HEALTH ID",
       "doneCard": "View my Health ID card",
       "doneHome": "Go to my home screen"
     },
@@ -3935,7 +3935,7 @@
       "bringCover": "Your insurance or company cover card, if you have one.",
       "nextTitle": "What happens next",
       "nextStep1": "Reception goes through your details with you at the desk.",
-      "nextStep2": "They complete your registration and give you your OPES Health ID.",
+      "nextStep2": "They complete your registration and give you your OpesCare Health ID.",
       "nextStep3": "You sign in here again and everything is connected — no second account to create.",
       "reassure": "Nothing you entered was wrong, and nothing has been lost. Some records simply have to be opened in person.",
       "hoursNote": "Reception takes you during hospital opening hours. No appointment is needed for this.",
@@ -3944,8 +3944,8 @@
     },
     "gate": {
       "title": "Connect your medical record",
-      "message": "This account is not connected to a medical record yet. Link your OPES Health ID, or open a new record if you have never been here.",
-      "messageWith": "This account is not connected to a medical record yet, so your {{what}} cannot be shown. Link your OPES Health ID, or open a new record if you have never been here.",
+      "message": "This account is not connected to a medical record yet. Link your OpesCare Health ID, or open a new record if you have never been here.",
+      "messageWith": "This account is not connected to a medical record yet, so your {{what}} cannot be shown. Link your OpesCare Health ID, or open a new record if you have never been here.",
       "action": "Get started"
     }
   },
@@ -4179,7 +4179,7 @@
     "async": {
       "loading": "Loading…",
       "linkTitle": "Link your Health ID",
-      "linkBody": "This account isn’t linked to a clinical record yet. Link your OPES Health ID to see your laboratory and imaging results.",
+      "linkBody": "This account isn’t linked to a clinical record yet. Link your OpesCare Health ID to see your laboratory and imaging results.",
       "linkCta": "Link My Health ID",
       "errorTitle": "Couldn’t load this",
       "errorCta": "Try Again"
@@ -4761,9 +4761,9 @@
         "timeUnknown": "Recording time not stated",
         "recordedAgo": "Recorded {{ago}}",
         "noMeasurements": "This recording has no measurements on it.",
-        "footnote": "Usual ranges are the general adult bands OPES uses across the record. They are a screening aid, not a target for this patient."
+        "footnote": "Usual ranges are the general adult bands OpesCare uses across the record. They are a screening aid, not a target for this patient."
       },
-      "readOnly": "Read-only view. Prescribing, ordering and clinical documentation are done in the OPES EMR desktop system, where the safety checks and signing run."
+      "readOnly": "Read-only view. Prescribing, ordering and clinical documentation are done in the OpesCare desktop system, where the safety checks and signing run."
     },
     "section": {
       "loading": "Loading…",
@@ -4781,7 +4781,7 @@
       "summaryTitle": "The chart is the summary",
       "summaryBody": "There is no separate summary section — the patient chart itself is the overview.",
       "notHereTitle": "{{section}} are not in the mobile chart",
-      "notHereBody": "This section is part of the OPES EMR desktop record. The mobile chart carries allergies, problems, medications, vitals, encounters and results.",
+      "notHereBody": "This section is part of the OpesCare desktop record. The mobile chart carries allergies, problems, medications, vitals, encounters and results.",
       "openChart": "Open the chart",
       "problemList": "Problem List",
       "problemListEmpty": "Nothing has been added to this patient’s problem list.",
@@ -5030,7 +5030,7 @@
       "photo": "Photo",
       "changePhoto": "Change photo",
       "addPhoto": "Add photo",
-      "photoDesktopOnly": "Add or change your photo from the OPES EMR desktop system.",
+      "photoDesktopOnly": "Add or change your photo from the OpesCare desktop system.",
       "photoInvalid": "Choose an image file smaller than 5 MB.",
       "photoFailedTitle": "Photo not changed",
       "photoCheckHint": "Open your profile again to see whether the new photo was saved.",
@@ -5039,7 +5039,7 @@
       "sectionSession": "This device",
       "signOut": "Sign Out",
       "signOutHint": "Sign out before you hand this phone to anyone else. Everything cached on this device — patient names, results, conversations — is removed when you do.",
-      "confirmTitle": "Sign out of OPES EMR?",
+      "confirmTitle": "Sign out of OpesCare?",
       "confirmMessage": "You are signed in as {{name}}. Signing out ends this session on this device and removes everything cached here. You will need your password to sign in again.",
       "confirmCta": "Sign Out",
       "confirmCancel": "Stay signed in",
@@ -5047,10 +5047,10 @@
       "failedBody": "This session is still open on this device. Check your connection and try again — if it will not end, change your password on a workstation."
     },
     "wrongApp": {
-      "header": "OPES EMR",
+      "header": "OpesCare",
       "title": "This app is for patients and clinicians",
       "signedInAs": "You’re signed in as {{name}}. ",
-      "body": "This account does not have a clinical role, so there is nothing here for it yet. Use the OPES EMR desktop system for your work, and sign in here with a patient account if you have one.",
+      "body": "This account does not have a clinical role, so there is nothing here for it yet. Use the OpesCare desktop system for your work, and sign in here with a patient account if you have one.",
       "signOut": "Sign Out"
     }
   }

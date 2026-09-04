@@ -2213,7 +2213,7 @@
     "auth": {
       "login": {
         "title": "Accès sécurisé à votre santé",
-        "subtitle": "Connectez-vous à votre compte OPES EMR et gérez votre santé à tout moment, où que vous soyez.",
+        "subtitle": "Connectez-vous à votre compte OpesCare et gérez votre santé à tout moment, où que vous soyez.",
         "welcomeBack": "Bon retour",
         "emailPlaceholder": "E-mail ou numéro de téléphone",
         "passwordPlaceholder": "Mot de passe",
@@ -2222,7 +2222,7 @@
         "badCredentials": "E-mail ou mot de passe incorrect.",
         "forgotPassword": "Mot de passe oublié ?",
         "forgotTitle": "Retrouver l’accès à votre compte",
-        "forgotBody": "Le mot de passe ne peut pas encore être réinitialisé depuis l’application. Pour retrouver l’accès à votre compte, contactez votre établissement de soins sur place ou par téléphone et communiquez votre identifiant santé OPES. L’accueil pourra vérifier votre identité et vous aider à définir un nouveau mot de passe.",
+        "forgotBody": "Le mot de passe ne peut pas encore être réinitialisé depuis l’application. Pour retrouver l’accès à votre compte, contactez votre établissement de soins sur place ou par téléphone et communiquez votre identifiant santé OpesCare. L’accueil pourra vérifier votre identité et vous aider à définir un nouveau mot de passe.",
         "demoTitle": "Essayez sans créer de compte",
         "demoBody": "Compte de démonstration prérempli avec des rendez-vous, des visites et des ordonnances d’exemple.",
         "demoCta": "Continuer avec le compte démo",
@@ -2234,7 +2234,7 @@
       },
       "signup": {
         "title": "Créer votre compte",
-        "subtitle": "Rejoignez OPES EMR et gardez la maîtrise de vos informations de santé.",
+        "subtitle": "Rejoignez OpesCare et gardez la maîtrise de vos informations de santé.",
         "fullName": "Nom complet",
         "email": "Adresse e-mail",
         "phone": "Numéro de téléphone",
@@ -2255,7 +2255,7 @@
       "title": "Profil et paramètres",
       "subtitle": "Gérez votre profil, vos préférences et les paramètres de l’application.",
       "loading": "Chargement de votre profil…",
-      "healthIdLabel": "Identifiant santé OPES : {{id}}",
+      "healthIdLabel": "Identifiant santé OpesCare : {{id}}",
       "copyHealthIdHint": "Copie votre identifiant santé pour le coller ailleurs",
       "patientSince": "Patient depuis {{year}}",
       "quickOverview": "Aperçu rapide",
@@ -2355,7 +2355,7 @@
       "greetingAfternoon": "Bon après-midi",
       "greetingEvening": "Bonsoir",
       "tagline": "Votre santé. Connectée. Sécurisée. Partout.",
-      "idCardTitle": "Identifiant santé OPES",
+      "idCardTitle": "Identifiant santé OpesCare",
       "idCardValue": "N° : {{id}}",
       "idCardLink": "Voir l’identifiant santé",
       "summaryTitle": "Synthèse santé",
@@ -2409,13 +2409,13 @@
     },
     "healthId": {
       "title": "Mon identifiant santé",
-      "subtitle": "Votre identité unique dans tout l’écosystème de soins OPES.",
+      "subtitle": "Votre identité unique dans tout l’écosystème de soins OpesCare.",
       "about": "À propos",
       "loading": "Chargement de votre identifiant santé…",
-      "shareSubject": "Mon identifiant santé OPES",
-      "shareQrSubject": "QR code de l’identifiant santé OPES",
-      "shareCardSubject": "Carte d’identifiant santé OPES",
-      "shareBody": "{{name}} — Identifiant santé OPES {{id}}\nDélivré par {{issuer}}\n{{payload}}",
+      "shareSubject": "Mon identifiant santé OpesCare",
+      "shareQrSubject": "QR code de l’identifiant santé OpesCare",
+      "shareCardSubject": "Carte d’identifiant santé OpesCare",
+      "shareBody": "{{name}} — Identifiant santé OpesCare {{id}}\nDélivré par {{issuer}}\n{{payload}}",
       "tileShare": "Partager",
       "tileShareCaption": "En toute sécurité",
       "tileDepartments": "Établissements",
@@ -2439,8 +2439,8 @@
       "scanToVerify": "Scanner pour vérifier",
       "lastUpdated": "Mise à jour : {{date}}",
       "cardFootCopy": "Cet identifiant vous relie en toute sécurité aux hôpitaux, cliniques, laboratoires, pharmacies et autres soignants.",
-      "cardFootBrand": "IDENTIFIANT SANTÉ OPES",
-      "cardFootBrandSub": "PROPULSÉ PAR LA COUCHE D’INTEROPÉRABILITÉ OPES",
+      "cardFootBrand": "IDENTIFIANT SANTÉ OpesCare",
+      "cardFootBrandSub": "PROPULSÉ PAR LA COUCHE D’INTEROPÉRABILITÉ OpesCare",
       "ecosystemTitle": "CONNECTÉ À L’ÉCOSYSTÈME DE SOINS",
       "activeConnections_one": "{{count}} connexion active",
       "activeConnections_other": "{{count}} connexions actives",
@@ -2451,10 +2451,10 @@
       "groupImaging": "Centres d’imagerie",
       "connected": "{{count}} connecté(s)",
       "securityCopy": "Votre identifiant santé n’appartient qu’à vous et il est protégé par des normes de sécurité de premier plan.",
-      "securityLink": "En savoir plus sur l’identifiant santé OPES"
+      "securityLink": "En savoir plus sur l’identifiant santé OpesCare"
     },
     "onboarding": {
-      "welcomeTitle": "Bienvenue sur OPES EMR",
+      "welcomeTitle": "Bienvenue sur OpesCare",
       "welcomeTagline": "Votre santé. Votre dossier. Votre contrôle.",
       "welcomeBody": "Un seul endroit pour toutes vos informations de santé — vos visites, vos résultats, vos médicaments et votre équipe soignante.",
       "featuresTitle": "Tout ce qu’il vous faut, au même endroit",
@@ -2544,7 +2544,7 @@
       "busyTitle": "Trop de demandes en ce moment",
       "busyBody": "Veuillez patienter un instant, puis réessayez.",
       "notLinkedTitle": "Reliez votre dossier médical",
-      "notLinkedBody": "Ce compte n’est pas encore relié à un dossier médical. Reliez votre identifiant santé OPES, ou ouvrez un nouveau dossier si vous n’êtes jamais venu ici.",
+      "notLinkedBody": "Ce compte n’est pas encore relié à un dossier médical. Reliez votre identifiant santé OpesCare, ou ouvrez un nouveau dossier si vous n’êtes jamais venu ici.",
       "validationTitle": "Vérifiez les informations saisies",
       "validationBody": "Certaines informations sont manquantes ou non valides. Veuillez vérifier le formulaire et réessayer.",
       "conflictTitle": "Cette action n’a pas pu aboutir",
@@ -2571,7 +2571,7 @@
       "providerReady": "Votre soignant est prêt — veuillez vous présenter.",
       "willNotify": "Nous vous préviendrons dès que votre soignant sera prêt.",
       "yourAppointment": "VOTRE RENDEZ-VOUS",
-      "avatarFallback": "Soignant OPES",
+      "avatarFallback": "Soignant OpesCare",
       "careTeam": "Équipe soignante",
       "facilityTbc": "Établissement à confirmer",
       "roomTbc": "Salle à attribuer",
@@ -2665,7 +2665,7 @@
       "whileYouWait": "En attendant",
       "tileTestAv": "Test audio/vidéo",
       "tileTestAvSub": "Vérifier votre appareil",
-      "testAvBody": "OPES ne transporte pas l’appel lui-même et ne peut donc pas afficher un aperçu de votre caméra. Vérifiez les réglages de votre appareil avant la consultation.",
+      "testAvBody": "OpesCare ne transporte pas l’appel lui-même et ne peut donc pas afficher un aperçu de votre caméra. Vérifiez les réglages de votre appareil avant la consultation.",
       "tileMessage": "Écrire un message",
       "tileMessageSub": "Écrire à la clinique",
       "tileGuidelines": "Consignes de visite",
@@ -2925,7 +2925,7 @@
       "scheduledFor": "Prévu le",
       "bookedOn": "Réservé le",
       "bookedVia": "Réservé via",
-      "bookedViaApp": "Application mobile OPES EMR",
+      "bookedViaApp": "Application mobile OpesCare",
       "preVisitHeading": "Consignes avant la visite",
       "preVisitArrive": "Présentez-vous 15 minutes à l’avance pour l’enregistrement.",
       "preVisitId": "Munissez-vous d’une pièce d’identité avec photo et de votre carte d’identifiant santé.",
@@ -3127,7 +3127,7 @@
       "bannerCheckedInText": "Rendez-vous en salle d’attente pour voir votre place dans la file.",
       "bannerAlmostText": "Enregistrez-vous maintenant pour gagner du temps et faciliter votre prise en charge.",
       "todaysAppointment": "Rendez-vous du jour",
-      "avatarFallback": "Soignant OPES",
+      "avatarFallback": "Soignant OpesCare",
       "careTeam": "Équipe soignante",
       "labelDate": "Date",
       "labelTime": "Heure",
@@ -3712,7 +3712,7 @@
     "chrome": {
       "loading": "Chargement…",
       "linkTitle": "Liez votre identifiant santé",
-      "linkMessage": "Ce compte n’est pas encore lié à un dossier médical. Liez votre identifiant santé OPES pour voir vos messages et vos factures.",
+      "linkMessage": "Ce compte n’est pas encore lié à un dossier médical. Liez votre identifiant santé OpesCare pour voir vos messages et vos factures.",
       "linkCta": "Lier mon identifiant santé",
       "errorTitle": "Impossible de charger ces informations",
       "errorRetry": "Réessayer",
@@ -3853,7 +3853,7 @@
     "setup": {
       "title": "Reliez votre dossier",
       "subtitle": "Votre compte est prêt. Il lui manque seulement un dossier médical.",
-      "haveIdTitle": "J’ai déjà un identifiant santé OPES",
+      "haveIdTitle": "J’ai déjà un identifiant santé OpesCare",
       "haveIdSubtitle": "Reliez le dossier que cet hôpital a déjà ouvert pour vous.",
       "newTitle": "Je viens ici pour la première fois",
       "newSubtitle": "Vérifiez votre numéro de téléphone et ouvrez un dossier depuis l’application.",
@@ -3861,10 +3861,10 @@
     },
     "link": {
       "title": "Relier mon dossier",
-      "subtitle": "Saisissez l’identifiant imprimé sur votre carte OPES, exactement tel qu’il apparaît.",
-      "idLabel": "Identifiant santé OPES",
-      "idHint": "L’identifiant imprimé sur votre carte OPES ou vos documents de l’hôpital",
-      "idPlaceholder": "OPES-00-0000-0000",
+      "subtitle": "Saisissez l’identifiant imprimé sur votre carte OpesCare, exactement tel qu’il apparaît.",
+      "idLabel": "Identifiant santé OpesCare",
+      "idHint": "L’identifiant imprimé sur votre carte OpesCare ou vos documents de l’hôpital",
+      "idPlaceholder": "OpesCare-00-0000-0000",
       "nameLabel": "Nom complet figurant sur la carte",
       "namePlaceholder": "Votre nom complet",
       "submit": "Relier mon dossier",
@@ -3921,8 +3921,8 @@
       "checkHint": "Ouvrez votre profil pour voir si votre dossier a été créé.",
       "provisionalNote": "Un dossier ouvert depuis l’application ne contient encore aucune donnée clinique. L’accueil confirmera votre identité lors de votre première visite.",
       "doneTitle": "Votre dossier est ouvert",
-      "doneBody": "Voici votre identifiant santé OPES. Il vous sera demandé à chaque guichet : conservez-le.",
-      "doneIdLabel": "VOTRE IDENTIFIANT SANTÉ OPES",
+      "doneBody": "Voici votre identifiant santé OpesCare. Il vous sera demandé à chaque guichet : conservez-le.",
+      "doneIdLabel": "VOTRE IDENTIFIANT SANTÉ OpesCare",
       "doneCard": "Voir ma carte santé",
       "doneHome": "Aller à mon accueil"
     },
@@ -3935,7 +3935,7 @@
       "bringCover": "Votre carte d’assurance ou de prise en charge, si vous en avez une.",
       "nextTitle": "Ce qui se passe ensuite",
       "nextStep1": "L’accueil parcourt vos informations avec vous au guichet.",
-      "nextStep2": "L’accueil finalise votre inscription et vous remet votre identifiant santé OPES.",
+      "nextStep2": "L’accueil finalise votre inscription et vous remet votre identifiant santé OpesCare.",
       "nextStep3": "Vous vous reconnectez ici et tout est relié — aucun second compte à créer.",
       "reassure": "Vous n’avez rien saisi d’incorrect et rien n’a été perdu. Certains dossiers doivent simplement être ouverts sur place.",
       "hoursNote": "L’accueil vous reçoit pendant les heures d’ouverture de l’hôpital. Aucun rendez-vous n’est nécessaire pour cela.",
@@ -3944,8 +3944,8 @@
     },
     "gate": {
       "title": "Reliez votre dossier médical",
-      "message": "Ce compte n’est pas encore relié à un dossier médical. Reliez votre identifiant santé OPES, ou ouvrez un nouveau dossier si vous n’êtes jamais venu ici.",
-      "messageWith": "Ce compte n’est pas encore relié à un dossier médical : vos {{what}} ne peuvent donc pas s’afficher. Reliez votre identifiant santé OPES, ou ouvrez un nouveau dossier si vous n’êtes jamais venu ici.",
+      "message": "Ce compte n’est pas encore relié à un dossier médical. Reliez votre identifiant santé OpesCare, ou ouvrez un nouveau dossier si vous n’êtes jamais venu ici.",
+      "messageWith": "Ce compte n’est pas encore relié à un dossier médical : vos {{what}} ne peuvent donc pas s’afficher. Reliez votre identifiant santé OpesCare, ou ouvrez un nouveau dossier si vous n’êtes jamais venu ici.",
       "action": "Commencer"
     }
   },
@@ -4179,7 +4179,7 @@
     "async": {
       "loading": "Chargement…",
       "linkTitle": "Reliez votre identifiant santé",
-      "linkBody": "Ce compte n’est pas encore relié à un dossier médical. Reliez votre identifiant santé OPES pour voir vos résultats de laboratoire et d’imagerie.",
+      "linkBody": "Ce compte n’est pas encore relié à un dossier médical. Reliez votre identifiant santé OpesCare pour voir vos résultats de laboratoire et d’imagerie.",
       "linkCta": "Relier mon identifiant santé",
       "errorTitle": "Chargement impossible",
       "errorCta": "Réessayer"
@@ -4761,9 +4761,9 @@
         "timeUnknown": "Heure du relevé non précisée",
         "recordedAgo": "Relevé {{ago}}",
         "noMeasurements": "Ce relevé ne comporte aucune mesure.",
-        "footnote": "Les plages habituelles sont les intervalles adultes généraux utilisés par OPES dans tout le dossier. Elles servent au dépistage et ne constituent pas un objectif pour ce patient."
+        "footnote": "Les plages habituelles sont les intervalles adultes généraux utilisés par OpesCare dans tout le dossier. Elles servent au dépistage et ne constituent pas un objectif pour ce patient."
       },
-      "readOnly": "Vue en lecture seule. La prescription, les demandes d’examens et la rédaction clinique se font dans l’EMR de bureau OPES, où s’exécutent les contrôles de sécurité et la signature."
+      "readOnly": "Vue en lecture seule. La prescription, les demandes d’examens et la rédaction clinique se font dans l’EMR de bureau OpesCare, où s’exécutent les contrôles de sécurité et la signature."
     },
     "section": {
       "loading": "Chargement…",
@@ -4781,7 +4781,7 @@
       "summaryTitle": "Le dossier EST la synthèse",
       "summaryBody": "Il n’y a pas de section synthèse distincte — le dossier patient constitue lui-même la vue d’ensemble.",
       "notHereTitle": "{{section}} : section absente du dossier mobile",
-      "notHereBody": "Cette section fait partie du dossier de bureau OPES EMR. Le dossier mobile porte les allergies, les problèmes, les traitements, les signes vitaux, les consultations et les résultats.",
+      "notHereBody": "Cette section fait partie du dossier de bureau OpesCare. Le dossier mobile porte les allergies, les problèmes, les traitements, les signes vitaux, les consultations et les résultats.",
       "openChart": "Ouvrir le dossier",
       "problemList": "Liste des problèmes",
       "problemListEmpty": "Rien n’a été ajouté à la liste des problèmes de ce patient.",
@@ -5030,7 +5030,7 @@
       "photo": "Photo",
       "changePhoto": "Changer la photo",
       "addPhoto": "Ajouter une photo",
-      "photoDesktopOnly": "Ajoutez ou changez votre photo depuis le système EMR de bureau OPES.",
+      "photoDesktopOnly": "Ajoutez ou changez votre photo depuis le système EMR de bureau OpesCare.",
       "photoInvalid": "Choisissez un fichier image de moins de 5 Mo.",
       "photoFailedTitle": "Photo non modifiée",
       "photoCheckHint": "Rouvrez votre profil pour voir si la nouvelle photo a bien été enregistrée.",
@@ -5039,7 +5039,7 @@
       "sectionSession": "Cet appareil",
       "signOut": "Déconnexion",
       "signOutHint": "Déconnectez-vous avant de confier ce téléphone à quiconque. Tout ce qui est conservé sur cet appareil — noms de patients, résultats, conversations — est alors effacé.",
-      "confirmTitle": "Se déconnecter de l’EMR OPES ?",
+      "confirmTitle": "Se déconnecter de l’EMR OpesCare ?",
       "confirmMessage": "Vous êtes connecté en tant que {{name}}. La déconnexion met fin à cette session sur cet appareil et efface tout ce qui y est conservé. Votre mot de passe sera de nouveau requis pour vous connecter.",
       "confirmCta": "Déconnexion",
       "confirmCancel": "Rester connecté",
@@ -5047,10 +5047,10 @@
       "failedBody": "Cette session est toujours ouverte sur cet appareil. Vérifiez votre connexion et réessayez — si elle ne se ferme pas, changez votre mot de passe sur un poste de travail."
     },
     "wrongApp": {
-      "header": "OPES EMR",
+      "header": "OpesCare",
       "title": "Cette application est destinée aux patients et aux soignants",
       "signedInAs": "Vous êtes connecté en tant que {{name}}. ",
-      "body": "Ce compte n’a pas de rôle clinique ; il n’y a donc encore rien ici pour lui. Utilisez l’EMR de bureau OPES pour votre travail, et connectez-vous ici avec un compte patient si vous en avez un.",
+      "body": "Ce compte n’a pas de rôle clinique ; il n’y a donc encore rien ici pour lui. Utilisez l’EMR de bureau OpesCare pour votre travail, et connectez-vous ici avec un compte patient si vous en avez un.",
       "signOut": "Déconnexion"
     }
   }

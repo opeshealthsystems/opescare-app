@@ -1,43 +1,39 @@
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
-  Ban,
-  Building2,
-  CalendarClock,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  CircleAlert,
-  CircleCheck,
-  Clock,
-  Download,
-  History,
-  Hourglass,
-  Layers,
-  Lock,
-  RefreshCw,
-  Scale,
-  ShieldCheck,
-  XCircle,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../../components/ui/Screen';
-import {
-  CARD_SHADOW,
+  Card,
   Chip,
-  ConfirmBar,
   EmptyState,
-  InlineNotice,
-  NavRow,
-  RightsHeader,
-  SectionTitle,
-  humanizeSlug,
-  toneColors,
-  type Tone,
-} from '../../components/privacy/DataRightsUi';
-import { colors } from '../../theme/tokens';
+  formatDate,
+  formatDateTime,
+  formatLabel,
+  GradientButton,
+  Icon,
+  ListRow,
+  radii,
+  ScreenHeader,
+  SectionHeader,
+  spacing,
+  StatusBadge,
+  typography,
+  useDialog,
+  useTheme,
+  type IconName,
+  type Palette,
+  type StatusTone,
+  type Tint,
+} from '@/components/opes-ui';
 import {
   type ConsentRequestItem,
   extractApiErrorMessage,
@@ -53,36 +49,48 @@ import {
  * it, take it away again, and from here reach the access log, the export
  * request flow and the correction flow.
  *
- * No reference image depicts this screen; the closest is the "Access History"
- * mockup (a_bright_clean_mobile_app_screenshot_of_a_health_r.png), whose
- * reassurance banner, status pills and closing note are carried over, and the
- * onboarding permissions reference
- * (a_clean_mobile_app_permission_screen_mockup_iphon.png), whose row-of-cards
- * treatment for a grantable permission — icon medallion, title, explanation,
- * state pill — is what a consent request is modelled on here.
+ * Presentation is the OPES kit: `ScreenHeader`, overline `SectionHeader`s,
+ * `Card variant="flush"` stacks of tint-circle `ListRow`s, `StatusBadge`s,
+ * `Chip`s for the requested scopes and `EmptyState`s wherever a list is empty.
+ * Colours are the platform's own — the OpesCare brand on the cream page —
+ * because the kit's default `opescare` palette *is* the OpesCare brand.
+ * Nothing here names a colour; it all reads `useTheme()`.
  *
- * Confirmations are rendered in-screen rather than through `Alert.alert`:
- * Alert is a no-op on React Native Web, so an Alert-gated approve/deny/revoke
- * would silently do nothing in a browser. Approving or revoking access to a
+ * This is a data-rights screen, so the re-skin changed the presentation and
+ * nothing else. Every hook, every mutation and every consent sentence below is
+ * the one that was here before, verbatim — including the Law No. 2010/012
+ * reference, the "nothing is shared until you approve it" promise and the
+ * approve/deny/revoke confirmation copy naming the facility, the scope, the
+ * purpose and the duration.
+ *
+ * Confirmations go through the kit `Dialog`, never `Alert.alert`: Alert is a
+ * silent no-op on React Native Web, so an Alert-gated approve/deny/revoke
+ * would do nothing at all in a browser. Approving or revoking access to a
  * medical record is not an action to leave to a dialog that may never appear.
- * (The API side of these actions was recently scoped to the calling patient
- * after an IDOR — they are treated as serious operations on both ends.)
+ * (The API side of these actions was scoped to the calling patient after an
+ * IDOR — they are treated as serious operations on both ends.)
+ *
+ * Glyph substitutions, the kit carrying its own outline set: `Scale` → `book`
+ * (the legal-rights notice), `Building2` → `building`, `Hourglass` → `clock`,
+ * `Ban` → `x-circle`, `Layers` → `list`, `CircleCheck` → `check-circle`,
+ * `CircleAlert` → `alert-circle`.
  */
 
 /** A decision already taken — collapsed under History. */
 const HISTORY_STATUSES = new Set(['denied', 'expired']);
 
-type PendingAction = { id: string; kind: 'approve' | 'deny' | 'revoke' };
-type Notice = { tone: Tone; icon: LucideIcon; body: string };
+type ScreenNotice = { tone: StatusTone; icon: IconName; body: string };
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
 
 export default function PrivacyHubScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
-  const locale = i18n.language?.startsWith('fr') ? 'fr-FR' : 'en-US';
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const dialog = useDialog();
 
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [confirming, setConfirming] = useState<PendingAction | null>(null);
-  const [notice, setNotice] = useState<Notice | null>(null);
+  const [notice, setNotice] = useState<ScreenNotice | null>(null);
 
   const { data, isLoading, isError, refetch, isRefetching } = useConsentRequests();
   const approveMutation = useApproveConsent();
@@ -108,532 +116,696 @@ export default function PrivacyHubScreen() {
     return days >= 0 && days <= 7;
   });
 
-  const facilityLabel = (item: ConsentRequestItem) =>
-    item.requesting_facility_name ?? t('privacy.unknownFacility');
+  const facilityLabel = useCallback(
+    (item: ConsentRequestItem) => item.requesting_facility_name ?? t('privacy.unknownFacility'),
+    [t],
+  );
 
-  const succeed = (body: string) =>
-    setNotice({ tone: 'success', icon: CircleCheck, body });
-  const fail = (err: unknown) =>
-    setNotice({ tone: 'danger', icon: CircleAlert, body: extractApiErrorMessage(err) });
+  const succeed = useCallback(
+    (body: string) => setNotice({ tone: 'normal', icon: 'check-circle', body }),
+    [],
+  );
+  const fail = useCallback(
+    (err: unknown) =>
+      setNotice({ tone: 'critical', icon: 'alert-circle', body: extractApiErrorMessage(err) }),
+    [],
+  );
 
-  const runApprove = (item: ConsentRequestItem) => {
-    approveMutation.mutate(item.id, {
-      onSuccess: () => {
-        setConfirming(null);
-        succeed(t('privacy.approveSuccessNamed', { facility: facilityLabel(item) }));
-      },
-      onError: (err) => {
-        setConfirming(null);
-        fail(err);
-      },
-    });
-  };
+  const runApprove = useCallback(
+    (item: ConsentRequestItem) =>
+      new Promise<void>((resolve) => {
+        approveMutation.mutate(item.id, {
+          onSuccess: () => {
+            succeed(t('privacy.approveSuccessNamed', { facility: facilityLabel(item) }));
+            resolve();
+          },
+          onError: (err) => {
+            fail(err);
+            resolve();
+          },
+        });
+      }),
+    [approveMutation, facilityLabel, fail, succeed, t],
+  );
 
-  const runDeny = (item: ConsentRequestItem) => {
-    denyMutation.mutate(item.id, {
-      onSuccess: () => {
-        setConfirming(null);
-        succeed(t('privacy.denySuccessNamed', { facility: facilityLabel(item) }));
-      },
-      onError: (err) => {
-        setConfirming(null);
-        fail(err);
-      },
-    });
-  };
+  const runDeny = useCallback(
+    (item: ConsentRequestItem) =>
+      new Promise<void>((resolve) => {
+        denyMutation.mutate(item.id, {
+          onSuccess: () => {
+            succeed(t('privacy.denySuccessNamed', { facility: facilityLabel(item) }));
+            resolve();
+          },
+          onError: (err) => {
+            fail(err);
+            resolve();
+          },
+        });
+      }),
+    [denyMutation, facilityLabel, fail, succeed, t],
+  );
 
-  const runRevoke = (item: ConsentRequestItem) => {
-    if (!item.grant_id) return;
-    revokeMutation.mutate(item.grant_id, {
-      onSuccess: () => {
-        setConfirming(null);
-        succeed(t('privacy.revokeSuccessNamed', { facility: facilityLabel(item) }));
-      },
-      onError: (err) => {
-        setConfirming(null);
-        fail(err);
-      },
-    });
-  };
+  const runRevoke = useCallback(
+    (item: ConsentRequestItem) =>
+      new Promise<void>((resolve) => {
+        if (!item.grant_id) {
+          resolve();
+          return;
+        }
+        revokeMutation.mutate(item.grant_id, {
+          onSuccess: () => {
+            succeed(t('privacy.revokeSuccessNamed', { facility: facilityLabel(item) }));
+            resolve();
+          },
+          onError: (err) => {
+            fail(err);
+            resolve();
+          },
+        });
+      }),
+    [facilityLabel, fail, revokeMutation, succeed, t],
+  );
 
-  const isConfirming = (item: ConsentRequestItem, kind: PendingAction['kind']) =>
-    confirming?.id === item.id && confirming.kind === kind;
+  /**
+   * The approve confirmation repeats, verbatim, exactly what is being handed
+   * over: the facility, the data scope, the stated purpose and how long the
+   * access lasts. Consent is asked before a single record is opened.
+   */
+  const confirmApprove = useCallback(
+    (item: ConsentRequestItem) => {
+      setNotice(null);
+      dialog.confirm({
+        title: t('privacy.approve'),
+        message: t('privacy.confirmApproveBody', {
+          facility: facilityLabel(item),
+          scope: scopeSummary(item, t as TFn),
+          purpose: item.purpose,
+          duration: item.duration_minutes,
+        }),
+        confirmLabel: t('privacy.confirmApproveCta'),
+        cancelLabel: t('privacy.cancel'),
+        tone: 'warning',
+        onConfirm: () => runApprove(item),
+      });
+    },
+    [dialog, facilityLabel, runApprove, t],
+  );
 
-  const startConfirm = (item: ConsentRequestItem, kind: PendingAction['kind']) => {
-    setNotice(null);
-    setConfirming({ id: item.id, kind });
-  };
+  const confirmDeny = useCallback(
+    (item: ConsentRequestItem) => {
+      setNotice(null);
+      dialog.confirm({
+        title: t('privacy.deny'),
+        message: t('privacy.confirmDenyBody', { facility: facilityLabel(item) }),
+        confirmLabel: t('privacy.confirmDenyCta'),
+        cancelLabel: t('privacy.cancel'),
+        destructive: true,
+        onConfirm: () => runDeny(item),
+      });
+    },
+    [dialog, facilityLabel, runDeny, t],
+  );
+
+  const confirmRevoke = useCallback(
+    (item: ConsentRequestItem) => {
+      setNotice(null);
+      dialog.confirm({
+        title: t('privacy.revoke'),
+        message: t('privacy.confirmRevokeBody', { facility: facilityLabel(item) }),
+        confirmLabel: t('privacy.confirmRevokeCta'),
+        // "Keep access" — the safe way out, in the patient's own words.
+        cancelLabel: t('privacy.keepAccess'),
+        destructive: true,
+        onConfirm: () => runRevoke(item),
+      });
+    },
+    [dialog, facilityLabel, runRevoke, t],
+  );
 
   return (
-    <Screen className="px-0">
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      <ScreenHeader
+        title={t('privacy.title')}
+        subtitle={t('privacy.subtitle')}
+        onBack={() => router.back()}
+      />
+
       <ScrollView
-        className="flex-1 px-6"
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={refetch}
-            tintColor={colors.brand[500]}
+            tintColor={colors.blue}
+            colors={[colors.blue]}
           />
         }
       >
-        <RightsHeader
-          title={t('privacy.title')}
-          subtitle={t('privacy.subtitle')}
-          icon={ShieldCheck}
+        {/* The law, named. Kept verbatim — this is the whole basis of the screen. */}
+        <Notice
+          tone="pending"
+          icon="book"
+          title={t('privacy.rightsTitle')}
+          body={t('privacy.rightsBody')}
         />
 
-        <View className="mt-5">
-          <InlineNotice
-            tone="brand"
-            icon={Scale}
-            title={t('privacy.rightsTitle')}
-            body={t('privacy.rightsBody')}
-          />
-        </View>
-
-        {notice ? (
-          <View className="mt-3">
-            <InlineNotice tone={notice.tone} icon={notice.icon} body={notice.body} />
-          </View>
-        ) : null}
+        {notice ? <Notice tone={notice.tone} icon={notice.icon} body={notice.body} /> : null}
 
         {isLoading ? (
-          <View className="items-center py-16">
-            <ActivityIndicator color={colors.brand[500]} size="large" />
-            <Text className="mt-3 text-[13px] text-navy-muted">{t('privacy.loadingConsent')}</Text>
-          </View>
+          <Card>
+            <View style={styles.loading} accessibilityLiveRegion="polite">
+              <ActivityIndicator color={colors.blue} />
+              <Text style={styles.loadingText}>{t('privacy.loadingConsent')}</Text>
+            </View>
+          </Card>
         ) : isError ? (
-          <View className="mt-8 items-center">
-            <CircleAlert size={26} color={colors.semantic.danger} />
-            <Text className="mt-3 text-center text-[15px] font-bold text-navy-text">
-              {t('privacy.consentErrorTitle')}
-            </Text>
-            <Text className="mt-1.5 text-center text-[13px] leading-5 text-navy-secondary">
-              {t('privacy.consentErrorBody')}
-            </Text>
-            <Pressable
-              onPress={() => refetch()}
-              accessibilityRole="button"
-              className="mt-5 flex-row items-center rounded-full border border-brand-500 px-5 py-2.5"
-            >
-              <RefreshCw size={14} color={colors.brand[600]} />
-              <Text className="ml-2 text-[13px] font-bold text-brand-600">{t('privacy.retry')}</Text>
-            </Pressable>
-          </View>
+          <Card variant="flush">
+            <EmptyState
+              icon="alert-circle"
+              tint="red"
+              title={t('privacy.consentErrorTitle')}
+              message={t('privacy.consentErrorBody')}
+              actionLabel={t('privacy.retry')}
+              onAction={() => refetch()}
+            />
+          </Card>
         ) : (
           <>
             {/* ── Overview ────────────────────────────────────────────────
-                Mirrors the "Your Consent Overview" tile row of the consent
-                reference. Every figure is counted from the consent-request
-                list the API returns in full, so no number is an estimate. */}
-            <SectionTitle label={t('privacy.overviewTitle')} />
-            <View className="rounded-2xl bg-white p-4" style={CARD_SHADOW}>
-              <View className="flex-row" style={{ gap: 10 }}>
-                <OverviewStat
-                  icon={CircleCheck}
-                  tone="success"
+                Every figure is counted from the consent-request list the API
+                returns in full, so no number here is an estimate. */}
+            <View>
+              <SectionHeader title={t('privacy.overviewTitle')} variant="overline" />
+              <Card variant="flush">
+                <OverviewRow
+                  icon="check-circle"
+                  tint="green"
                   value={active.length}
                   label={t('privacy.statActive')}
                   caption={t('privacy.statActiveCaption')}
+                  divider
                 />
-                <OverviewStat
-                  icon={Clock}
-                  tone="info"
+                <OverviewRow
+                  icon="clock"
+                  tint="blue"
                   value={pending.length}
                   label={t('privacy.statPending')}
                   caption={t('privacy.statPendingCaption')}
+                  divider
                 />
-              </View>
-              <View className="mt-2.5 flex-row" style={{ gap: 10 }}>
-                <OverviewStat
-                  icon={Hourglass}
-                  tone="warning"
+                <OverviewRow
+                  icon="clock"
+                  tint="amber"
                   value={expiringSoon.length}
                   label={t('privacy.statExpiring')}
                   caption={t('privacy.statExpiringCaption')}
+                  divider
                 />
-                <OverviewStat
-                  icon={Ban}
-                  tone="muted"
+                <OverviewRow
+                  icon="x-circle"
+                  tint="purple"
                   value={history.length}
                   label={t('privacy.statEnded')}
                   caption={t('privacy.statEndedCaption')}
                 />
-              </View>
-              <View className="mt-3.5 flex-row items-center border-t border-cream-200 pt-3">
-                <Lock size={13} color={colors.navy.muted} />
-                <Text className="ml-2 flex-1 text-[11px] leading-4 text-navy-secondary">
-                  {t('privacy.overviewFootnote')}
-                </Text>
-              </View>
+                <View style={styles.cardFootnote}>
+                  <Icon name="lock" size={16} color={colors.textMuted} />
+                  <Text style={styles.cardFootnoteText}>{t('privacy.overviewFootnote')}</Text>
+                </View>
+              </Card>
             </View>
 
             {/* ── Pending: someone is asking ──────────────────────────────── */}
-            <SectionTitle
-              label={t('privacy.pendingSection')}
-              count={pending.length}
-              hint={pending.length > 0 ? t('privacy.pendingHint') : undefined}
-            />
-            {pending.length === 0 ? (
-              <EmptyState
-                icon={CircleCheck}
-                tone="success"
-                title={t('privacy.pendingEmptyTitle')}
-                body={t('privacy.pendingEmpty')}
-              />
-            ) : (
-              pending.map((item) => (
-                <ConsentCard key={item.id} item={item} locale={locale} highlight>
-                  {isConfirming(item, 'approve') ? (
-                    <ConfirmBar
-                      tone="success"
-                      message={t('privacy.confirmApproveBody', {
-                        facility: facilityLabel(item),
-                        scope: scopeSummary(item, t),
-                        purpose: item.purpose,
-                        duration: item.duration_minutes,
-                      })}
-                      cancelLabel={t('privacy.cancel')}
-                      confirmLabel={t('privacy.confirmApproveCta')}
-                      loading={approveMutation.isPending}
-                      onCancel={() => setConfirming(null)}
-                      onConfirm={() => runApprove(item)}
-                    />
-                  ) : isConfirming(item, 'deny') ? (
-                    <ConfirmBar
-                      tone="danger"
-                      message={t('privacy.confirmDenyBody', { facility: facilityLabel(item) })}
-                      cancelLabel={t('privacy.cancel')}
-                      confirmLabel={t('privacy.confirmDenyCta')}
-                      loading={denyMutation.isPending}
-                      onCancel={() => setConfirming(null)}
-                      onConfirm={() => runDeny(item)}
-                    />
-                  ) : (
-                    <View className="mt-4 flex-row" style={{ gap: 10 }}>
-                      <ActionPill
-                        label={t('privacy.deny')}
-                        icon={XCircle}
-                        tone="danger"
-                        onPress={() => startConfirm(item, 'deny')}
-                      />
-                      <ActionPill
-                        label={t('privacy.approve')}
-                        icon={CheckCircle2}
-                        tone="success"
-                        onPress={() => startConfirm(item, 'approve')}
-                      />
-                    </View>
-                  )}
-                </ConsentCard>
-              ))
-            )}
+            <View>
+              <SectionHeader title={t('privacy.pendingSection')} variant="overline" />
+              {pending.length > 0 ? (
+                <Text style={styles.sectionHint}>{t('privacy.pendingHint')}</Text>
+              ) : null}
+
+              {pending.length === 0 ? (
+                <Card variant="flush">
+                  <EmptyState
+                    icon="check-circle"
+                    tint="green"
+                    title={t('privacy.pendingEmptyTitle')}
+                    message={t('privacy.pendingEmpty')}
+                  />
+                </Card>
+              ) : (
+                <View style={styles.stack}>
+                  {pending.map((item) => (
+                    <ConsentCard key={item.id} item={item} highlight>
+                      <View style={styles.actions}>
+                        <TouchableOpacity
+                          onPress={() => confirmDeny(item)}
+                          disabled={denyMutation.isPending}
+                          activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('privacy.deny')}
+                          accessibilityState={{ disabled: denyMutation.isPending }}
+                          style={[styles.denyButton, denyMutation.isPending && styles.buttonOff]}
+                        >
+                          <Icon name="x-circle" size={18} color={colors.statusCritical} />
+                          <Text style={styles.denyLabel}>{t('privacy.deny')}</Text>
+                        </TouchableOpacity>
+                        <GradientButton
+                          label={t('privacy.approve')}
+                          onPress={() => confirmApprove(item)}
+                          loading={approveMutation.isPending}
+                          icon="none"
+                          style={styles.approveButton}
+                          accessibilityHint={t('privacy.pendingHint')}
+                        />
+                      </View>
+                    </ConsentCard>
+                  ))}
+                </View>
+              )}
+            </View>
 
             {/* ── Active grants ───────────────────────────────────────────── */}
-            <SectionTitle
-              label={t('privacy.activeSection')}
-              count={active.length}
-              hint={active.length > 0 ? t('privacy.activeHint') : undefined}
-            />
-            {active.length === 0 ? (
-              <EmptyState
-                icon={ShieldCheck}
-                tone="success"
-                title={t('privacy.activeEmptyTitle')}
-                body={t('privacy.activeEmpty')}
-              />
-            ) : (
-              active.map((item) => (
-                <ConsentCard key={item.id} item={item} locale={locale}>
-                  {isConfirming(item, 'revoke') ? (
-                    <ConfirmBar
-                      tone="danger"
-                      message={t('privacy.confirmRevokeBody', { facility: facilityLabel(item) })}
-                      cancelLabel={t('privacy.keepAccess')}
-                      confirmLabel={t('privacy.confirmRevokeCta')}
-                      loading={revokeMutation.isPending}
-                      onCancel={() => setConfirming(null)}
-                      onConfirm={() => runRevoke(item)}
-                    />
-                  ) : (
-                    <View className="mt-4 flex-row items-center justify-between">
-                      <Chip tone="success" icon={CircleCheck} label={t('privacy.status.active')} />
-                      <Pressable
-                        onPress={() => startConfirm(item, 'revoke')}
-                        accessibilityRole="button"
-                        className="flex-row items-center rounded-full px-4 py-2"
-                        style={{ backgroundColor: colors.semantic.dangerSurface }}
-                      >
-                        <Ban size={14} color={colors.semantic.danger} />
-                        <Text
-                          className="ml-1.5 text-[13px] font-bold"
-                          style={{ color: colors.semantic.danger }}
+            <View>
+              <SectionHeader title={t('privacy.activeSection')} variant="overline" />
+              {active.length > 0 ? (
+                <Text style={styles.sectionHint}>{t('privacy.activeHint')}</Text>
+              ) : null}
+
+              {active.length === 0 ? (
+                <Card variant="flush">
+                  <EmptyState
+                    icon="shield-check"
+                    tint="green"
+                    title={t('privacy.activeEmptyTitle')}
+                    message={t('privacy.activeEmpty')}
+                  />
+                </Card>
+              ) : (
+                <View style={styles.stack}>
+                  {active.map((item) => (
+                    <ConsentCard key={item.id} item={item}>
+                      <View style={styles.actions}>
+                        <StatusBadge
+                          status="active"
+                          tone="normal"
+                          label={t('privacy.status.active')}
+                          icon="check-circle"
+                          size="sm"
+                        />
+                        <View style={styles.spacer} />
+                        <TouchableOpacity
+                          onPress={() => confirmRevoke(item)}
+                          disabled={revokeMutation.isPending}
+                          activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('privacy.revoke')}
+                          accessibilityHint={t('privacy.activeHint')}
+                          accessibilityState={{ disabled: revokeMutation.isPending }}
+                          style={[styles.denyButton, revokeMutation.isPending && styles.buttonOff]}
                         >
-                          {t('privacy.revoke')}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  )}
-                </ConsentCard>
-              ))
-            )}
+                          <Icon name="lock" size={18} color={colors.statusCritical} />
+                          <Text style={styles.denyLabel}>{t('privacy.revoke')}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </ConsentCard>
+                  ))}
+                </View>
+              )}
+            </View>
 
             {/* ── History ─────────────────────────────────────────────────── */}
-            <Pressable
-              onPress={() => setHistoryOpen((v) => !v)}
-              accessibilityRole="button"
-              className="mt-7 flex-row items-center justify-between rounded-2xl bg-white p-4"
-              style={CARD_SHADOW}
-            >
-              <View className="flex-1 flex-row items-center">
-                <View className="h-9 w-9 items-center justify-center rounded-full bg-cream-200">
-                  <History size={16} color={colors.navy.secondary} />
-                </View>
-                <View className="ml-3 flex-1">
-                  <Text className="text-[14px] font-bold text-navy-text">
-                    {t('privacy.historySection')}
-                  </Text>
-                  <Text className="mt-0.5 text-[12px] text-navy-secondary">
-                    {history.length > 0
+            <View>
+              <Card variant="flush">
+                <ListRow
+                  icon="history"
+                  tint="purple"
+                  title={t('privacy.historySection')}
+                  subtitle={
+                    history.length > 0
                       ? t('privacy.historyCount', { count: history.length })
-                      : t('privacy.historyEmpty')}
-                  </Text>
-                </View>
-              </View>
-              {historyOpen ? (
-                <ChevronUp size={18} color={colors.navy.muted} />
-              ) : (
-                <ChevronDown size={18} color={colors.navy.muted} />
-              )}
-            </Pressable>
+                      : t('privacy.historyEmpty')
+                  }
+                  onPress={() => setHistoryOpen((v) => !v)}
+                  chevron={false}
+                  trailing={
+                    <Icon
+                      name={historyOpen ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color={colors.textMuted}
+                    />
+                  }
+                />
+              </Card>
 
-            {historyOpen && history.length > 0 ? (
-              <View className="mt-3">
-                {history.map((item) => (
-                  <ConsentCard key={item.id} item={item} locale={locale}>
-                    <View className="mt-3">
-                      <Chip
-                        tone={item.status === 'denied' ? 'danger' : 'muted'}
-                        label={t(
-                          `privacy.status.${item.status === 'approved' ? 'revoked' : item.status}`,
-                          { defaultValue: humanizeSlug(item.status) },
-                        )}
-                      />
-                    </View>
-                  </ConsentCard>
-                ))}
-              </View>
-            ) : null}
+              {historyOpen && history.length > 0 ? (
+                <View style={[styles.stack, styles.stackTop]}>
+                  {history.map((item) => (
+                    <ConsentCard key={item.id} item={item}>
+                      <View style={styles.actions}>
+                        <StatusBadge
+                          status={item.status === 'approved' ? 'revoked' : item.status}
+                          tone={item.status === 'denied' ? 'critical' : 'neutral'}
+                          label={t(
+                            `privacy.status.${item.status === 'approved' ? 'revoked' : item.status}`,
+                            { defaultValue: formatLabel(item.status) },
+                          )}
+                          size="sm"
+                        />
+                      </View>
+                    </ConsentCard>
+                  ))}
+                </View>
+              ) : null}
+            </View>
           </>
         )}
 
         {/* ── The other two rights ───────────────────────────────────────── */}
-        <SectionTitle label={t('privacy.moreRightsSection')} />
-        <NavRow
-          icon={History}
-          title={t('privacy.accessLogsCard')}
-          description={t('privacy.accessLogsCardDesc')}
-          onPress={() => router.push('/privacy/access-logs')}
-        />
-        <View className="h-3" />
-        <NavRow
-          icon={Download}
-          title={t('privacy.exportCard')}
-          description={t('privacy.exportCardDesc')}
-          onPress={() => router.push('/privacy/export')}
-        />
-
-        <View className="mt-6">
-          <InlineNotice tone="muted" icon={ShieldCheck} body={t('privacy.footerNote')} />
+        <View>
+          <SectionHeader title={t('privacy.moreRightsSection')} variant="overline" />
+          <Card variant="flush">
+            <ListRow
+              icon="history"
+              tint="blue"
+              title={t('privacy.accessLogsCard')}
+              subtitle={t('privacy.accessLogsCardDesc')}
+              onPress={() => router.push('/privacy/access-logs')}
+              divider
+            />
+            <ListRow
+              icon="download"
+              tint="purple"
+              title={t('privacy.exportCard')}
+              subtitle={t('privacy.exportCardDesc')}
+              onPress={() => router.push('/privacy/export')}
+            />
+          </Card>
         </View>
+
+        {/* Kept verbatim: what approving does NOT give away. */}
+        <Notice tone="neutral" icon="shield-check" body={t('privacy.footerNote')} />
       </ScrollView>
-    </Screen>
+
+      {dialog.element}
+    </SafeAreaView>
   );
 }
 
+// ── Pieces ──────────────────────────────────────────────────────────────────
+
 /** Comma-joined, translated scope list — used in the approve confirmation so
  * the patient reads exactly what they are handing over. */
-function scopeSummary(
-  item: ConsentRequestItem,
-  t: (key: string, opts?: Record<string, unknown>) => string,
-): string {
+function scopeSummary(item: ConsentRequestItem, t: TFn): string {
   const scopes = item.requested_scope ?? [];
   if (scopes.length === 0) return t('privacy.scopeUnspecified');
   return scopes
-    .map((scope) => t(`privacy.scope.${scope}`, { defaultValue: humanizeSlug(scope) }))
+    .map((scope) => t(`privacy.scope.${scope}`, { defaultValue: formatLabel(scope) }))
     .join(', ');
 }
 
+/**
+ * One consent request: who is asking, why, what they would see, for how long —
+ * then whatever action belongs to its state. A pending request carries the
+ * brand accent bar so the one thing waiting on the patient is the one thing
+ * that stands out.
+ */
 function ConsentCard({
   item,
-  locale,
   highlight,
   children,
 }: {
   item: ConsentRequestItem;
-  locale: string;
   highlight?: boolean;
   children?: React.ReactNode;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const scopes = item.requested_scope ?? [];
 
   const expiry = item.grant_expires_at ? new Date(item.grant_expires_at) : null;
-  const expiryValid = expiry && !Number.isNaN(expiry.getTime());
+  const expiryValid = !!expiry && !Number.isNaN(expiry.getTime());
   const requested = item.created_at ? new Date(item.created_at) : null;
-  const requestedValid = requested && !Number.isNaN(requested.getTime());
+  const requestedValid = !!requested && !Number.isNaN(requested.getTime());
+
+  const facilityType = item.requesting_facility_type
+    ? t(`privacy.facilityType.${item.requesting_facility_type}`, {
+        defaultValue: formatLabel(item.requesting_facility_type),
+      })
+    : t('privacy.facilityGeneric');
 
   return (
-    <View
-      className="mb-3 rounded-2xl bg-white p-4"
-      style={[
-        CARD_SHADOW,
-        highlight ? { borderWidth: 1.5, borderColor: colors.brand[300] } : null,
-      ]}
-    >
-      <View className="flex-row items-start">
-        <View className="h-11 w-11 items-center justify-center rounded-full bg-brand-100">
-          <Building2 size={19} color={colors.brand[600]} />
-        </View>
-        <View className="ml-3 flex-1">
-          <Text className="text-[15px] font-extrabold leading-5 text-navy-text" numberOfLines={2}>
-            {item.requesting_facility_name ?? t('privacy.unknownFacility')}
-          </Text>
-          <Text className="mt-0.5 text-[11px] text-navy-muted" numberOfLines={1}>
-            {item.requesting_facility_type
-              ? t(`privacy.facilityType.${item.requesting_facility_type}`, {
-                  defaultValue: humanizeSlug(item.requesting_facility_type),
-                })
-              : t('privacy.facilityGeneric')}
-          </Text>
-        </View>
-        {requestedValid ? (
-          <Text className="text-[10px] text-navy-muted">
-            {requested.toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
-          </Text>
-        ) : null}
-      </View>
+    // The highlight is a brand-coloured hairline, not the kit's left accent
+    // bar: `accentColor` adds a 20px left inset, which on a flush card would
+    // shove every row's tint circle out of line with the dividers under it.
+    <Card variant="flush" style={highlight ? { borderColor: colors.blue } : undefined}>
+      <ListRow
+        icon="building"
+        tint="blue"
+        title={item.requesting_facility_name ?? t('privacy.unknownFacility')}
+        meta={[facilityType, requestedValid ? formatDate(requested) : undefined]}
+        chevron={false}
+        divider
+      />
 
-      {/* WHY they want it — the single most important line on the card. */}
-      <View className="mt-3 rounded-xl bg-cream-100 p-3">
-        <Text className="text-[10px] font-bold uppercase tracking-wide text-navy-muted">
-          {t('privacy.purposeLabel')}
-        </Text>
-        <Text className="mt-1 text-[13px] leading-[18px] text-navy-text">
-          {t(`privacy.purpose.${item.purpose}`, { defaultValue: humanizeSlug(item.purpose) })}
-        </Text>
-      </View>
-
-      {/* WHAT they would see. */}
-      <View className="mt-3">
-        <View className="flex-row items-center">
-          <Layers size={12} color={colors.navy.muted} />
-          <Text className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-navy-muted">
-            {t('privacy.scopeLabel')}
+      <View style={styles.detail}>
+        {/* WHY they want it — the single most important line on the card. */}
+        <View>
+          <Text style={styles.detailLabel}>{t('privacy.purposeLabel')}</Text>
+          <Text style={styles.detailValue}>
+            {t(`privacy.purpose.${item.purpose}`, { defaultValue: formatLabel(item.purpose) })}
           </Text>
         </View>
-        <View className="mt-2 flex-row flex-wrap" style={{ gap: 6 }}>
+
+        {/* WHAT they would see. */}
+        <View>
+          <View style={styles.detailLabelRow}>
+            <Icon name="list" size={14} color={colors.textMuted} />
+            <Text style={styles.detailLabel}>{t('privacy.scopeLabel')}</Text>
+          </View>
           {scopes.length > 0 ? (
-            scopes.map((scope) => (
-              <Chip
-                key={scope}
-                tone="muted"
-                label={t(`privacy.scope.${scope}`, { defaultValue: humanizeSlug(scope) })}
-              />
-            ))
+            <View style={styles.chips}>
+              {scopes.map((scope) => (
+                <Chip
+                  key={scope}
+                  label={t(`privacy.scope.${scope}`, { defaultValue: formatLabel(scope) })}
+                />
+              ))}
+            </View>
           ) : (
-            <Text className="text-[12px] text-navy-muted">{t('privacy.scopeUnspecified')}</Text>
+            <Text style={styles.detailValue}>{t('privacy.scopeUnspecified')}</Text>
           )}
         </View>
-      </View>
 
-      {/* HOW LONG. */}
-      <View className="mt-3 flex-row items-center">
-        {expiryValid ? (
-          <>
-            <CalendarClock size={13} color={colors.navy.muted} />
-            <Text className="ml-1.5 text-[12px] text-navy-secondary">
-              {t('privacy.expiresLabel', {
-                date: expiry.toLocaleString(locale, {
-                  day: 'numeric',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                }),
-              })}
-            </Text>
-          </>
-        ) : (
-          <>
-            <Clock size={13} color={colors.navy.muted} />
-            <Text className="ml-1.5 text-[12px] text-navy-secondary">
-              {t('privacy.durationLabel', { count: item.duration_minutes })}
-            </Text>
-          </>
-        )}
-      </View>
+        {/* HOW LONG. */}
+        <View style={styles.detailLabelRow}>
+          <Icon name={expiryValid ? 'calendar' : 'clock'} size={14} color={colors.textMuted} />
+          <Text style={styles.durationText}>
+            {expiryValid
+              ? t('privacy.expiresLabel', { date: formatDateTime(expiry) })
+              : t('privacy.durationLabel', { count: item.duration_minutes })}
+          </Text>
+        </View>
 
-      {children}
-    </View>
+        {children}
+      </View>
+    </Card>
   );
 }
 
-function OverviewStat({
-  icon: Icon,
-  tone,
+/** One overview figure, as a row: tint circle, label, caption, count. */
+function OverviewRow({
+  icon,
+  tint,
   value,
   label,
   caption,
+  divider,
 }: {
-  icon: LucideIcon;
-  tone: Tone;
+  icon: IconName;
+  tint: Tint;
   value: number;
   label: string;
   caption: string;
+  divider?: boolean;
 }) {
-  const { surface, ink } = toneColors(tone);
+  const { colors, tintMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <View className="flex-1 rounded-xl bg-cream-100 p-3">
-      <View
-        className="h-8 w-8 items-center justify-center rounded-full"
-        style={{ backgroundColor: surface }}
-      >
-        <Icon size={15} color={ink} />
+    <ListRow
+      icon={icon}
+      tint={tint}
+      title={label}
+      subtitle={caption}
+      chevron={false}
+      divider={divider}
+      accessibilityLabel={`${value} ${label}. ${caption}`}
+      trailing={
+        <Text style={[styles.statValue, { color: tintMap[tint].fg }]}>{String(value)}</Text>
+      }
+    />
+  );
+}
+
+/** Tinted inline notice: icon in a status circle, optional title, body. */
+function Notice({
+  tone,
+  icon,
+  title,
+  body,
+}: {
+  tone: StatusTone;
+  icon: IconName;
+  title?: string;
+  body: string;
+}) {
+  const { colors, statusMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const skin = statusMap[tone];
+  return (
+    <View
+      style={[styles.notice, { backgroundColor: skin.bg }]}
+      accessibilityRole="text"
+      accessibilityLiveRegion="polite"
+    >
+      <View style={[styles.noticeIcon, { backgroundColor: colors.surface }]}>
+        <Icon name={icon} size={20} color={skin.fg} />
       </View>
-      <Text className="mt-2 text-[22px] font-extrabold leading-7" style={{ color: ink }}>
-        {value}
-      </Text>
-      <Text className="text-[12px] font-bold text-navy-text">{label}</Text>
-      <Text className="mt-0.5 text-[10px] leading-[14px] text-navy-muted">{caption}</Text>
+      <View style={styles.noticeBody}>
+        {title ? <Text style={[styles.noticeTitle, { color: skin.fg }]}>{title}</Text> : null}
+        <Text style={styles.noticeText}>{body}</Text>
+      </View>
     </View>
   );
 }
 
-function ActionPill({
-  label,
-  icon: Icon,
-  tone,
-  onPress,
-}: {
-  label: string;
-  icon: LucideIcon;
-  tone: Tone;
-  onPress: () => void;
-}) {
-  const { surface, ink } = toneColors(tone);
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      className="flex-1 flex-row items-center justify-center rounded-xl py-3"
-      style={{ backgroundColor: surface }}
-    >
-      <Icon size={15} color={ink} />
-      <Text className="ml-1.5 text-[13px] font-bold" style={{ color: ink }}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
+// ── Styles (colour-dependent, built per palette) ───────────────────────────
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.page },
+    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+
+    stack: { gap: spacing.sm + 4 },
+    stackTop: { marginTop: spacing.sm + 4 },
+    spacer: { flex: 1 },
+
+    loading: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.md,
+    },
+    loadingText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
+
+    sectionHint: {
+      marginBottom: spacing.sm,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textMuted,
+    },
+
+    // Overview
+    statValue: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+    },
+    cardFootnote: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.md,
+      paddingTop: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: colors.divider,
+    },
+    cardFootnoteText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+
+    // Consent card body
+    detail: { padding: spacing.md, gap: spacing.sm + 4 },
+    detailLabelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2 },
+    detailLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: 13,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: colors.textMuted,
+    },
+    detailValue: {
+      marginTop: spacing.xs,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textPrimary,
+    },
+    durationText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textSecondary,
+    },
+    chips: { marginTop: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+
+    // Actions
+    actions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+      marginTop: spacing.xs,
+    },
+    approveButton: { flex: 1 },
+    denyButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      minHeight: 50,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: colors.statusCriticalBg,
+      backgroundColor: colors.statusCriticalBg,
+    },
+    buttonOff: { opacity: 0.5 },
+    denyLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.statusCritical,
+    },
+
+    // Inline notice
+    notice: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm + 4,
+      padding: spacing.md,
+      borderRadius: radii.md,
+    },
+    noticeIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    noticeBody: { flex: 1, minWidth: 0, gap: 2 },
+    noticeTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
+    noticeText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+  });

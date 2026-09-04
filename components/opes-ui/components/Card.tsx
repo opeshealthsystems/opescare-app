@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { StyleProp, StyleSheet, TouchableOpacity, View, ViewProps, ViewStyle } from 'react-native';
-import { radii, shadow, spacing, type Palette } from '../theme';
+import { makeShadow, radii, spacing, type Palette } from '../theme';
 import { useTheme } from '../ThemeProvider';
 
 export type CardProps = ViewProps & {
@@ -24,7 +24,7 @@ export type CardProps = ViewProps & {
 /**
  * The standard white card container.
  *
- * Recipe (from the reference renders): white surface, 1px #E9EEF6 hairline
+ * Recipe (from the reference renders): white surface, 1px palette hairline
  * border, 14px radius, very subtle shadow, 16px padding.
  */
 export function Card({
@@ -72,7 +72,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
-    ...shadow.card,
+    ...makeShadow(colors).card,
   },
   padded: { padding: spacing.md },
   withAccent: { paddingLeft: spacing.md + 4 },

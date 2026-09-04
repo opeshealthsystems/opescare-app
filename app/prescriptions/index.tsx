@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Card,
   EmptyState,
@@ -11,22 +12,30 @@ import {
   SegmentedTabs,
   StatusBadge,
   a11yJoin,
+  formatLabel,
   radii,
   spacing,
   typography,
   useTheme,
   type IconName,
   type Palette,
+  type StatusTone,
   type Tint,
 } from '@/components/opes-ui';
 import { Screen } from '../../components/ui/Screen';
-import { usePrescriptions, type PrescriptionSummary } from '../../lib/api/queries';
+import {
+  usePrescriptionDetail,
+  usePrescriptions,
+  type PrescriptionItemDetail,
+  type PrescriptionSummary,
+} from '../../lib/api/queries';
 import { useActivePrescriptionSummary } from '../../lib/api/prescriptionQueries';
 import {
   EXPIRY_WARNING_WINDOW_DAYS,
   daysUntil,
   referenceCode,
   statusLabelKey,
+  fallbackStatusLabel,
 } from '../../components/prescriptions/status';
 import {
   LoadingBlock,
@@ -45,6 +54,17 @@ import {
  * "MY PRESCRIPTIONS" overline and one accent-barred `Card` per prescription.
  * Every colour is a palette token and every glyph is the kit `<Icon />`.
  *
+ * **What a row says, and where it comes from.** `GET /mobile/prescriptions`
+ * returns a header only — facility, status, `item_count`, and the three dates —
+ * never the drug names. A row that can only say "3 medications" makes the
+ * patient open all three to find the one they came for, so each rendered row
+ * also asks `usePrescriptionDetail` for its own lines and upgrades to
+ * "Amoxicillin +2 more" plus a collected/outstanding count once that lands.
+ * That is the same query the detail screen uses, so opening a row afterwards is
+ * instant. The index endpoint caps at 20 rows and this screen has no infinite
+ * scroll, so the fan-out is bounded by the page, and a row whose detail is
+ * still in flight (or failed) simply keeps the honest count line.
+ *
  * Read-only by design: the mobile API exposes only GET index + GET show
  * (routes/api.php:269-270), so this screen surfaces no refill or renewal
  * action. The one refill route in the codebase is a session-authenticated web
@@ -59,18 +79,29 @@ import {
 const STATUS_FILTERS = [
   'all',
   'active',
-  'dispensed',
   'partially_dispensed',
+  'dispensed',
   'expired',
   'cancelled',
 ] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
+
+/** Statuses from which no further transition is allowed (server-side truth). */
+const TERMINAL_STATUSES = ['dispensed', 'cancelled', 'voided', 'entered_in_error', 'amended'];
+
+/** Statuses that mean "this record should not have existed / no longer counts". */
+const RETRACTED_STATUSES = ['voided', 'entered_in_error'];
+
+/** `t` narrowed to the plain shape the helpers below take. */
+type TFunc = (key: string, params?: Record<string, unknown>) => string;
 
 export default function PrescriptionsListScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const vocab = usePrescriptionVocab();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<StatusFilter>('all');
 
   const { data, isLoading, isError, isFetching, refetch } = usePrescriptions(
@@ -82,14 +113,18 @@ export default function PrescriptionsListScreen() {
   const total = data?.pagination?.total ?? prescriptions.length;
   const hasAnyActive = (summary.data?.prescriptionCount ?? 0) > 0;
   const showCount = !isLoading && !isError && prescriptions.length > 0;
+  // The index endpoint pages at 20 and nothing here loads a second page, so a
+  // patient with a long history is seeing a slice. Say so rather than letting
+  // the count above imply the list is complete.
+  const truncated = showCount && total > prescriptions.length;
 
   const filterOptions = useMemo(
     () =>
       STATUS_FILTERS.map((option) => ({
         key: option,
-        label: option === 'all' ? t('prescriptions.filterAll') : t(statusLabelKey(option)),
+        label: option === 'all' ? t('prescriptions.filterAll') : vocab.statusLabel(option),
       })),
-    [t],
+    [t, vocab],
   );
 
   return (
@@ -117,9 +152,12 @@ export default function PrescriptionsListScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isFetching && !isLoading}
+            // One invalidation covers the list, the active-summary count and
+            // every per-row detail — a pull that refreshed the headers but left
+            // the dispensing bars showing yesterday's state would be worse than
+            // not refreshing at all.
             onRefresh={() => {
-              refetch();
-              summary.refetch();
+              queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
             }}
             tintColor={colors.blue}
           />
@@ -158,11 +196,17 @@ export default function PrescriptionsListScreen() {
           isLoading ? (
             <LoadingBlock label={t('opesMeds.list.loading')} />
           ) : isError ? (
+            // A failed request. Retryable, and worded so it can never be read
+            // as "you have no prescriptions".
             <Card>
               <EmptyState
                 icon="alert-circle"
                 tint="red"
                 title={t('prescriptions.loadError')}
+                message={vocab.tx('prescriptions.loadErrorBody', {
+                  defaultValue:
+                    'Your prescriptions could not be fetched. Check your connection and try again.',
+                })}
                 actionLabel={t('prescriptions.retry')}
                 onAction={() => refetch()}
               />
@@ -171,10 +215,21 @@ export default function PrescriptionsListScreen() {
             <FirstRunEmptyState />
           ) : (
             <FilteredEmptyState
-              statusLabel={t(statusLabelKey(filter))}
+              statusLabel={vocab.statusLabel(filter)}
               onShowAll={() => setFilter('all')}
             />
           )
+        }
+        ListFooterComponent={
+          truncated ? (
+            <Text style={styles.footnote}>
+              {vocab.tx('prescriptions.showingRecent', {
+                n: prescriptions.length,
+                total,
+                defaultValue: 'Showing your {{n}} most recent of {{total}} prescriptions.',
+              })}
+            </Text>
+          ) : null
         }
         renderItem={({ item, index }) => (
           <PrescriptionRow
@@ -188,10 +243,81 @@ export default function PrescriptionsListScreen() {
   );
 }
 
+/* -- Status vocabulary ------------------------------------------------------ */
+
+/**
+ * Localized status words for this screen.
+ *
+ * `components/prescriptions/status.tsx` maps only the five statuses the filter
+ * row offers and returns `prescriptions.statusActive` for everything else — so
+ * a `voided` or `entered_in_error` prescription would be listed as "Active".
+ * Those statuses are real (`App\Models\Prescription::TERMINAL_STATUSES`) and
+ * that shared file is not edited here, so they are named below, and anything
+ * genuinely unrecognised falls back to its own formatted value rather than
+ * borrowing a word that would make a dead record look live.
+ */
+function usePrescriptionVocab() {
+  const { t } = useTranslation();
+
+  const tx = useCallback<TFunc>(
+    (key, params) => String(t(key, params as Record<string, unknown>)),
+    [t],
+  );
+
+  const statusLabel = useCallback(
+    (status: string): string => {
+      switch ((status ?? '').toLowerCase()) {
+        case 'active':
+        case 'dispensed':
+        case 'partially_dispensed':
+        case 'expired':
+        case 'cancelled':
+          return tx(statusLabelKey(status) ?? '') || fallbackStatusLabel(status);
+        case 'voided':
+          return tx('prescriptions.statusVoided', { defaultValue: 'Voided' });
+        case 'entered_in_error':
+          return tx('prescriptions.statusEnteredInError', { defaultValue: 'Entered in error' });
+        case 'amended':
+          return tx('prescriptions.statusAmended', { defaultValue: 'Amended' });
+        case 'draft':
+          return tx('prescriptions.statusDraft', { defaultValue: 'Draft' });
+        default:
+          return formatLabel(status);
+      }
+    },
+    [tx],
+  );
+
+  return useMemo(() => ({ tx, statusLabel }), [tx, statusLabel]);
+}
+
+/** Badge tone for a whole prescription, with the retracted statuses promoted. */
+function headerTone(status: string, statusColor: PrescriptionSummary['status_color']): StatusTone {
+  const s = (status ?? '').toLowerCase();
+  if (RETRACTED_STATUSES.includes(s)) return 'critical';
+  if (s === 'amended') return 'warning';
+  return prescriptionTone(status, statusColor);
+}
+
+/** The three per-line outcomes the API records, plus a bucket for anything new. */
+type LineState = 'dispensed' | 'pending' | 'cancelled' | 'other';
+
+function lineStateOf(item: PrescriptionItemDetail): LineState {
+  const raw = (item.status || (item.is_dispensed ? 'dispensed' : 'pending')).toLowerCase();
+  if (raw === 'dispensed' || raw === 'pending' || raw === 'cancelled') return raw;
+  return 'other';
+}
+
 /* -- Pieces ---------------------------------------------------------------- */
 
 /** The MED-001 navy hero: two numerals and the pill mark. */
-function SummaryHero({ prescriptions, medications }: { prescriptions: number; medications: number }) {
+function SummaryHero({
+  prescriptions,
+  medications,
+}: {
+  prescriptions: number;
+  medications: number;
+}) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -232,43 +358,113 @@ function PrescriptionRow({
   onPress: () => void;
 }) {
   const { t } = useTranslation();
-  const { colors, tintMap } = useTheme();
+  const { colors, tintMap, statusMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const vocab = usePrescriptionVocab();
   const tint: Tint = ROW_TINTS[index % ROW_TINTS.length];
 
-  const prescribedOn = prescription.prescribed_at ? fmtShortDate(prescription.prescribed_at) : null;
-  const remaining = daysUntil(prescription.expires_at);
-  const isOpen = prescription.status === 'active' || prescription.status === 'partially_dispensed';
+  // Same query the detail screen uses, so opening this row is instant
+  // afterwards. Until it lands the row falls back to the count line, which is
+  // true either way — nothing here waits on it or invents a name.
+  const { data: detail } = usePrescriptionDetail(prescription.id);
+  const items = detail?.items ?? [];
 
-  // An expiry is only worth a callout while the prescription can still be
+  const status = (prescription.status ?? '').toLowerCase();
+  const remaining = daysUntil(prescription.expires_at);
+  const lapsed = remaining !== null && remaining < 0;
+  const terminal = TERMINAL_STATUSES.includes(status);
+  // Checked against the date as well as the status: a nightly sweep can lag,
+  // and a prescription still flagged `active` whose expiry was yesterday is
+  // expired in every way that matters at a pharmacy counter.
+  const expired = status === 'expired' || lapsed;
+  const fillable = !terminal && !expired;
+
+  // An expiry is only worth a countdown while the prescription can still be
   // filled, and only inside the window where the date changes what you'd do.
-  const expiryDays =
-    isOpen && remaining !== null && remaining >= 0 && remaining <= EXPIRY_WARNING_WINDOW_DAYS
+  const expiringInDays =
+    fillable && remaining !== null && remaining >= 0 && remaining <= EXPIRY_WARNING_WINDOW_DAYS
       ? remaining
       : null;
   const expiryLabel =
-    expiryDays === null
+    expiringInDays === null
       ? null
-      : expiryDays === 0
+      : expiringInDays === 0
         ? t('prescriptions.expiresToday')
-        : t('prescriptions.expiresInDays', { count: expiryDays });
+        : t('prescriptions.expiresInDays', { count: expiringInDays });
+
+  const counts = items.reduce(
+    (acc, item) => {
+      acc.total += 1;
+      acc[lineStateOf(item)] += 1;
+      return acc;
+    },
+    { total: 0, dispensed: 0, pending: 0, cancelled: 0, other: 0 },
+  );
+  const partial = counts.dispensed > 0 && counts.pending > 0;
 
   const title = prescription.facility_name ?? t('prescriptions.unknownFacility');
-  const statusLabel = t(statusLabelKey(prescription.status));
-  // The list endpoint returns a count but never the drug names, so the count
-  // is what carries the weight here. Names live on the detail screen.
+  const statusLabel = vocab.statusLabel(prescription.status);
+
+  // The drug line. The index endpoint carries no names, so this only fills in
+  // once the per-row detail lands; the count is the floor under it.
   const countLine = t('prescriptions.medicationCount', { count: prescription.item_count });
-  const dateLine = prescribedOn
-    ? t('prescriptions.prescribedOn', { date: prescribedOn })
+  const firstDrug = items[0]?.drug_name ?? null;
+  const extra = Math.max(0, (prescription.item_count || counts.total) - 1);
+  const drugLine = firstDrug
+    ? extra > 0
+      ? `${firstDrug} ${vocab.tx('prescriptions.morePlus', {
+          n: extra,
+          defaultValue: '+{{n}} more',
+        })}`
+      : firstDrug
+    : countLine;
+
+  const dateLine = prescription.prescribed_at
+    ? t('prescriptions.prescribedOn', { date: fmtShortDate(prescription.prescribed_at) })
     : t('prescriptions.dateUnknown');
   const reference = t('prescriptions.reference', { code: referenceCode(prescription.id) });
+
+  const progressLine =
+    counts.total > 0 && (partial || counts.cancelled > 0)
+      ? vocab.tx('prescriptions.dispensedOfTotal', {
+          done: counts.dispensed,
+          total: counts.total,
+          defaultValue: '{{done}} of {{total}} collected',
+        })
+      : null;
+
+  const expiredLabel = expired
+    ? prescription.expires_at
+      ? vocab.tx('prescriptions.expiredOn', {
+          date: fmtShortDate(prescription.expires_at),
+          defaultValue: 'Expired {{date}}',
+        })
+      : vocab.tx('prescriptions.statusExpired')
+    : null;
+
+  // When the status word already IS "Expired", the dated label replaces it
+  // rather than sitting under it as a second badge saying the same thing. A
+  // prescription the server still calls `active` past its date gets both: the
+  // status it was given, and the fact that it has run out.
+  const statusIsExpired = status === 'expired';
+  const badgeLabel = statusIsExpired && expiredLabel ? expiredLabel : statusLabel;
 
   return (
     <Card
       variant="flush"
       accentColor={tintMap[tint].fg}
       onPress={onPress}
-      accessibilityLabel={a11yJoin(title, countLine, dateLine, reference, statusLabel, expiryLabel)}
+      accessibilityLabel={a11yJoin(
+        title,
+        drugLine,
+        firstDrug ? countLine : null,
+        dateLine,
+        reference,
+        badgeLabel,
+        statusIsExpired ? null : expiredLabel,
+        expiryLabel,
+        progressLine,
+      )}
     >
       <View style={styles.rxRow}>
         <TintCircle icon="pill" tint={tint} size={48} />
@@ -276,7 +472,9 @@ function PrescriptionRow({
           <Text style={styles.rxTitle} numberOfLines={2}>
             {title}
           </Text>
-          <Text style={styles.rxPurpose}>{countLine}</Text>
+          <Text style={styles.rxPurpose} numberOfLines={1}>
+            {drugLine}
+          </Text>
           <View style={styles.rxMetaRow}>
             <Icon name="calendar" size={14} color={colors.textMuted} />
             <Text style={styles.rxMeta} numberOfLines={1}>
@@ -289,18 +487,70 @@ function PrescriptionRow({
         <View style={styles.rxRight}>
           <StatusBadge
             status={prescription.status}
-            tone={prescriptionTone(prescription.status, prescription.status_color)}
-            label={statusLabel}
+            // `status_color` returns `default` for expired, which the kit would
+            // render as a grey nothing. Promoted here for the same reason
+            // `prescriptionTone` already promotes `cancelled`: a prescription
+            // that cannot be filled must not look like one that can. A row the
+            // server still calls `active` keeps its own tone — the dated
+            // "Expired" badge beside it carries the warning instead.
+            tone={
+              statusIsExpired
+                ? 'critical'
+                : headerTone(prescription.status, prescription.status_color)
+            }
+            label={badgeLabel}
             size="sm"
           />
-          {expiryLabel ? (
+          {expiredLabel && !statusIsExpired ? (
+            <StatusBadge
+              status="expired"
+              tone="critical"
+              icon="alert-triangle"
+              label={expiredLabel}
+              size="sm"
+            />
+          ) : expiryLabel ? (
             <StatusBadge status="due" tone="warning" icon="clock" label={expiryLabel} size="sm" />
           ) : null}
         </View>
         <Icon name="chevron-right" size={18} color={colors.textMuted} />
       </View>
+
+      {/* Which lines are filled and which are not. Only drawn when the answer is
+          mixed — a prescription that is wholly outstanding or wholly collected
+          already says so in its status badge. */}
+      {progressLine ? (
+        <View style={styles.rxProgress}>
+          <View style={styles.bar} importantForAccessibility="no-hide-descendants">
+            {items.map((item) => (
+              <View
+                key={item.id}
+                style={[
+                  styles.barSegment,
+                  { backgroundColor: statusMap[segmentTone(lineStateOf(item), fillable)].fg },
+                ]}
+              />
+            ))}
+          </View>
+          <Text style={styles.rxProgressText}>{progressLine}</Text>
+        </View>
+      ) : null}
     </Card>
   );
+}
+
+/** Bar colour for one drug line — the same tones the detail screen's badges use. */
+function segmentTone(state: LineState, fillable: boolean): StatusTone {
+  switch (state) {
+    case 'dispensed':
+      return 'normal';
+    case 'cancelled':
+      return 'critical';
+    case 'pending':
+      return fillable ? 'warning' : 'neutral';
+    default:
+      return 'neutral';
+  }
 }
 
 /**
@@ -385,7 +635,11 @@ function StepRow({
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <View style={[styles.step, divider && styles.stepDivider]} accessible accessibilityLabel={a11yJoin(`${index}. ${title}`, body)}>
+    <View
+      style={[styles.step, divider && styles.stepDivider]}
+      accessible
+      accessibilityLabel={a11yJoin(`${index}. ${title}`, body)}
+    >
       <TintCircle icon={icon} tint={tint} size={40} />
       <View style={styles.stepBody}>
         <Text style={styles.stepTitle}>
@@ -445,6 +699,13 @@ const makeStyles = (c: Palette) =>
       fontSize: typography.size.xs,
       color: c.textMuted,
     },
+    footnote: {
+      paddingTop: spacing.xs,
+      textAlign: 'center',
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
 
     // -- Hero ----------------------------------------------------------------
     hero: {
@@ -499,7 +760,21 @@ const makeStyles = (c: Palette) =>
       fontSize: typography.size.xs,
       color: c.textMuted,
     },
-    rxRight: { alignItems: 'flex-end', gap: 4, maxWidth: 120 },
+    rxRight: { alignItems: 'flex-end', gap: 4, maxWidth: 124 },
+
+    rxProgress: {
+      gap: 5,
+      paddingHorizontal: 12,
+      paddingBottom: 12,
+      marginTop: -2,
+    },
+    bar: { flexDirection: 'row', gap: 3, height: 6, borderRadius: radii.pill, overflow: 'hidden' },
+    barSegment: { flex: 1, borderRadius: radii.pill },
+    rxProgressText: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.xs,
+      color: c.textSecondary,
+    },
 
     // -- Explainer steps -----------------------------------------------------
     step: {

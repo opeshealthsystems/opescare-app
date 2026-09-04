@@ -12,21 +12,42 @@ import type { PrescriptionSummary } from '../../lib/api/queries';
 
 export type PrescriptionStatusColor = PrescriptionSummary['status_color'];
 
-export function statusLabelKey(status: string): string {
-  switch (status) {
-    case 'active':
-      return 'prescriptions.statusActive';
-    case 'dispensed':
-      return 'prescriptions.statusDispensed';
-    case 'partially_dispensed':
-      return 'prescriptions.statusPartiallyDispensed';
-    case 'expired':
-      return 'prescriptions.statusExpired';
-    case 'cancelled':
-      return 'prescriptions.statusCancelled';
-    default:
-      return 'prescriptions.statusActive';
-  }
+/**
+ * The API's status vocabulary. `voided`, `entered_in_error` and `amended` are
+ * real terminal states on the server (Prescription::TERMINAL_STATUSES) — a
+ * clinical record is retracted, never deleted.
+ *
+ * The default arm used to return `statusActive`, so each of those retracted
+ * states rendered to the patient as "Active": a prescription that had been
+ * voided or entered in error looked live and fillable. An unknown status now
+ * falls back to the raw value, sentence-cased — an unfamiliar word is
+ * survivable; a wrong one that calls a dead prescription active is not.
+ */
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  active: 'prescriptions.statusActive',
+  dispensed: 'prescriptions.statusDispensed',
+  partially_dispensed: 'prescriptions.statusPartiallyDispensed',
+  expired: 'prescriptions.statusExpired',
+  cancelled: 'prescriptions.statusCancelled',
+  voided: 'prescriptions.statusVoided',
+  entered_in_error: 'prescriptions.statusEnteredInError',
+  amended: 'prescriptions.statusAmended',
+  draft: 'prescriptions.statusDraft',
+};
+
+/** True when the record was retracted and must never read as fillable. */
+export function isRetracted(status: string): boolean {
+  return status === 'voided' || status === 'entered_in_error';
+}
+
+export function statusLabelKey(status: string): string | null {
+  return STATUS_LABEL_KEYS[status] ?? null;
+}
+
+/** Sentence-cases a raw server value so an unmapped status stays readable. */
+export function fallbackStatusLabel(status: string): string {
+  const words = status.replace(/[_-]+/g, ' ').trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 export interface StatusTone {
@@ -43,7 +64,7 @@ export interface StatusTone {
  * that is a safety-legibility problem, so `cancelled` is promoted to danger.
  */
 export function statusTone(status: string, statusColor: PrescriptionStatusColor): StatusTone {
-  if (status === 'cancelled') {
+  if (status === 'cancelled' || isRetracted(status)) {
     return { fg: colors.semantic.danger, bg: colors.semantic.dangerSurface };
   }
 
@@ -81,7 +102,7 @@ export function StatusPill({
         className={`font-bold ${large ? 'text-xs' : 'text-[11px]'}`}
         style={{ color: tone.fg }}
       >
-        {t(statusLabelKey(status))}
+        {statusLabelKey(status) ? t(statusLabelKey(status) as string) : fallbackStatusLabel(status)}
       </Text>
     </View>
   );

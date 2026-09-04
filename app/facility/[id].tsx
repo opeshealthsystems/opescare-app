@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Linking,
+  RefreshControl,
   ScrollView,
   Share,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 import { Screen } from '@/components/ui/Screen';
 import { FacilityMap } from '@/components/map/FacilityMap';
 import {
@@ -23,23 +25,25 @@ import {
   SectionHeader,
   StatusBadge,
   formatLabel,
+  formatTime,
   radii,
   spacing,
   typography,
   useTheme,
   type IconName,
   type Palette,
+  type StatusTone,
   type Tint,
 } from '@/components/opes-ui';
 import {
   CareButton,
   DEPARTMENT_TYPE_ICON,
-  ErrorBlock,
   InfoRow,
   LoadingBlock,
   NoticeBanner,
   ProviderAvatar,
   departmentTypeLabel,
+  describeFailure,
   type DepartmentType,
   type Translate,
 } from '@/components/care/shared';
@@ -47,11 +51,14 @@ import {
   useFacilityDetail,
   useFacilityProviders,
   useFacilitySlots,
+  type AppointmentSlotOption,
   type CareFacilityHour,
   type CareFacilityService,
+  type FacilityProviderSummary,
 } from '@/lib/api/queries';
 import {
   joinLocationParts,
+  normalizeText,
   openStateToday,
   telUrl,
   trimTime,
@@ -65,6 +72,25 @@ import {
  * facility picker. Presentation is the OPES CARE-005 profile layout
  * (`UIUX/src/screens/care/FacilityProfileScreen.tsx`) ported onto this
  * app's existing data layer; nothing below fetches differently than before.
+ *
+ * ── What this screen may show ────────────────────────────────────────────
+ * Everything here comes from three real responses and nothing else:
+ *   • `GET /mobile/facilities/{id}` → CareFacilityDetail. Its payload is
+ *     exactly: id, facility_name, facility_type, ownership_type, city, region,
+ *     address, latitude, longitude, phone_primary, phone_secondary, email,
+ *     website, integration_status, description, services[], hours[],
+ *     insurances[]. Every one of those is surfaced below.
+ *   • `GET /mobile/facilities/{id}/providers` → the clinicians, with their job
+ *     title, department, profession, employment type and registry credentials.
+ *   • `GET /mobile/facilities/{id}/slots` → live open appointment slots.
+ *
+ * There is deliberately NO rating, review count, photo, bed count, waiting
+ * time, "verified" mark or "last updated" line: the directory carries none of
+ * those (`care_facilities.verification_status` is uniformly `unverified`
+ * across all 903 rows, so a verification badge would be decoration, not fact).
+ * A section with nothing behind it renders an explicit empty state — "this has
+ * not been published" — which is a different thing from a load failure, and
+ * both are different from "we could not find this facility at all".
  *
  * The honest-bookability rule lives here. Of the 903 listed institutions only
  * **17** are linked to an internal `facilities` row and therefore have
@@ -133,6 +159,69 @@ function serviceDepartmentType(category: string | null): DepartmentType | null {
   return SERVICE_CATEGORY_TYPE[category.trim().toLowerCase().replace(/[\s-]+/g, '_')] ?? null;
 }
 
+/**
+ * `care_facility_services.availability_status` / `facility_insurances.status`
+ * are free text. `toneForStatus` already knows "active"/"expired"; these are
+ * the availability words it does not, mapped so a suspended service never
+ * renders in the same neutral grey as an available one.
+ */
+const AVAILABILITY_TONE: Record<string, StatusTone> = {
+  available: 'normal',
+  open: 'normal',
+  operational: 'normal',
+  limited: 'warning',
+  reduced: 'warning',
+  seasonal: 'warning',
+  unavailable: 'critical',
+  suspended: 'critical',
+  closed: 'critical',
+};
+
+const normalizeStatus = (value: string) => value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+
+/** `undefined` hands the decision back to the badge's own keyword map. */
+function availabilityTone(value: string): StatusTone | undefined {
+  return AVAILABILITY_TONE[normalizeStatus(value)];
+}
+
+/**
+ * `staff_profiles.profession` / `.employment_type` are fixed DB enums with
+ * translations already published under `doctor.*` (the clinician profile reads
+ * the same two vocabularies). Mapped, never printed raw.
+ */
+const PROFESSION_KEYS: Record<string, string> = {
+  doctor: 'doctor.professionDoctor',
+  nurse: 'doctor.professionNurse',
+  pharmacist: 'doctor.professionPharmacist',
+  lab_technician: 'doctor.professionLabTechnician',
+  midwife: 'doctor.professionMidwife',
+};
+
+const EMPLOYMENT_KEYS: Record<string, string> = {
+  full_time: 'doctor.employmentFullTime',
+  part_time: 'doctor.employmentPartTime',
+  contract: 'doctor.employmentContract',
+  locum: 'doctor.employmentLocum',
+};
+
+/** Open slots listed inline before the card defers to the booking flow. */
+const MAX_INLINE_SLOTS = 4;
+
+/** "Mon, 7 Sep" / "lun. 7 sept." in the active language. */
+function slotDayLabel(iso: string, language: string): string | null {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  try {
+    return new Intl.DateTimeFormat(language.toLowerCase().startsWith('fr') ? 'fr-FR' : 'en-US', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    }).format(date);
+  } catch {
+    return null;
+  }
+}
+
 /** "Open · closes 17:00" / "Closed · opens 08:00" as a kit status pill. */
 function OpenStateBadge({ state }: { state: OpenState }) {
   const { t } = useTranslation();
@@ -166,11 +255,13 @@ function CircleAction({
   label,
   onPress,
   disabled,
+  hint,
 }: {
   icon: IconName;
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  hint?: string;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -182,6 +273,7 @@ function CircleAction({
       activeOpacity={0.8}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityHint={hint}
       accessibilityState={{ disabled: !!disabled }}
     >
       <View style={styles.actionCircle}>
@@ -202,6 +294,7 @@ function ServiceRow({
   tr: Translate;
 }) {
   const type = serviceDepartmentType(service.service_category);
+  const availability = service.availability_status?.trim();
   return (
     <ListRow
       icon={type ? DEPARTMENT_TYPE_ICON[type] : 'clipboard'}
@@ -213,10 +306,59 @@ function ServiceRow({
         service.appointment_required ? tr('facility.appointmentRequired') : null,
         service.walk_in_allowed ? tr('facility.walkInAllowed') : null,
       ]}
+      trailing={
+        availability ? (
+          <StatusBadge
+            status={availability}
+            tone={availabilityTone(availability)}
+            size="sm"
+            label={tr(`facility.availability.${normalizeStatus(availability)}`, {
+              defaultValue: formatLabel(availability),
+            })}
+          />
+        ) : undefined
+      }
       divider={divider}
     />
   );
 }
+
+/** One published day of opening hours, with today picked out. */
+function HourRow({
+  hour,
+  isToday,
+  divider,
+  language,
+  tr,
+  todayColor,
+}: {
+  hour: CareFacilityHour;
+  isToday: boolean;
+  divider: boolean;
+  language: string;
+  tr: Translate;
+  todayColor: string;
+}) {
+  const day = weekdayLabel(hour.day_of_week, language);
+  return (
+    <InfoRow
+      icon="clock"
+      tint={isToday ? 'blue' : 'purple'}
+      label={isToday ? `${day} · ${tr('facility.todayLabel')}` : day}
+      value={
+        hour.is_24_hours
+          ? tr('facility.open24')
+          : hour.is_closed
+            ? tr('facility.closed')
+            : `${trimTime(hour.opens_at) ?? '—'} – ${trimTime(hour.closes_at) ?? '—'}`
+      }
+      valueColor={isToday ? todayColor : undefined}
+      divider={divider}
+    />
+  );
+}
+
+type HourGroup = { context: string | null; rows: CareFacilityHour[] };
 
 export default function FacilityDetailScreen() {
   const { t, i18n } = useTranslation();
@@ -224,7 +366,7 @@ export default function FacilityDetailScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const params = useLocalSearchParams<{ id?: string }>();
-  const facilityId = params.id;
+  const facilityId = typeof params.id === 'string' && params.id ? params.id : undefined;
 
   // The shared care helpers take a plain `(key, params) => string`; i18next's
   // `t` is that, minus its overload noise.
@@ -247,8 +389,40 @@ export default function FacilityDetailScreen() {
     [facility?.hours],
   );
 
-  const openState = useMemo<OpenState>(() => openStateToday(hours), [hours]);
+  /**
+   * `care_facility_hours.service_context` splits a facility's week into
+   * separately-published timetables ("emergency", "pharmacy", "outpatient").
+   * Rows with no context are the facility's general hours and lead the list;
+   * every other context gets its own labelled block rather than being silently
+   * interleaved with — or dropped in favour of — the general week.
+   */
+  const hourGroups = useMemo<HourGroup[]>(() => {
+    const groups = new Map<string, HourGroup>();
+    for (const hour of hours) {
+      const key = hour.service_context?.trim() ?? '';
+      const existing = groups.get(key);
+      if (existing) existing.rows.push(hour);
+      else groups.set(key, { context: key || null, rows: [hour] });
+    }
+    return [...groups.values()].sort((a, b) => {
+      if (a.context === null) return -1;
+      if (b.context === null) return 1;
+      return a.context.localeCompare(b.context);
+    });
+  }, [hours]);
+
+  /** Today's open/closed state reads the general week, never an ER-only row. */
+  const generalHours = useMemo(() => {
+    const general = hours.filter((hour) => !hour.service_context);
+    return general.length > 0 ? general : hours;
+  }, [hours]);
+
+  const openState = useMemo<OpenState>(() => openStateToday(generalHours), [generalHours]);
   const todayIndex = new Date().getDay();
+
+  // Round-the-clock cover, derived from the published week — not asserted.
+  const allWeek24 = generalHours.length >= 7 && generalHours.every((hour) => !!hour.is_24_hours);
+  const some24 = !allWeek24 && hours.some((hour) => !!hour.is_24_hours);
 
   const address = facility
     ? joinLocationParts(facility.address, facility.city, facility.region)
@@ -263,6 +437,15 @@ export default function FacilityDetailScreen() {
   const slots = slotsQuery.data?.data ?? [];
   const isLinkedForBooking = !!slotsQuery.data?.facility_id;
   const nextSlot = slots.length > 0 ? slots[0] : null;
+  const inlineSlots = slots.slice(0, MAX_INLINE_SLOTS);
+
+  /** `AppointmentSlotOption.provider_id` is a users.id — the same id the
+   *  provider directory keys on, so a slot can name its clinician with no
+   *  extra round trip. Absent from the map ⇒ the slot names no one. */
+  const providerById = useMemo(
+    () => new Map<string, FacilityProviderSummary>(providers.map((p) => [p.id, p])),
+    [providers],
+  );
 
   const nextSlotLabel = nextSlot
     ? new Date(nextSlot.starts_at).toLocaleString(i18n.language === 'fr' ? 'fr-FR' : 'en-US', {
@@ -294,7 +477,9 @@ export default function FacilityDetailScreen() {
 
   const shareFacility = () => {
     if (!facility) return;
-    const line = [facility.facility_name, address, facility.phone_primary].filter(Boolean).join(' · ');
+    const line = [facility.facility_name, address, facility.phone_primary]
+      .filter(Boolean)
+      .join(' · ');
     Share.share({ message: line }).catch(() => {});
   };
 
@@ -303,347 +488,676 @@ export default function FacilityDetailScreen() {
     else router.replace('/(tabs)/home');
   };
 
-  const contactRows = facility
-    ? [
-        facility.phone_primary
-          ? {
-              key: 'phone',
-              icon: 'phone' as IconName,
-              title: t('facility.phone'),
-              value: facility.phone_primary,
-              onPress: callFacility,
-            }
-          : null,
-        facility.phone_secondary
-          ? {
-              key: 'phone2',
-              icon: 'phone' as IconName,
-              title: t('facility.phone'),
-              value: facility.phone_secondary,
-              onPress: () => openUrl(telUrl(facility.phone_secondary as string)),
-            }
-          : null,
-        facility.email
-          ? {
-              key: 'email',
-              icon: 'mail' as IconName,
-              title: t('facility.email'),
-              value: facility.email,
-              onPress: emailFacility,
-            }
-          : null,
-        facility.website
-          ? {
-              key: 'website',
-              icon: 'globe' as IconName,
-              title: t('facility.website'),
-              value: facility.website,
-              onPress: openWebsite,
-            }
-          : null,
-      ].filter((row): row is NonNullable<typeof row> => row !== null)
-    : [];
+  const findCareNearby = () => router.replace('/care-map');
+
+  const refreshAll = () => {
+    facilityQuery.refetch();
+    providersQuery.refetch();
+    slotsQuery.refetch();
+  };
+
+  const professionLabel = (value: string | null): string | null => {
+    if (!value) return null;
+    const key = PROFESSION_KEYS[value];
+    return key ? t(key) : formatLabel(value);
+  };
+
+  const employmentLabel = (value: string | null): string | null => {
+    if (!value) return null;
+    const key = EMPLOYMENT_KEYS[value];
+    return key ? t(key) : formatLabel(value);
+  };
+
+  const slotSubtitle = (slot: AppointmentSlotOption): (string | null)[] => {
+    const provider = slot.provider_id ? providerById.get(slot.provider_id) : undefined;
+    return [
+      slotDayLabel(slot.starts_at, i18n.language),
+      provider?.name ?? null,
+      slot.available_count > 0
+        ? tr('facility.booking.slotPlaces', {
+            seats: slot.available_count,
+            defaultValue: '{{seats}} places left',
+          })
+        : null,
+    ];
+  };
+
+  const headerSubtitle = t('facility.profileSubtitle', {
+    defaultValue: 'Details, services, clinicians and opening hours.',
+  });
+
+  /* ── State 1 — no id in the route, or the directory has no such row ── */
+  const isNotFound =
+    !facilityId ||
+    (axios.isAxiosError(facilityQuery.error) && facilityQuery.error.response?.status === 404);
+
+  if (isNotFound) {
+    return (
+      <Screen className="px-0">
+        <ScreenHeader title={t('facility.title')} onBack={goBack} />
+        <View style={styles.center}>
+          <EmptyState
+            icon="building"
+            tint="blue"
+            title={t('facility.notFoundTitle', { defaultValue: 'This facility is no longer listed.' })}
+            message={t('facility.notFoundBody', {
+              defaultValue:
+                'It may have been removed from the national register, or the link you followed may be out of date. You can browse the facilities near you instead.',
+            })}
+            actionLabel={t('facility.findAnother', { defaultValue: 'Find care nearby' })}
+            onAction={findCareNearby}
+          />
+        </View>
+      </Screen>
+    );
+  }
+
+  /* ── State 2 — first load ───────────────────────────────────────────── */
+  if (facilityQuery.isLoading) {
+    return (
+      <Screen className="px-0">
+        <ScreenHeader title={t('facility.title')} subtitle={headerSubtitle} onBack={goBack} />
+        <LoadingBlock label={t('facility.loading', { defaultValue: 'Loading facility…' })} />
+      </Screen>
+    );
+  }
+
+  /* ── State 3 — the load failed (offline, timeout, 5xx) ──────────────── */
+  if (facilityQuery.isError || !facility) {
+    const failure = describeFailure(facilityQuery.error, t('facility.loadError'));
+    return (
+      <Screen className="px-0">
+        <ScreenHeader title={t('facility.title')} onBack={goBack} />
+        <View style={styles.center}>
+          <EmptyState
+            icon="alert-circle"
+            tint="red"
+            title={t('facility.loadErrorTitle', { defaultValue: 'Facility unavailable' })}
+            message={failure.message}
+            actionLabel={t('facility.retry')}
+            onAction={() => facilityQuery.refetch()}
+          />
+        </View>
+      </Screen>
+    );
+  }
+
+  /* ── State 4 — loaded. Every section below owns its own empty state. ── */
+
+  const typeLabel = t(`careMap.types.${facility.facility_type}`, {
+    defaultValue: formatLabel(facility.facility_type),
+  });
+
+  const ownershipLabel = facility.ownership_type
+    ? t(`facility.ownership.${facility.ownership_type}`, {
+        defaultValue: formatLabel(facility.ownership_type),
+      })
+    : null;
+
+  // "Facility information" — one row per scalar the payload actually carries.
+  const infoRows: { key: string; icon: IconName; tint?: Tint; label: string; value: string }[] = [
+    {
+      key: 'type',
+      icon: facilityTypeIcon(facility.facility_type),
+      label: t('facility.typeLabel', { defaultValue: 'Facility type' }),
+      value: typeLabel,
+    },
+  ];
+  if (ownershipLabel) {
+    infoRows.push({
+      key: 'ownership',
+      icon: 'building',
+      label: t('facility.ownershipLabel', { defaultValue: 'Ownership' }),
+      value: ownershipLabel,
+    });
+  }
+  // Most registry rows have no street address and fall back to the city, so an
+  // "Address" row that just repeats the city below it would present one fact as
+  // two. Compared accent-insensitively, the way the directory itself compares.
+  const streetAddress = facility.address?.trim() ?? '';
+  const showStreet =
+    !!streetAddress &&
+    normalizeText(streetAddress) !== normalizeText(facility.city ?? '') &&
+    normalizeText(streetAddress) !== normalizeText(facility.region ?? '');
+  if (showStreet) {
+    infoRows.push({
+      key: 'street',
+      icon: 'location',
+      label: t('facility.addressLabel', { defaultValue: 'Address' }),
+      value: streetAddress,
+    });
+  }
+  if (facility.city?.trim()) {
+    infoRows.push({
+      key: 'city',
+      icon: 'location',
+      label: t('facility.cityLabel', { defaultValue: 'City' }),
+      value: facility.city.trim(),
+    });
+  }
+  if (facility.region?.trim()) {
+    infoRows.push({
+      key: 'region',
+      icon: 'location',
+      label: t('facility.regionLabel', { defaultValue: 'Region' }),
+      value: facility.region.trim(),
+    });
+  }
+  // Derived from the published week only — never claimed when no hours exist.
+  if (allWeek24 || some24) {
+    infoRows.push({
+      key: 'roundTheClock',
+      icon: 'clock',
+      tint: 'green',
+      label: t('facility.roundTheClockLabel', { defaultValue: 'Round-the-clock' }),
+      value: allWeek24
+        ? t('opesCare.facilityProfile.emergency247')
+        : t('facility.roundTheClockSomeDays', { defaultValue: '24 hours on some days' }),
+    });
+  }
+  // `care_facilities.integration_status` is `none | connected | read_only` —
+  // whether a visit here reaches the patient's OpesCare record. It is a
+  // different question from whether the facility's appointment calendar is
+  // linked (that is the booking card above, read live off the slots endpoint),
+  // so it is labelled as record sharing and never as "bookable".
+  if (facility.integration_status) {
+    const integration = normalizeStatus(facility.integration_status);
+    infoRows.push({
+      key: 'integration',
+      icon: 'shield',
+      tint: integration === 'none' ? 'amber' : 'green',
+      label: t('facility.integrationLabel', { defaultValue: 'Record sharing' }),
+      value: t(`facility.integration.${integration}`, {
+        defaultValue: formatLabel(facility.integration_status),
+      }),
+    });
+  }
+
+  const contactRows = [
+    facility.phone_primary
+      ? {
+          key: 'phone',
+          icon: 'phone' as IconName,
+          title: t('facility.phone'),
+          value: facility.phone_primary,
+          onPress: callFacility,
+        }
+      : null,
+    facility.phone_secondary
+      ? {
+          key: 'phone2',
+          icon: 'phone' as IconName,
+          title: t('facility.phoneSecondary', { defaultValue: 'Alternative phone' }),
+          value: facility.phone_secondary,
+          onPress: () => openUrl(telUrl(facility.phone_secondary as string)),
+        }
+      : null,
+    facility.email
+      ? {
+          key: 'email',
+          icon: 'mail' as IconName,
+          title: t('facility.email'),
+          value: facility.email,
+          onPress: emailFacility,
+        }
+      : null,
+    facility.website
+      ? {
+          key: 'website',
+          icon: 'globe' as IconName,
+          title: t('facility.website'),
+          value: facility.website,
+          onPress: openWebsite,
+        }
+      : null,
+  ].filter((row): row is NonNullable<typeof row> => row !== null);
+
+  const refreshing =
+    facilityQuery.isRefetching || providersQuery.isRefetching || slotsQuery.isRefetching;
 
   return (
     <Screen className="px-0">
-      <ScreenHeader
-        title={t('facility.title')}
-        subtitle={t('facility.profileSubtitle', {
-          defaultValue: 'Details, services, clinicians and opening hours.',
-        })}
-        onBack={goBack}
-      />
+      <ScreenHeader title={t('facility.title')} subtitle={headerSubtitle} onBack={goBack} />
 
-      {facilityQuery.isLoading ? (
-        <LoadingBlock label={t('facility.loading', { defaultValue: 'Loading facility…' })} />
-      ) : facilityQuery.isError || !facility ? (
-        <ErrorBlock message={t('facility.loadError')} onRetry={() => facilityQuery.refetch()} />
-      ) : (
-        <ScrollView contentContainerStyle={styles.content}>
-          {/* ── Identity ──────────────────────────────────────────────── */}
-          <Card>
-            <View style={styles.identity}>
-              <View style={styles.thumb}>
-                <Icon name={facilityTypeIcon(facility.facility_type)} size={34} color={colors.blue} />
-              </View>
-              <View style={styles.identityBody}>
-                <Text style={styles.name} numberOfLines={2}>
-                  {facility.facility_name}
-                </Text>
-                <View style={styles.tagRow}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refreshAll}
+            tintColor={colors.blue}
+            colors={[colors.blue]}
+          />
+        }
+      >
+        {/* ── Identity ──────────────────────────────────────────────── */}
+        <Card>
+          <View style={styles.identity}>
+            <View style={styles.thumb}>
+              <Icon name={facilityTypeIcon(facility.facility_type)} size={34} color={colors.blue} />
+            </View>
+            <View style={styles.identityBody}>
+              <Text style={styles.name} numberOfLines={3} accessibilityRole="header">
+                {facility.facility_name}
+              </Text>
+              <View style={styles.tagRow}>
+                <StatusBadge
+                  status={facility.facility_type}
+                  tone="neutral"
+                  size="sm"
+                  label={typeLabel}
+                />
+                {ownershipLabel ? (
                   <StatusBadge
-                    status={facility.facility_type}
+                    status={facility.ownership_type as string}
                     tone="neutral"
                     size="sm"
-                    label={t(`careMap.types.${facility.facility_type}`, {
-                      defaultValue: formatLabel(facility.facility_type),
-                    })}
+                    label={ownershipLabel}
                   />
-                  {facility.ownership_type ? (
-                    <StatusBadge
-                      status={facility.ownership_type}
-                      tone="neutral"
-                      size="sm"
-                      label={t(`facility.ownership.${facility.ownership_type}`, {
-                        defaultValue: formatLabel(facility.ownership_type),
-                      })}
-                    />
-                  ) : null}
-                </View>
+                ) : null}
+                {allWeek24 ? (
+                  <StatusBadge
+                    status="open"
+                    tone="normal"
+                    size="sm"
+                    icon="clock"
+                    label={t('opesCare.facilityProfile.emergency247')}
+                  />
+                ) : null}
+              </View>
+              {address ? (
                 <View style={styles.metaRow}>
                   <Icon name="location" size={16} color={colors.textSecondary} />
-                  <Text style={styles.meta}>{address || '—'}</Text>
+                  <Text style={styles.meta}>{address}</Text>
                 </View>
-                <OpenStateBadge state={openState} />
+              ) : null}
+              <OpenStateBadge state={openState} />
+            </View>
+          </View>
+
+          <View style={styles.actions}>
+            <CircleAction
+              icon="phone"
+              label={t('facility.callAction')}
+              disabled={!facility.phone_primary}
+              onPress={callFacility}
+            />
+            <CircleAction
+              icon="mail"
+              label={t('facility.email')}
+              disabled={!facility.email}
+              onPress={emailFacility}
+            />
+            <CircleAction
+              icon="globe"
+              label={t('facility.website')}
+              disabled={!facility.website}
+              onPress={openWebsite}
+            />
+            <CircleAction
+              icon="share"
+              label={t('opesCare.facilityProfile.share')}
+              onPress={shareFacility}
+            />
+          </View>
+        </Card>
+
+        {/* ── Appointments: state of the real slot link ─────────────── */}
+        <View>
+          <SectionHeader title={t('facility.booking.title')} variant="overline" />
+          <Card>
+            {slotsQuery.isLoading ? (
+              <View style={styles.checking} accessibilityLiveRegion="polite">
+                <ActivityIndicator size="small" color={colors.blue} />
+                <Text style={styles.checkingText}>{t('facility.booking.checking')}</Text>
               </View>
-            </View>
-
-            <View style={styles.actions}>
-              <CircleAction
-                icon="phone"
-                label={t('facility.callAction')}
-                disabled={!facility.phone_primary}
-                onPress={callFacility}
-              />
-              <CircleAction
-                icon="mail"
-                label={t('facility.email')}
-                disabled={!facility.email}
-                onPress={emailFacility}
-              />
-              <CircleAction
-                icon="globe"
-                label={t('facility.website')}
-                disabled={!facility.website}
-                onPress={openWebsite}
-              />
-              <CircleAction
-                icon="share"
-                label={t('opesCare.facilityProfile.share')}
-                onPress={shareFacility}
-              />
-            </View>
-          </Card>
-
-          {/* ── Where it is: embedded, in-app map (no external maps app) ─ */}
-          {hasCoords ? (
-            <View>
-              <SectionHeader title={t('opesCare.facilityProfile.location')} variant="overline" />
-              <Card variant="flush">
-                <FacilityMap
-                  facilities={{
-                    id: facility.id,
-                    name: facility.facility_name,
-                    latitude: facility.latitude,
-                    longitude: facility.longitude,
-                    city: facility.city,
-                    region: facility.region,
-                    type: facility.facility_type,
-                    phone: facility.phone_primary,
-                  }}
-                  height={200}
-                  directions
-                />
-              </Card>
-            </View>
-          ) : null}
-
-          {/* ── Appointments: state of the real slot link ─────────────── */}
-          <View>
-            <SectionHeader title={t('facility.booking.title')} variant="overline" />
-            <Card>
-              {slotsQuery.isLoading ? (
-                <View style={styles.checking}>
-                  <ActivityIndicator size="small" color={colors.blue} />
-                  <Text style={styles.checkingText}>{t('facility.booking.checking')}</Text>
-                </View>
-              ) : slotsQuery.isError ? (
+            ) : slotsQuery.isError ? (
+              <View style={styles.stack}>
                 <NoticeBanner
                   tone="warning"
                   icon="alert-triangle"
                   message={t('facility.booking.errorBody')}
                 />
-              ) : !isLinkedForBooking ? (
-                <View style={styles.stack}>
-                  <NoticeBanner
-                    tone="pending"
-                    icon="info"
-                    title={t('facility.booking.unavailableTitle')}
-                    message={t('facility.booking.unavailableBody')}
+                <CareButton
+                  variant="secondary"
+                  icon="refresh"
+                  label={t('facility.retry')}
+                  onPress={() => slotsQuery.refetch()}
+                />
+                {facility.phone_primary ? (
+                  <CareButton
+                    variant="ghost"
+                    icon="phone"
+                    label={t('facility.booking.callInstead')}
+                    onPress={callFacility}
                   />
-                  {facility.phone_primary ? (
-                    <CareButton
-                      variant="secondary"
-                      icon="phone"
-                      label={t('facility.booking.callInstead')}
-                      onPress={callFacility}
-                    />
-                  ) : null}
-                </View>
-              ) : slots.length === 0 ? (
-                <View style={styles.stack}>
-                  <NoticeBanner
-                    tone="pending"
-                    icon="clock"
-                    title={t('facility.booking.noSlotsTitle')}
-                    message={t('facility.booking.noSlotsBody')}
-                  />
+                ) : null}
+              </View>
+            ) : !isLinkedForBooking ? (
+              <View style={styles.stack}>
+                <NoticeBanner
+                  tone="pending"
+                  icon="info"
+                  title={t('facility.booking.unavailableTitle')}
+                  message={t('facility.booking.unavailableBody')}
+                />
+                {facility.phone_primary ? (
                   <CareButton
                     variant="secondary"
-                    icon="calendar"
-                    label={t('facility.booking.checkDates')}
-                    onPress={goToBooking}
+                    icon="phone"
+                    label={t('facility.booking.callInstead')}
+                    onPress={callFacility}
                   />
+                ) : null}
+              </View>
+            ) : slots.length === 0 ? (
+              <View style={styles.stack}>
+                <NoticeBanner
+                  tone="pending"
+                  icon="clock"
+                  title={t('facility.booking.noSlotsTitle')}
+                  message={t('facility.booking.noSlotsBody')}
+                />
+                <CareButton
+                  variant="secondary"
+                  icon="calendar"
+                  label={t('facility.booking.checkDates')}
+                  onPress={goToBooking}
+                />
+              </View>
+            ) : (
+              <View style={styles.stack}>
+                <NoticeBanner
+                  tone="normal"
+                  icon="shield-check"
+                  title={t('facility.booking.availableTitle')}
+                  // Deliberately not named `count`: that key triggers
+                  // i18next's plural resolution, which would look for
+                  // `availableBody_one` / `_other` instead of this key.
+                  message={t('facility.booking.availableBody', {
+                    slotCount: slots.length,
+                    when: nextSlotLabel ?? '',
+                  })}
+                />
+                <View style={styles.slotList}>
+                  {inlineSlots.map((slot, index) => (
+                    <ListRow
+                      key={slot.id}
+                      icon="clock"
+                      tint="blue"
+                      title={`${formatTime(slot.starts_at)} – ${formatTime(slot.ends_at)}`}
+                      meta={slotSubtitle(slot)}
+                      onPress={goToBooking}
+                      accessibilityHint={t('doctor.nextSlotsHint')}
+                      divider={index < inlineSlots.length - 1}
+                    />
+                  ))}
                 </View>
-              ) : (
-                <View style={styles.stack}>
-                  <NoticeBanner
-                    tone="normal"
-                    icon="shield-check"
-                    title={t('facility.booking.availableTitle')}
-                    // Deliberately not named `count`: that key triggers
-                    // i18next's plural resolution, which would look for
-                    // `availableBody_one` / `_other` instead of this key.
-                    message={t('facility.booking.availableBody', {
-                      slotCount: slots.length,
-                      when: nextSlotLabel ?? '',
-                    })}
-                  />
-                  <GradientButton label={t('facility.bookHere')} onPress={goToBooking} />
-                </View>
-              )}
+                <GradientButton
+                  label={t('facility.bookHere')}
+                  onPress={goToBooking}
+                  accessibilityHint={t('doctor.nextSlotsHint')}
+                />
+              </View>
+            )}
+          </Card>
+        </View>
+
+        {/* ── Where it is: embedded, in-app map (no external maps app) ─ */}
+        <View>
+          <SectionHeader title={t('opesCare.facilityProfile.location')} variant="overline" />
+          {hasCoords ? (
+            <Card variant="flush">
+              <FacilityMap
+                facilities={{
+                  id: facility.id,
+                  name: facility.facility_name,
+                  latitude: facility.latitude,
+                  longitude: facility.longitude,
+                  city: facility.city,
+                  region: facility.region,
+                  type: facility.facility_type,
+                  phone: facility.phone_primary,
+                }}
+                height={200}
+                directions
+              />
+            </Card>
+          ) : (
+            <Card>
+              <EmptyState
+                icon="location"
+                tint="amber"
+                title={t('facility.noLocationTitle', { defaultValue: 'No map location published' })}
+                message={
+                  address
+                    ? t('facility.noLocationBodyWithAddress', {
+                        address,
+                        defaultValue:
+                          'The register lists this facility at {{address}} but has no map coordinates for it, so it cannot be shown on the map.',
+                      })
+                    : t('facility.noLocationBody', {
+                        defaultValue:
+                          'The national register holds no map coordinates for this facility.',
+                      })
+                }
+              />
+            </Card>
+          )}
+        </View>
+
+        {/* ── About ─────────────────────────────────────────────────── */}
+        {facility.description?.trim() ? (
+          <View>
+            <SectionHeader title={t('facility.aboutTitle')} variant="overline" />
+            <Card>
+              <Text style={styles.about}>{facility.description.trim()}</Text>
             </Card>
           </View>
+        ) : null}
 
-          {/* ── About ─────────────────────────────────────────────────── */}
-          {facility.description ? (
-            <View>
-              <SectionHeader title={t('facility.aboutTitle')} variant="overline" />
-              <Card>
-                <Text style={styles.about}>{facility.description}</Text>
-              </Card>
+        {/* ── Facility information ──────────────────────────────────── */}
+        <View>
+          <SectionHeader
+            title={t('facility.informationTitle', { defaultValue: 'Facility information' })}
+            variant="overline"
+          />
+          <Card variant="flush">
+            <View style={styles.rowsPad}>
+              {infoRows.map((row, index) => (
+                <InfoRow
+                  key={row.key}
+                  icon={row.icon}
+                  tint={row.tint ?? 'blue'}
+                  label={row.label}
+                  value={row.value}
+                  divider={index < infoRows.length - 1}
+                />
+              ))}
             </View>
-          ) : null}
+          </Card>
+        </View>
 
-          {/* ── Doctors & specialists ─────────────────────────────────── */}
-          <View>
-            <SectionHeader
-              title={
-                providers.length > 0
-                  ? `${t('facility.doctorsTitle')} (${providers.length})`
-                  : t('facility.doctorsTitle')
-              }
-            />
-            {providersQuery.isLoading ? (
-              <Card>
-                <View style={styles.checking}>
-                  <ActivityIndicator size="small" color={colors.blue} />
-                  <Text style={styles.checkingText}>{t('facility.doctorsSubtitle')}</Text>
-                </View>
-              </Card>
-            ) : providersQuery.isError ? (
-              <Card>
-                <EmptyState
-                  icon="alert-circle"
-                  tint="red"
-                  title={t('facility.loadDoctorsError')}
-                  actionLabel={t('facility.retry')}
-                  onAction={() => providersQuery.refetch()}
-                />
-              </Card>
-            ) : providers.length === 0 ? (
-              <Card>
-                <EmptyState
-                  icon="stethoscope"
-                  title={t('facility.noDoctors')}
-                  message={t('facility.doctorsSubtitle')}
-                />
-              </Card>
-            ) : (
-              <Card variant="flush">
-                {providers.map((provider, index) => (
+        {/* ── Doctors & specialists ─────────────────────────────────── */}
+        <View>
+          <SectionHeader
+            title={
+              providers.length > 0
+                ? `${t('facility.doctorsTitle')} (${providers.length})`
+                : t('facility.doctorsTitle')
+            }
+            variant="overline"
+          />
+          {providersQuery.isLoading ? (
+            <Card>
+              <View style={styles.checking} accessibilityLiveRegion="polite">
+                <ActivityIndicator size="small" color={colors.blue} />
+                <Text style={styles.checkingText}>{t('facility.doctorsSubtitle')}</Text>
+              </View>
+            </Card>
+          ) : providersQuery.isError ? (
+            <Card>
+              <EmptyState
+                icon="alert-circle"
+                tint="red"
+                title={t('facility.loadDoctorsError')}
+                actionLabel={t('facility.retry')}
+                onAction={() => providersQuery.refetch()}
+              />
+            </Card>
+          ) : providers.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon="stethoscope"
+                title={t('facility.noDoctors')}
+                message={t('facility.doctorsSubtitle')}
+              />
+            </Card>
+          ) : (
+            <Card variant="flush">
+              {providers.map((provider, index) => {
+                const registered =
+                  provider.credentials.length > 0 || provider.licenses.length > 0;
+                return (
                   <ListRow
                     key={provider.id}
                     leading={<ProviderAvatar name={provider.name} size={44} />}
                     title={provider.name}
-                    meta={[provider.job_title, provider.department]}
+                    meta={[
+                      provider.job_title,
+                      provider.department,
+                      professionLabel(provider.profession),
+                      employmentLabel(provider.employment_type),
+                    ]}
+                    trailing={
+                      registered ? (
+                        // Only shown when the registry really holds an active
+                        // licence or credential for this person.
+                        <StatusBadge
+                          status="verified"
+                          icon="shield-check"
+                          size="sm"
+                          label={t('opesCore.common.verified')}
+                        />
+                      ) : undefined
+                    }
                     onPress={() => router.push(`/doctor/${provider.id}`)}
+                    accessibilityHint={t('facility.viewClinician', {
+                      defaultValue: "Opens this clinician's profile",
+                    })}
                     divider={index < providers.length - 1}
                   />
-                ))}
-              </Card>
-            )}
-          </View>
+                );
+              })}
+            </Card>
+          )}
+        </View>
 
-          {/* ── Services ──────────────────────────────────────────────── */}
-          <View>
-            <SectionHeader title={t('facility.servicesTitle')} variant="overline" />
-            {services.length === 0 ? (
-              <Card>
-                <EmptyState icon="clipboard" title={t('facility.noServices')} />
-              </Card>
-            ) : (
-              <Card variant="flush">
-                {services.map((service, index) => (
-                  <ServiceRow
-                    key={`${service.service_name}-${index}`}
-                    service={service}
-                    divider={index < services.length - 1}
-                    tr={tr}
-                  />
-                ))}
-              </Card>
-            )}
-          </View>
+        {/* ── Services ──────────────────────────────────────────────── */}
+        <View>
+          <SectionHeader
+            title={
+              services.length > 0
+                ? `${t('facility.servicesTitle')} (${services.length})`
+                : t('facility.servicesTitle')
+            }
+            variant="overline"
+          />
+          {services.length === 0 ? (
+            <Card>
+              <EmptyState icon="clipboard" title={t('facility.noServices')} />
+            </Card>
+          ) : (
+            <Card variant="flush">
+              {services.map((service, index) => (
+                <ServiceRow
+                  key={`${service.service_name}-${index}`}
+                  service={service}
+                  divider={index < services.length - 1}
+                  tr={tr}
+                />
+              ))}
+            </Card>
+          )}
+        </View>
 
-          {/* ── Opening hours ─────────────────────────────────────────── */}
-          <View>
-            <SectionHeader title={t('facility.hoursTitle')} variant="overline" />
-            {hours.length === 0 ? (
-              <Card>
-                <EmptyState icon="clock" title={t('facility.hoursUnknown')} />
-              </Card>
-            ) : (
-              <Card variant="flush">
-                <View style={styles.rowsPad}>
-                  {hours.map((hour, index) => {
-                    const isToday = hour.day_of_week === todayIndex;
-                    const day = weekdayLabel(hour.day_of_week, i18n.language);
-                    return (
-                      <InfoRow
-                        key={`${hour.day_of_week}-${index}`}
-                        icon="clock"
-                        tint={isToday ? 'blue' : 'purple'}
-                        label={isToday ? `${day} · ${t('facility.todayLabel')}` : day}
-                        value={
-                          hour.is_24_hours
-                            ? t('facility.open24')
-                            : hour.is_closed
-                              ? t('facility.closed')
-                              : `${trimTime(hour.opens_at) ?? '—'} – ${trimTime(hour.closes_at) ?? '—'}`
-                        }
-                        valueColor={isToday ? colors.link : undefined}
-                        divider={index < hours.length - 1}
-                      />
-                    );
-                  })}
+        {/* ── Opening hours ─────────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('facility.hoursTitle')} variant="overline" />
+          {hourGroups.length === 0 ? (
+            <Card>
+              <EmptyState icon="clock" title={t('facility.hoursUnknown')} />
+            </Card>
+          ) : (
+            <View style={styles.groupStack}>
+              {hourGroups.map((group) => (
+                <View key={group.context ?? 'general'}>
+                  {group.context ? (
+                    <Text style={styles.groupLabel}>
+                      {t(`facility.hoursContext.${normalizeStatus(group.context)}`, {
+                        defaultValue: formatLabel(group.context),
+                      })}
+                    </Text>
+                  ) : null}
+                  <Card variant="flush">
+                    <View style={styles.rowsPad}>
+                      {group.rows.map((hour, index) => (
+                        <HourRow
+                          key={`${group.context ?? 'general'}-${hour.day_of_week}-${index}`}
+                          hour={hour}
+                          isToday={hour.day_of_week === todayIndex}
+                          divider={index < group.rows.length - 1}
+                          language={i18n.language}
+                          tr={tr}
+                          todayColor={colors.link}
+                        />
+                      ))}
+                    </View>
+                  </Card>
                 </View>
-              </Card>
-            )}
-          </View>
+              ))}
+            </View>
+          )}
+        </View>
 
-          {/* ── Accepted insurance ────────────────────────────────────── */}
+        {/* ── Accepted insurance ────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('facility.insurancesTitle')} variant="overline" />
           {insurances.length > 0 ? (
-            <View>
-              <SectionHeader title={t('facility.insurancesTitle')} variant="overline" />
-              <Card variant="flush">
-                {insurances.map((insurance, index) => (
+            <Text style={styles.hint}>{t('facility.insurancesSubtitle')}</Text>
+          ) : null}
+          {insurances.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon="wallet"
+                title={t('facility.noInsurances', {
+                  defaultValue: 'No insurance cover published for this facility.',
+                })}
+              />
+            </Card>
+          ) : (
+            <Card variant="flush">
+              {insurances.map((insurance, index) => {
+                const status = insurance.status?.trim();
+                return (
                   <ListRow
                     key={`${insurance.insurance_name}-${index}`}
                     icon="shield-check"
                     tint="green"
                     title={insurance.insurance_name}
-                    subtitle={t('facility.insurancesSubtitle')}
+                    meta={[
+                      status
+                        ? t(`facility.insuranceStatus.${normalizeStatus(status)}`, {
+                            defaultValue: formatLabel(status),
+                          })
+                        : null,
+                      insurance.cashless_available === false
+                        ? t('facility.insuranceNoCashless', {
+                            defaultValue: 'Pay and claim back',
+                          })
+                        : null,
+                    ]}
                     trailing={
                       insurance.cashless_available ? (
                         <StatusBadge
@@ -656,40 +1170,51 @@ export default function FacilityDetailScreen() {
                     }
                     divider={index < insurances.length - 1}
                   />
-                ))}
-              </Card>
-            </View>
-          ) : null}
+                );
+              })}
+            </Card>
+          )}
+        </View>
 
-          {/* ── Contact ───────────────────────────────────────────────── */}
-          {contactRows.length > 0 ? (
-            <View>
-              <SectionHeader title={t('facility.contactTitle')} variant="overline" />
-              <Card variant="flush">
-                {contactRows.map((row, index) => (
-                  <ListRow
-                    key={row.key}
-                    icon={row.icon}
-                    title={row.title}
-                    subtitle={row.value}
-                    onPress={row.onPress}
-                    divider={index < contactRows.length - 1}
-                  />
-                ))}
-              </Card>
-            </View>
-          ) : null}
+        {/* ── Contact ───────────────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('facility.contactTitle')} variant="overline" />
+          {contactRows.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon="phone"
+                title={t('facility.noContact', {
+                  defaultValue: 'No contact details published for this facility.',
+                })}
+              />
+            </Card>
+          ) : (
+            <Card variant="flush">
+              {contactRows.map((row, index) => (
+                <ListRow
+                  key={row.key}
+                  icon={row.icon}
+                  title={row.title}
+                  subtitle={row.value}
+                  onPress={row.onPress}
+                  divider={index < contactRows.length - 1}
+                />
+              ))}
+            </Card>
+          )}
+        </View>
 
-          <Text style={styles.note}>{t('facility.directoryNote')}</Text>
-        </ScrollView>
-      )}
+        <Text style={styles.note}>{t('facility.directoryNote')}</Text>
+      </ScrollView>
     </Screen>
   );
 }
 
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
+    scroll: { flex: 1 },
     content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    center: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing.lg, gap: spacing.sm },
 
     identity: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md - 2 },
     thumb: {
@@ -756,8 +1281,30 @@ const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
     },
     stack: { gap: spacing.md },
+    groupStack: { gap: spacing.sm + 2 },
+
+    // Inline slot rows sit inside a padded booking Card, so they claw the
+    // card's 16px inset back to reach the same edge-to-edge rhythm the
+    // `variant="flush"` list cards have.
+    slotList: { marginHorizontal: -spacing.md },
 
     rowsPad: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+
+    groupLabel: {
+      marginBottom: 6,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      color: colors.textSecondary,
+    },
+
+    hint: {
+      marginTop: -4,
+      marginBottom: 10,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textMuted,
+    },
 
     note: {
       marginTop: spacing.sm,

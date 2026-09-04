@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -16,10 +17,12 @@ import {
   Chip,
   EmptyState,
   Icon,
+  LastUpdatedLine,
   ListRow,
   PillInput,
   ScreenHeader,
   SectionHeader,
+  StaleNotice,
   StatusBadge,
   formatDateTime,
   radii,
@@ -64,6 +67,22 @@ import { formatXaf, formatXafBare, useMedicineCatalog } from '@/lib/api/pharmacy
  * location dependency, and GET /mobile/pharmacy/nearby takes a plain lat/lng,
  * so a chosen city is a real search origin rather than a stub.
  *
+ * ── What the numbers on this screen actually mean ─────────────────────────
+ * Two different scopes share one screen, and conflating them would be a lie:
+ *
+ *   • `medicine.availability` is NATIONAL. The catalogue endpoint takes no
+ *     coordinates at all; `MedicineFinderService::availabilitySummary()` counts
+ *     every active pharmacy listing in the country whose stock row passes the
+ *     `reportedByRealSource()` provenance allow-list. So "available in 4
+ *     pharmacies" never means "4 near you", and the copy here never says so.
+ *   • the pharmacy list is LOCAL — every active pharmacy listing inside the
+ *     chosen radius, whether or not it stocks anything you searched for.
+ *
+ * The catalogue call carries no `medicine_id`, and `MedicineFinderService`
+ * only loads stock rows when a medicine is supplied, so the pharmacy rows here
+ * carry `stock: null` by construction. This screen therefore makes no stock
+ * claim about any pharmacy at all — that is the medicine detail screen's job.
+ *
  * Endpoint parameter names differ between the two pharmacy endpoints and are
  * easy to transpose:
  *   /mobile/pharmacy/medicines → q, category, prescription_required, per_page
@@ -97,6 +116,18 @@ const RADIUS_OPTIONS = [2, 5, 10, 25, 50];
 const NEARBY_PREVIEW = 6;
 
 /**
+ * MobilePharmacyController::nearbyPharmacies defaults `limit` to 25 and the
+ * hook sends none, so a full page is a TRUNCATED page, not "all of them".
+ */
+const NEARBY_API_LIMIT = 25;
+
+/** `useMedicineCatalog` asks for 25 rows; the total it reports can exceed that. */
+const CATALOG_PAGE_SIZE = 25;
+
+/** MedicineReservationService::MAX_OPEN_RESERVATIONS — the server enforces it too. */
+const MAX_OPEN_HOLDS = 10;
+
+/**
  * Maps the `category_icon` key MedicineCategory::iconKey() returns onto a kit
  * glyph. Every value the enum can emit is covered; `first-aid` is the
  * defensive fallback if the enum gains a case before this map does.
@@ -117,9 +148,96 @@ const CATEGORY_ICONS: Record<string, IconName> = {
 
 const FALLBACK_CATEGORY_ICON: IconName = 'first-aid';
 
+/**
+ * `care_facilities.verification_status` is a free-form column, so only values
+ * this app actually understands are rendered. Anything else — including null —
+ * shows no verification line at all: silence is honest, a guess is not.
+ */
+const VERIFIED_STATUSES = new Set(['verified', 'verified_by_facility', 'facility_verified', 'approved']);
+const UNVERIFIED_STATUSES = new Set(['unverified', 'pending', 'provisional', 'rejected', 'suspended']);
+
+/** Reservation status → badge tone. Enum: App\Enums\MedicineReservationStatus. */
+const RESERVATION_TONES: Record<string, StatusTone> = {
+  pending: 'pending',
+  confirmed: 'normal',
+  ready_for_pickup: 'normal',
+  collected: 'normal',
+  rejected: 'critical',
+  cancelled: 'neutral',
+  expired: 'critical',
+};
+
 type SheetKey = 'city' | 'radius' | null;
 /** null = both kinds, true = prescription-only, false = over-the-counter. */
 type RxFilter = boolean | null;
+
+/**
+ * XAF quoted the way the counter says it, and never relabelled.
+ *
+ * `formatXaf` hard-codes the FCFA label, which is right for the only currency
+ * this deployment carries. Every price in these payloads travels with its own
+ * `currency` field, though, so a row that is not XAF is printed with its own
+ * ISO code rather than silently renamed to francs.
+ */
+function money(value: number | null | undefined, currency?: string | null): string | null {
+  const code = (currency ?? 'XAF').toUpperCase();
+  if (code === 'XAF' || code === 'FCFA' || code === '') return formatXaf(value);
+  const bare = formatXafBare(value);
+  return bare === null ? null : `${bare} ${code}`;
+}
+
+/** Bare left half of a "200 – 500 FCFA" range (the right half carries the unit). */
+function moneyBare(value: number | null | undefined): string | null {
+  return formatXafBare(value);
+}
+
+/**
+ * What the price figures on a catalogue row actually are.
+ *
+ * `medicinePayload()` builds `availability.price_min` as
+ * `$availability['price_min'] ?? $medicine->price_min` — so when no pharmacy
+ * has reported a priced stock row, the "range" is the catalogue's own
+ * reference price, not something anybody is charging. `pharmacy_count === 0`
+ * is the case we can prove, and it is labelled as indicative rather than
+ * presented as a real quote.
+ */
+function priceQuote(
+  medicine: Medicine,
+  t: (key: string, params?: Record<string, unknown>) => string,
+): { label: string; reported: boolean } | null {
+  const { price_min: min, price_max: max, currency, pharmacy_count: count } = medicine.availability;
+  if (min === null && max === null) return null;
+
+  const label =
+    min !== null && max !== null && min !== max
+      ? t('pharmacy.priceRangeValue', { min: moneyBare(min), max: money(max, currency) })
+      : (money(min ?? max, currency) ?? '');
+
+  return label ? { label, reported: count > 0 } : null;
+}
+
+/** "500mg · Tablet", or whichever half exists. */
+function strengthForm(
+  medicine: Pick<Medicine, 'strength' | 'form'>,
+  t: (key: string, params?: Record<string, unknown>) => string,
+): string | null {
+  if (medicine.strength && medicine.form) {
+    return t('pharmacy.strengthForm', { strength: medicine.strength, form: medicine.form });
+  }
+  return medicine.strength ?? medicine.form ?? null;
+}
+
+/**
+ * The care_facilities directory stores a placeholder where a pharmacy has no
+ * published number — the live rows literally hold the string "N/A", which
+ * would otherwise become a `tel:N/A` link that does nothing but look broken.
+ * Anything without at least four digits is treated as absent.
+ */
+function callablePhone(phone: string | null | undefined): string | null {
+  const raw = phone?.trim();
+  if (!raw) return null;
+  return raw.replace(/\D/g, '').length >= 4 ? raw : null;
+}
 
 export default function PharmacyScreen() {
   const { t } = useTranslation();
@@ -132,6 +250,7 @@ export default function PharmacyScreen() {
   const [debouncedTerm, setDebouncedTerm] = useState('');
   const [category, setCategory] = useState<MedicineCategoryValue | null>(null);
   const [rxFilter, setRxFilter] = useState<RxFilter>(null);
+  const [reportedOnly, setReportedOnly] = useState(false);
   const [city, setCity] = useState<City>(CITIES[0]);
   // 10 km, not 5: measured against the live directory, a 5 km circle on Douala
   // centre reaches very few of the pharmacies that actually report stock.
@@ -173,12 +292,25 @@ export default function PharmacyScreen() {
 
   const results = catalog.data?.items ?? [];
   const total = catalog.data?.total ?? 0;
+  // "Reported" is a national claim, not a local one — see the header comment.
+  const shownResults = reportedOnly ? results.filter((m) => m.availability.is_available) : results;
+  // The endpoint pages at 25; `total` can be larger, and printing the total
+  // above 25 rows without saying so reads as a miscount.
+  const resultsTruncated = !reportedOnly && total > results.length && results.length >= CATALOG_PAGE_SIZE;
+
   const allPharmacyRows = pharmacies.data ?? [];
+  // "Open now" must not quietly include pharmacies whose hours nobody has
+  // published: `is_open === null` means unknown, and unknown is not open.
   const pharmacyRows = openNowOnly
-    ? allPharmacyRows.filter((p) => p.is_open !== false)
+    ? allPharmacyRows.filter((p) => p.is_24_hours || p.is_open === true)
     : allPharmacyRows;
-  const filtersActive = !!debouncedTerm || category !== null || rxFilter !== null;
+  const pharmaciesTruncated = allPharmacyRows.length >= NEARBY_API_LIMIT;
+
+  const filtersActive = !!debouncedTerm || category !== null || rxFilter !== null || reportedOnly;
   const hasMappable = pharmacyRows.some((p) => p.latitude != null && p.longitude != null);
+  const atHoldCap = openHolds.length >= MAX_OPEN_HOLDS;
+
+  const loadedAt = Math.max(catalog.dataUpdatedAt ?? 0, pharmacies.dataUpdatedAt ?? 0);
 
   const openMedicine = (medicineId: string) =>
     router.push({
@@ -196,6 +328,7 @@ export default function PharmacyScreen() {
     setDebouncedTerm('');
     setCategory(null);
     setRxFilter(null);
+    setReportedOnly(false);
   };
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'));
@@ -221,6 +354,9 @@ export default function PharmacyScreen() {
       message: [
         hold.medicine?.name,
         hold.pharmacy?.name,
+        [t('pharmacy.reservationQuantity', { count: hold.quantity }), hold.pack_size]
+          .filter(Boolean)
+          .join(' · '),
         t('pharmacy.reservationRef', { reference: hold.reference }),
       ]
         .filter(Boolean)
@@ -236,17 +372,23 @@ export default function PharmacyScreen() {
       },
     });
 
-  const headerActions =
-    openHolds.length > 0
-      ? [
-          {
-            icon: 'receipt' as IconName,
-            badge: openHolds.length,
-            onPress: () => setReservationsOpen((open) => !open),
-            accessibilityLabel: t('pharmacy.reservationsTitle'),
-          },
-        ]
-      : undefined;
+  const callPharmacy = (name: string | undefined, phone: string) =>
+    Linking.openURL(`tel:${phone.replace(/\s/g, '')}`).catch(() =>
+      dialog.alert(
+        t('opesMeds.pharmacy.callFailTitle'),
+        t('opesMeds.pharmacy.callFailBody', { pharmacy: name ?? '', phone }),
+        'warning',
+      ),
+    );
+
+  const headerActions = [
+    {
+      icon: 'receipt' as IconName,
+      badge: openHolds.length > 0 ? openHolds.length : undefined,
+      onPress: () => setReservationsOpen((open) => !open),
+      accessibilityLabel: t('pharmacy.reservationsTitle'),
+    },
+  ];
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
@@ -271,7 +413,7 @@ export default function PharmacyScreen() {
             <FactCell
               icon="pill"
               label={t('pharmacy.resultsTitle')}
-              value={catalog.isPending ? '—' : String(total)}
+              value={catalog.isPending ? '—' : String(reportedOnly ? shownResults.length : total)}
               valueColor={colors.link}
               align="center"
             />
@@ -280,6 +422,14 @@ export default function PharmacyScreen() {
               label={t('pharmacy.nearbyTitle')}
               value={pharmacies.isPending ? '—' : String(pharmacyRows.length)}
               valueColor={colors.link}
+              align="center"
+              divided
+            />
+            <FactCell
+              icon="receipt"
+              label={t('pharmacy.reservationsTitle')}
+              value={reservations.isPending ? '—' : String(openHolds.length)}
+              valueColor={openHolds.length > 0 ? colors.statusWarning : colors.link}
               align="center"
               divided
             />
@@ -304,7 +454,7 @@ export default function PharmacyScreen() {
               hitSlop={10}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={t('pharmacy.close')}
+              accessibilityLabel={t('pharmacy.clearSearch', { defaultValue: 'Clear search' })}
               style={styles.searchClear}
             >
               <Icon name="x-circle" size={20} color={colors.textMuted} />
@@ -340,6 +490,16 @@ export default function PharmacyScreen() {
             onPress={() => setOpenNowOnly((only) => !only)}
           />
           <Chip
+            icon="check-double"
+            label={t('pharmacy.stockingOnly')}
+            selected={reportedOnly}
+            onPress={() => setReportedOnly((only) => !only)}
+            accessibilityHint={t('pharmacy.catalogueScopeHint', {
+              defaultValue:
+                'Availability counts every pharmacy in the national directory that reports stock — not only those near you.',
+            })}
+          />
+          <Chip
             icon="document-text"
             label={t('pharmacy.filterRx')}
             selected={rxFilter === true}
@@ -369,6 +529,7 @@ export default function PharmacyScreen() {
                 onPress={() => {
                   setCity(option);
                   setSheet(null);
+                  setShowAllPharmacies(false);
                 }}
               />
             ))}
@@ -391,6 +552,7 @@ export default function PharmacyScreen() {
                 onPress={() => {
                   setRadiusKm(option);
                   setSheet(null);
+                  setShowAllPharmacies(false);
                 }}
               />
             ))}
@@ -424,19 +586,78 @@ export default function PharmacyScreen() {
             ))}
         </ScrollView>
 
-        {/* Open holds */}
-        {openHolds.length > 0 ? (
-          <View>
-            <SectionHeader
-              title={t('pharmacy.reservationsSubtitle', { count: openHolds.length })}
-              actionLabel={
-                reservationsOpen ? t('pharmacy.reservationsHide') : t('pharmacy.reservationsShow')
-              }
-              actionChevron
-              onAction={() => setReservationsOpen((open) => !open)}
-            />
-            {reservationsOpen ? (
+        {/* Your holds — always present, so "you have none" is a state the
+            patient can see rather than a section that silently disappears. */}
+        <View>
+          <SectionHeader
+            title={
+              openHolds.length > 0
+                ? t('pharmacy.reservationsSubtitle', { count: openHolds.length })
+                : t('pharmacy.reservationsTitle')
+            }
+            actionLabel={
+              reservationsOpen ? t('pharmacy.reservationsHide') : t('pharmacy.reservationsShow')
+            }
+            actionChevron
+            onAction={() => setReservationsOpen((open) => !open)}
+          />
+
+          {reservationsOpen ? (
+            reservations.isPending ? (
+              <LoadingBlock
+                label={t('pharmacy.reservationsLoading', { defaultValue: 'Loading your holds…' })}
+              />
+            ) : reservations.isError && openHolds.length === 0 ? (
+              <Card variant="flush">
+                <EmptyState
+                  icon="alert-circle"
+                  tint="red"
+                  title={t('pharmacy.reservationsLoadFailed', {
+                    defaultValue: 'Your holds could not be loaded.',
+                  })}
+                  actionLabel={t('pharmacy.retry')}
+                  onAction={() => reservations.refetch()}
+                />
+              </Card>
+            ) : openHolds.length === 0 ? (
+              <Card variant="flush">
+                <EmptyState
+                  icon="receipt"
+                  tint="blue"
+                  title={t('pharmacy.reservationsNone', {
+                    defaultValue: 'You have nothing on hold right now.',
+                  })}
+                  message={t('pharmacy.reservationsNoneHint', {
+                    defaultValue:
+                      'Reserve a medicine and the pharmacy holds it for you for 24 hours. You pay at the counter.',
+                  })}
+                />
+              </Card>
+            ) : (
               <View style={styles.stack}>
+                {reservations.isError ? (
+                  <StaleNotice
+                    message={t('pharmacy.reservationsLoadFailed', {
+                      defaultValue: 'Your holds could not be loaded.',
+                    })}
+                    loadedAt={reservations.dataUpdatedAt ? new Date(reservations.dataUpdatedAt) : null}
+                    onRetry={() => reservations.refetch()}
+                    retrying={reservations.isFetching}
+                  />
+                ) : null}
+
+                {atHoldCap ? (
+                  <NoticeStrip
+                    icon="alert-triangle"
+                    tone="warning"
+                    text={t('pharmacy.reservationsAtCap', {
+                      max: MAX_OPEN_HOLDS,
+                      defaultValue:
+                        'You have the maximum of {{max}} holds open. Cancel one before reserving another.',
+                    })}
+                  />
+                ) : null}
+
                 {openHolds.map((hold) => (
                   <HoldCard
                     key={hold.id}
@@ -444,16 +665,15 @@ export default function PharmacyScreen() {
                     cancelling={
                       cancelReservation.isPending && cancelReservation.variables?.id === hold.id
                     }
-                    onOpenMedicine={
-                      hold.medicine ? () => openMedicine(hold.medicine!.id) : null
-                    }
+                    onOpenMedicine={hold.medicine ? () => openMedicine(hold.medicine!.id) : null}
+                    onCall={(phone) => callPharmacy(hold.pharmacy?.name, phone)}
                     onCancel={() => confirmCancel(hold)}
                   />
                 ))}
               </View>
-            ) : null}
-          </View>
-        ) : null}
+            )
+          ) : null}
+        </View>
 
         {/* Catalogue results */}
         <View>
@@ -461,15 +681,34 @@ export default function PharmacyScreen() {
             title={
               catalog.isPending
                 ? t('pharmacy.resultsTitle')
-                : t('pharmacy.resultsCount', { count: total })
+                : t('pharmacy.resultsCount', { count: reportedOnly ? shownResults.length : total })
             }
             actionLabel={t('pharmacy.clearFilters')}
             onAction={filtersActive ? clearFilters : undefined}
           />
+          <Text style={styles.sectionHint}>
+            {t('pharmacy.catalogueScopeHint', {
+              defaultValue:
+                'Availability counts every pharmacy in the national directory that reports stock — not only those near you.',
+            })}
+          </Text>
+
+          {/* A failed refresh over data already on screen is not an empty
+              screen — say the figures are old rather than showing them as new. */}
+          {catalog.isError && results.length > 0 ? (
+            <View style={styles.staleWrap}>
+              <StaleNotice
+                message={t('pharmacy.loadFailed')}
+                loadedAt={catalog.dataUpdatedAt ? new Date(catalog.dataUpdatedAt) : null}
+                onRetry={() => catalog.refetch()}
+                retrying={catalog.isFetching}
+              />
+            </View>
+          ) : null}
 
           {catalog.isPending ? (
             <LoadingBlock label={t('pharmacy.searching')} />
-          ) : catalog.isError ? (
+          ) : catalog.isError && results.length === 0 ? (
             <Card variant="flush">
               <EmptyState
                 icon="alert-circle"
@@ -479,28 +718,67 @@ export default function PharmacyScreen() {
                 onAction={() => catalog.refetch()}
               />
             </Card>
-          ) : results.length === 0 ? (
+          ) : shownResults.length === 0 ? (
+            // Three different reasons for an empty list, three different escapes.
             <Card variant="flush">
               <EmptyState
-                icon="search"
+                icon={reportedOnly && results.length > 0 ? 'check-double' : 'search'}
                 tint="blue"
-                title={t('pharmacy.noMedicines')}
-                message={t('pharmacy.noResultsHint')}
-                actionLabel={filtersActive ? t('pharmacy.clearFilters') : undefined}
-                onAction={filtersActive ? clearFilters : undefined}
+                title={
+                  reportedOnly && results.length > 0
+                    ? t('pharmacy.notReportedAnywhere', {
+                        defaultValue: 'No pharmacy has reported stock for these medicines.',
+                      })
+                    : t('pharmacy.noMedicines')
+                }
+                message={
+                  reportedOnly && results.length > 0
+                    ? t('pharmacy.catalogueScopeHint', {
+                        defaultValue:
+                          'Availability counts every pharmacy in the national directory that reports stock — not only those near you.',
+                      })
+                    : t('pharmacy.noResultsHint')
+                }
+                actionLabel={
+                  reportedOnly && results.length > 0
+                    ? t('pharmacy.allPharmacies')
+                    : filtersActive
+                      ? t('pharmacy.clearFilters')
+                      : undefined
+                }
+                onAction={
+                  reportedOnly && results.length > 0
+                    ? () => setReportedOnly(false)
+                    : filtersActive
+                      ? clearFilters
+                      : undefined
+                }
               />
             </Card>
           ) : (
-            <Card variant="flush">
-              {results.map((medicine, index) => (
-                <MedicineRow
-                  key={medicine.id}
-                  medicine={medicine}
-                  divider={index < results.length - 1}
-                  onPress={() => openMedicine(medicine.id)}
-                />
-              ))}
-            </Card>
+            <View style={styles.stack}>
+              <Card variant="flush">
+                {shownResults.map((medicine, index) => (
+                  <MedicineRow
+                    key={medicine.id}
+                    medicine={medicine}
+                    divider={index < shownResults.length - 1}
+                    onPress={() => openMedicine(medicine.id)}
+                  />
+                ))}
+              </Card>
+
+              {resultsTruncated ? (
+                <Text style={styles.footNote}>
+                  {t('pharmacy.resultsCapped', {
+                    shown: results.length,
+                    total,
+                    defaultValue:
+                      'Showing the first {{shown}} of {{total}} matches. Narrow your search to see the rest.',
+                  })}
+                </Text>
+              ) : null}
+            </View>
           )}
         </View>
 
@@ -521,14 +799,35 @@ export default function PharmacyScreen() {
             }
           />
           <Text style={styles.sectionHint}>
-            {t('pharmacy.nearbySubtitle')}
+            {t('pharmacy.radiusSearched', {
+              km: radiusKm,
+              defaultValue: 'Searched within {{km}} km',
+            })}
             {'  ·  '}
             {t('pharmacy.sortByDistance')}
+            {'\n'}
+            {/* This list carries no stock rows at all (no medicine_id was sent),
+                so it must not be read as "these pharmacies have your medicine". */}
+            {t('pharmacy.nearbyStockNote', {
+              defaultValue:
+                'Stock is not checked here. Open a medicine to see which of these pharmacies reports having it.',
+            })}
           </Text>
+
+          {pharmacies.isError && allPharmacyRows.length > 0 ? (
+            <View style={styles.staleWrap}>
+              <StaleNotice
+                message={t('pharmacy.loadFailed')}
+                loadedAt={pharmacies.dataUpdatedAt ? new Date(pharmacies.dataUpdatedAt) : null}
+                onRetry={() => pharmacies.refetch()}
+                retrying={pharmacies.isFetching}
+              />
+            </View>
+          ) : null}
 
           {pharmacies.isPending ? (
             <LoadingBlock label={t('pharmacy.loadingPharmacies')} />
-          ) : pharmacies.isError ? (
+          ) : pharmacies.isError && allPharmacyRows.length === 0 ? (
             <Card variant="flush">
               <EmptyState
                 icon="alert-circle"
@@ -547,7 +846,7 @@ export default function PharmacyScreen() {
                   icon="clock"
                   tint="amber"
                   title={t('pharmacy.closed')}
-                  message={t('pharmacy.nearbySubtitle')}
+                  message={t('pharmacy.hoursUnknown')}
                   actionLabel={t('pharmacy.allPharmacies')}
                   onAction={() => setOpenNowOnly(false)}
                 />
@@ -559,8 +858,16 @@ export default function PharmacyScreen() {
                   tint="blue"
                   title={t('pharmacy.noPharmacies', { km: radiusKm })}
                   message={t('pharmacy.nearbySubtitle')}
-                  actionLabel={t('pharmacy.radiusPickerTitle')}
-                  onAction={() => setSheet('radius')}
+                  actionLabel={
+                    radiusKm < RADIUS_OPTIONS[RADIUS_OPTIONS.length - 1]
+                      ? t('pharmacy.radiusPickerTitle')
+                      : undefined
+                  }
+                  onAction={
+                    radiusKm < RADIUS_OPTIONS[RADIUS_OPTIONS.length - 1]
+                      ? () => setSheet('radius')
+                      : undefined
+                  }
                 />
               </Card>
             )
@@ -599,9 +906,23 @@ export default function PharmacyScreen() {
                   onPress={() => setShowAllPharmacies((open) => !open)}
                 />
               ) : null}
+
+              {/* The endpoint caps at 25 rows, so a full page is a truncated one. */}
+              {pharmaciesTruncated ? (
+                <Text style={styles.footNote}>
+                  {t('pharmacy.nearbyCapped', {
+                    max: NEARBY_API_LIMIT,
+                    defaultValue:
+                      'Only the {{max}} nearest pharmacies are listed. Narrow the radius to see the closest ones.',
+                  })}
+                </Text>
+              ) : null}
             </View>
           )}
         </View>
+
+        {/* When the figures on this screen were actually loaded. */}
+        {loadedAt > 0 ? <LastUpdatedLine loadedAt={new Date(loadedAt)} /> : null}
 
         {/* Safety notice */}
         <View style={styles.notice} accessibilityRole="summary">
@@ -609,6 +930,12 @@ export default function PharmacyScreen() {
           <View style={styles.noticeBody}>
             <Text style={styles.noticeTitle}>{t('pharmacy.safetyTitle')}</Text>
             <Text style={styles.noticeText}>{t('pharmacy.safetyBody')}</Text>
+            <Text style={styles.noticeText}>
+              {t('pharmacy.stockProvenance', {
+                defaultValue:
+                  'Stock levels and prices are reported by each pharmacy, not measured by OpesCare.',
+              })}
+            </Text>
           </View>
         </View>
       </ScrollView>
@@ -643,6 +970,33 @@ function LoadingBlock({ label }: { label: string }) {
   );
 }
 
+/** Tinted one-liner used for cautions that are not errors. */
+function NoticeStrip({
+  icon,
+  tone,
+  text,
+}: {
+  icon: IconName;
+  tone: 'warning' | 'info';
+  text: string;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const bg = tone === 'warning' ? colors.statusWarningBg : colors.primarySoft;
+  const fg = tone === 'warning' ? colors.statusWarning : colors.blue;
+  return (
+    <View style={[styles.strip, { backgroundColor: bg }]} accessibilityRole="summary">
+      <Icon name={icon} size={18} color={fg} />
+      <Text style={styles.stripText}>{text}</Text>
+    </View>
+  );
+}
+
+/**
+ * One catalogue row. Everything the medicines payload actually carries is on
+ * it — brand, generic, strength/form, category, prescription and controlled
+ * status, default pack — with the national availability figure on the right.
+ */
 function MedicineRow({
   medicine,
   divider,
@@ -656,46 +1010,82 @@ function MedicineRow({
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const { price_min: min, price_max: max, pharmacy_count: count, is_available } =
-    medicine.availability;
+  const { pharmacy_count: count, is_available: available } = medicine.availability;
+  const quote = priceQuote(medicine, t);
+  const dose = strengthForm(medicine, t);
 
-  const priceLabel =
-    min !== null && max !== null && min !== max
-      ? t('pharmacy.priceRangeValue', { min: formatXafBare(min), max: formatXaf(max) })
-      : (formatXaf(min ?? max) ?? t('pharmacy.priceUnavailable'));
+  // `ListRow` clamps its metadata line to two lines, so the row carries the
+  // four facts that decide whether to open it — identity, dose, whether it
+  // needs a prescription, and how widely it is reported. Brand, category and
+  // pack size are on the detail screen, where nothing is truncated.
+  //
+  // The catalogue frequently repeats the generic as the display name; printing
+  // "Generic: Paracetamol" under "Paracetamol" is noise, so it is dropped and
+  // the brand takes the slot when there is one to show.
+  const sameAsName = (value: string | null) =>
+    !!value && value.trim().toLowerCase() === medicine.name.trim().toLowerCase();
 
-  const strengthForm =
-    medicine.strength && medicine.form
-      ? t('pharmacy.strengthForm', { strength: medicine.strength, form: medicine.form })
-      : (medicine.strength ?? medicine.form ?? null);
+  const identity =
+    medicine.generic_name && !sameAsName(medicine.generic_name)
+      ? t('pharmacy.generic', { name: medicine.generic_name })
+      : medicine.brand_name && !sameAsName(medicine.brand_name)
+        ? t('pharmacy.brand', { name: medicine.brand_name, defaultValue: 'Brand: {{name}}' })
+        : null;
 
   return (
     <ListRow
       icon={CATEGORY_ICONS[medicine.category_icon] ?? 'pill'}
-      tint={is_available ? 'green' : 'blue'}
+      tint={medicine.is_controlled ? 'amber' : available ? 'green' : 'blue'}
       title={medicine.name}
       meta={[
-        t('pharmacy.generic', { name: medicine.generic_name }),
-        strengthForm,
-        medicine.prescription_required ? t('pharmacy.rxBadge') : null,
-        is_available ? t('pharmacy.pharmacyCount', { count }) : null,
+        identity,
+        dose,
+        medicine.prescription_required ? t('pharmacy.filterRx') : null,
+        medicine.is_controlled ? t('pharmacy.controlled') : null,
+        available ? t('pharmacy.pharmacyCount', { count }) : null,
       ]}
       trailing={
         <View style={styles.rowAside}>
-          <Text style={styles.rowPrice} numberOfLines={1}>
-            {priceLabel}
-          </Text>
+          {quote ? (
+            <>
+              <Text style={styles.rowPrice} numberOfLines={1}>
+                {quote.label}
+              </Text>
+              {/* A figure nobody is charging must not look like a quote. */}
+              {!quote.reported ? (
+                <Text style={styles.rowCaption} numberOfLines={1}>
+                  {t('pharmacy.priceIndicative', { defaultValue: 'Catalogue price' })}
+                </Text>
+              ) : null}
+            </>
+          ) : null}
           <StatusBadge
-            status={is_available ? 'available' : 'unavailable'}
-            tone={is_available ? 'normal' : 'neutral'}
-            label={is_available ? t('pharmacy.available') : t('pharmacy.availabilityNone')}
+            status={available ? 'available' : 'unknown'}
+            tone={available ? 'normal' : 'neutral'}
+            label={
+              available
+                ? t('pharmacy.available')
+                : t('pharmacy.notReported', { defaultValue: 'Not reported' })
+            }
             size="sm"
           />
         </View>
       }
       divider={divider}
       onPress={onPress}
-      accessibilityLabel={[medicine.name, strengthForm, priceLabel].filter(Boolean).join(', ')}
+      accessibilityLabel={[
+        medicine.name,
+        dose,
+        medicine.prescription_required ? t('pharmacy.prescriptionRequired') : null,
+        quote?.label,
+        available
+          ? t('pharmacy.pharmacyCount', { count })
+          : t('pharmacy.notReportedAnywhere', {
+              defaultValue: 'No pharmacy has reported stock for this medicine.',
+            }),
+      ]
+        .filter(Boolean)
+        .join(', ')}
       accessibilityHint={t('pharmacy.viewDetails')}
     />
   );
@@ -705,7 +1095,8 @@ function MedicineRow({
  * Directory row. This list is fetched without a `medicine_id`, and
  * MedicineFinderService only loads stock rows when a medicine is supplied, so
  * `stock` is always null here by construction — per-medicine stock, price and
- * the reserve action all live on the detail screen instead.
+ * the reserve action all live on the detail screen instead. Nothing on this
+ * row therefore claims anything about what the pharmacy has on the shelf.
  */
 function PharmacyRow({
   pharmacy,
@@ -744,12 +1135,18 @@ function PharmacyRow({
         ? t('pharmacy.opensAt', { time: pharmacy.opens_at })
         : null;
 
+  const verification = verificationLine(pharmacy.verification_status, t);
+  // The street address already names the town on most rows; city/region is the
+  // fallback for a listing that carries only an area. Two lines of metadata is
+  // the room `ListRow` gives, so only one place line goes in.
+  const place = pharmacy.address ?? ([pharmacy.city, pharmacy.region].filter(Boolean).join(', ') || null);
+
   return (
     <ListRow
       icon="store"
       tint="blue"
       title={pharmacy.name}
-      meta={[hoursLine, pharmacy.city, pharmacy.address]}
+      meta={[verification, hoursLine, place]}
       trailing={
         <View style={styles.rowAside}>
           <Text style={styles.rowValue} numberOfLines={1}>
@@ -765,50 +1162,138 @@ function PharmacyRow({
   );
 }
 
+/**
+ * "Verified pharmacy" / "Not verified", or nothing at all.
+ *
+ * The safety strip on this screen tells patients to buy from verified
+ * pharmacies, so the directory has to say which ones are — and must not imply
+ * an answer for a status value it does not recognise.
+ */
+function verificationLine(
+  status: string | null | undefined,
+  t: (key: string, params?: Record<string, unknown>) => string,
+): string | null {
+  const value = (status ?? '').trim().toLowerCase();
+  if (VERIFIED_STATUSES.has(value)) {
+    return t('pharmacy.verified', { defaultValue: 'Verified pharmacy' });
+  }
+  if (UNVERIFIED_STATUSES.has(value)) {
+    return t('pharmacy.notVerified', { defaultValue: 'Not verified' });
+  }
+  return null;
+}
+
+/**
+ * One open hold, in full: what is being held, where, for how much, until when,
+ * whether a prescription is attached, and anything the pharmacy wrote back.
+ */
 function HoldCard({
   reservation,
   cancelling,
   onCancel,
+  onCall,
   onOpenMedicine,
 }: {
   reservation: MedicineReservation;
   cancelling: boolean;
   onCancel: () => void;
+  onCall: (phone: string) => void;
   onOpenMedicine: (() => void) | null;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const expiry = formatDateTime(reservation.expires_at);
+
+  const expiresAt = reservation.expires_at ? new Date(reservation.expires_at) : null;
+  const expired =
+    reservation.status === 'expired' ||
+    (!!expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() <= Date.now());
+
+  const statusLabel = t(`pharmacy.reservationStatus.${reservation.status}`, {
+    // The API's own label is the fallback, so an enum case this app has not
+    // translated yet still reads as words rather than a database token.
+    defaultValue: reservation.status_label,
+  });
+  const tone: StatusTone = expired ? 'critical' : (RESERVATION_TONES[reservation.status] ?? 'pending');
+
+  const unit = money(reservation.unit_price, reservation.currency);
+  const totalLabel = money(reservation.total_price, reservation.currency);
+  const phone = callablePhone(reservation.pharmacy?.phone);
 
   return (
     <Card>
       <View style={styles.holdHead}>
-        <TintCircle icon="receipt" tint="amber" />
+        <TintCircle icon="receipt" tint={expired ? 'red' : 'amber'} />
         <View style={styles.holdBody}>
-          <Text style={styles.holdTitle} numberOfLines={1}>
+          <Text style={styles.holdTitle} numberOfLines={2}>
             {reservation.medicine?.name ?? t('pharmacy.selectedMedicine')}
           </Text>
-          <Text style={styles.holdMeta} numberOfLines={1}>
+          {reservation.medicine?.generic_name &&
+          reservation.medicine.generic_name.toLowerCase() !==
+            (reservation.medicine.name ?? '').toLowerCase() ? (
+            <Text style={styles.holdMeta} numberOfLines={1}>
+              {t('pharmacy.generic', { name: reservation.medicine.generic_name })}
+            </Text>
+          ) : null}
+          <Text style={styles.holdMeta} numberOfLines={2}>
             {[
               reservation.pharmacy?.name,
+              reservation.pharmacy?.city,
               t('pharmacy.reservationQuantity', { count: reservation.quantity }),
-              reservation.total_price !== null ? formatXaf(reservation.total_price) : null,
+              reservation.pack_size,
             ]
               .filter(Boolean)
               .join('  •  ')}
           </Text>
-          <Text style={styles.holdMeta} numberOfLines={1}>
-            {expiry ? t('pharmacy.reservationExpires', { when: expiry }) : reservation.status_label}
-          </Text>
         </View>
-        <StatusBadge
-          status={reservation.status}
-          tone="pending"
-          label={t('pharmacy.reservationRef', { reference: reservation.reference })}
-          size="sm"
-        />
+        <StatusBadge status={reservation.status} tone={tone} label={statusLabel} size="sm" />
       </View>
+
+      <View style={styles.holdFacts}>
+        <HoldFact label={t('pharmacy.reservationRef', { reference: reservation.reference })} strong />
+        {unit ? <HoldFact label={`${t('pharmacy.unitPrice')}: ${unit}`} /> : null}
+        {totalLabel ? <HoldFact label={`${t('pharmacy.totalPrice')}: ${totalLabel}`} strong /> : null}
+        {reservation.created_at ? (
+          <HoldFact
+            label={t('pharmacy.reservationPlaced', {
+              when: formatDateTime(reservation.created_at),
+              defaultValue: 'Placed {{when}}',
+            })}
+          />
+        ) : null}
+        <HoldFact
+          label={
+            expired
+              ? t('pharmacy.reservationExpired')
+              : expiresAt
+                ? t('pharmacy.reservationExpires', { when: formatDateTime(expiresAt) })
+                : statusLabel
+          }
+          tone={expired ? 'critical' : undefined}
+        />
+        {reservation.prescription_id ? (
+          <HoldFact
+            label={t('pharmacy.reservationPrescriptionAttached', {
+              defaultValue: 'Prescription attached',
+            })}
+          />
+        ) : null}
+      </View>
+
+      {/* Anything written on the hold belongs to the patient — never hidden. */}
+      {reservation.pharmacy_note ? (
+        <NoticeStrip
+          icon="chat"
+          tone="info"
+          text={`${t('pharmacy.reservationPharmacyNote', { defaultValue: 'Note from the pharmacy' })}: ${reservation.pharmacy_note}`}
+        />
+      ) : null}
+      {reservation.patient_note ? (
+        <Text style={styles.holdNote}>
+          {t('pharmacy.reservationYourNote', { defaultValue: 'Your note' })}:{' '}
+          {reservation.patient_note}
+        </Text>
+      ) : null}
 
       <View style={styles.holdActions}>
         {onOpenMedicine ? (
@@ -818,6 +1303,16 @@ function HoldCard({
             variant="secondary"
             size="sm"
             onPress={onOpenMedicine}
+            style={styles.holdAction}
+          />
+        ) : null}
+        {phone ? (
+          <MedButton
+            label={t('pharmacy.callPharmacy')}
+            icon="phone"
+            variant="secondary"
+            size="sm"
+            onPress={() => onCall(phone)}
             style={styles.holdAction}
           />
         ) : null}
@@ -834,6 +1329,31 @@ function HoldCard({
         ) : null}
       </View>
     </Card>
+  );
+}
+
+function HoldFact({
+  label,
+  strong,
+  tone,
+}: {
+  label: string;
+  strong?: boolean;
+  tone?: 'critical';
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <Text
+      style={[
+        styles.holdFact,
+        strong && styles.holdFactStrong,
+        tone === 'critical' && { color: colors.statusCritical },
+      ]}
+      numberOfLines={2}
+    >
+      {label}
+    </Text>
   );
 }
 
@@ -881,8 +1401,17 @@ const makeStyles = (c: Palette) =>
       marginBottom: spacing.sm + 2,
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
       color: c.textMuted,
     },
+    footNote: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textMuted,
+      textAlign: 'center',
+    },
+    staleWrap: { marginBottom: spacing.sm + 2 },
 
     loading: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm },
     loadingText: {
@@ -891,11 +1420,32 @@ const makeStyles = (c: Palette) =>
       color: c.textMuted,
     },
 
-    rowAside: { alignItems: 'flex-end', gap: 4 },
+    strip: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      marginTop: spacing.sm + 2,
+      padding: spacing.sm + 2,
+      borderRadius: radii.sm,
+    },
+    stripText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textSecondary,
+    },
+
+    rowAside: { alignItems: 'flex-end', gap: 4, maxWidth: 132 },
     rowPrice: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.sm,
       color: c.link,
+    },
+    rowCaption: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
     },
     rowValue: {
       fontFamily: typography.fontFamily.semiBold,
@@ -914,6 +1464,30 @@ const makeStyles = (c: Palette) =>
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
       color: c.textMuted,
+    },
+    holdFacts: {
+      gap: 2,
+      marginTop: spacing.sm + 2,
+      paddingTop: spacing.sm + 2,
+      borderTopWidth: 1,
+      borderTopColor: c.divider,
+    },
+    holdFact: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textSecondary,
+    },
+    holdFactStrong: {
+      fontFamily: typography.fontFamily.semiBold,
+      color: c.textPrimary,
+    },
+    holdNote: {
+      marginTop: spacing.sm,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textSecondary,
     },
     holdActions: {
       flexDirection: 'row',
@@ -934,7 +1508,7 @@ const makeStyles = (c: Palette) =>
       borderRadius: radii.md,
       backgroundColor: c.primarySoft,
     },
-    noticeBody: { flex: 1, minWidth: 0, gap: 2 },
+    noticeBody: { flex: 1, minWidth: 0, gap: 4 },
     noticeTitle: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.sm,

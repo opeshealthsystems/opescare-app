@@ -287,7 +287,7 @@ function DialogButton({
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(11,26,92,0.35)' },
+  backdrop: { flex: 1, backgroundColor: colors.overlay },
   sheet: {
     // Opaque page colour, NOT `colors.background` — that is now transparent
     // (the watermark sits behind screen roots), and this sheet floats in a

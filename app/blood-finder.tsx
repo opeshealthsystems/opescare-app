@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
@@ -17,6 +17,7 @@ import {
   SectionHeader,
   StaleNotice,
   StatusBadge,
+  formatDateTime,
   formatLabel,
   radii,
   spacing,
@@ -25,10 +26,11 @@ import {
   useTheme,
   type IconName,
   type Palette,
+  type ScreenHeaderAction,
   type StatusTone,
   type Tint,
 } from '@/components/opes-ui';
-import { CareButton, LoadingBlock, NoticeBanner } from '@/components/care/shared';
+import { CareButton, LoadingBlock, NoticeBanner, SummaryLine } from '@/components/care/shared';
 import { useAuthStore } from '@/lib/store/auth';
 import { useNationwideBloodSearch } from '@/lib/api/bloodQueries';
 import {
@@ -41,6 +43,7 @@ import {
   type BloodGroupOption,
   type BloodGroupValue,
   type BloodRequest,
+  type BloodStockSnapshot,
 } from '@/lib/api/queries';
 
 /**
@@ -63,14 +66,26 @@ import {
  * laid out as three numbered steps in the order a person actually thinks:
  * *what group*, *what component*, *where*.
  *
+ * ── Why the badge is freshness, not "Available" ─────────────────────────────
+ * MobileBloodController::search() runs through
+ * BloodAvailability::scopeAvailable(), so `availability.status` is 'available'
+ * on EVERY row it can ever return. A green "Available" pill on every card is
+ * therefore decoration that reads as certainty, and this is the one screen
+ * where false certainty costs the most. The trailing badge carries
+ * `availability.freshness` instead — the field that actually varies (the
+ * projector stamps fresh ≤2 h, recent ≤6 h, stale beyond) — and every card
+ * prints `last_updated_at` in full. The status word is still shown, worded as
+ * the report it is ("Reported available"), never as a fact.
+ *
  * ── On empty results ────────────────────────────────────────────────────────
- * `blood_availability` is facility-self-reported and frequently empty, so "no
- * results" is the NORMAL outcome, not an edge case. It is therefore built as a
- * first-class screen state with real, working next steps — widen the radius,
- * search the whole country (a supported origin-less query), switch to a
- * clinically compatible group that *does* have reported stock, fall back to
- * whole blood, or go find a hospital to phone. Nothing here is faked: every
- * number on this screen came from the API.
+ * `blood_availability` is facility-self-reported and, behind
+ * `scopeReportedByRealSource()`, frequently empty, so "no results" is the
+ * NORMAL outcome, not an edge case. It is therefore built as a first-class
+ * screen state with real, working next steps — widen the radius, search the
+ * whole country (a supported origin-less query), switch to a clinically
+ * compatible group that *does* have reported stock, fall back to whole blood,
+ * or go find a hospital to phone. Nothing here is faked: every number on this
+ * screen came from the API.
  *
  * ── Two actions per bank, on purpose ────────────────────────────────────────
  * Unlike the pharmacy list (one row → one detail screen), each bank keeps both
@@ -95,10 +110,20 @@ const CITIES: City[] = [
   { key: 'garoua', name: 'Garoua, Cameroon', lat: 9.3017, lng: 13.3921 },
 ];
 
-/** Blood travels further than a pharmacy trip — the radii start wider. */
+/**
+ * Blood travels further than a pharmacy trip — the radii start wider.
+ * MobileBloodController::MAX_RADIUS_KM is 200, so none of these is refused.
+ */
 const RADIUS_OPTIONS = [10, 25, 50, 100];
 
-/** Nationwide sweep rows shown inline before the patient goes looking further. */
+/**
+ * MobileBloodController::search() defaults `limit` to 25 and `useBloodSearch`
+ * sends none, so a full page of results may be a truncated one. Said out loud
+ * below rather than left for the patient to assume they saw everything.
+ */
+const LOCAL_RESULT_LIMIT = 25;
+
+/** Nationwide sweep rows shown inline before the "show all" toggle. */
 const NATIONWIDE_PREVIEW = 5;
 
 /** The backed values of App\Enums\BloodComponentType, in display order. */
@@ -141,49 +166,98 @@ const facilityIcon = (type: string | undefined): IconName =>
  */
 const BLOOD_TINT: Tint = 'red';
 
-/** English fallbacks for the stock-status badge (see the i18n note in the report). */
+/**
+ * English fallbacks for the stock-status word. Deliberately phrased as a
+ * report ("Reported available"), never as a fact: `availability_status` is
+ * what the facility last told the projector, not what is in the fridge now.
+ * (See the i18n note in the report — `bloodFinder.stock.*` does not exist yet.)
+ */
 const STOCK_FALLBACK: Record<string, string> = {
-  available: 'Available',
-  in_stock: 'Available',
-  low: 'Low stock',
-  limited: 'Low stock',
-  none: 'None reported',
-  out_of_stock: 'None reported',
-  unavailable: 'Not reported',
-  unknown: 'Not reported',
+  available: 'Reported available',
+  in_stock: 'Reported available',
+  low: 'Reported low',
+  limited: 'Reported low',
+  none: 'Reported none left',
+  out_of_stock: 'Reported none left',
+  unavailable: 'No longer reported',
+  unknown: 'Stock not reported',
 };
 
-/** available → success · low → warning · none → critical (per the kit's tones). */
-function stockTone(status: string | null | undefined): StatusTone {
-  switch ((status ?? '').toLowerCase()) {
-    case 'available':
-    case 'in_stock':
-      return 'normal';
-    case 'low':
-    case 'limited':
-      return 'warning';
-    case 'none':
-    case 'out_of_stock':
-    case 'unavailable':
-      return 'critical';
+/**
+ * `blood_availability.freshness_status`, written by BloodAvailabilityProjector:
+ * fresh ≤ 2 h, recent ≤ 6 h, stale beyond that (or never stamped). Anything
+ * older than six hours is a caution, not a neutral fact.
+ */
+const FRESHNESS_TONE: Record<string, StatusTone> = {
+  fresh: 'normal',
+  recent: 'pending',
+  stale: 'warning',
+};
+
+const freshnessRank = (value: string | null | undefined): number => {
+  switch ((value ?? '').toLowerCase()) {
+    case 'fresh':
+      return 0;
+    case 'recent':
+      return 1;
+    case 'stale':
+      return 2;
     default:
-      return 'neutral';
+      return 3;
   }
-}
+};
 
 /**
  * `care_facilities.verification_status` is one of unverified / self_reported /
- * license_verified / government_verified. Only the last two are an actual
- * check by someone other than the facility, so only those earn the badge.
+ * license_verified / government_verified. All four are shown, spelled out —
+ * hiding "self_reported" behind the absence of a green badge tells the patient
+ * nothing, and on a blood listing who checked the facility is part of the
+ * answer.
  */
+const VERIFICATION_FALLBACK: Record<string, string> = {
+  government_verified: 'Government verified',
+  license_verified: 'Licence verified',
+  self_reported: 'Listed by the facility itself',
+  unverified: 'Not verified',
+};
+
 function isVerified(status: string | null | undefined): boolean {
   return status === 'license_verified' || status === 'government_verified';
 }
 
 /** A tel: URI wants digits and a leading +, nothing else. */
+const normaliseNumber = (value: string): string => value.replace(/[^+\d]/g, '');
+
 function dial(number: string | null | undefined): void {
   if (!number) return;
-  Linking.openURL(`tel:${number.replace(/[^+\d]/g, '')}`).catch(() => undefined);
+  Linking.openURL(`tel:${normaliseNumber(number)}`).catch(() => undefined);
+}
+
+/** Pulls the backend's `error_code` out of an axios failure, if there is one. */
+function errorCodeOf(error: unknown): string | null {
+  const body = (error as { response?: { data?: { error_code?: string } } })?.response?.data;
+  return body?.error_code ?? null;
+}
+
+/**
+ * The numbers to try, most useful first, with `emergency_contact` and
+ * `phone_primary` de-duplicated — MobileBloodController falls back to the
+ * facility's main line when the availability row carries no emergency contact,
+ * so the two fields are very often the same string.
+ */
+function phoneLines(
+  facility: Pick<BloodBankResult, 'phone' | 'emergency_contact'>,
+): { key: 'emergency' | 'main'; number: string }[] {
+  const out: { key: 'emergency' | 'main'; number: string }[] = [];
+  const push = (key: 'emergency' | 'main', value: string | null) => {
+    const digits = value ? normaliseNumber(value) : '';
+    if (!value || digits.length < 3) return;
+    if (out.some((line) => normaliseNumber(line.number) === digits)) return;
+    out.push({ key, number: value });
+  };
+  push('emergency', facility.emergency_contact);
+  push('main', facility.phone);
+  return out;
 }
 
 type SheetKey = 'city' | 'radius' | null;
@@ -208,7 +282,13 @@ export default function BloodFinderScreen() {
   const [debouncedTerm, setDebouncedTerm] = useState('');
   const [sheet, setSheet] = useState<SheetKey>(null);
   const [nationwideOpen, setNationwideOpen] = useState(false);
+  const [nationwideExpanded, setNationwideExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Lets the header's request badge jump straight to "My requests" instead of
+  // making someone scroll a list of banks to reach the thing they already did.
+  const scrollRef = useRef<ScrollView>(null);
+  const requestsY = useRef(0);
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedTerm(term.trim().toLowerCase()), 300);
@@ -219,6 +299,7 @@ export default function BloodFinderScreen() {
   // makes the previous sweep's answer meaningless.
   useEffect(() => {
     setNationwideOpen(false);
+    setNationwideExpanded(false);
   }, [bloodGroup, componentType]);
 
   const origin = deviceCoords ?? { lat: city.lat, lng: city.lng };
@@ -283,9 +364,25 @@ export default function BloodFinderScreen() {
     return rows.filter(
       (row) =>
         row.name.toLowerCase().includes(debouncedTerm) ||
-        (row.city ?? '').toLowerCase().includes(debouncedTerm),
+        (row.city ?? '').toLowerCase().includes(debouncedTerm) ||
+        (row.region ?? '').toLowerCase().includes(debouncedTerm),
     );
   }, [rows, debouncedTerm]);
+
+  /**
+   * The nationwide query comes back distance-less, and the service then sorts
+   * it by `strcmp(b.freshness, a.freshness)` — which is alphabetical, so it
+   * puts *stale* first. Re-ordered here so the freshest report leads; the
+   * ordering is presentation, the rows are untouched.
+   */
+  const nationwideRows = useMemo(() => {
+    const sweep = nationwide.data ?? [];
+    return [...sweep].sort((a, b) => {
+      const byFreshness =
+        freshnessRank(a.availability?.freshness) - freshnessRank(b.availability?.freshness);
+      return byFreshness !== 0 ? byFreshness : a.name.localeCompare(b.name);
+    });
+  }, [nationwide.data]);
 
   // Only the results that actually carry coordinates can be plotted; the map is
   // suppressed entirely when none do (embedMapUrl would also return null, but
@@ -297,6 +394,7 @@ export default function BloodFinderScreen() {
 
   const openRequests = requests.data ?? [];
   const nextRadius = RADIUS_OPTIONS.find((r) => r > radiusKm) ?? null;
+  const truncated = rows.length >= LOCAL_RESULT_LIMIT;
 
   // A refresh that fails on top of a list that already loaded must say so —
   // stale blood stock read as fresh is a safety problem, not a polish one.
@@ -365,9 +463,14 @@ export default function BloodFinderScreen() {
     dialog.confirm({
       title: t('bloodFinder.request.cancel'),
       message: [
-        `${request.blood_group}  •  ${t(`bloodFinder.components.${request.component_type}`)}`,
+        `${request.blood_group}  •  ${t(`bloodFinder.components.${request.component_type}`, {
+          defaultValue: request.component_label,
+        })}`,
         request.facility?.name,
         t('bloodFinder.reference', { reference: request.reference }),
+        t('bloodFinder.request.cancelWarning', {
+          defaultValue: 'This cannot be undone. You would have to send a new request.',
+        }),
       ]
         .filter(Boolean)
         .join('\n'),
@@ -376,17 +479,41 @@ export default function BloodFinderScreen() {
       onConfirm: async () => {
         try {
           await cancelRequest.mutateAsync({ id: request.id });
-        } catch {
           dialog.alert(
-            t('bloodFinder.loadFailed'),
-            t('bloodFinder.errors.REQUEST_NOT_CANCELLABLE'),
+            t('bloodFinder.request.cancelledTitle'),
+            t('bloodFinder.request.cancelledBody'),
+            'success',
+          );
+        } catch (error) {
+          // REQUEST_NOT_CANCELLABLE and REQUEST_NOT_FOUND are different facts
+          // about the request and get different sentences; anything else is
+          // reported as the unknown it is rather than guessed at.
+          const code = errorCodeOf(error);
+          dialog.alert(
+            t('bloodFinder.request.cancel'),
+            code
+              ? t(`bloodFinder.errors.${code}`, { defaultValue: t('bloodFinder.errors.generic') })
+              : t('bloodFinder.errors.generic'),
             'critical',
           );
         }
       },
     });
 
-  const headerActions = [
+  const scrollToRequests = () =>
+    scrollRef.current?.scrollTo({ y: Math.max(0, requestsY.current - spacing.md), animated: true });
+
+  const headerActions: ScreenHeaderAction[] = [
+    ...(openRequests.length > 0
+      ? [
+          {
+            icon: 'receipt' as IconName,
+            badge: openRequests.length,
+            onPress: scrollToRequests,
+            accessibilityLabel: t('bloodFinder.myRequests'),
+          },
+        ]
+      : []),
     {
       icon: 'location' as IconName,
       onPress: () => {
@@ -406,6 +533,7 @@ export default function BloodFinderScreen() {
       />
 
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -469,6 +597,10 @@ export default function BloodFinderScreen() {
                 icon="alert-circle"
                 tint="red"
                 title={t('bloodFinder.loadFailed')}
+                message={t('bloodFinder.optionsFailedHint', {
+                  defaultValue:
+                    'The list of blood groups could not be loaded, so nothing can be searched yet.',
+                })}
                 actionLabel={t('bloodFinder.retry')}
                 onAction={() => options.refetch()}
               />
@@ -485,7 +617,7 @@ export default function BloodFinderScreen() {
                   onPress={() => setBloodGroup(group.value === bloodGroup ? null : group.value)}
                   accessibilityLabel={`${group.label} — ${
                     group.facility_count > 0
-                      ? t('bloodFinder.sites', { count: group.facility_count })
+                      ? t('bloodFinder.facilityCount', { count: group.facility_count })
                       : t('bloodFinder.noSites')
                   }`}
                 />
@@ -517,15 +649,25 @@ export default function BloodFinderScreen() {
             contentContainerStyle={styles.chipRailContent}
           >
             {(componentOptions.length > 0
-              ? componentOptions.map((c) => ({ value: c.value, icon: c.icon }))
-              : COMPONENT_FALLBACK.map((value) => ({ value, icon: 'droplet' }))
-            ).map(({ value, icon }) => (
+              ? componentOptions.map((c) => ({
+                  value: c.value,
+                  icon: c.icon,
+                  count: c.facility_count,
+                }))
+              : COMPONENT_FALLBACK.map((value) => ({ value, icon: 'droplet', count: 0 }))
+            ).map(({ value, icon, count }) => (
               <Chip
                 key={value}
                 icon={COMPONENT_ICONS[icon] ?? 'droplet'}
                 label={t(`bloodFinder.components.${value}`)}
+                count={count > 0 ? count : undefined}
                 selected={value === componentType}
                 onPress={() => setComponentType(value)}
+                accessibilityLabel={`${t(`bloodFinder.components.${value}`)} — ${
+                  count > 0
+                    ? t('bloodFinder.facilityCount', { count })
+                    : t('bloodFinder.noSites')
+                }`}
               />
             ))}
           </ScrollView>
@@ -641,9 +783,12 @@ export default function BloodFinderScreen() {
                 }
               />
               <Text style={styles.sectionHint}>
-                {t('bloodFinder.sortByDistance')}
-                {'  ·  '}
-                {`${bloodGroup}  •  ${selectedComponentLabel}`}
+                {[
+                  `${bloodGroup}  •  ${selectedComponentLabel}`,
+                  t('bloodFinder.radius', { km: radiusKm }),
+                  originLabel,
+                  t('bloodFinder.sortByDistance'),
+                ].join('  ·  ')}
               </Text>
             </View>
 
@@ -692,6 +837,10 @@ export default function BloodFinderScreen() {
                   icon="alert-circle"
                   tint="red"
                   title={t('bloodFinder.loadFailed')}
+                  message={t('bloodFinder.searchFailedHint', {
+                    defaultValue:
+                      'Nothing was returned, so nothing on this screen is out of date — it is simply unknown. Check your connection and try again.',
+                  })}
                   actionLabel={t('bloodFinder.retry')}
                   onAction={() => search.refetch()}
                 />
@@ -703,7 +852,9 @@ export default function BloodFinderScreen() {
                 onWiden={() => {
                   if (nextRadius) setRadiusKm(nextRadius);
                 }}
-                filtered={!!debouncedTerm}
+                // "The filter hid everything" is only the explanation when
+                // there was in fact something to hide.
+                filtered={!!debouncedTerm && rows.length > 0}
                 onClearFilter={() => setTerm('')}
                 componentLabel={selectedComponentLabel}
                 onWholeBlood={
@@ -716,7 +867,9 @@ export default function BloodFinderScreen() {
                 onNationwide={() => setNationwideOpen(true)}
                 nationwidePending={nationwide.isPending}
                 nationwideError={nationwide.isError}
-                nationwideRows={nationwide.data ?? []}
+                nationwideRows={nationwideRows}
+                nationwideExpanded={nationwideExpanded}
+                onToggleNationwide={() => setNationwideExpanded((open) => !open)}
                 onRetryNationwide={() => nationwide.refetch()}
                 onFindHospital={() => router.push('/care-map')}
                 onOpenFacility={goToRequest}
@@ -737,16 +890,66 @@ export default function BloodFinderScreen() {
                     onRequest={() => goToRequest(facility)}
                   />
                 ))}
+                {truncated ? (
+                  <NoticeBanner
+                    icon="info"
+                    tone="pending"
+                    // `limit`, not `count`: an interpolation named `count` makes
+                    // i18next look for plural forms of a key that does not exist
+                    // yet, and the defaultValue is the only copy there is.
+                    message={t('bloodFinder.resultsTruncated', {
+                      limit: LOCAL_RESULT_LIMIT,
+                      defaultValue:
+                        'Only the {{limit}} nearest facilities are listed. Narrow the radius to be sure you are seeing the closest ones.',
+                    })}
+                  />
+                ) : null}
               </View>
             )}
           </View>
         )}
 
-        {/* Open requests */}
-        {openRequests.length > 0 ? (
-          <View style={styles.stack}>
-            <SectionHeader title={t('bloodFinder.myRequests')} />
-            {openRequests.map((request) => (
+        {/* ── My requests ──────────────────────────────────────────────────── */}
+        <View
+          style={styles.stack}
+          onLayout={(event) => {
+            requestsY.current = event.nativeEvent.layout.y;
+          }}
+        >
+          <SectionHeader
+            title={t('bloodFinder.myRequests')}
+            actionLabel={requests.isError ? t('bloodFinder.retry') : undefined}
+            onAction={requests.isError ? () => requests.refetch() : undefined}
+          />
+
+          {requests.isPending ? (
+            <LoadingBlock label={t('bloodFinder.searching')} />
+          ) : requests.isError ? (
+            <Card variant="flush">
+              <EmptyState
+                icon="alert-circle"
+                tint="red"
+                title={t('bloodFinder.requestsFailed', {
+                  defaultValue: "Couldn't load your blood requests.",
+                })}
+                actionLabel={t('bloodFinder.retry')}
+                onAction={() => requests.refetch()}
+              />
+            </Card>
+          ) : openRequests.length === 0 ? (
+            <Card variant="flush">
+              <EmptyState
+                icon="receipt"
+                tint="blue"
+                title={t('bloodFinder.myRequestsEmpty')}
+                message={t('bloodFinder.myRequestsEmptyHint', {
+                  defaultValue:
+                    'Pick a group above, then choose a facility to reserve units at. Requests you send appear here until the blood bank answers them.',
+                })}
+              />
+            </Card>
+          ) : (
+            openRequests.map((request) => (
               <OpenRequestCard
                 key={request.id}
                 request={request}
@@ -755,9 +958,9 @@ export default function BloodFinderScreen() {
                 }
                 onCancel={() => confirmCancel(request)}
               />
-            ))}
-          </View>
-        ) : null}
+            ))
+          )}
+        </View>
 
         {/* Safety notice */}
         <View style={styles.notice} accessibilityRole="summary">
@@ -791,11 +994,71 @@ function OptionCard({ title, children }: { title: string; children: React.ReactN
 }
 
 /**
+ * The stock figure, told honestly: how many units were reported, and exactly
+ * when. `last_updated_at` is printed in full rather than summarised, because
+ * "Updated recently" can mean anything up to six hours on a shelf that empties
+ * in minutes. When the timestamp is missing the row is omitted entirely — the
+ * freshness badge is then the only claim made about age, and it says "not
+ * updated recently", which is what the projector writes for a null.
+ */
+function StockFacts({
+  availability,
+  address,
+  verification,
+}: {
+  availability: BloodStockSnapshot | null;
+  address: string | null;
+  verification: string | null;
+}) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const verificationKey = (verification ?? '').toLowerCase();
+  const updated = availability?.last_updated_at
+    ? formatDateTime(availability.last_updated_at)
+    : null;
+
+  return (
+    <View style={styles.facts}>
+      <SummaryLine
+        label={t('bloodFinder.unitsLabel', { defaultValue: 'Units reported' })}
+        value={availability?.units_range ?? t('bloodFinder.unitsUnknown')}
+        valueColor={availability?.units_range ? undefined : colors.textMuted}
+        strong={!!availability?.units_range}
+      />
+      {updated ? (
+        <SummaryLine
+          label={t('bloodFinder.stockUpdated', { defaultValue: 'Stock updated' })}
+          value={updated}
+        />
+      ) : null}
+      {address ? (
+        <SummaryLine
+          label={t('bloodFinder.addressLabel', { defaultValue: 'Address' })}
+          value={address}
+        />
+      ) : null}
+      {verificationKey ? (
+        <SummaryLine
+          label={t('bloodFinder.verificationLabel', { defaultValue: 'Listing' })}
+          value={t(`bloodFinder.verification.${verificationKey}`, {
+            defaultValue: VERIFICATION_FALLBACK[verificationKey] ?? formatLabel(verification),
+          })}
+          valueColor={isVerified(verification) ? colors.statusNormal : colors.textMuted}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+/**
  * A facility that reports the requested units.
  *
  * One `Card variant="flush"`: the kit `ListRow` (red tint circle, distance and
- * the stock `StatusBadge` on the right) over the two actions the patient came
- * for. Tapping the row and pressing "Request units" do the same thing.
+ * the freshness `StatusBadge` on the right) over the reported figures and the
+ * two actions the patient came for. Tapping the row and pressing "Request
+ * units" do the same thing.
  */
 function BloodBankCard({
   facility,
@@ -809,19 +1072,31 @@ function BloodBankCard({
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const availability = facility.availability;
-  const phone = facility.emergency_contact ?? facility.phone;
+  const lines = useMemo(() => phoneLines(facility), [facility]);
+
   // `status` is the facility's own stock word; `unknown` keeps the badge from
   // rendering an empty pill if a row ever arrives without one.
   const stockKey = (availability?.status ?? '').toLowerCase() || 'unknown';
-  const stockLabel = availability
-    ? t(`bloodFinder.stock.${stockKey}`, {
-        defaultValue: STOCK_FALLBACK[stockKey] ?? formatLabel(availability.status),
-      })
-    : t('bloodFinder.unitsUnknown');
+  const stockLabel = t(`bloodFinder.stock.${stockKey}`, {
+    defaultValue: STOCK_FALLBACK[stockKey] ?? formatLabel(stockKey),
+  });
+
+  const freshnessKey = (availability?.freshness ?? '').toLowerCase() || 'stale';
+  const freshnessLabel = t(`bloodFinder.freshness.${freshnessKey}`, {
+    defaultValue: t('bloodFinder.freshness.stale'),
+  });
+
   const distance =
     facility.distance_km === null
       ? t('bloodFinder.distanceUnknown')
       : t('bloodFinder.distanceKm', { km: facility.distance_km });
+
+  const place = [facility.city, facility.region].filter(Boolean).join(', ') || null;
+  const typeLabel = facility.facility_type
+    ? t(`bloodFinder.facilityTypes.${facility.facility_type}`, {
+        defaultValue: formatLabel(facility.facility_type),
+      })
+    : null;
 
   return (
     <Card variant="flush">
@@ -829,46 +1104,62 @@ function BloodBankCard({
         icon={facilityIcon(facility.facility_type)}
         tint={BLOOD_TINT}
         title={facility.name}
-        meta={[
-          facility.city,
-          availability?.units_range
-            ? t('bloodFinder.unitsRange', { range: availability.units_range })
-            : t('bloodFinder.unitsUnknown'),
-          availability?.freshness
-            ? t(`bloodFinder.freshness.${availability.freshness}`, {
-                defaultValue: t('bloodFinder.freshness.stale'),
-              })
-            : null,
-          isVerified(facility.verification_status) ? t('bloodFinder.verified') : null,
-        ]}
+        meta={[typeLabel, place, stockLabel]}
         trailing={
           <View style={styles.rowAside}>
             <Text style={styles.rowValue} numberOfLines={1}>
               {distance}
             </Text>
             <StatusBadge
-              status={stockKey}
-              tone={stockTone(stockKey)}
-              label={stockLabel}
+              status={freshnessKey}
+              tone={FRESHNESS_TONE[freshnessKey] ?? 'neutral'}
+              label={freshnessLabel}
               size="sm"
             />
           </View>
         }
         onPress={onRequest}
+        accessibilityLabel={[facility.name, place, stockLabel, distance, freshnessLabel]
+          .filter(Boolean)
+          .join(', ')}
         accessibilityHint={t('bloodFinder.requestUnits')}
         divider
       />
 
+      <StockFacts
+        availability={availability}
+        address={facility.address}
+        verification={facility.verification_status}
+      />
+
       <View style={styles.cardFoot}>
-        <CareButton
-          label={phone ? t('bloodFinder.callShort') : t('bloodFinder.noPhone')}
-          icon="phone"
-          variant="secondary"
-          size="sm"
-          disabled={!phone}
-          onPress={() => dial(phone)}
-          style={styles.footCall}
-        />
+        {lines.length === 0 ? (
+          <CareButton
+            label={t('bloodFinder.noPhone')}
+            icon="phone"
+            variant="secondary"
+            size="sm"
+            disabled
+            onPress={() => undefined}
+            style={styles.footCall}
+          />
+        ) : (
+          lines.map((line) => (
+            <CareButton
+              key={line.key}
+              label={
+                line.key === 'emergency'
+                  ? t('bloodFinder.callEmergencyLine', { defaultValue: 'Emergency line' })
+                  : t('bloodFinder.callShort')
+              }
+              icon="phone"
+              variant={line.key === 'emergency' ? 'danger' : 'secondary'}
+              size="sm"
+              onPress={() => dial(line.number)}
+              style={styles.footCall}
+            />
+          ))
+        )}
         <View style={styles.footCta}>
           <GradientButton
             label={t('bloodFinder.requestUnits')}
@@ -907,6 +1198,8 @@ function NoStockPanel({
   nationwidePending,
   nationwideError,
   nationwideRows,
+  nationwideExpanded,
+  onToggleNationwide,
   onRetryNationwide,
   onFindHospital,
   onOpenFacility,
@@ -926,6 +1219,8 @@ function NoStockPanel({
   nationwidePending: boolean;
   nationwideError: boolean;
   nationwideRows: BloodBankResult[];
+  nationwideExpanded: boolean;
+  onToggleNationwide: () => void;
   onRetryNationwide: () => void;
   onFindHospital: () => void;
   onOpenFacility: (facility: BloodBankResult) => void;
@@ -942,14 +1237,21 @@ function NoStockPanel({
         <EmptyState
           icon="search"
           tint="blue"
-          title={t('bloodFinder.noResults', { km: radiusKm })}
-          message={t('bloodFinder.noResultsHint')}
+          title={t('bloodFinder.filteredToNothing', {
+            defaultValue: 'No result matches that filter.',
+          })}
+          message={t('bloodFinder.filteredToNothingHint', {
+            defaultValue:
+              'The filter only narrows the facilities already found. Clear it to see them all again.',
+          })}
           actionLabel={t('bloodFinder.clear')}
           onAction={onClearFilter}
         />
       </Card>
     );
   }
+
+  const shown = nationwideExpanded ? nationwideRows : nationwideRows.slice(0, NATIONWIDE_PREVIEW);
 
   return (
     <View style={styles.stack}>
@@ -1017,7 +1319,7 @@ function NoStockPanel({
                 onPress={() => onPickGroup(option.value)}
                 accessibilityLabel={`${option.label} — ${
                   option.facility_count > 0
-                    ? t('bloodFinder.sites', { count: option.facility_count })
+                    ? t('bloodFinder.facilityCount', { count: option.facility_count })
                     : t('bloodFinder.noSites')
                 }`}
               />
@@ -1057,12 +1359,33 @@ function NoStockPanel({
             </Card>
           ) : (
             <>
-              <SectionHeader
-                variant="overline"
-                title={t('bloodFinder.empty.nationwideFound', { count: nationwideRows.length })}
-              />
+              <View>
+                <SectionHeader
+                  variant="overline"
+                  title={t('bloodFinder.empty.nationwideFound', { count: nationwideRows.length })}
+                  actionLabel={
+                    nationwideRows.length > NATIONWIDE_PREVIEW
+                      ? nationwideExpanded
+                        ? t('bloodFinder.showLess', { defaultValue: 'Show fewer' })
+                        : t('bloodFinder.showAll', { defaultValue: 'Show all' })
+                      : undefined
+                  }
+                  actionChevron
+                  onAction={
+                    nationwideRows.length > NATIONWIDE_PREVIEW ? onToggleNationwide : undefined
+                  }
+                />
+                {/* These rows come back without a distance, so they cannot be
+                    ordered by how far away they are — say what they ARE ordered
+                    by rather than let the list imply proximity. */}
+                <Text style={styles.sectionHint}>
+                  {t('bloodFinder.empty.freshestFirst', {
+                    defaultValue: 'Most recently updated first · distance unavailable',
+                  })}
+                </Text>
+              </View>
               <View style={styles.stack}>
-                {nationwideRows.slice(0, NATIONWIDE_PREVIEW).map((facility) => (
+                {shown.map((facility) => (
                   <BloodBankCard
                     key={facility.id}
                     facility={facility}
@@ -1090,6 +1413,16 @@ function urgencyTone(urgency: string): StatusTone {
   }
 }
 
+/**
+ * One request the patient already sent.
+ *
+ * Everything MobileBloodController::requestPayload() returns is shown, because
+ * every field of it answers a question the patient will otherwise phone
+ * somebody to ask: what did I ask for, where, under what reference, by when do
+ * I need it, when does the hold lapse (BloodRequestService::HOLD_HOURS is 24,
+ * after which the request expires on its own), what did I tell them, and — the
+ * one that matters most — what did the blood bank write back.
+ */
 function OpenRequestCard({
   request,
   cancelling,
@@ -1104,16 +1437,21 @@ function OpenRequestCard({
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const phone = request.facility?.phone ?? null;
 
+  const componentLabel = t(`bloodFinder.components.${request.component_type}`, {
+    defaultValue: request.component_label,
+  });
+  const place = [request.facility?.city, request.facility?.address].filter(Boolean).join(', ');
+
   return (
     <Card variant="flush">
       <ListRow
         icon="receipt"
         tint={BLOOD_TINT}
-        title={`${request.blood_group}  •  ${t(`bloodFinder.components.${request.component_type}`)}`}
+        title={`${request.blood_group}  •  ${componentLabel}`}
         meta={[
           request.facility?.name,
+          place || null,
           t('bloodFinder.reference', { reference: request.reference }),
-          `${request.quantity} ${t('bloodFinder.request.quantity')}`,
         ]}
         chevron={false}
         trailing={
@@ -1133,8 +1471,63 @@ function OpenRequestCard({
             />
           </View>
         }
-        divider={!!phone || request.is_cancellable}
+        divider
       />
+
+      <View style={styles.facts}>
+        <SummaryLine
+          label={t('bloodFinder.request.reviewUnits')}
+          value={String(request.quantity)}
+          strong
+        />
+        {request.needed_by ? (
+          <SummaryLine
+            label={t('bloodFinder.request.neededBy', { defaultValue: 'Needed by' })}
+            value={formatDateTime(request.needed_by)}
+          />
+        ) : null}
+        {request.expires_at ? (
+          <SummaryLine
+            label={t('bloodFinder.request.expiresAt', { defaultValue: 'Hold expires' })}
+            value={formatDateTime(request.expires_at)}
+            valueColor={colors.statusWarning}
+          />
+        ) : null}
+        {request.created_at ? (
+          <SummaryLine
+            label={t('bloodFinder.request.sentAt', { defaultValue: 'Sent' })}
+            value={formatDateTime(request.created_at)}
+          />
+        ) : null}
+        {request.contact_phone ? (
+          <SummaryLine
+            label={t('bloodFinder.request.contactPhone')}
+            value={request.contact_phone}
+          />
+        ) : null}
+      </View>
+
+      {request.patient_note ? (
+        <View style={styles.noteStrip}>
+          <Text style={styles.noteLabel}>{t('bloodFinder.request.note')}</Text>
+          <Text style={styles.noteText}>{request.patient_note}</Text>
+        </View>
+      ) : null}
+
+      {/* The blood bank's own words back to the patient — the single most
+          important field on the payload, so it is a banner, not a line. */}
+      {request.facility_note ? (
+        <View style={styles.facilityNote}>
+          <NoticeBanner
+            icon="chat"
+            tone="pending"
+            title={t('bloodFinder.request.facilityNote', {
+              defaultValue: 'Message from the blood bank',
+            })}
+            message={request.facility_note}
+          />
+        </View>
+      ) : null}
 
       {phone || request.is_cancellable ? (
         <View style={styles.cardFoot}>
@@ -1219,6 +1612,7 @@ const makeStyles = (c: Palette) =>
       marginTop: -spacing.xs,
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
       color: c.textMuted,
     },
 
@@ -1239,6 +1633,30 @@ const makeStyles = (c: Palette) =>
       fontSize: typography.size.sm,
       color: c.textPrimary,
     },
+
+    facts: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xs,
+    },
+
+    noteStrip: {
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.sm,
+      gap: 2,
+    },
+    noteLabel: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+    noteText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: c.textSecondary,
+    },
+    facilityNote: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
 
     cardFoot: {
       flexDirection: 'row',

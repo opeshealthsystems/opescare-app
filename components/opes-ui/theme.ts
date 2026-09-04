@@ -59,6 +59,12 @@ export const opesPalette = {
   surface: '#FFFFFF',
   /** Muted fill: inactive segmented tab, info strip, input background. */
   surfaceMuted: '#EAF0FE',
+  /**
+   * Modal / bottom-sheet scrim. A palette-owned token rather than a hardcoded
+   * `rgba(...)`, so the scrim follows a palette switch like every other colour.
+   * (= `textPrimary` #0B1A5C at 35%.)
+   */
+  overlay: 'rgba(11,26,92,0.35)',
 
   // ---------------------------------------------------------------------
   // Lines
@@ -157,6 +163,8 @@ export const opescarePalette: Palette = {
   background: 'transparent',
   surface: '#FFFFFF',
   surfaceMuted: '#F7F0E3',
+  // = theme/tokens.js `surface.overlay` (navy.deep #0E1729 at 45%).
+  overlay: 'rgba(14,23,41,0.45)',
   border: '#EADFC8',
   divider: '#F2EADB',
   borderFocus: '#0F4C81',
@@ -245,17 +253,33 @@ export const typography = {
   },
 } as const;
 
-export const shadow = {
+export type ShadowSpec = {
+  shadowColor: string;
+  shadowOffset: { width: number; height: number };
+  shadowOpacity: number;
+  shadowRadius: number;
+  elevation: number;
+};
+
+/**
+ * Build the shadow set from a palette.
+ *
+ * Geometry (offset / opacity / radius) is brand-independent and measured off
+ * the reference renders; only `shadowColor` is a palette colour. Hardcoding it
+ * meant every `<Card>` and `<GradientButton>` cast an OPES-template-blue
+ * shadow no matter which palette was active.
+ */
+export const makeShadow = (c: Palette): Record<'card' | 'button' | 'fab', ShadowSpec> => ({
   /** References use hairline borders, not heavy shadows. Keep this subtle. */
   card: {
-    shadowColor: '#0B1A5C',
+    shadowColor: c.textPrimary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 1,
   },
   button: {
-    shadowColor: '#055BFD',
+    shadowColor: c.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
     shadowRadius: 12,
@@ -263,13 +287,13 @@ export const shadow = {
   },
   /** Raised circular centre FAB in the tab bar. */
   fab: {
-    shadowColor: '#055BFD',
+    shadowColor: c.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.32,
     shadowRadius: 10,
     elevation: 6,
   },
-} as const;
+});
 
 /** Icon stroke weight measured off the reference renders. */
 export const iconStroke = {
@@ -310,3 +334,9 @@ export const makeStatusMap = (c: Palette): Record<StatusTone, { bg: string; fg: 
 export const colors = palettes.opescare;
 export const tintMap = makeTintMap(colors);
 export const statusMap = makeStatusMap(colors);
+/**
+ * Static shadow set for the default brand. Kit components build theirs from
+ * `makeShadow(useTheme().colors)` so they follow a runtime palette switch;
+ * this export exists for non-hook code and back-compat.
+ */
+export const shadow = makeShadow(colors);

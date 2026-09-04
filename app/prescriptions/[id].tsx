@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -8,8 +8,10 @@ import {
   Icon,
   ListRow,
   ScreenHeader,
+  SectionHeader,
   StatusBadge,
   a11yJoin,
+  formatLabel,
   radii,
   spacing,
   typography,
@@ -17,6 +19,7 @@ import {
   useTheme,
   type IconName,
   type Palette,
+  type StatusTone,
 } from '@/components/opes-ui';
 import { Screen } from '../../components/ui/Screen';
 import { useAuthStore } from '../../lib/store/auth';
@@ -32,6 +35,7 @@ import {
   daysUntil,
   referenceCode,
   statusLabelKey,
+  fallbackStatusLabel,
 } from '../../components/prescriptions/status';
 import {
   ActionGrid,
@@ -47,25 +51,61 @@ import {
 } from '../../components/meds/shared';
 
 /**
- * One prescription in full — issuing facility, dates, and every medication with
- * its dosage instructions.
+ * One prescription in full — the header the care team issued, and every drug
+ * line on it with its own dosage and its own dispensing outcome.
  *
- * MED-003 layout on the existing data layer: the issuer hero card (facility,
- * reference, prescribed-on / ID `FactCell`s, status, expiry, patient line),
- * a `MetricRow` card for the key dates, one flush card holding the numbered
- * medications with their dosage grid and per-line dispense `StatusBadge`,
- * the shared instructions block, the safety banner and the action grid.
+ * MED-003 layout on the existing data layer (`usePrescriptionDetail`), with the
+ * kit's own palette: a fillability notice when the prescription can no longer
+ * be dispensed, the issuer hero card, the dispensing-progress card, a key-dates
+ * `MetricRow` card, one flush card holding the numbered medications, the care
+ * team's notes when there are any, the safety banner and the action grid.
  *
- * Dosage is the one thing on this screen that must never be ambiguous, so
- * dose and frequency lead the grid and a missing value reads "Not specified"
- * rather than a dash that could be mistaken for a zero.
+ * Three things this screen is deliberately careful about:
  *
- * Two things the OPES reference shows that this API cannot supply, and which
- * are therefore absent rather than invented: the prescriber (the mobile
- * endpoint returns the facility only) and the diagnosis. There is likewise no
- * refill action, because the mobile API has no refill route, and no PDF —
- * the download action says so instead of pretending.
+ * 1. **Partial dispensing is a first-class state.** `partially_dispensed` on the
+ *    header tells the patient *that* something is outstanding but never *what*.
+ *    The progress card and the per-line badges answer that: a segment bar with
+ *    one segment per drug line, a "3 of 5 collected" count, and a `StatusBadge`
+ *    on every line carrying its own `status`, `dispensed_at` and
+ *    `dispense_notes`.
+ *
+ * 2. **A retracted record is never shown as live.** `Prescription::
+ *    TERMINAL_STATUSES` includes `voided`, `entered_in_error` and `amended`, and
+ *    the shared `statusLabelKey` helper falls through to "Active" for all three
+ *    — so those are named locally instead (see `usePrescriptionVocab`). Clinical
+ *    events here are immutable: a cancelled drug line stays on the screen,
+ *    struck through and labelled, rather than disappearing.
+ *
+ * 3. **Nothing is invented.** `GET /api/mobile/prescriptions/{id}` returns
+ *    exactly: id, facility_name, status, status_color, item_count,
+ *    prescribed_at, dispensed_at, expires_at, notes and items[]. There is no
+ *    prescriber, no diagnosis, no refill counter, no assigned pharmacy and no
+ *    PDF in that payload, so none of those appear here. Stock and price are not
+ *    claimed either — the per-line row links into the Medicine Finder, which
+ *    owns that question.
  */
+
+/* -- Status vocabulary ------------------------------------------------------ */
+
+/** `t` narrowed to the plain shape the helpers below take. */
+type TFunc = (key: string, params?: Record<string, unknown>) => string;
+
+/** Statuses from which no further transition is allowed (server-side truth). */
+const TERMINAL_STATUSES = ['dispensed', 'cancelled', 'voided', 'entered_in_error', 'amended'];
+
+/** Statuses that mean "this record should not have existed / no longer counts". */
+const RETRACTED_STATUSES = ['voided', 'entered_in_error'];
+
+/** The three per-line outcomes the API records, plus a bucket for anything new. */
+type LineState = 'dispensed' | 'pending' | 'cancelled' | 'other';
+
+function lineStateOf(item: PrescriptionItemDetail): LineState {
+  // `status` is the authority; `is_dispensed` is the older boolean and only
+  // stands in for a row written before the per-line status existed.
+  const raw = (item.status || (item.is_dispensed ? 'dispensed' : 'pending')).toLowerCase();
+  if (raw === 'dispensed' || raw === 'pending' || raw === 'cancelled') return raw;
+  return 'other';
+}
 
 export default function PrescriptionDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -75,6 +115,7 @@ export default function PrescriptionDetailScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const dialog = useDialog();
+  const vocab = usePrescriptionVocab();
 
   // The reference prints a patient identity line above the medications, and a
   // pharmacist checking this at the counter needs it. It is read from the auth
@@ -94,17 +135,51 @@ export default function PrescriptionDetailScreen() {
       message: t('opesMeds.prescription.noPdfBody'),
     });
 
-  async function share(rx: PrescriptionDetail) {
+  const state = prescription ? readState(prescription) : null;
+
+  /**
+   * The share sheet is the offline copy this record has instead of a PDF, so it
+   * carries the whole thing: status, dates, and every line with its dosage and
+   * its own dispensing outcome. A prescription that can no longer be filled
+   * says so in the text, because a pasted list of drugs has no colour to read.
+   */
+  async function share(rx: PrescriptionDetail, s: ReturnType<typeof readState>) {
+    const lines = rx.items ?? [];
     const message = [
-      t('opesMeds.prescription.shareHeading', { reference: referenceCode(rx.id) }),
+      vocab.tx('opesMeds.prescription.shareHeading', { reference: referenceCode(rx.id) }),
       rx.facility_name ? `${t('prescriptions.issuedBy')}: ${rx.facility_name}` : '',
-      ...rx.items.map((item) => {
-        const how = [item.dose, item.frequency].filter(Boolean).join(', ');
-        return `• ${item.drug_name}${how ? ` — ${how}` : ''}`;
+      `${t('opesMeds.prescription.status')}: ${vocab.statusLabel(rx.status)}`,
+      rx.prescribed_at ? `${t('prescriptions.prescribedAt')}: ${fmtShortDate(rx.prescribed_at)}` : '',
+      rx.expires_at
+        ? vocab.tx(s.expired ? 'prescriptions.expiredOn' : 'prescriptions.expiresOn', {
+            date: fmtShortDate(rx.expires_at),
+            defaultValue: s.expired ? 'Expired {{date}}' : 'Expires {{date}}',
+          })
+        : '',
+      '',
+      ...lines.map((item, index) => {
+        const how = [item.dose, item.frequency, item.route ? routeLabel(item.route) : null]
+          .filter(Boolean)
+          .join(', ');
+        const extra = [
+          item.duration_days != null
+            ? t('prescriptions.durationDays', { count: item.duration_days })
+            : null,
+          item.quantity != null ? `${t('prescriptions.quantity')}: ${item.quantity}` : null,
+          vocab.lineLabel(lineStateOf(item), item.status),
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        return `${index + 1}. ${item.drug_name}${how ? ` — ${how}` : ''}${extra ? `\n   ${extra}` : ''}`;
       }),
-      rx.notes ?? '',
+      rx.notes ? `\n${t('prescriptions.notes')}: ${rx.notes}` : '',
+      s.fillable
+        ? ''
+        : `\n${vocab.tx('prescriptions.shareNotFillable', {
+            defaultValue: 'This prescription can no longer be dispensed.',
+          })}`,
     ]
-      .filter(Boolean)
+      .filter((part) => part !== '')
       .join('\n');
     try {
       await Share.share({ message });
@@ -130,15 +205,38 @@ export default function PrescriptionDetailScreen() {
 
       {isLoading ? (
         <LoadingBlock label={t('opesMeds.prescription.loading')} />
-      ) : isError || !prescription ? (
+      ) : isError ? (
+        // A request that failed. Retryable, and never confused with "no such
+        // prescription" — the two need different words and different actions.
         <View style={styles.content}>
           <Card>
             <EmptyState
               icon="alert-circle"
               tint="red"
-              title={isError ? t('prescriptions.detailLoadError') : t('prescriptions.notFound')}
-              actionLabel={isError ? t('prescriptions.retry') : undefined}
-              onAction={isError ? () => refetch() : undefined}
+              title={t('prescriptions.detailLoadError')}
+              message={vocab.tx('prescriptions.detailLoadErrorBody', {
+                defaultValue:
+                  'The prescription could not be fetched. Check your connection and try again.',
+              })}
+              actionLabel={t('prescriptions.retry')}
+              onAction={() => refetch()}
+            />
+          </Card>
+        </View>
+      ) : !prescription ? (
+        // Loaded fine, but there is nothing under this id for this patient.
+        <View style={styles.content}>
+          <Card>
+            <EmptyState
+              icon="document-text"
+              tint="amber"
+              title={t('prescriptions.notFound')}
+              message={vocab.tx('prescriptions.notFoundBody', {
+                defaultValue:
+                  'This prescription is not in your record. It may belong to another Health ID.',
+              })}
+              actionLabel={t('prescriptions.showAll')}
+              onAction={() => router.replace('/prescriptions')}
             />
           </Card>
         </View>
@@ -154,10 +252,20 @@ export default function PrescriptionDetailScreen() {
             />
           }
         >
+          {/* The first thing on the screen when the record is no longer live —
+              before the patient reads a dose off a prescription they cannot
+              actually fill. */}
+          <FillabilityNotice prescription={prescription} state={state!} />
+
           <IssuerCard
             prescription={prescription}
+            state={state!}
             patient={patient ? { name: patient.display_name, healthId: patient.health_id } : null}
           />
+
+          {/* Which lines are filled and which are not — the answer the header
+              status alone cannot give. */}
+          <DispensingCard prescription={prescription} state={state!} />
 
           {/* Key dates. The facility is deliberately not repeated here — the
               card above already carries it as the prescription's attribution. */}
@@ -182,13 +290,19 @@ export default function PrescriptionDetailScreen() {
               />
             ) : null}
             <MetricRow
-              icon="clock"
+              icon={state!.expired ? 'alert-triangle' : 'clock'}
               label={t('prescriptions.expiresAt')}
               value={
                 prescription.expires_at
-                  ? fmtShortDate(prescription.expires_at)
+                  ? state!.expired
+                    ? vocab.tx('prescriptions.expiredOn', {
+                        date: fmtShortDate(prescription.expires_at),
+                        defaultValue: 'Expired {{date}}',
+                      })
+                    : fmtShortDate(prescription.expires_at)
                   : t('prescriptions.noExpiry')
               }
+              valueColor={state!.expired ? colors.statusCritical : undefined}
             />
           </Card>
 
@@ -197,39 +311,43 @@ export default function PrescriptionDetailScreen() {
             <View style={styles.medHead}>
               <Icon name="pill" size={22} color={colors.blue} />
               <Text style={styles.medHeadTitle} accessibilityRole="header">
-                {t('opesMeds.prescription.medicationsCount', { count: prescription.items.length })}
+                {t('opesMeds.prescription.medicationsCount', {
+                  count: (prescription.items ?? []).length,
+                })}
               </Text>
             </View>
 
-            {prescription.items.length === 0 ? (
-              <EmptyState icon="pill" tint="blue" title={t('prescriptions.noMedications')} />
+            {(prescription.items ?? []).length === 0 ? (
+              <View style={styles.emptyItems}>
+                <EmptyState icon="pill" tint="blue" title={t('prescriptions.noMedications')} />
+              </View>
             ) : (
-              prescription.items.map((item, index) => (
+              (prescription.items ?? []).map((item, index) => (
                 <MedicationItem
                   key={item.id}
                   item={item}
                   index={index + 1}
-                  divider={index < prescription.items.length - 1}
+                  fillable={state!.fillable}
+                  divider={index < (prescription.items ?? []).length - 1}
                 />
               ))
             )}
-
-            {/* Notes from the care team, or the standing instruction when the
-                prescription carries none. */}
-            <View style={styles.instructions}>
-              <Icon name="clipboard" size={22} color={colors.blue} />
-              <View style={styles.instructionsBody}>
-                <Text style={styles.instructionsTitle}>
-                  {prescription.notes
-                    ? t('prescriptions.notes')
-                    : t('opesMeds.prescription.instructions')}
-                </Text>
-                <Text style={styles.instructionsText}>
-                  {prescription.notes ?? t('opesMeds.prescription.instructionsFallback')}
-                </Text>
-              </View>
-            </View>
           </Card>
+
+          {/* Only rendered when the care team actually wrote something. The
+              standing "take as prescribed" line lives in the safety banner
+              below and is not passed off as a note from the clinician. */}
+          {prescription.notes ? (
+            <Card>
+              <View style={styles.notesRow}>
+                <Icon name="clipboard" size={22} color={colors.blue} />
+                <View style={styles.notesBody}>
+                  <Text style={styles.notesTitle}>{t('prescriptions.notes')}</Text>
+                  <Text style={styles.notesText}>{prescription.notes}</Text>
+                </View>
+              </View>
+            </Card>
+          ) : null}
 
           {/* "Important" callout — carried over from the reference verbatim in
               intent: this is the one message that must survive any redesign. */}
@@ -243,8 +361,13 @@ export default function PrescriptionDetailScreen() {
             columns={3}
             actions={[
               {
-                icon: 'store',
-                label: t('opesMeds.prescription.actionFulfil'),
+                // The destination is the same Medicine Finder either way; only
+                // the promise changes. Calling this "Fulfil at Pharmacy" on an
+                // expired or retracted prescription would be a lie.
+                icon: state!.fillable ? 'store' : 'search',
+                label: state!.fillable
+                  ? t('opesMeds.prescription.actionFulfil')
+                  : t('prescriptions.emptyFindMedicine'),
                 onPress: () => router.push('/pharmacy'),
               },
               {
@@ -255,7 +378,7 @@ export default function PrescriptionDetailScreen() {
               {
                 icon: 'share',
                 label: t('opesMeds.prescription.actionShare'),
-                onPress: () => share(prescription),
+                onPress: () => share(prescription, state!),
               },
             ]}
           />
@@ -267,38 +390,349 @@ export default function PrescriptionDetailScreen() {
   );
 }
 
+/* -- Derived state ---------------------------------------------------------- */
+
+type RxState = {
+  /** Whole days until `expires_at`; null when the record carries no expiry. */
+  daysLeft: number | null;
+  /** The expiry date is in the past. */
+  lapsed: boolean;
+  /** Status says expired, or the date has passed while the status lagged. */
+  expired: boolean;
+  /** Voided or entered-in-error — a record that must not be acted on. */
+  retracted: boolean;
+  /** Superseded by a later prescription. */
+  amended: boolean;
+  cancelled: boolean;
+  /** The whole prescription is marked dispensed. */
+  dispensed: boolean;
+  /** No further clinical transition is possible. */
+  terminal: boolean;
+  /** A pharmacy could still dispense against this. Mirrors `isDispensable()`. */
+  fillable: boolean;
+  /** Approaching expiry, worth a warning badge (only while still fillable). */
+  expiringInDays: number | null;
+  counts: { total: number; dispensed: number; pending: number; cancelled: number; other: number };
+  /** Some lines collected, some not — regardless of what the header says. */
+  partial: boolean;
+};
+
+/**
+ * Everything the screen decides from the payload, computed once.
+ *
+ * Expiry is checked against the date as well as the status: a nightly sweep can
+ * lag, and a prescription still flagged `active` whose `expires_at` was
+ * yesterday is expired in every way that matters at a pharmacy counter.
+ */
+function readState(rx: PrescriptionDetail): RxState {
+  const items = rx.items ?? [];
+  const status = (rx.status ?? '').toLowerCase();
+
+  const daysLeft = daysUntil(rx.expires_at);
+  const lapsed = daysLeft !== null && daysLeft < 0;
+  const expired = status === 'expired' || lapsed;
+  const retracted = RETRACTED_STATUSES.includes(status);
+  const terminal = TERMINAL_STATUSES.includes(status);
+
+  const counts = items.reduce(
+    (acc, item) => {
+      acc.total += 1;
+      acc[lineStateOf(item)] += 1;
+      return acc;
+    },
+    { total: 0, dispensed: 0, pending: 0, cancelled: 0, other: 0 },
+  );
+
+  const fillable = !terminal && !expired;
+
+  return {
+    daysLeft,
+    lapsed,
+    expired,
+    retracted,
+    amended: status === 'amended',
+    cancelled: status === 'cancelled',
+    dispensed: status === 'dispensed',
+    terminal,
+    fillable,
+    expiringInDays:
+      fillable && daysLeft !== null && daysLeft >= 0 && daysLeft <= EXPIRY_WARNING_WINDOW_DAYS
+        ? daysLeft
+        : null,
+    counts,
+    // Outstanding lines alongside collected ones. Derived from the lines rather
+    // than trusted from `status`, so it stays right when a pharmacy has filled
+    // part of an order the header still calls `active`.
+    partial: counts.dispensed > 0 && counts.pending > 0,
+  };
+}
+
+/* -- Vocabulary hook -------------------------------------------------------- */
+
+/**
+ * Localized status words for this screen.
+ *
+ * `components/prescriptions/status.tsx` maps only the five statuses the filter
+ * row offers and returns `prescriptions.statusActive` for everything else — so
+ * a `voided` prescription would read "Active". That file is shared and not
+ * edited here; the statuses it misses are named below instead, and a status
+ * nobody has seen yet falls back to its own formatted value rather than
+ * borrowing a word that would make a dead record look live.
+ */
+function usePrescriptionVocab() {
+  const { t } = useTranslation();
+
+  const tx = useCallback<TFunc>(
+    (key, params) => String(t(key, params as Record<string, unknown>)),
+    [t],
+  );
+
+  const statusLabel = useCallback(
+    (status: string): string => {
+      switch ((status ?? '').toLowerCase()) {
+        case 'active':
+        case 'dispensed':
+        case 'partially_dispensed':
+        case 'expired':
+        case 'cancelled':
+          return tx(statusLabelKey(status) ?? '') || fallbackStatusLabel(status);
+        case 'voided':
+          return tx('prescriptions.statusVoided', { defaultValue: 'Voided' });
+        case 'entered_in_error':
+          return tx('prescriptions.statusEnteredInError', { defaultValue: 'Entered in error' });
+        case 'amended':
+          return tx('prescriptions.statusAmended', { defaultValue: 'Amended' });
+        case 'draft':
+          return tx('prescriptions.statusDraft', { defaultValue: 'Draft' });
+        default:
+          return formatLabel(status);
+      }
+    },
+    [tx],
+  );
+
+  const lineLabel = useCallback(
+    (state: LineState, raw: string): string => {
+      switch (state) {
+        case 'dispensed':
+          return tx('prescriptions.itemDispensed');
+        case 'pending':
+          return tx('prescriptions.itemPending');
+        case 'cancelled':
+          return tx('prescriptions.statusCancelled');
+        default:
+          return formatLabel(raw);
+      }
+    },
+    [tx],
+  );
+
+  return useMemo(() => ({ tx, statusLabel, lineLabel }), [tx, statusLabel, lineLabel]);
+}
+
+/** Badge tone for a whole prescription, with the retracted statuses promoted. */
+function headerTone(rx: PrescriptionDetail, state: RxState): StatusTone {
+  if (state.retracted) return 'critical';
+  if (state.amended) return 'warning';
+  return prescriptionTone(rx.status, rx.status_color);
+}
+
+/**
+ * Badge tone for one drug line.
+ *
+ * `pending` is amber while the prescription can still be filled — it is a thing
+ * left to do — and neutral once it cannot, because then there is no action left
+ * and amber would only nag.
+ */
+function lineTone(state: LineState, fillable: boolean): StatusTone {
+  switch (state) {
+    case 'dispensed':
+      return 'normal';
+    case 'cancelled':
+      return 'critical';
+    case 'pending':
+      return fillable ? 'warning' : 'neutral';
+    default:
+      return 'neutral';
+  }
+}
+
+const LINE_ICON: Record<LineState, IconName> = {
+  dispensed: 'check-circle',
+  pending: 'clock',
+  cancelled: 'x-circle',
+  other: 'info',
+};
+
 /* -- Pieces ---------------------------------------------------------------- */
 
 /**
- * Issuing facility + status. The facility is the only attribution the mobile
- * API returns — there is no prescriber name to show.
+ * The banner that says a prescription cannot be dispensed, and why.
+ *
+ * Rendered above everything else, and only when it has something to say — a
+ * live, in-date prescription gets no banner at all. A fully dispensed one gets
+ * a positive note rather than a warning, because nothing is wrong with it.
+ */
+function FillabilityNotice({
+  prescription,
+  state,
+}: {
+  prescription: PrescriptionDetail;
+  state: RxState;
+}) {
+  const { colors, statusMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const vocab = usePrescriptionVocab();
+
+  const notice = ((): { tone: StatusTone; icon: IconName; title: string; body: string } | null => {
+    if (state.retracted) {
+      return {
+        tone: 'critical',
+        icon: 'alert-triangle',
+        title: vocab.tx('prescriptions.notFillableRetractedTitle', {
+          defaultValue: 'This prescription was retracted',
+        }),
+        body: vocab.tx('prescriptions.notFillableRetractedBody', {
+          status: vocab.statusLabel(prescription.status),
+          defaultValue:
+            'Your care team marked this record as {{status}}. Do not act on it. It stays in your record because clinical records are never deleted.',
+        }),
+      };
+    }
+    if (state.cancelled) {
+      return {
+        tone: 'critical',
+        icon: 'x-circle',
+        title: vocab.tx('prescriptions.notFillableCancelledTitle', {
+          defaultValue: 'This prescription was cancelled',
+        }),
+        body: vocab.tx('prescriptions.notFillableCancelledBody', {
+          defaultValue:
+            'It was withdrawn by your care team, so a pharmacy cannot dispense against it. It is kept here so your record stays complete.',
+        }),
+      };
+    }
+    if (state.amended) {
+      return {
+        tone: 'warning',
+        icon: 'history',
+        title: vocab.tx('prescriptions.notFillableAmendedTitle', {
+          defaultValue: 'Replaced by a newer prescription',
+        }),
+        body: vocab.tx('prescriptions.notFillableAmendedBody', {
+          defaultValue:
+            'This version was amended. Use the newer prescription in your list — this one is kept only as history.',
+        }),
+      };
+    }
+    if (state.expired) {
+      return {
+        tone: 'critical',
+        icon: 'alert-triangle',
+        title: vocab.tx('prescriptions.notFillableExpiredTitle', {
+          defaultValue: 'This prescription has expired',
+        }),
+        body: prescription.expires_at
+          ? vocab.tx('prescriptions.notFillableExpiredBodyDated', {
+              date: fmtShortDate(prescription.expires_at),
+              defaultValue:
+                'It ran out on {{date}}, so a pharmacy can no longer dispense against it. Ask your clinician for a new one.',
+            })
+          : vocab.tx('prescriptions.notFillableExpiredBody', {
+              defaultValue:
+                'A pharmacy can no longer dispense against it. Ask your clinician for a new one.',
+            }),
+      };
+    }
+    if (state.dispensed) {
+      return {
+        tone: 'normal',
+        icon: 'check-circle',
+        title: vocab.tx('prescriptions.fullyDispensedTitle', { defaultValue: 'Fully dispensed' }),
+        body: vocab.tx('prescriptions.fullyDispensedBody', {
+          defaultValue: 'Every medicine on this prescription has been collected.',
+        }),
+      };
+    }
+    if (state.partial) {
+      return {
+        tone: 'warning',
+        icon: 'alert-circle',
+        title: vocab.tx('prescriptions.partialNoticeTitle', { defaultValue: 'Partly collected' }),
+        body: vocab.tx('prescriptions.partialNoticeBody', {
+          done: state.counts.dispensed,
+          left: state.counts.pending,
+          defaultValue:
+            '{{done}} of these medicines have been collected and {{left}} have not. The list below shows which is which.',
+        }),
+      };
+    }
+    return null;
+  })();
+
+  if (!notice) return null;
+  const skin = statusMap[notice.tone];
+
+  return (
+    <View
+      style={[styles.notice, { backgroundColor: skin.bg, borderColor: skin.fg }]}
+      accessible
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={a11yJoin(notice.title, notice.body)}
+    >
+      <Icon name={notice.icon} size={22} color={skin.fg} />
+      <View style={styles.noticeBody}>
+        <Text style={[styles.noticeTitle, { color: skin.fg }]}>{notice.title}</Text>
+        <Text style={styles.noticeText}>{notice.body}</Text>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Issuing facility + reference + status. The facility is the only attribution
+ * the mobile API returns — there is no prescriber name in the payload, so none
+ * is shown.
  */
 function IssuerCard({
   prescription,
+  state,
   patient,
 }: {
   prescription: PrescriptionDetail;
+  state: RxState;
   patient: { name: string; healthId: string } | null;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const vocab = usePrescriptionVocab();
 
-  const remaining = daysUntil(prescription.expires_at);
-  const isOpen = prescription.status === 'active' || prescription.status === 'partially_dispensed';
-  const expiryDays =
-    isOpen && remaining !== null && remaining >= 0 && remaining <= EXPIRY_WARNING_WINDOW_DAYS
-      ? remaining
-      : null;
   const expiryLabel =
-    expiryDays === null
+    state.expiringInDays === null
       ? null
-      : expiryDays === 0
+      : state.expiringInDays === 0
         ? t('prescriptions.expiresToday')
-        : t('prescriptions.expiresInDays', { count: expiryDays });
+        : t('prescriptions.expiresInDays', { count: state.expiringInDays });
 
   const facility = prescription.facility_name ?? t('prescriptions.unknownFacility');
   const reference = referenceCode(prescription.id);
+
+  const status = (prescription.status ?? '').toLowerCase();
+  // When the status word already IS "Expired", the dated label replaces it
+  // rather than sitting beside it as a second badge saying the same thing. A
+  // prescription the server still calls `active` past its date gets both.
+  const statusIsExpired = status === 'expired';
+  const expiredLabel = state.expired
+    ? prescription.expires_at
+      ? vocab.tx('prescriptions.expiredOn', {
+          date: fmtShortDate(prescription.expires_at),
+          defaultValue: 'Expired {{date}}',
+        })
+      : vocab.tx('prescriptions.statusExpired')
+    : null;
+  const badgeLabel =
+    statusIsExpired && expiredLabel ? expiredLabel : vocab.statusLabel(prescription.status);
 
   return (
     <Card>
@@ -336,12 +770,20 @@ function IssuerCard({
           <Text style={styles.statusKey}>{t('opesMeds.prescription.status')}</Text>
           <StatusBadge
             status={prescription.status}
-            tone={prescriptionTone(prescription.status, prescription.status_color)}
-            label={t(statusLabelKey(prescription.status))}
+            tone={statusIsExpired ? 'critical' : headerTone(prescription, state)}
+            label={badgeLabel}
             size="sm"
           />
         </View>
-        {expiryLabel ? (
+        {expiredLabel && !statusIsExpired ? (
+          <StatusBadge
+            status="expired"
+            tone="critical"
+            icon="alert-triangle"
+            label={expiredLabel}
+            size="sm"
+          />
+        ) : expiryLabel ? (
           <StatusBadge status="due" tone="warning" icon="clock" label={expiryLabel} size="sm" />
         ) : null}
       </View>
@@ -350,7 +792,11 @@ function IssuerCard({
         <View
           style={styles.patientRow}
           accessible
-          accessibilityLabel={a11yJoin(t('opesMeds.prescription.patient'), patient.name, patient.healthId)}
+          accessibilityLabel={a11yJoin(
+            t('opesMeds.prescription.patient'),
+            patient.name,
+            patient.healthId,
+          )}
         >
           <TintCircle icon="person" tint="blue" size={40} />
           <View style={styles.patientBody}>
@@ -368,76 +814,238 @@ function IssuerCard({
   );
 }
 
+/**
+ * Dispensing progress across the whole prescription.
+ *
+ * One bar segment per drug line, coloured by that line's own outcome, so
+ * "partially dispensed" becomes a picture rather than a word: three green
+ * segments and two amber ones read instantly, and the counts underneath say the
+ * same thing for a screen reader. Skipped entirely when there are no lines to
+ * count.
+ */
+function DispensingCard({
+  prescription,
+  state,
+}: {
+  prescription: PrescriptionDetail;
+  state: RxState;
+}) {
+  const { colors, statusMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const vocab = usePrescriptionVocab();
+  const items = prescription.items ?? [];
+
+  if (items.length === 0) return null;
+
+  const { counts } = state;
+  const headline = vocab.tx('prescriptions.dispensedOfTotal', {
+    done: counts.dispensed,
+    total: counts.total,
+    defaultValue: '{{done}} of {{total}} collected',
+  });
+
+  const chips: { key: string; tone: StatusTone; icon: IconName; label: string }[] = [];
+  if (counts.pending > 0) {
+    chips.push({
+      key: 'pending',
+      tone: state.fillable ? 'warning' : 'neutral',
+      icon: 'clock',
+      label: vocab.tx('prescriptions.stillToCollect', {
+        n: counts.pending,
+        defaultValue: '{{n}} still to collect',
+      }),
+    });
+  }
+  if (counts.cancelled > 0) {
+    chips.push({
+      key: 'cancelled',
+      tone: 'critical',
+      icon: 'x-circle',
+      label: vocab.tx('prescriptions.cancelledLines', {
+        n: counts.cancelled,
+        defaultValue: '{{n}} cancelled',
+      }),
+    });
+  }
+  if (counts.dispensed > 0) {
+    chips.push({
+      key: 'dispensed',
+      tone: 'normal',
+      icon: 'check-circle',
+      label: vocab.tx('prescriptions.collectedLines', {
+        n: counts.dispensed,
+        defaultValue: '{{n}} collected',
+      }),
+    });
+  }
+
+  return (
+    <Card>
+      <SectionHeader
+        variant="overline"
+        title={vocab.tx('prescriptions.dispensingTitle', { defaultValue: 'Dispensing' })}
+      />
+
+      <View
+        style={styles.progressHead}
+        accessible
+        accessibilityLabel={a11yJoin(headline, ...chips.map((c) => c.label))}
+      >
+        <Icon name="store" size={20} color={colors.blue} />
+        <Text style={styles.progressValue}>{headline}</Text>
+      </View>
+
+      {/* One segment per line, in the order the prescription lists them, so a
+          segment lines up with the numbered card further down. */}
+      <View style={styles.bar} importantForAccessibility="no-hide-descendants">
+        {items.map((item) => {
+          const tone = lineTone(lineStateOf(item), state.fillable);
+          return (
+            <View
+              key={item.id}
+              style={[styles.barSegment, { backgroundColor: statusMap[tone].fg }]}
+            />
+          );
+        })}
+      </View>
+
+      <View style={styles.chipRow}>
+        {chips.map((chip) => (
+          <StatusBadge
+            key={chip.key}
+            status={chip.key}
+            tone={chip.tone}
+            icon={chip.icon}
+            label={chip.label}
+            size="sm"
+          />
+        ))}
+      </View>
+
+      {prescription.dispensed_at ? (
+        <Text style={styles.progressFoot}>
+          {vocab.tx('prescriptions.lastDispensedOn', {
+            date: fmtShortDate(prescription.dispensed_at),
+            defaultValue: 'Last dispensed {{date}}',
+          })}
+        </Text>
+      ) : null}
+    </Card>
+  );
+}
+
 /** A dosage value, or null when it is blank — blank must read "Not specified". */
 function clean(value: string | null | undefined): string | null {
   return value && value.trim().length > 0 ? value : null;
 }
 
+/**
+ * One drug line, in full.
+ *
+ * Every field the API sends for an item appears here: drug_name, drug_code,
+ * dose, frequency, route, duration_days, quantity, status, dispensed_at and
+ * dispense_notes. A blank dosage value reads "Not specified" rather than a dash
+ * that could be mistaken for a zero.
+ *
+ * A cancelled line is retracted, not removed: it keeps its number and its place
+ * in the list, but the name is struck through, the dosage block is dimmed, and
+ * a note says it is no longer part of the prescription — so it can never be
+ * read as a live instruction.
+ */
 function MedicationItem({
   item,
   index,
+  fillable,
   divider,
 }: {
   item: PrescriptionItemDetail;
   index: number;
+  fillable: boolean;
   divider?: boolean;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const vocab = usePrescriptionVocab();
 
-  // The backend now sends a per-line `status` (pending | dispensed | cancelled)
-  // alongside the older boolean; the boolean is the fallback for a row that
-  // predates it.
-  const lineStatus = item.status || (item.is_dispensed ? 'dispensed' : 'pending');
-  const lineLabel =
-    lineStatus === 'dispensed'
-      ? t('prescriptions.itemDispensed')
-      : lineStatus === 'cancelled'
-        ? t('prescriptions.statusCancelled')
-        : t('prescriptions.itemPending');
-  const lineIcon: IconName =
-    lineStatus === 'dispensed' ? 'check-circle' : lineStatus === 'cancelled' ? 'x-circle' : 'clock';
-  const dispensedOn =
-    lineStatus === 'dispensed' && item.dispensed_at ? fmtShortDate(item.dispensed_at) : null;
+  const state = lineStateOf(item);
+  const cancelled = state === 'cancelled';
+  const tone = lineTone(state, fillable);
+  const label = vocab.lineLabel(state, item.status);
+  const dispensedOn = item.dispensed_at ? fmtShortDate(item.dispensed_at) : null;
 
   const missing = t('prescriptions.notSpecified');
   const dose = clean(item.dose);
   const frequency = clean(item.frequency);
   const route = clean(item.route);
   const duration =
-    item.duration_days != null ? t('prescriptions.durationDays', { count: item.duration_days }) : null;
+    item.duration_days != null
+      ? t('prescriptions.durationDays', { count: item.duration_days })
+      : null;
   const quantity = item.quantity != null ? String(item.quantity) : null;
 
   return (
     <View style={[styles.item, divider && styles.itemDivider]}>
-      <View style={styles.itemHead}>
-        <View style={styles.itemIndex}>
+      {/* Spoken as one unit: the number, the drug, and what happened to it.
+          The dosage grid and the finder link below stay separately reachable —
+          grouping those in too would bury the "how to take it" values. */}
+      <View
+        style={styles.itemHead}
+        accessible
+        accessibilityLabel={a11yJoin(
+          `${index}. ${item.drug_name}`,
+          item.drug_code ? t('prescriptions.drugCode', { code: item.drug_code }) : null,
+          label,
+          dispensedOn,
+        )}
+      >
+        <View style={[styles.itemIndex, cancelled && styles.itemIndexOff]}>
           <Text style={styles.itemIndexText}>{index}</Text>
         </View>
         <TintCircle
           icon={formIcon({ dosage: item.dose, drug_name: item.drug_name })}
-          tint="blue"
+          tint={cancelled ? 'red' : 'blue'}
           size={52}
           square
         />
         <View style={styles.itemBody}>
-          <Text style={styles.itemName} numberOfLines={2}>
+          <Text style={[styles.itemName, cancelled && styles.itemNameOff]} numberOfLines={2}>
             {item.drug_name}
           </Text>
           {item.drug_code ? (
-            <Text style={styles.itemCode}>{t('prescriptions.drugCode', { code: item.drug_code })}</Text>
+            <Text style={styles.itemCode}>
+              {t('prescriptions.drugCode', { code: item.drug_code })}
+            </Text>
           ) : null}
         </View>
         <View style={styles.itemStatus}>
-          <StatusBadge status={lineStatus} label={lineLabel} icon={lineIcon} size="sm" />
-          {dispensedOn ? <Text style={styles.itemMeta}>{dispensedOn}</Text> : null}
+          <StatusBadge
+            status={item.status || state}
+            tone={tone}
+            label={label}
+            icon={LINE_ICON[state]}
+            size="sm"
+          />
+          {dispensedOn ? (
+            <Text style={styles.itemMeta} numberOfLines={2}>
+              {vocab.tx(
+                state === 'cancelled'
+                  ? 'prescriptions.itemUpdatedOn'
+                  : 'prescriptions.itemCollectedOn',
+                {
+                  date: dispensedOn,
+                  defaultValue:
+                    state === 'cancelled' ? 'Updated {{date}}' : 'Collected {{date}}',
+                },
+              )}
+            </Text>
+          ) : null}
         </View>
       </View>
 
       {/* The safety-critical block. Deliberately the loudest thing on the card:
           how much and how often lead, then route, duration and quantity. */}
-      <View style={styles.dosage}>
+      <View style={[styles.dosage, cancelled && styles.dosageOff]}>
         <Text style={styles.dosageTitle}>{t('prescriptions.howToTake')}</Text>
         <View style={styles.itemFacts}>
           <FactCell
@@ -479,6 +1087,17 @@ function MedicationItem({
         </View>
       </View>
 
+      {cancelled ? (
+        <View style={styles.retracted}>
+          <Icon name="x-circle" size={16} color={colors.statusCritical} />
+          <Text style={styles.retractedText}>
+            {vocab.tx('prescriptions.itemCancelledNote', {
+              defaultValue: 'Cancelled — no longer part of this prescription.',
+            })}
+          </Text>
+        </View>
+      ) : null}
+
       {item.dispense_notes ? (
         <View style={styles.dispenseNote}>
           <Text style={styles.dispenseNoteTitle}>{t('prescriptions.dispenseNotes')}</Text>
@@ -486,7 +1105,8 @@ function MedicationItem({
         </View>
       ) : null}
 
-      <FindNearbyRow drugName={item.drug_name} />
+      {/* A cancelled line has nothing to go and buy, so it gets no finder link. */}
+      {cancelled ? null : <FindNearbyRow drugName={item.drug_name} />}
     </View>
   );
 }
@@ -500,7 +1120,7 @@ function MedicationItem({
  * default search origin when lat/lng are omitted) and shows the real catalog
  * price floor and pharmacy count. On a miss it opens the Medicine Finder itself
  * rather than a dead end — and says so, instead of implying stock it has not
- * confirmed.
+ * confirmed. Availability is never asserted on this screen.
  */
 function FindNearbyRow({ drugName }: { drugName: string }) {
   const { t } = useTranslation();
@@ -527,7 +1147,10 @@ function FindNearbyRow({ drugName }: { drugName: string }) {
         subtitle={isPending ? t('prescriptions.nearbyChecking') : hint}
         onPress={() => {
           if (medicine) {
-            router.push({ pathname: '/pharmacy/[medicineId]', params: { medicineId: medicine.id } });
+            router.push({
+              pathname: '/pharmacy/[medicineId]',
+              params: { medicineId: medicine.id },
+            });
           } else {
             router.push('/pharmacy');
           }
@@ -550,6 +1173,24 @@ const makeStyles = (c: Palette) =>
       color: c.textSecondary,
     },
     link: { fontFamily: typography.fontFamily.medium, fontSize: typography.size.xs, color: c.link },
+
+    // -- Fillability notice --------------------------------------------------
+    notice: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm + 4,
+      padding: spacing.md - 2,
+      borderRadius: radii.md,
+      borderLeftWidth: 4,
+    },
+    noticeBody: { flex: 1, minWidth: 0, gap: 3 },
+    noticeTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
+    noticeText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.sm,
+      color: c.textSecondary,
+    },
 
     // -- Issuer --------------------------------------------------------------
     issuer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -610,6 +1251,32 @@ const makeStyles = (c: Palette) =>
       color: c.textMuted,
     },
 
+    // -- Dispensing progress -------------------------------------------------
+    progressHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    progressValue: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.md,
+      color: c.textPrimary,
+    },
+    bar: {
+      flexDirection: 'row',
+      gap: 3,
+      marginTop: 12,
+      height: 8,
+      borderRadius: radii.pill,
+      overflow: 'hidden',
+    },
+    barSegment: { flex: 1, borderRadius: radii.pill },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
+    progressFoot: {
+      marginTop: 10,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+
     // -- Medications ---------------------------------------------------------
     medHead: {
       flexDirection: 'row',
@@ -627,6 +1294,7 @@ const makeStyles = (c: Palette) =>
       fontSize: typography.size.md,
       color: c.blue,
     },
+    emptyItems: { padding: spacing.md },
 
     item: { paddingHorizontal: spacing.md, paddingVertical: 12, gap: 12 },
     itemDivider: { borderBottomWidth: 1, borderBottomColor: c.divider },
@@ -639,6 +1307,7 @@ const makeStyles = (c: Palette) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    itemIndexOff: { backgroundColor: c.textMuted },
     itemIndexText: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.xs,
@@ -651,9 +1320,21 @@ const makeStyles = (c: Palette) =>
       lineHeight: typography.lineHeight.md,
       color: c.textPrimary,
     },
-    itemCode: { fontFamily: typography.fontFamily.regular, fontSize: typography.size.xs, color: c.textMuted },
-    itemStatus: { alignItems: 'flex-end', gap: 3, maxWidth: 120 },
-    itemMeta: { fontFamily: typography.fontFamily.regular, fontSize: typography.size.xs, color: c.textMuted },
+    // Struck through and muted: a cancelled line is still on the record, but it
+    // must not read like a live instruction.
+    itemNameOff: { color: c.textMuted, textDecorationLine: 'line-through' },
+    itemCode: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+    itemStatus: { alignItems: 'flex-end', gap: 3, maxWidth: 124 },
+    itemMeta: {
+      textAlign: 'right',
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
 
     dosage: {
       borderRadius: radii.md,
@@ -662,6 +1343,7 @@ const makeStyles = (c: Palette) =>
       paddingHorizontal: 6,
       gap: 10,
     },
+    dosageOff: { backgroundColor: c.surfaceMuted, opacity: 0.6 },
     dosageTitle: {
       paddingHorizontal: 10,
       fontFamily: typography.fontFamily.semiBold,
@@ -672,6 +1354,24 @@ const makeStyles = (c: Palette) =>
     },
     itemFacts: { flexDirection: 'row', alignItems: 'flex-start' },
     itemFactsNext: { paddingTop: 10, borderTopWidth: 1, borderTopColor: c.border },
+
+    retracted: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      borderRadius: radii.sm,
+      backgroundColor: c.statusCriticalBg,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+    },
+    retractedText: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.statusCritical,
+    },
 
     dispenseNote: {
       borderRadius: radii.sm,
@@ -697,23 +1397,19 @@ const makeStyles = (c: Palette) =>
     nearby: { borderTopWidth: 1, borderTopColor: c.divider },
     nearbyRow: { paddingHorizontal: 0, paddingBottom: 2 },
 
-    instructions: {
-      flexDirection: 'row',
-      gap: spacing.sm,
-      padding: spacing.md,
-      backgroundColor: c.primarySoft,
-    },
-    instructionsBody: { flex: 1, minWidth: 0, gap: 2 },
-    instructionsTitle: {
+    // -- Care-team notes -----------------------------------------------------
+    notesRow: { flexDirection: 'row', gap: spacing.sm },
+    notesBody: { flex: 1, minWidth: 0, gap: 3 },
+    notesTitle: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: 13,
       letterSpacing: 0.6,
       textTransform: 'uppercase',
       color: c.blue,
     },
-    instructionsText: {
+    notesText: {
       fontFamily: typography.fontFamily.regular,
-      fontSize: typography.size.xs,
+      fontSize: typography.size.sm,
       lineHeight: typography.lineHeight.sm,
       color: c.textSecondary,
     },

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Polygon } from 'react-native-svg';
-import { radii, shadow, spacing, typography, type Palette } from '../theme';
+import { makeShadow, radii, spacing, typography, type Palette } from '../theme';
 import { useTheme } from '../ThemeProvider';
 
 type Props = {
@@ -49,7 +49,7 @@ export function GradientButton({
       // ActivityIndicator while loading, so without this the control simply
       // goes silent mid-submission.
       accessibilityState={{ disabled: !!isDisabled, busy: !!loading }}
-      style={[shadow.button, style]}
+      style={[styles.shadow, style]}
     >
       <LinearGradient
         colors={isDisabled ? [colors.border, colors.border] : [colors.gradientStart, colors.gradientEnd]}
@@ -88,6 +88,7 @@ export function GradientButton({
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  shadow: makeShadow(colors).button,
   button: {
     flexDirection: 'row',
     alignItems: 'center',

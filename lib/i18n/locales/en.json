@@ -465,11 +465,53 @@
       "noSlotsBody": "This facility books through OpesCare but has nothing free at the moment. Check other dates or call ahead.",
       "checkDates": "Check other dates",
       "availableTitle": "Bookable through OpesCare",
-      "availableBody": "{{slotCount}} open times. Next: {{when}}."
+      "availableBody": "{{slotCount}} open times. Next: {{when}}.",
+      "slotPlaces": "{{seats}} places left"
     },
     "directoryNote": "Listed from the national facility register. Details can change — please call ahead.",
     "profileSubtitle": "Details, services, clinicians and opening hours.",
-    "loading": "Loading facility…"
+    "loading": "Loading facility…",
+    "addressLabel": "Address",
+    "cityLabel": "City",
+    "findAnother": "Find care nearby",
+    "informationTitle": "Facility information",
+    "insuranceNoCashless": "Pay and claim back",
+    "integrationLabel": "Record sharing",
+    "loadErrorTitle": "Facility unavailable",
+    "noContact": "No contact details published for this facility.",
+    "noInsurances": "No insurance cover published for this facility.",
+    "noLocationBody": "The national register holds no map coordinates for this facility.",
+    "noLocationBodyWithAddress": "The register lists this facility at {{address}} but has no map coordinates for it, so it cannot be shown on the map.",
+    "noLocationTitle": "No map location published",
+    "notFoundBody": "It may have been removed from the national register, or the link you followed may be out of date. You can browse the facilities near you instead.",
+    "notFoundTitle": "This facility is no longer listed.",
+    "ownershipLabel": "Ownership",
+    "phoneSecondary": "Alternative phone",
+    "regionLabel": "Region",
+    "roundTheClockLabel": "Round-the-clock",
+    "roundTheClockSomeDays": "24 hours on some days",
+    "typeLabel": "Facility type",
+    "viewClinician": "Opens this clinician's profile",
+    "availability": {
+      "available": "Available",
+      "open": "Open",
+      "operational": "Operational",
+      "limited": "Limited",
+      "reduced": "Reduced",
+      "seasonal": "Seasonal",
+      "unavailable": "Unavailable",
+      "suspended": "Suspended",
+      "closed": "Closed"
+    },
+    "integration": {
+      "none": "Not connected",
+      "connected": "Connected",
+      "read_only": "Read only"
+    },
+    "insuranceStatus": {
+      "active": "Active",
+      "expired": "Expired"
+    }
   },
   "doctor": {
     "title": "Clinician",
@@ -773,6 +815,11 @@
     "assurance": {
       "title": "Your record travels with you",
       "body": "Your Health ID and your record are yours. A facility sees only what you have consented to, and every access is written to your history."
+    },
+    "appearance": {
+      "body": "Switch between the OpesCare brand and the OPES template palette.",
+      "opes": "OPES",
+      "opescare": "OpesCare"
     }
   },
   "documents": {
@@ -1046,7 +1093,11 @@
     "nearbyInCatalog": "Listed in the catalogue as {{name}}",
     "nearbySearchInstead": "Not in the catalogue — search the Medicine Finder",
     "safetyTitle": "Take these exactly as prescribed",
-    "safetyBody": "Do not change the dose, skip doses, or stop early without speaking to your clinician — even if you feel better. Keep this prescription for the pharmacy."
+    "safetyBody": "Do not change the dose, skip doses, or stop early without speaking to your clinician — even if you feel better. Keep this prescription for the pharmacy.",
+    "statusAmended": "Amended",
+    "statusDraft": "Draft",
+    "statusEnteredInError": "Entered in error",
+    "statusVoided": "Voided"
   },
   "family": {
     "title": "Family & Caregivers",
@@ -1655,7 +1706,52 @@
     "showAll": "Show all",
     "showLess": "Show less",
     "form": "Form",
-    "category": "Category"
+    "category": "Category",
+    "brand": "Brand: {{name}}",
+    "catalogueScopeHint": "Availability counts every pharmacy in the national directory that reports stock — not only those near you.",
+    "clearSearch": "Clear search",
+    "lastReported": "Last reported",
+    "nearbyCapped": "Only the {{max}} nearest pharmacies are listed. Narrow the radius to see the closest ones.",
+    "nearbyNoStockRow": "Pharmacies here that have never reported this medicine are not listed.",
+    "nearbyStockNote": "Stock is not checked here. Open a medicine to see which of these pharmacies reports having it.",
+    "noteHint": "Up to {{max}} characters. Do not include payment card or ID numbers.",
+    "noteLabel": "Note for the pharmacy (optional)",
+    "notePlaceholder": "Anything the pharmacist should know",
+    "notReported": "Not reported",
+    "notReportedAnywhere": "No pharmacy has reported stock for this medicine.",
+    "noneReportedAnywhere": "No pharmacy has reported stock for these medicines.",
+    "notVerified": "Not verified",
+    "packMismatch": "{{pharmacy}} quoted this price for {{size}}. Confirm the total at the counter.",
+    "packSizeLabel": "Pack size",
+    "packsOnShelf": "Packs reported",
+    "prescriptionExpiredWarning": "This prescription has expired — the pharmacy may refuse it.",
+    "priceIndicative": "Catalogue price",
+    "radiusSearched": "Searched within {{km}} km",
+    "reservationPharmacyNote": "Note from the pharmacy",
+    "reservationPlaced": "Placed {{when}}",
+    "reservationPrescriptionAttached": "Prescription attached",
+    "reservationsAtCap": "You have the maximum of {{max}} holds open. Cancel one before reserving another.",
+    "reservationsLoadFailed": "Your holds could not be loaded.",
+    "reservationsLoading": "Loading your holds…",
+    "reservationsNone": "You have nothing on hold right now.",
+    "reservationsNoneHint": "Reserve a medicine and the pharmacy holds it for you for 24 hours. You pay at the counter.",
+    "reservationYourNote": "Your note",
+    "resultsCapped": "Showing the first {{shown}} of {{total}} matches. Narrow your search to see the rest.",
+    "selectedPharmacyTitle": "Selected pharmacy",
+    "stockNotDated": "The pharmacy did not date this report",
+    "stockOld": "Old report",
+    "stockProvenance": "Stock levels and prices are reported by each pharmacy, not measured by OpesCare.",
+    "stockStale": "This stock report is more than {{days}} days old. Call the pharmacy before you travel.",
+    "verified": "Verified pharmacy",
+    "reservationStatus": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "ready_for_pickup": "Ready for pickup",
+      "collected": "Collected",
+      "rejected": "Declined",
+      "cancelled": "Cancelled",
+      "expired": "Expired"
+    }
   },
   "careMap": {
     "title": "Care Access",
@@ -2036,7 +2132,31 @@
       "next1": "The blood bank reviews your request and confirms or declines it.",
       "next2": "The outcome appears under My Requests on the Blood Finder.",
       "next3": "Bring the reference and the patient's Health ID to the counter.",
-      "openRequestsHint": "Your open requests are listed on the Blood Finder screen."
+      "openRequestsHint": "Your open requests are listed on the Blood Finder screen.",
+      "cancelWarning": "This cannot be undone. You would have to send a new request.",
+      "contactPhoneHint": "Optional. The blood bank calls this number if it needs to reach you before you arrive.",
+      "contactPhoneInvalid": "That does not look like a phone number the blood bank could call back on.",
+      "duplicateHint": "Sending it twice would not make the blood bank answer sooner. The request you already sent is still open.",
+      "edit": "Change details",
+      "expiresAt": "Hold expires",
+      "expiresAtBody": "If the blood bank has not answered by {{when}}, this request lapses on its own and you can send a new one.",
+      "facilityMissingHint": "The facility was removed from the OpesCare directory after your search ran, so nothing can be reserved there. Search again to see who else reports this blood.",
+      "facilityNote": "Message from the blood bank",
+      "neededBy": "Needed by",
+      "neededByAny": "Not specified",
+      "neededByToday": "Today",
+      "neededByTomorrow": "Tomorrow",
+      "networkBody": "Nothing was sent and nothing was reserved. Check your connection and send it again — or call the facility, which does not need the internet.",
+      "networkTitle": "Your request didn't reach OpesCare.",
+      "notProvided": "Not provided",
+      "reloadHint": "This facility’s stock could not be re-checked, so nothing should be requested against it yet.",
+      "review": "Review request",
+      "sentAt": "Sent",
+      "stepDetails": "Details",
+      "stepReview": "Review",
+      "stepSent": "Sent",
+      "tooManyHint": "Cancel one you no longer need, or wait — an unanswered request lapses on its own after 24 hours and frees the slot.",
+      "useMyNumber": "Use my number"
     },
     "errors": {
       "BLOOD_NOT_AVAILABLE": "This facility is no longer reporting that blood type as available.",
@@ -2080,7 +2200,46 @@
       "compatible": "Groups {{group}} can usually receive",
       "tryWholeBlood": "Try whole blood instead",
       "callHospital": "Find a hospital to call",
-      "failed": "Couldn't check the rest of the country."
+      "failed": "Couldn't check the rest of the country.",
+      "freshestFirst": "Most recently updated first · distance unavailable"
+    },
+    "addressLabel": "Address",
+    "callEmergencyLine": "Emergency line",
+    "filteredToNothing": "No result matches that filter.",
+    "filteredToNothingHint": "The filter only narrows the facilities already found. Clear it to see them all again.",
+    "myRequestsEmptyHint": "Pick a group above, then choose a facility to reserve units at. Requests you send appear here until the blood bank answers them.",
+    "optionsFailedHint": "The list of blood groups could not be loaded, so nothing can be searched yet.",
+    "phoneLabel": "Phone",
+    "requestsFailed": "Couldn't load your blood requests.",
+    "resultsTruncated": "Only the {{limit}} nearest facilities are listed. Narrow the radius to be sure you are seeing the closest ones.",
+    "searchFailedHint": "Nothing was returned, so nothing on this screen is out of date — it is simply unknown. Check your connection and try again.",
+    "showAll": "Show all",
+    "showLess": "Show fewer",
+    "stockUpdated": "Stock updated",
+    "unitsLabel": "Units reported",
+    "verificationLabel": "Listing",
+    "stock": {
+      "available": "Reported available",
+      "in_stock": "Reported available",
+      "low": "Reported low",
+      "limited": "Reported low",
+      "none": "Reported none left",
+      "out_of_stock": "Reported none left",
+      "unavailable": "No longer reported",
+      "unknown": "Stock not reported"
+    },
+    "verification": {
+      "government_verified": "Government verified",
+      "license_verified": "Licence verified",
+      "self_reported": "Listed by the facility itself",
+      "unverified": "Not verified"
+    },
+    "facilityTypes": {
+      "hospital": "Hospital",
+      "clinic": "Clinic",
+      "health_center": "Health Centre",
+      "blood_bank": "Blood Bank",
+      "laboratory": "Laboratory"
     }
   },
   "appUpdate": {
@@ -3290,6 +3449,24 @@
     "shared": {
       "loadFailedTitle": "Couldn’t load this",
       "retry": "Try Again"
+    },
+    "carePlan": {
+      "duration": "Duration",
+      "overview": "Plan overview",
+      "weeks": "wks"
+    },
+    "referral": {
+      "bringText": "Carry this referral and any relevant results.",
+      "bringTitle": "Bring your documents",
+      "helpText": "Contact us if you need assistance.",
+      "helpTitle": "Need help?",
+      "nextSteps": "Next steps",
+      "scheduleText": "Arrange your visit at the receiving facility.",
+      "scheduleTitle": "Book an appointment",
+      "urgency": "Urgency",
+      "referredOn": "Referred",
+      "acceptedOn": "Accepted",
+      "completedOn": "Completed"
     }
   },
   "opesMeds": {
@@ -3968,7 +4145,9 @@
       "documentsLabel": "Documents",
       "documentsHint": "Lab results, referrals, and files",
       "timelineLabel": "Timeline",
-      "timelineHint": "Your care history, event by event"
+      "timelineHint": "Your care history, event by event",
+      "carePlansHint": "Goals and next steps from your care team",
+      "showFewer": "Show fewer"
     },
     "header": {
       "encounters": "Visit History",
@@ -4097,7 +4276,9 @@
       "alreadySavedMessage": "This document is already filed in your health record. There is nothing more to do.",
       "settingFailedTitle": "That setting was not saved",
       "settingFailedRefresh": "Pull down to refresh this page and check whether the switch stayed on.",
-      "settingFailedMessage": "The setting could not be saved."
+      "settingFailedMessage": "The setting could not be saved.",
+      "backToLibrary": "Back to documents",
+      "openSub": "Opens the sealed original with its verification link"
     },
     "certificate": {
       "title": "Medical Certificate",
@@ -4146,6 +4327,12 @@
       "pronounShe": "she",
       "pronounHe": "he",
       "pronounPatient": "the patient"
+    },
+    "detail": {
+      "expires": "Valid until",
+      "facility": "Issuing facility",
+      "issued": "Issued",
+      "reference": "Reference number"
     }
   },
   "opesUi": {
@@ -4259,7 +4446,13 @@
       "actionBook2": "Imaging",
       "latestPanel": "Latest panel",
       "latestMeta": "{{date}} · {{count}} results",
-      "openResultDetail": "Open Result Detail"
+      "openResultDetail": "Open Result Detail",
+      "actionFindLab1": "Find a",
+      "actionFindLab2": "Laboratory",
+      "actionRecords1": "My",
+      "actionRecords2": "Records",
+      "heroSubtitleLabs": "Review your lab results and trends over time.",
+      "heroTitleLabs": "Laboratory Results"
     },
     "result": {
       "title": "Lab Result",
@@ -4468,6 +4661,11 @@
       "reschedule": "Reschedule",
       "cancelVisit": "Cancel Visit",
       "checkIn": "Start Check-in"
+    },
+    "unavailable": {
+      "body": "This app can’t reach laboratory results on your server yet. They will appear here as soon as the laboratory service is switched on.",
+      "findLab": "Find a laboratory near you",
+      "title": "Lab results aren’t available yet"
     }
   },
   "opesDoctor": {
@@ -4592,7 +4790,8 @@
       "nothingTodayBody": "You have no appointments scheduled for today.",
       "timeNotRecorded": "Time not recorded",
       "patientNotOnRecord": "Patient not on record",
-      "countedLive": "These figures are counted live on the hospital record each time this screen loads."
+      "countedLive": "These figures are counted live on the hospital record each time this screen loads.",
+      "tileRequestsUnknown": "Open to see what is awaiting your decision"
     },
     "schedule": {
       "title": "My Schedule",
@@ -4629,7 +4828,9 @@
       "declineConfirm": "Decline & Cancel",
       "checkBeforeAccept": "Check this appointment's status on your schedule before accepting it again.",
       "checkBeforeDecline": "Check this appointment's status on your schedule before declining it again.",
-      "declinedByClinician": "Declined by the clinician"
+      "declinedByClinician": "Declined by the clinician",
+      "acceptMessage": "{{patient}} — {{type}} on {{date}} at {{time}}. Accepting confirms the appointment for the patient.",
+      "acceptTitle": "Accept this appointment?"
     },
     "appointment": {
       "title": "Appointment",
@@ -4678,7 +4879,15 @@
       "moveTo": "Move to",
       "moveHint": "Times already booked in your own diary for the chosen day are marked. The API publishes no clinic-wide availability, so nothing else is claimed to be free.",
       "diaryFailed": "Your diary for this day could not be loaded, so booked times are not marked.",
-      "slotBooked": "Booked"
+      "slotBooked": "Booked",
+      "checkInMessage": "{{patient}} — {{type}} on {{date}} at {{time}}. This records the patient as arrived and waiting to be seen.",
+      "checkInTitle": "Check this patient in?",
+      "completeMessage": "{{patient}} — {{type}} on {{date}} at {{time}}. This closes the appointment; nothing further can be changed here afterwards.",
+      "completeTitle": "Mark this visit completed?",
+      "missingIdBody": "This link does not name an appointment. Open it from your schedule instead.",
+      "missingIdTitle": "No appointment to show",
+      "startMessage": "{{patient}} — {{type}} on {{date}} at {{time}}. This marks the visit as in progress on the hospital record.",
+      "startTitle": "Start this consultation?"
     },
     "search": {
       "title": "Find a Patient",
@@ -4693,7 +4902,26 @@
       "matches_one": "{{count}} match",
       "matches_other": "{{count}} matches",
       "years": "{{count}} yrs",
-      "allergiesBadge": "Allergies"
+      "allergiesBadge": "Allergies",
+      "clear": "Clear",
+      "idInvalid": "Enter the full Health ID — at least {{min}} characters, letters, digits and dashes only. This app cannot search by name.",
+      "idLabel": "Health ID",
+      "idNoAnswerBody": "Either no record carries {{healthId}}, or this server does not serve the clinician service yet — both answer the same way, so this screen will not tell you which. Check the ID against the patient’s card, and try again once clinician access is switched on.",
+      "idNoAnswerTitle": "No patient came back for that Health ID",
+      "idPlaceholder": "e.g. OPES-24-AEDL-4L8D",
+      "idPromptBody": "Type the full Health ID from the patient’s card, then press Look up. This app never searches by name and never lists patients — an exact Health ID is the only way in.",
+      "idPromptTitle": "Look a patient up by Health ID",
+      "idSubtitle": "Exact Health ID lookup",
+      "lookUp": "Look up",
+      "matchTitle": "Match",
+      "noNameSearch": "No name search: OpesCare does not allow a patient list or a partial-name lookup on any surface.",
+      "todayEmpty": "No appointments on your schedule today.",
+      "todayFailedBody": "Your schedule did not load. This is not a statement that you have no patients today.",
+      "todayFailedHint": "Pull down to try again.",
+      "todayFailedTitle": "Today’s list could not be read",
+      "todayLoading": "Reading your schedule…",
+      "todayRetry": "Retry",
+      "todayTitle": "Your patients today"
     },
     "chart": {
       "title": "Patient Chart",
@@ -4763,7 +4991,13 @@
         "noMeasurements": "This recording has no measurements on it.",
         "footnote": "Usual ranges are the general adult bands OpesCare uses across the record. They are a screening aid, not a target for this patient."
       },
-      "readOnly": "Read-only view. Prescribing, ordering and clinical documentation are done in the OpesCare desktop system, where the safety checks and signing run."
+      "readOnly": "Read-only view. Prescribing, ordering and clinical documentation are done in the OpesCare desktop system, where the safety checks and signing run.",
+      "facilityRecord": "Facility record {{mrn}}",
+      "loadFailed": "The chart could not be read.",
+      "noConsentBody": "This record is not currently shared with you. Ask the patient to grant access before relying on anything below.",
+      "noConsentTitle": "No consent grant on file",
+      "noIdBody": "A chart is opened with a patient’s Health ID. Look the patient up again from the Patients tab.",
+      "noIdTitle": "No Health ID in this link"
     },
     "section": {
       "loading": "Loading…",
@@ -4831,7 +5065,14 @@
       "noItemisedWithSummary": "No itemised analyte values were entered for this order — the reported result above is what the laboratory released.",
       "noItemised": "No values have been entered for this order yet.",
       "labReference": "Lab reference: {{range}}",
-      "noLabReference": "No reference range supplied by the laboratory"
+      "noLabReference": "No reference range supplied by the laboratory",
+      "indexTitle": "Open a section",
+      "openLookup": "Find a patient",
+      "prescriber": "Prescriber",
+      "unknownBody": "This link names a section the chart does not have. Open the chart and pick one from there.",
+      "unknownTitle": "That is not a chart section",
+      "vitalsCapped": "Showing the {{limit}} most recent recordings. Older ones are on the record but not on this screen.",
+      "vitalsEmptyMobile": "No vital signs are on this patient’s record. This is what the server returned, not a failure to read it."
     },
     "inbox": {
       "title": "Results Inbox",
@@ -4912,7 +5153,8 @@
       "doneBody": "Recorded against {{patient}} at {{when}} in the name of {{name}}.",
       "doneNameYou": "you",
       "failedTitle": "Could not acknowledge",
-      "failedHint": "Open this result again — if it shows as acknowledged, it was recorded. If it does not, acknowledge it again or use a workstation."
+      "failedHint": "Open this result again — if it shows as acknowledged, it was recorded. If it does not, acknowledge it again or use a workstation.",
+      "healthId": "Health ID"
     },
     "messages": {
       "title": "Messages",
@@ -4949,7 +5191,12 @@
       "sendFailedHint": "Pull down to refresh this conversation to see whether your reply reached the patient.",
       "sendFailedFallback": "Your reply couldn't be sent. Check your connection and try again.",
       "stateFailedHint": "Open Messages again to see the conversation’s current state.",
-      "stateFailedFallback": "That change couldn't be saved."
+      "stateFailedFallback": "That change couldn't be saved.",
+      "backToMessages": "Back to Messages",
+      "badLinkBody": "That link does not name a conversation. Open Messages and pick it from the list.",
+      "badLinkTitle": "Conversation not found",
+      "openChart": "Open patient chart",
+      "sendFailedTitle": "Reply not sent"
     },
     "profile": {
       "title": "Profile",
@@ -5051,7 +5298,36 @@
       "title": "This app is for patients and clinicians",
       "signedInAs": "You’re signed in as {{name}}. ",
       "body": "This account does not have a clinical role, so there is nothing here for it yet. Use the OpesCare desktop system for your work, and sign in here with a patient account if you have one.",
-      "signOut": "Sign Out"
+      "signOut": "Sign Out",
+      "goHome": "Go to my app",
+      "goHomeHint": "Opens the home tab of the patient app"
+    },
+    "shared": {
+      "notServedAppointment": "Clinician data isn't connected yet. Appointment records will open here once the clinician service is enabled for this app.",
+      "notServedChart": "Patient charts will appear here once the clinician service is enabled for this app. Nothing on this screen is a statement about the patient’s record.",
+      "notServedHome": "Clinician data isn't connected yet. Your day, your counts and your results will appear here once the clinician service is enabled for this app.",
+      "notServedMessages": "Your patient and colleague conversations will appear here once the clinician service is enabled for this app.",
+      "notServedProfile": "Your clinician account and professional profile will appear here once the clinician service is enabled for this app.",
+      "notServedProfileDetail": "Your title, specialty, languages and qualifications will appear here once the clinician service is enabled for this app.",
+      "notServedRequests": "Appointment requests will appear here once the clinician service is enabled for this app.",
+      "notServedResult": "This result cannot be opened until the clinician service is enabled for this app.",
+      "notServedResults": "Results awaiting your acknowledgement will appear here once the clinician service is enabled for this app.",
+      "notServedSchedule": "Clinician data isn't connected yet. Your diary will appear here once the clinician service is enabled for this app.",
+      "notServedSection": "{{section}} will appear here once the clinician service is enabled for this app. Nothing on this screen is a statement about the patient’s record.",
+      "notServedThread": "Conversations with your patients and colleagues will open here once the clinician service is enabled for this app.",
+      "notServedTitle": "Not available on this server yet"
+    },
+    "tabs": {
+      "home": "Today",
+      "messages": "Messages",
+      "patients": "Patients",
+      "results": "Results",
+      "schedule": "Schedule"
+    },
+    "vitals": {
+      "bandCritical": "Well outside usual range",
+      "bandNormal": "In range",
+      "bandOutside": "Outside usual range"
     }
   }
 }

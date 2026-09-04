@@ -465,11 +465,53 @@
       "noSlotsBody": "Cet établissement réserve via OpesCare mais n'a rien de libre actuellement. Consultez d'autres dates ou appelez.",
       "checkDates": "Voir d'autres dates",
       "availableTitle": "Réservable sur OpesCare",
-      "availableBody": "{{slotCount}} créneaux disponibles. Prochain : {{when}}."
+      "availableBody": "{{slotCount}} créneaux disponibles. Prochain : {{when}}.",
+      "slotPlaces": "{{seats}} places restantes"
     },
     "directoryNote": "Fiche issue du registre national des établissements. Les informations peuvent changer — appelez avant de vous déplacer.",
     "profileSubtitle": "Détails, services, soignants et horaires d’ouverture.",
-    "loading": "Chargement de l’établissement…"
+    "loading": "Chargement de l’établissement…",
+    "addressLabel": "Adresse",
+    "cityLabel": "Ville",
+    "findAnother": "Trouver des soins à proximité",
+    "informationTitle": "Informations sur l’établissement",
+    "insuranceNoCashless": "Avance de frais puis remboursement",
+    "integrationLabel": "Partage du dossier",
+    "loadErrorTitle": "Établissement indisponible",
+    "noContact": "Aucune coordonnée publiée pour cet établissement.",
+    "noInsurances": "Aucune couverture d’assurance publiée pour cet établissement.",
+    "noLocationBody": "Le registre national ne contient aucune coordonnée cartographique pour cet établissement.",
+    "noLocationBodyWithAddress": "Le registre situe cet établissement à {{address}} mais n’en possède aucune coordonnée cartographique : il ne peut donc pas être affiché sur la carte.",
+    "noLocationTitle": "Aucune position publiée",
+    "notFoundBody": "Il a pu être retiré du registre national, ou le lien que vous avez suivi n’est plus à jour. Vous pouvez à la place parcourir les établissements proches de vous.",
+    "notFoundTitle": "Cet établissement n’est plus référencé.",
+    "ownershipLabel": "Statut de l’établissement",
+    "phoneSecondary": "Autre téléphone",
+    "regionLabel": "Région",
+    "roundTheClockLabel": "Ouverture continue",
+    "roundTheClockSomeDays": "24 h/24 certains jours",
+    "typeLabel": "Type d’établissement",
+    "viewClinician": "Ouvre le profil de ce soignant",
+    "availability": {
+      "available": "Disponible",
+      "open": "Ouvert",
+      "operational": "En service",
+      "limited": "Limité",
+      "reduced": "Réduit",
+      "seasonal": "Saisonnier",
+      "unavailable": "Indisponible",
+      "suspended": "Suspendu",
+      "closed": "Fermé"
+    },
+    "integration": {
+      "none": "Non connecté",
+      "connected": "Connecté",
+      "read_only": "Lecture seule"
+    },
+    "insuranceStatus": {
+      "active": "Active",
+      "expired": "Expirée"
+    }
   },
   "doctor": {
     "title": "Praticien",
@@ -773,6 +815,11 @@
     "assurance": {
       "title": "Votre dossier vous suit",
       "body": "Votre identifiant santé et votre dossier vous appartiennent. Un établissement ne voit que ce que vous avez autorisé, et chaque accès est inscrit dans votre historique."
+    },
+    "appearance": {
+      "body": "Basculez entre la charte OpesCare et la palette du modèle OPES.",
+      "opes": "OPES",
+      "opescare": "OpesCare"
     }
   },
   "documents": {
@@ -1046,7 +1093,11 @@
     "nearbyInCatalog": "Référencé au catalogue sous {{name}}",
     "nearbySearchInstead": "Absent du catalogue — cherchez dans le Localisateur",
     "safetyTitle": "Respectez exactement la prescription",
-    "safetyBody": "Ne modifiez pas la dose, ne sautez pas de prise et n'arrêtez pas le traitement avant la fin sans en parler à votre soignant — même si vous vous sentez mieux. Conservez cette ordonnance pour la pharmacie."
+    "safetyBody": "Ne modifiez pas la dose, ne sautez pas de prise et n'arrêtez pas le traitement avant la fin sans en parler à votre soignant — même si vous vous sentez mieux. Conservez cette ordonnance pour la pharmacie.",
+    "statusAmended": "Modifiée",
+    "statusDraft": "Brouillon",
+    "statusEnteredInError": "Saisie par erreur",
+    "statusVoided": "Invalidée"
   },
   "family": {
     "title": "Famille et aidants",
@@ -1655,7 +1706,52 @@
     "showAll": "Tout afficher",
     "showLess": "Afficher moins",
     "form": "Forme",
-    "category": "Catégorie"
+    "category": "Catégorie",
+    "brand": "Marque : {{name}}",
+    "catalogueScopeHint": "La disponibilité recense toutes les pharmacies de l’annuaire national qui déclarent leur stock, et pas seulement celles proches de vous.",
+    "clearSearch": "Effacer la recherche",
+    "lastReported": "Dernière déclaration",
+    "nearbyCapped": "Seules les {{max}} pharmacies les plus proches sont listées. Réduisez le rayon pour voir les plus proches.",
+    "nearbyNoStockRow": "Les pharmacies d’ici qui n’ont jamais déclaré ce médicament ne sont pas listées.",
+    "nearbyStockNote": "Le stock n’est pas vérifié ici. Ouvrez un médicament pour voir laquelle de ces pharmacies déclare en avoir.",
+    "noteHint": "{{max}} caractères maximum. N’indiquez ni numéro de carte bancaire ni numéro de pièce d’identité.",
+    "noteLabel": "Note pour la pharmacie (facultatif)",
+    "notePlaceholder": "Ce que le pharmacien doit savoir",
+    "notReported": "Non déclaré",
+    "notReportedAnywhere": "Aucune pharmacie n’a déclaré de stock pour ce médicament.",
+    "noneReportedAnywhere": "Aucune pharmacie n’a signalé de stock pour ces médicaments.",
+    "notVerified": "Non vérifiée",
+    "packMismatch": "{{pharmacy}} a indiqué ce prix pour {{size}}. Confirmez le total au comptoir.",
+    "packSizeLabel": "Conditionnement",
+    "packsOnShelf": "Boîtes déclarées",
+    "prescriptionExpiredWarning": "Cette ordonnance a expiré — la pharmacie peut la refuser.",
+    "priceIndicative": "Prix catalogue",
+    "radiusSearched": "Recherche dans un rayon de {{km}} km",
+    "reservationPharmacyNote": "Note de la pharmacie",
+    "reservationPlaced": "Passée {{when}}",
+    "reservationPrescriptionAttached": "Ordonnance jointe",
+    "reservationsAtCap": "Vous avez atteint le maximum de {{max}} réservations en cours. Annulez-en une avant d’en créer une autre.",
+    "reservationsLoadFailed": "Vos réservations n’ont pas pu être chargées.",
+    "reservationsLoading": "Chargement de vos réservations…",
+    "reservationsNone": "Vous n’avez aucune réservation en cours.",
+    "reservationsNoneHint": "Réservez un médicament et la pharmacie vous le garde pendant 24 heures. Vous payez au comptoir.",
+    "reservationYourNote": "Votre note",
+    "resultsCapped": "Affichage des {{shown}} premiers résultats sur {{total}}. Affinez votre recherche pour voir les autres.",
+    "selectedPharmacyTitle": "Pharmacie sélectionnée",
+    "stockNotDated": "La pharmacie n’a pas daté cette déclaration",
+    "stockOld": "Déclaration ancienne",
+    "stockProvenance": "Les niveaux de stock et les prix sont déclarés par chaque pharmacie, et non mesurés par OpesCare.",
+    "stockStale": "Cette déclaration de stock date de plus de {{days}} jours. Appelez la pharmacie avant de vous déplacer.",
+    "verified": "Pharmacie vérifiée",
+    "reservationStatus": {
+      "pending": "En attente",
+      "confirmed": "Confirmée",
+      "ready_for_pickup": "Prête à être retirée",
+      "collected": "Retirée",
+      "rejected": "Refusée",
+      "cancelled": "Annulée",
+      "expired": "Expirée"
+    }
   },
   "careMap": {
     "title": "Accès aux soins",
@@ -2036,7 +2132,31 @@
       "next1": "La banque de sang examine votre demande puis la confirme ou la refuse.",
       "next2": "Le résultat apparaît dans Mes demandes sur la Recherche de sang.",
       "next3": "Présentez la référence et l'identifiant santé du patient au comptoir.",
-      "openRequestsHint": "Vos demandes en cours sont listées sur l'écran Recherche de sang."
+      "openRequestsHint": "Vos demandes en cours sont listées sur l'écran Recherche de sang.",
+      "cancelWarning": "Cette action est irréversible. Vous devriez envoyer une nouvelle demande.",
+      "contactPhoneHint": "Facultatif. La banque de sang appelle ce numéro si elle doit vous joindre avant votre arrivée.",
+      "contactPhoneInvalid": "Cela ne ressemble pas à un numéro sur lequel la banque de sang pourrait vous rappeler.",
+      "duplicateHint": "L’envoyer deux fois ne fera pas répondre la banque de sang plus vite. La demande que vous avez déjà envoyée est toujours en cours.",
+      "edit": "Modifier les informations",
+      "expiresAt": "Fin de la réservation",
+      "expiresAtBody": "Si la banque de sang n’a pas répondu avant {{when}}, cette demande expire d’elle-même et vous pourrez en envoyer une nouvelle.",
+      "facilityMissingHint": "L’établissement a été retiré de l’annuaire OpesCare après votre recherche : plus rien ne peut y être réservé. Relancez la recherche pour voir qui d’autre signale ce sang.",
+      "facilityNote": "Message de la banque de sang",
+      "neededBy": "Nécessaire pour le",
+      "neededByAny": "Non précisé",
+      "neededByToday": "Aujourd’hui",
+      "neededByTomorrow": "Demain",
+      "networkBody": "Rien n’a été envoyé et rien n’a été réservé. Vérifiez votre connexion et renvoyez la demande — ou appelez l’établissement, ce qui ne nécessite pas Internet.",
+      "networkTitle": "Votre demande n’est pas parvenue à OpesCare.",
+      "notProvided": "Non renseigné",
+      "reloadHint": "Le stock de cet établissement n’a pas pu être revérifié : aucune demande ne devrait donc encore lui être adressée.",
+      "review": "Vérifier la demande",
+      "sentAt": "Envoyée le",
+      "stepDetails": "Informations",
+      "stepReview": "Vérification",
+      "stepSent": "Envoyée",
+      "tooManyHint": "Annulez-en une dont vous n’avez plus besoin, ou patientez : une demande sans réponse expire d’elle-même au bout de 24 heures et libère une place.",
+      "useMyNumber": "Utiliser mon numéro"
     },
     "errors": {
       "BLOOD_NOT_AVAILABLE": "Cet établissement ne signale plus ce groupe sanguin comme disponible.",
@@ -2080,7 +2200,46 @@
       "compatible": "Groupes que {{group}} peut généralement recevoir",
       "tryWholeBlood": "Essayer le sang total",
       "callHospital": "Trouver un hôpital à appeler",
-      "failed": "Impossible de vérifier le reste du pays."
+      "failed": "Impossible de vérifier le reste du pays.",
+      "freshestFirst": "Les plus récemment mis à jour d’abord · distance indisponible"
+    },
+    "addressLabel": "Adresse",
+    "callEmergencyLine": "Ligne d’urgence",
+    "filteredToNothing": "Aucun résultat ne correspond à ce filtre.",
+    "filteredToNothingHint": "Le filtre ne fait que restreindre les établissements déjà trouvés. Effacez-le pour tous les revoir.",
+    "myRequestsEmptyHint": "Choisissez un groupe ci-dessus, puis un établissement où réserver des poches. Les demandes que vous envoyez apparaissent ici jusqu’à ce que la banque de sang y réponde.",
+    "optionsFailedHint": "La liste des groupes sanguins n’a pas pu être chargée ; aucune recherche n’est donc encore possible.",
+    "phoneLabel": "Téléphone",
+    "requestsFailed": "Impossible de charger vos demandes de sang.",
+    "resultsTruncated": "Seuls les {{limit}} établissements les plus proches sont listés. Réduisez le rayon pour être sûr de voir les plus proches.",
+    "searchFailedHint": "Rien n’a été renvoyé : rien sur cet écran n’est donc périmé, c’est simplement inconnu. Vérifiez votre connexion et réessayez.",
+    "showAll": "Tout afficher",
+    "showLess": "Afficher moins",
+    "stockUpdated": "Stock mis à jour",
+    "unitsLabel": "Poches signalées",
+    "verificationLabel": "Référencement",
+    "stock": {
+      "available": "Disponibilité signalée",
+      "in_stock": "Disponibilité signalée",
+      "low": "Stock faible signalé",
+      "limited": "Stock faible signalé",
+      "none": "Rupture signalée",
+      "out_of_stock": "Rupture signalée",
+      "unavailable": "Plus signalé",
+      "unknown": "Stock non signalé"
+    },
+    "verification": {
+      "government_verified": "Vérifié par l’État",
+      "license_verified": "Licence vérifiée",
+      "self_reported": "Déclaré par l’établissement lui-même",
+      "unverified": "Non vérifié"
+    },
+    "facilityTypes": {
+      "hospital": "Hôpital",
+      "clinic": "Clinique",
+      "health_center": "Centre de santé",
+      "blood_bank": "Banque de sang",
+      "laboratory": "Laboratoire"
     }
   },
   "appUpdate": {
@@ -3290,6 +3449,24 @@
     "shared": {
       "loadFailedTitle": "Impossible de charger ces informations",
       "retry": "Réessayer"
+    },
+    "carePlan": {
+      "duration": "Durée",
+      "overview": "Aperçu du plan",
+      "weeks": "sem."
+    },
+    "referral": {
+      "bringText": "Munissez-vous de cette orientation et de tout résultat utile.",
+      "bringTitle": "Apportez vos documents",
+      "helpText": "Contactez-nous si vous avez besoin d’aide.",
+      "helpTitle": "Besoin d’aide ?",
+      "nextSteps": "Prochaines étapes",
+      "scheduleText": "Organisez votre visite dans l’établissement destinataire.",
+      "scheduleTitle": "Prendre rendez-vous",
+      "urgency": "Urgence",
+      "referredOn": "Orienté le",
+      "acceptedOn": "Accepté le",
+      "completedOn": "Terminé le"
     }
   },
   "opesMeds": {
@@ -3968,7 +4145,9 @@
       "documentsLabel": "Documents",
       "documentsHint": "Résultats de laboratoire, orientations et fichiers",
       "timelineLabel": "Chronologie",
-      "timelineHint": "Votre parcours de soins, événement par événement"
+      "timelineHint": "Votre parcours de soins, événement par événement",
+      "carePlansHint": "Objectifs et prochaines étapes définis par votre équipe soignante",
+      "showFewer": "Afficher moins"
     },
     "header": {
       "encounters": "Historique des consultations",
@@ -4097,7 +4276,9 @@
       "alreadySavedMessage": "Ce document est déjà classé dans votre dossier médical. Il n’y a rien de plus à faire.",
       "settingFailedTitle": "Ce paramètre n’a pas été enregistré",
       "settingFailedRefresh": "Tirez vers le bas pour actualiser cette page et vérifier si l’interrupteur est resté activé.",
-      "settingFailedMessage": "Le paramètre n’a pas pu être enregistré."
+      "settingFailedMessage": "Le paramètre n’a pas pu être enregistré.",
+      "backToLibrary": "Retour aux documents",
+      "openSub": "Ouvre l’original scellé avec son lien de vérification"
     },
     "certificate": {
       "title": "Certificat médical",
@@ -4146,6 +4327,12 @@
       "pronounShe": "elle",
       "pronounHe": "il",
       "pronounPatient": "le patient"
+    },
+    "detail": {
+      "expires": "Valable jusqu’au",
+      "facility": "Établissement émetteur",
+      "issued": "Délivré le",
+      "reference": "Numéro de référence"
     }
   },
   "opesUi": {
@@ -4259,7 +4446,13 @@
       "actionBook2": "une imagerie",
       "latestPanel": "Dernier bilan",
       "latestMeta": "{{date}} · {{count}} résultats",
-      "openResultDetail": "Ouvrir le détail du résultat"
+      "openResultDetail": "Ouvrir le détail du résultat",
+      "actionFindLab1": "Trouver un",
+      "actionFindLab2": "laboratoire",
+      "actionRecords1": "Mon",
+      "actionRecords2": "dossier",
+      "heroSubtitleLabs": "Consultez vos résultats de laboratoire et leur évolution.",
+      "heroTitleLabs": "Résultats de laboratoire"
     },
     "result": {
       "title": "Résultat de laboratoire",
@@ -4468,6 +4661,11 @@
       "reschedule": "Reprogrammer",
       "cancelVisit": "Annuler la visite",
       "checkIn": "Commencer l’enregistrement"
+    },
+    "unavailable": {
+      "body": "Cette application ne peut pas encore accéder aux résultats de laboratoire sur votre serveur. Ils apparaîtront ici dès que le service de laboratoire sera activé.",
+      "findLab": "Trouver un laboratoire près de chez vous",
+      "title": "Les résultats de laboratoire ne sont pas encore disponibles"
     }
   },
   "opesDoctor": {
@@ -4592,7 +4790,8 @@
       "nothingTodayBody": "Vous n’avez aucun rendez-vous prévu aujourd’hui.",
       "timeNotRecorded": "Heure non renseignée",
       "patientNotOnRecord": "Patient non identifié au dossier",
-      "countedLive": "Ces chiffres sont comptés en direct sur le dossier hospitalier à chaque ouverture de cet écran."
+      "countedLive": "Ces chiffres sont comptés en direct sur le dossier hospitalier à chaque ouverture de cet écran.",
+      "tileRequestsUnknown": "Ouvrir pour voir ce qui attend votre décision"
     },
     "schedule": {
       "title": "Mon agenda",
@@ -4629,7 +4828,9 @@
       "declineConfirm": "Refuser et annuler",
       "checkBeforeAccept": "Vérifiez le statut de ce rendez-vous dans votre agenda avant de l’accepter à nouveau.",
       "checkBeforeDecline": "Vérifiez le statut de ce rendez-vous dans votre agenda avant de le refuser à nouveau.",
-      "declinedByClinician": "Refusé par le soignant"
+      "declinedByClinician": "Refusé par le soignant",
+      "acceptMessage": "{{patient}} — {{type}}, le {{date}} à {{time}}. L’acceptation confirme le rendez-vous pour le patient.",
+      "acceptTitle": "Accepter ce rendez-vous ?"
     },
     "appointment": {
       "title": "Rendez-vous",
@@ -4678,7 +4879,15 @@
       "moveTo": "Déplacer au",
       "moveHint": "Les horaires déjà pris dans votre propre agenda pour le jour choisi sont signalés. L’API ne publie aucune disponibilité à l’échelle de l’hôpital : rien d’autre n’est présenté comme libre.",
       "diaryFailed": "Votre agenda de ce jour n’a pas pu être chargé ; les horaires déjà pris ne sont donc pas signalés.",
-      "slotBooked": "Pris"
+      "slotBooked": "Pris",
+      "checkInMessage": "{{patient}} — {{type}}, le {{date}} à {{time}}. Cela enregistre le patient comme arrivé et en attente d’être vu.",
+      "checkInTitle": "Enregistrer l’arrivée de ce patient ?",
+      "completeMessage": "{{patient}} — {{type}}, le {{date}} à {{time}}. Cela clôture le rendez-vous ; plus rien ne pourra être modifié ici ensuite.",
+      "completeTitle": "Marquer cette visite comme terminée ?",
+      "missingIdBody": "Ce lien ne désigne aucun rendez-vous. Ouvrez-le plutôt depuis votre agenda.",
+      "missingIdTitle": "Aucun rendez-vous à afficher",
+      "startMessage": "{{patient}} — {{type}}, le {{date}} à {{time}}. Cela marque la visite comme en cours sur le dossier hospitalier.",
+      "startTitle": "Démarrer cette consultation ?"
     },
     "search": {
       "title": "Rechercher un patient",
@@ -4693,7 +4902,26 @@
       "matches_one": "{{count}} résultat",
       "matches_other": "{{count}} résultats",
       "years": "{{count}} ans",
-      "allergiesBadge": "Allergies"
+      "allergiesBadge": "Allergies",
+      "clear": "Effacer",
+      "idInvalid": "Saisissez l’identifiant santé complet — au moins {{min}} caractères, uniquement des lettres, des chiffres et des tirets. Cette application ne peut pas effectuer de recherche par nom.",
+      "idLabel": "Identifiant santé",
+      "idNoAnswerBody": "Soit aucun dossier ne porte {{healthId}}, soit ce serveur ne dessert pas encore le service soignant — les deux cas donnent la même réponse, et cet écran ne vous dira pas lequel. Vérifiez l’identifiant sur la carte du patient, puis réessayez une fois l’accès soignant activé.",
+      "idNoAnswerTitle": "Aucun patient ne correspond à cet identifiant santé",
+      "idPlaceholder": "ex. OPES-24-AEDL-4L8D",
+      "idPromptBody": "Saisissez l’identifiant santé complet figurant sur la carte du patient, puis appuyez sur Rechercher. Cette application ne recherche jamais par nom et ne liste jamais les patients : un identifiant santé exact est la seule voie d’accès.",
+      "idPromptTitle": "Rechercher un patient par identifiant santé",
+      "idSubtitle": "Recherche par identifiant santé exact",
+      "lookUp": "Rechercher",
+      "matchTitle": "Correspondance",
+      "noNameSearch": "Aucune recherche par nom : OpesCare n’autorise ni liste de patients ni recherche par nom partiel, sur aucune surface.",
+      "todayEmpty": "Aucun rendez-vous à votre agenda aujourd’hui.",
+      "todayFailedBody": "Votre agenda n’a pas pu être chargé. Cela ne signifie pas que vous n’avez aucun patient aujourd’hui.",
+      "todayFailedHint": "Tirez vers le bas pour réessayer.",
+      "todayFailedTitle": "La liste du jour n’a pas pu être lue",
+      "todayLoading": "Lecture de votre agenda…",
+      "todayRetry": "Réessayer",
+      "todayTitle": "Vos patients du jour"
     },
     "chart": {
       "title": "Dossier patient",
@@ -4763,7 +4991,13 @@
         "noMeasurements": "Ce relevé ne comporte aucune mesure.",
         "footnote": "Les plages habituelles sont les intervalles adultes généraux utilisés par OpesCare dans tout le dossier. Elles servent au dépistage et ne constituent pas un objectif pour ce patient."
       },
-      "readOnly": "Vue en lecture seule. La prescription, les demandes d’examens et la rédaction clinique se font dans l’EMR de bureau OpesCare, où s’exécutent les contrôles de sécurité et la signature."
+      "readOnly": "Vue en lecture seule. La prescription, les demandes d’examens et la rédaction clinique se font dans l’EMR de bureau OpesCare, où s’exécutent les contrôles de sécurité et la signature.",
+      "facilityRecord": "Dossier de l’établissement {{mrn}}",
+      "loadFailed": "Le dossier n’a pas pu être lu.",
+      "noConsentBody": "Ce dossier ne vous est pas partagé actuellement. Demandez au patient de vous en accorder l’accès avant de vous fier à ce qui suit.",
+      "noConsentTitle": "Aucun consentement au dossier",
+      "noIdBody": "Un dossier s’ouvre avec l’identifiant santé d’un patient. Recherchez à nouveau le patient depuis l’onglet Patients.",
+      "noIdTitle": "Aucun identifiant santé dans ce lien"
     },
     "section": {
       "loading": "Chargement…",
@@ -4831,7 +5065,14 @@
       "noItemisedWithSummary": "Aucune valeur d’analyte détaillée n’a été saisie pour cette demande — le résultat rendu ci-dessus est ce que le laboratoire a validé.",
       "noItemised": "Aucune valeur n’a encore été saisie pour cette demande.",
       "labReference": "Référence du laboratoire : {{range}}",
-      "noLabReference": "Aucun intervalle de référence fourni par le laboratoire"
+      "noLabReference": "Aucun intervalle de référence fourni par le laboratoire",
+      "indexTitle": "Ouvrir une rubrique",
+      "openLookup": "Rechercher un patient",
+      "prescriber": "Prescripteur",
+      "unknownBody": "Ce lien désigne une rubrique que le dossier ne comporte pas. Ouvrez le dossier et choisissez-en une depuis celui-ci.",
+      "unknownTitle": "Ce n’est pas une rubrique du dossier",
+      "vitalsCapped": "Affichage des {{limit}} relevés les plus récents. Les plus anciens figurent au dossier mais pas sur cet écran.",
+      "vitalsEmptyMobile": "Aucun signe vital ne figure au dossier de ce patient. C’est ce que le serveur a renvoyé, et non un échec de lecture."
     },
     "inbox": {
       "title": "Boîte de résultats",
@@ -4912,7 +5153,8 @@
       "doneBody": "Consigné pour {{patient}} à {{when}} au nom de {{name}}.",
       "doneNameYou": "vous",
       "failedTitle": "Impossible d’accuser réception",
-      "failedHint": "Rouvrez ce résultat — s’il apparaît comme accusé, l’accusé a bien été enregistré. Sinon, accusez-le à nouveau ou utilisez un poste de travail."
+      "failedHint": "Rouvrez ce résultat — s’il apparaît comme accusé, l’accusé a bien été enregistré. Sinon, accusez-le à nouveau ou utilisez un poste de travail.",
+      "healthId": "Identifiant santé"
     },
     "messages": {
       "title": "Messages",
@@ -4949,7 +5191,12 @@
       "sendFailedHint": "Tirez vers le bas pour actualiser cette conversation et voir si votre réponse est bien parvenue au patient.",
       "sendFailedFallback": "Votre réponse n’a pas pu être envoyée. Vérifiez votre connexion et réessayez.",
       "stateFailedHint": "Rouvrez Messages pour voir l’état actuel de la conversation.",
-      "stateFailedFallback": "Cette modification n’a pas pu être enregistrée."
+      "stateFailedFallback": "Cette modification n’a pas pu être enregistrée.",
+      "backToMessages": "Retour aux messages",
+      "badLinkBody": "Ce lien ne désigne aucune conversation. Ouvrez Messages et choisissez-la dans la liste.",
+      "badLinkTitle": "Conversation introuvable",
+      "openChart": "Ouvrir le dossier patient",
+      "sendFailedTitle": "Réponse non envoyée"
     },
     "profile": {
       "title": "Profil",
@@ -5051,7 +5298,36 @@
       "title": "Cette application est destinée aux patients et aux soignants",
       "signedInAs": "Vous êtes connecté en tant que {{name}}. ",
       "body": "Ce compte n’a pas de rôle clinique ; il n’y a donc encore rien ici pour lui. Utilisez l’EMR de bureau OpesCare pour votre travail, et connectez-vous ici avec un compte patient si vous en avez un.",
-      "signOut": "Déconnexion"
+      "signOut": "Déconnexion",
+      "goHome": "Aller à mon application",
+      "goHomeHint": "Ouvre l’onglet d’accueil de l’application patient"
+    },
+    "shared": {
+      "notServedAppointment": "Les données soignant ne sont pas encore connectées. Les fiches de rendez-vous s’ouvriront ici une fois le service soignant activé pour cette application.",
+      "notServedChart": "Les dossiers patients apparaîtront ici une fois le service soignant activé pour cette application. Rien sur cet écran ne constitue une information sur le dossier du patient.",
+      "notServedHome": "Les données soignant ne sont pas encore connectées. Votre journée, vos compteurs et vos résultats apparaîtront ici une fois le service soignant activé pour cette application.",
+      "notServedMessages": "Vos conversations avec les patients et les confrères apparaîtront ici une fois le service soignant activé pour cette application.",
+      "notServedProfile": "Votre compte soignant et votre profil professionnel apparaîtront ici une fois le service soignant activé pour cette application.",
+      "notServedProfileDetail": "Votre titre, votre spécialité, vos langues et vos qualifications apparaîtront ici une fois le service soignant activé pour cette application.",
+      "notServedRequests": "Les demandes de rendez-vous apparaîtront ici une fois le service soignant activé pour cette application.",
+      "notServedResult": "Ce résultat ne peut pas être ouvert tant que le service soignant n’est pas activé pour cette application.",
+      "notServedResults": "Les résultats en attente de votre accusé apparaîtront ici une fois le service soignant activé pour cette application.",
+      "notServedSchedule": "Les données soignant ne sont pas encore connectées. Votre agenda apparaîtra ici une fois le service soignant activé pour cette application.",
+      "notServedSection": "{{section}} apparaîtra ici une fois le service soignant activé pour cette application. Rien sur cet écran ne constitue une information sur le dossier du patient.",
+      "notServedThread": "Les conversations avec vos patients et vos confrères s’ouvriront ici une fois le service soignant activé pour cette application.",
+      "notServedTitle": "Pas encore disponible sur ce serveur"
+    },
+    "tabs": {
+      "home": "Aujourd’hui",
+      "messages": "Messages",
+      "patients": "Patients",
+      "results": "Résultats",
+      "schedule": "Agenda"
+    },
+    "vitals": {
+      "bandCritical": "Très en dehors des valeurs usuelles",
+      "bandNormal": "Dans les valeurs usuelles",
+      "bandOutside": "En dehors des valeurs usuelles"
     }
   }
 }

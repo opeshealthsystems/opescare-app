@@ -726,7 +726,7 @@ export default function PharmacyScreen() {
                 tint="blue"
                 title={
                   reportedOnly && results.length > 0
-                    ? t('pharmacy.notReportedAnywhere', {
+                    ? t('pharmacy.noneReportedAnywhere', {
                         defaultValue: 'No pharmacy has reported stock for these medicines.',
                       })
                     : t('pharmacy.noMedicines')

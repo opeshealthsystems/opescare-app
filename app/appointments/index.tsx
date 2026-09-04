@@ -1,500 +1,516 @@
 /**
  * My Appointments — the patient's care schedule.
  *
- * Matches `Mobile app screens/a_clean_mobile_app_screenshot_ui_smartphone_portr.png`
- * ("My Appointments"): title + subtitle block, navy booking banner, an
- * icon-bearing segmented control with a solid navy active pill, and one white
- * card holding hairline-divided rows — each row a tear-off date tile, a round
- * category glyph, a name/provider/reason stack, a time • venue meta line and a
- * status pill.
+ * OPES CARE-001 (Appointments home) + CARE-002 (Appointment list) ported onto
+ * this route: kit `ScreenHeader` with the "Book New" action, the two-panel
+ * next-appointment hero, Upcoming / Past segmented `Chip`s carrying live
+ * server counts, one flush `Card` per `AppointmentRow`, a "Recent
+ * Appointments" strip while the Upcoming tab is showing, the "Need to change
+ * an appointment?" helper row and the Finder's own stay-on-track notice.
  *
- * Data is real: GET /mobile/appointments?scope=upcoming|past via
- * `useAppointmentBoard`, which fetches both scopes so the segment counts are
- * live and switching tabs never flashes a spinner.
+ * Presentation only. Data is unchanged: GET /mobile/appointments?scope=
+ * upcoming|past via `useAppointmentBoard`, which fetches both scopes so the
+ * segment counts are live and switching tabs never flashes a spinner. Every
+ * colour comes from the active kit palette (`useTheme()`), never a literal.
  */
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
-  ArrowLeft,
-  CalendarPlus,
-  CalendarSearch,
-  ChevronRight,
-  Clock,
-  History,
-  MapPin,
-  RefreshCw,
-  ShieldPlus,
-  TriangleAlert,
-} from 'lucide-react-native';
-import { Screen } from '../../components/ui/Screen';
-import {
-  AppointmentStatusPill,
-  appointmentTypeIcon,
-  appointmentTypeLabel,
-  calendarTile,
+  Card,
+  Chip,
+  EmptyState,
+  GradientButton,
+  Icon,
+  ListRow,
+  ScreenHeader,
+  SectionHeader,
   formatTime,
-  relativeDayLabel,
-  statusLabel,
-} from '../../components/appointments/presentation';
+  radii,
+  spacing,
+  typography,
+  useTheme,
+  type IconName,
+  type Palette,
+  type TFunction,
+} from '@/components/opes-ui';
+import {
+  AppointmentRow,
+  CareButton,
+  DateBlock,
+  LoadingBlock,
+  NoticeBanner,
+  StatusPill,
+} from '@/components/care/shared';
+import { relativeDay, statusTintOf, typeLabelOf } from '@/components/care/apptLabels';
 import {
   useAppointmentBoard,
   type AppointmentBoardScope,
-} from '../../lib/api/appointmentsQueries';
-import type { Appointment } from '../../lib/api/types';
-import { colors } from '../../theme/tokens';
+} from '@/lib/api/appointmentsQueries';
+import type { Appointment } from '@/lib/api/types';
 
-const SEGMENTS: { scope: AppointmentBoardScope; icon: typeof Clock }[] = [
-  { scope: 'upcoming', icon: CalendarPlus },
-  { scope: 'past', icon: History },
+const BOOK_ROUTE = '/appointments/book';
+
+type TabDef = {
+  scope: AppointmentBoardScope;
+  icon: IconName;
+  labelKey: string;
+  headingKey: string;
+  emptyTitleKey: string;
+  emptyMessageKey: string;
+};
+
+const TABS: TabDef[] = [
+  {
+    scope: 'upcoming',
+    icon: 'calendar-plus',
+    labelKey: 'opesCare.list.tabUpcoming',
+    headingKey: 'opesCare.list.headingUpcoming',
+    emptyTitleKey: 'opesCare.list.emptyUpcomingTitle',
+    emptyMessageKey: 'opesCare.list.emptyUpcomingMessage',
+  },
+  {
+    scope: 'past',
+    icon: 'history',
+    labelKey: 'opesCare.list.tabPast',
+    headingKey: 'opesCare.list.headingPast',
+    emptyTitleKey: 'opesCare.list.emptyPastTitle',
+    // The Finder's own wording says WHAT lands here (completed, cancelled,
+    // missed) — more useful than the catalogue's "Nothing to show" line.
+    emptyMessageKey: 'appointments.emptyPastBody',
+  },
 ];
 
-// ---------------------------------------------------------------------------
-// Booking banner — the reference's navy CTA panel
-// ---------------------------------------------------------------------------
-
-function BookingBanner({ onPress }: { onPress: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <View
-      className="mt-5 flex-row items-center rounded-3xl p-4"
-      style={{ backgroundColor: colors.navy.text }}
-    >
-      <View
-        className="h-12 w-12 items-center justify-center rounded-full"
-        style={{ backgroundColor: colors.white }}
-      >
-        <CalendarPlus size={22} color={colors.brand[500]} />
-      </View>
-      <View className="ml-3 flex-1">
-        <Text className="text-[15px] font-bold" style={{ color: colors.white }}>
-          {t('appointments.ctaTitle')}
-        </Text>
-        <Text className="mt-0.5 text-xs leading-4" style={{ color: colors.cream[300] }}>
-          {t('appointments.ctaBody')}
-        </Text>
-      </View>
-      <Pressable onPress={onPress} accessibilityRole="button" className="ml-2">
-        {/* LinearGradient has no cssInterop registered — className is a no-op on
-            it, so every style here has to be inline. */}
-        <LinearGradient
-          colors={[colors.brand[500], colors.brand[300]]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            borderRadius: 999,
-            paddingHorizontal: 14,
-            paddingVertical: 10,
-          }}
-        >
-          <Text style={{ color: colors.white, fontSize: 13, fontWeight: '700' }}>
-            {t('appointments.bookNew')}
-          </Text>
-          <ChevronRight size={15} color={colors.white} />
-        </LinearGradient>
-      </Pressable>
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Segmented control — solid navy active pill, leading icon, live count badge
-// ---------------------------------------------------------------------------
-
-function SegmentedControl({
-  scope,
-  counts,
-  onChange,
-}: {
-  scope: AppointmentBoardScope;
-  counts: Record<AppointmentBoardScope, number>;
-  onChange: (next: AppointmentBoardScope) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <View
-      className="mt-5 flex-row rounded-2xl p-1"
-      style={{ backgroundColor: colors.white, borderWidth: 1, borderColor: colors.cream[300] }}
-    >
-      {SEGMENTS.map(({ scope: value, icon: Icon }) => {
-        const active = scope === value;
-        const fg = active ? colors.white : colors.navy.secondary;
-        return (
-          <Pressable
-            key={value}
-            onPress={() => onChange(value)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
-            className="flex-1 flex-row items-center justify-center rounded-xl py-2.5"
-            style={{ backgroundColor: active ? colors.navy.text : 'transparent', gap: 6 }}
-          >
-            <Icon size={15} color={fg} />
-            <Text className="text-sm font-semibold" style={{ color: fg }}>
-              {t(`appointments.${value}`)}
-            </Text>
-            {counts[value] > 0 ? (
-              <View
-                className="rounded-full px-1.5"
-                style={{ backgroundColor: active ? colors.brand[500] : colors.cream[200] }}
-              >
-                <Text
-                  className="text-[10px] font-bold"
-                  style={{ color: active ? colors.white : colors.navy.secondary }}
-                >
-                  {counts[value]}
-                </Text>
-              </View>
-            ) : null}
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Row
-// ---------------------------------------------------------------------------
-
-function DateTile({ iso, locale }: { iso: string | null; locale: string }) {
-  const tile = calendarTile(iso, locale);
-
-  if (!tile) {
-    // scheduled_at is nullable in the API — never render an "Invalid Date" tile.
-    return (
-      <View
-        className="w-[52px] items-center justify-center overflow-hidden rounded-xl py-3"
-        style={{ backgroundColor: colors.cream[200], borderWidth: 1, borderColor: colors.cream[300] }}
-      >
-        <CalendarSearch size={18} color={colors.navy.muted} />
-      </View>
-    );
-  }
-
-  return (
-    <View
-      className="w-[52px] overflow-hidden rounded-xl"
-      style={{ borderWidth: 1, borderColor: colors.cream[300] }}
-    >
-      <View className="items-center py-1" style={{ backgroundColor: colors.brand[500] }}>
-        <Text className="text-[10px] font-bold tracking-wide" style={{ color: colors.white }}>
-          {tile.month}
-        </Text>
-      </View>
-      <View className="items-center pb-1.5 pt-1" style={{ backgroundColor: colors.white }}>
-        <Text className="text-[19px] font-extrabold" style={{ color: colors.navy.text }}>
-          {tile.day}
-        </Text>
-        <Text className="text-[9px] font-semibold" style={{ color: colors.navy.muted }}>
-          {tile.weekday}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-function AppointmentRow({
-  item,
-  locale,
-  onPress,
-}: {
-  item: Appointment;
-  locale: string;
-  onPress: () => void;
-}) {
-  const { t } = useTranslation();
-  const TypeIcon = appointmentTypeIcon(item.appointment_type);
-  const time = formatTime(item.scheduled_at, locale);
-  const relative = relativeDayLabel(item.scheduled_at, t);
-
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      className="flex-row items-center px-4 py-4"
-      style={({ pressed }) => ({ backgroundColor: pressed ? colors.cream[50] : colors.white })}
-    >
-      <DateTile iso={item.scheduled_at} locale={locale} />
-
-      <View
-        className="ml-3 h-11 w-11 items-center justify-center rounded-full"
-        style={{ backgroundColor: colors.brand[50] }}
-      >
-        <TypeIcon size={19} color={colors.brand[600]} />
-      </View>
-
-      <View className="ml-3 flex-1">
-        <View className="flex-row items-start">
-          <View className="flex-1 pr-2">
-            <Text
-              className="text-[15px] font-bold"
-              style={{ color: colors.navy.text }}
-              numberOfLines={1}
-            >
-              {appointmentTypeLabel(item.appointment_type, t)}
-            </Text>
-            {item.provider_name ? (
-              <Text
-                className="mt-0.5 text-[13px]"
-                style={{ color: colors.navy.secondary }}
-                numberOfLines={1}
-              >
-                {item.provider_name}
-              </Text>
-            ) : null}
-            {item.reason ? (
-              <Text
-                className="mt-0.5 text-xs font-semibold"
-                style={{ color: colors.brand[600] }}
-                numberOfLines={1}
-              >
-                {item.reason}
-              </Text>
-            ) : null}
-          </View>
-          <AppointmentStatusPill status={item.status} label={statusLabel(item.status, t)} />
-        </View>
-
-        <View className="mt-2 flex-row items-center">
-          {time ? (
-            <>
-              <Clock size={12} color={colors.navy.muted} />
-              <Text className="ml-1 text-xs" style={{ color: colors.navy.secondary }}>
-                {time}
-              </Text>
-            </>
-          ) : (
-            <Text className="text-xs" style={{ color: colors.navy.muted }}>
-              {t('appointments.noDate')}
-            </Text>
-          )}
-          {item.facility_name ? (
-            <>
-              <View
-                className="mx-2 h-3 w-px"
-                style={{ backgroundColor: colors.cream[300] }}
-              />
-              <MapPin size={12} color={colors.navy.muted} />
-              <Text
-                className="ml-1 flex-1 text-xs"
-                style={{ color: colors.navy.secondary }}
-                numberOfLines={1}
-              >
-                {item.facility_name}
-              </Text>
-            </>
-          ) : null}
-        </View>
-
-        {relative ? (
-          <Text className="mt-1 text-[11px] font-semibold" style={{ color: colors.brand[600] }}>
-            {relative}
-          </Text>
-        ) : null}
-      </View>
-
-      <ChevronRight size={18} color={colors.navy.muted} style={{ marginLeft: 4 }} />
-    </Pressable>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Empty / error states
-// ---------------------------------------------------------------------------
-
-/**
- * The demo patient legitimately has no history (the past scope used to leak
- * other patients' rows through a SQL grouping bug; now correctly scoped, it is
- * simply empty), so both empty states are first-class, not afterthoughts.
- */
-function EmptyState({ scope, onBook }: { scope: AppointmentBoardScope; onBook: () => void }) {
-  const { t } = useTranslation();
-  const upcoming = scope === 'upcoming';
-  const Icon = upcoming ? CalendarSearch : History;
-
-  return (
-    <View className="items-center px-8 py-14">
-      <View
-        className="h-20 w-20 items-center justify-center rounded-full"
-        style={{ backgroundColor: colors.brand[50] }}
-      >
-        <Icon size={30} color={colors.brand[500]} />
-      </View>
-      <Text
-        className="mt-5 text-center text-base font-bold"
-        style={{ color: colors.navy.text }}
-      >
-        {upcoming ? t('appointments.emptyUpcoming') : t('appointments.emptyPast')}
-      </Text>
-      <Text
-        className="mt-2 text-center text-sm leading-5"
-        style={{ color: colors.navy.secondary }}
-      >
-        {upcoming ? t('appointments.emptyUpcomingBody') : t('appointments.emptyPastBody')}
-      </Text>
-      {upcoming ? (
-        <Pressable onPress={onBook} accessibilityRole="button" className="mt-5">
-          <LinearGradient
-            colors={[colors.brand[600], colors.brand[500], colors.brand[300]]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 8,
-              borderRadius: 999,
-              paddingHorizontal: 20,
-              paddingVertical: 12,
-            }}
-          >
-            <CalendarPlus size={16} color={colors.white} />
-            <Text style={{ color: colors.white, fontSize: 14, fontWeight: '700' }}>
-              {t('appointments.bookNew')}
-            </Text>
-          </LinearGradient>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
-function ErrorState({ onRetry }: { onRetry: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <View className="items-center px-8 py-14">
-      <View
-        className="h-20 w-20 items-center justify-center rounded-full"
-        style={{ backgroundColor: colors.semantic.dangerSurface }}
-      >
-        <TriangleAlert size={30} color={colors.semantic.danger} />
-      </View>
-      <Text className="mt-5 text-center text-base font-bold" style={{ color: colors.navy.text }}>
-        {t('appointments.loadError')}
-      </Text>
-      <Text className="mt-2 text-center text-sm leading-5" style={{ color: colors.navy.secondary }}>
-        {t('appointments.loadErrorBody')}
-      </Text>
-      <Pressable
-        onPress={onRetry}
-        accessibilityRole="button"
-        className="mt-5 flex-row items-center rounded-full px-5 py-3"
-        style={{ borderWidth: 1, borderColor: colors.brand[500], gap: 8 }}
-      >
-        <RefreshCw size={15} color={colors.brand[600]} />
-        <Text className="text-sm font-semibold" style={{ color: colors.brand[600] }}>
-          {t('appointments.retry')}
-        </Text>
-      </Pressable>
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
+/** How many past rows the Upcoming tab previews before "View all". */
+const RECENT_PREVIEW = 3;
 
 export default function AppointmentsListScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const [scope, setScope] = useState<AppointmentBoardScope>('upcoming');
   const board = useAppointmentBoard(50);
-
   const segment = board[scope];
-  const counts = useMemo(
-    () => ({ upcoming: board.upcoming.total, past: board.past.total }),
-    [board.upcoming.total, board.past.total],
-  );
+  const tab = TABS.find((def) => def.scope === scope) ?? TABS[0];
 
-  const goBook = () => router.push('/appointments/book');
+  const goBook = () => router.push(BOOK_ROUTE);
+  const open = (id: string) => router.push(`/appointments/${id}`);
+
+  const nextUp: Appointment | undefined = board.upcoming.items[0];
+  const recent = board.past.items.slice(0, RECENT_PREVIEW);
 
   return (
-    <Screen className="px-0">
-      <View className="flex-row items-center px-6 pt-2">
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={8}
-          accessibilityRole="button"
-          className="h-11 w-11 items-center justify-center rounded-full"
-          style={{ borderWidth: 1, borderColor: colors.brand[300] }}
-        >
-          <ArrowLeft size={18} color={colors.brand[600]} />
-        </Pressable>
-      </View>
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <ScreenHeader
+        title={t('opesCare.home.title')}
+        subtitle={t('opesCare.home.subtitle')}
+        right={
+          <CareButton
+            label={t('opesCare.home.bookNew')}
+            icon="calendar-plus"
+            variant="primary"
+            size="sm"
+            onPress={goBook}
+          />
+        }
+      />
 
       <ScrollView
-        className="flex-1"
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
             refreshing={board.isFetching}
             onRefresh={board.refetch}
-            tintColor={colors.brand[500]}
+            tintColor={colors.blue}
           />
         }
       >
-        <Text className="mt-3 text-[30px] font-extrabold" style={{ color: colors.navy.text }}>
-          {t('appointments.title')}
-        </Text>
-        <Text className="mt-1.5 text-[15px] leading-5" style={{ color: colors.navy.secondary }}>
-          {t('appointments.subtitle')}
-        </Text>
+        {board.isLoading ? (
+          <LoadingBlock label={t('opesCare.home.loading')} />
+        ) : board.isError ? (
+          <Card>
+            <EmptyState
+              icon="alert-circle"
+              tint="red"
+              title={t('appointments.loadError')}
+              message={t('appointments.loadErrorBody')}
+              actionLabel={t('appointments.retry')}
+              onAction={board.refetch}
+            />
+          </Card>
+        ) : (
+          <>
+            <NextAppointmentHero
+              t={t}
+              styles={styles}
+              appointment={nextUp}
+              onDetails={open}
+              onBook={goBook}
+            />
 
-        <BookingBanner onPress={goBook} />
-
-        <SegmentedControl scope={scope} counts={counts} onChange={setScope} />
-
-        <View
-          className="mt-4 overflow-hidden rounded-3xl"
-          style={{ backgroundColor: colors.white, borderWidth: 1, borderColor: colors.cream[300] }}
-        >
-          {board.isLoading ? (
-            <View className="items-center py-16">
-              <ActivityIndicator color={colors.brand[500]} />
+            {/* Segmented Upcoming / Past — kit chips with the live server totals. */}
+            <View style={styles.tabs} accessibilityRole="tablist">
+              {TABS.map((def) => {
+                const total = board[def.scope].total;
+                return (
+                  <Chip
+                    key={def.scope}
+                    label={t(def.labelKey)}
+                    icon={def.icon}
+                    count={total > 0 ? total : undefined}
+                    selected={def.scope === scope}
+                    onPress={() => setScope(def.scope)}
+                    style={styles.tab}
+                  />
+                );
+              })}
             </View>
-          ) : segment.isError ? (
-            <ErrorState onRetry={board.refetch} />
-          ) : segment.items.length === 0 ? (
-            <EmptyState scope={scope} onBook={goBook} />
-          ) : (
-            segment.items.map((item, index) => (
-              <View key={item.id}>
-                {index > 0 ? (
-                  <View className="h-px" style={{ backgroundColor: colors.cream[300] }} />
-                ) : null}
-                <AppointmentRow
-                  item={item}
-                  locale={i18n.language}
-                  onPress={() => router.push(`/appointments/${item.id}`)}
-                />
-              </View>
-            ))
-          )}
-        </View>
 
-        <View
-          className="mt-4 flex-row items-center rounded-3xl p-4"
-          style={{ backgroundColor: colors.brand[50] }}
-        >
-          <View
-            className="h-11 w-11 items-center justify-center rounded-full"
-            style={{ backgroundColor: colors.white }}
-          >
-            <ShieldPlus size={20} color={colors.brand[600]} />
-          </View>
-          <View className="ml-3 flex-1">
-            <Text className="text-sm font-bold" style={{ color: colors.navy.text }}>
-              {t('appointments.tipTitle')}
-            </Text>
-            <Text className="mt-0.5 text-xs leading-4" style={{ color: colors.navy.secondary }}>
-              {t('appointments.tipBody')}
-            </Text>
-          </View>
-        </View>
+            <View>
+              <SectionHeader title={t(tab.headingKey)} />
+              {segment.isError ? (
+                <Card>
+                  <EmptyState
+                    icon="alert-circle"
+                    tint="red"
+                    title={t('appointments.loadError')}
+                    message={t('appointments.loadErrorBody')}
+                    actionLabel={t('appointments.retry')}
+                    onAction={board.refetch}
+                  />
+                </Card>
+              ) : segment.items.length === 0 ? (
+                <Card>
+                  <EmptyState
+                    icon={tab.icon}
+                    tint="blue"
+                    title={t(tab.emptyTitleKey)}
+                    message={t(tab.emptyMessageKey)}
+                    actionLabel={scope === 'upcoming' ? t('opesCare.list.bookCta') : undefined}
+                    onAction={scope === 'upcoming' ? goBook : undefined}
+                  />
+                </Card>
+              ) : (
+                <View style={styles.stack}>
+                  {segment.items.map((item) => (
+                    <Card key={item.id} variant="flush">
+                      <AppointmentRow appointment={item} onPress={() => open(item.id)} />
+                    </Card>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {scope === 'upcoming' && recent.length > 0 ? (
+              <View>
+                <SectionHeader
+                  title={t('opesCare.home.recentTitle')}
+                  actionLabel={t('opesCare.list.viewAll')}
+                  actionChevron
+                  onAction={() => setScope('past')}
+                />
+                <View style={styles.stack}>
+                  {recent.map((item) => (
+                    <CompactCard
+                      key={item.id}
+                      t={t}
+                      styles={styles}
+                      appointment={item}
+                      onPress={() => open(item.id)}
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            {/* CARE-002's helper strip: opens the first appointment in view, or booking when there is none. */}
+            <Card variant="flush">
+              <ListRow
+                icon="edit"
+                tint="blue"
+                title={t('opesCare.list.helperTitle')}
+                subtitle={t('opesCare.list.helperText')}
+                onPress={() => (segment.items[0] ? open(segment.items[0].id) : goBook())}
+              />
+            </Card>
+
+            <NoticeBanner
+              icon="shield-check"
+              tone="normal"
+              title={t('appointments.tipTitle')}
+              message={t('appointments.tipBody')}
+            />
+          </>
+        )}
       </ScrollView>
-    </Screen>
+    </SafeAreaView>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Next-appointment hero — CARE-001's two-panel card
+// ---------------------------------------------------------------------------
+
+function NextAppointmentHero({
+  t,
+  styles,
+  appointment,
+  onDetails,
+  onBook,
+}: {
+  t: TFunction;
+  styles: Styles;
+  appointment?: Appointment;
+  onDetails: (id: string) => void;
+  onBook: () => void;
+}) {
+  const { colors } = useTheme();
+
+  if (!appointment) {
+    return (
+      <Card>
+        <View style={styles.heroEmpty}>
+          <View style={styles.heroEmptyCircle}>
+            <Icon name="calendar" size={24} color={colors.blue} />
+          </View>
+          <View style={styles.heroEmptyBody}>
+            <Text style={styles.heroEmptyTitle}>{t('opesCare.home.heroEmptyTitle')}</Text>
+            <Text style={styles.heroEmptyText}>{t('opesCare.home.heroEmptyText')}</Text>
+          </View>
+        </View>
+        <GradientButton
+          label={t('opesCare.home.heroEmptyCta')}
+          onPress={onBook}
+          style={styles.heroEmptyButton}
+        />
+      </Card>
+    );
+  }
+
+  const a = appointment;
+  const day = relativeDay(t, a.scheduled_at) || t('appointments.noDate');
+  const time = formatTime(a.scheduled_at);
+
+  return (
+    <View style={styles.hero}>
+      <View style={styles.heroLeft}>
+        <View style={styles.heroIcon}>
+          <Icon name="calendar" size={26} color={colors.textOnBrand} />
+        </View>
+        <Text style={styles.heroKicker}>{t('opesCare.home.heroKicker')}</Text>
+        <Text style={styles.heroDay} numberOfLines={2}>
+          {day}
+        </Text>
+        {!!time && <Text style={styles.heroTime}>{time}</Text>}
+      </View>
+      <View style={styles.heroRight}>
+        <Text style={styles.heroType}>{typeLabelOf(t, a.appointment_type)}</Text>
+        <Text style={styles.heroName} numberOfLines={2}>
+          {a.provider_name ?? t('opesCare.appt.providerTbd')}
+        </Text>
+        {!!a.reason && (
+          <View style={styles.heroMetaRow}>
+            <Icon name="clipboard" size={18} color={colors.textSecondary} />
+            <Text style={styles.heroMeta} numberOfLines={1}>
+              {a.reason}
+            </Text>
+          </View>
+        )}
+        <View style={styles.heroMetaRow}>
+          <Icon name="building" size={18} color={colors.textSecondary} />
+          <Text style={styles.heroMeta} numberOfLines={2}>
+            {a.facility_name ?? t('opesCare.appt.facilityTbd')}
+          </Text>
+        </View>
+        <CareButton
+          label={t('opesCare.home.heroDetails')}
+          variant="secondary"
+          iconRight="chevron-right"
+          onPress={() => onDetails(a.id)}
+          style={styles.heroButton}
+        />
+      </View>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Compact past-appointment card — CARE-002's "Past appointments" preview row
+// ---------------------------------------------------------------------------
+
+function CompactCard({
+  t,
+  styles,
+  appointment,
+  onPress,
+}: {
+  t: TFunction;
+  styles: Styles;
+  appointment: Appointment;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+  const a = appointment;
+  const kind = typeLabelOf(t, a.appointment_type);
+  const time = formatTime(a.scheduled_at);
+  const facility = a.facility_name ?? t('opesCare.appt.facilityTbd');
+  const meta = [time, facility].filter(Boolean).join(' • ');
+
+  return (
+    <Card
+      variant="flush"
+      onPress={onPress}
+      accessibilityLabel={[kind, a.provider_name, meta].filter(Boolean).join(', ')}
+      accessibilityHint={t('opesCare.appt.apptRowHint')}
+    >
+      <View style={styles.compact}>
+        <DateBlock iso={a.scheduled_at} tint={statusTintOf(a.status)} check={a.status === 'completed'} />
+        <View style={styles.compactBody}>
+          <Text style={styles.compactTitle} numberOfLines={2}>
+            {kind}
+          </Text>
+          <Text style={styles.compactProvider} numberOfLines={1}>
+            {a.provider_name ?? '—'}
+          </Text>
+          <Text style={styles.compactMeta} numberOfLines={1}>
+            {meta}
+          </Text>
+        </View>
+        <View style={styles.compactTrailing}>
+          <StatusPill status={a.status} size="sm" />
+          <Icon name="chevron-right" size={18} color={colors.textMuted} />
+        </View>
+      </View>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+type Styles = ReturnType<typeof makeStyles>;
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.page },
+    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    stack: { gap: spacing.sm + 2 },
+
+    tabs: { flexDirection: 'row', gap: spacing.sm },
+    tab: { flex: 1, justifyContent: 'center' },
+
+    hero: {
+      flexDirection: 'row',
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      overflow: 'hidden',
+    },
+    heroLeft: {
+      width: 148,
+      backgroundColor: colors.primaryDeep,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.sm,
+      gap: 2,
+    },
+    heroIcon: {
+      width: 62,
+      height: 62,
+      borderRadius: 31,
+      backgroundColor: colors.blueLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.sm + 2,
+    },
+    heroKicker: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textOnBrand,
+    },
+    heroDay: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+      color: colors.textOnBrand,
+      textAlign: 'center',
+      marginTop: 2,
+    },
+    heroTime: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+      color: colors.textOnBrand,
+    },
+    heroRight: { flex: 1, padding: spacing.md, gap: 6 },
+    heroType: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.link,
+    },
+    heroName: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+      color: colors.textPrimary,
+    },
+    heroMetaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+    heroMeta: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
+    heroButton: { marginTop: spacing.sm + 2 },
+
+    heroEmpty: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+    heroEmptyCircle: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroEmptyBody: { flex: 1, minWidth: 0 },
+    heroEmptyTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: colors.textPrimary,
+    },
+    heroEmptyText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    heroEmptyButton: { marginTop: spacing.md },
+
+    compact: { flexDirection: 'row', alignItems: 'center', gap: spacing.md - 4, padding: spacing.md - 2 },
+    compactBody: { flex: 1, minWidth: 0, gap: 2 },
+    compactTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: colors.textPrimary,
+    },
+    compactProvider: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    compactMeta: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textSecondary,
+    },
+    compactTrailing: {
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      alignSelf: 'stretch',
+      gap: spacing.md,
+    },
+  });

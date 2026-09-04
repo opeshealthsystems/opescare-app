@@ -1,107 +1,83 @@
+/**
+ * Documents — the official, independently verifiable papers a facility has
+ * issued to the patient (discharge summaries, lab reports, certificates,
+ * vaccination cards…). Library + preview panel on one route.
+ *
+ * Presentation follows the OPES kit: the library is a flush card of `ListRow`s
+ * (type-tinted circle, title, facility • issue date, type badge) behind a
+ * search field and counted filter chips; tapping a row opens the DOC-002
+ * preview panel — hero with the verified/pending pill, the file sheet, a
+ * details card and an actions card — in place of the list.
+ *
+ * Every action reaches the real API. "Open & verify" fetches the document's
+ * detail at tap time because the backend mints a fresh, short-lived
+ * `verify_url` per view; a `null` URL (no file attached) is reported, never
+ * opened. "Share" mints the same link through `components/docs/shared`. The
+ * list endpoint returns no file size or format, so neither is shown rather
+ * than guessed. There is no mobile upload endpoint, so there is no upload
+ * affordance. GET /mobile/documents is empty for most patients, so the empty
+ * state reads as "nothing has been issued yet" with a real next step.
+ */
 import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as Linking from 'expo-linking';
 import {
-  BadgeCheck,
-  Building2,
-  CalendarClock,
-  ChevronDown,
-  ChevronRight,
-  CircleAlert,
-  ExternalLink,
-  FileText,
-  FlaskConical,
-  FolderOpen,
-  Hash,
-  Lock,
-  Pill,
-  RefreshCw,
-  Search,
-  Send,
-  ShieldCheck,
-  Syringe,
-  X,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../components/ui/Screen';
-import {
-  CARD_SHADOW,
+  Card,
   Chip,
-  ChoiceChip,
   EmptyState,
-  InlineNotice,
-  RightsHeader,
-  humanizeSlug,
-  toneColors,
-  type Tone,
-} from '../components/privacy/DataRightsUi';
-import { useDocumentViewer } from '../lib/api/queries';
-import { useDocumentLibrary } from '../lib/api/privacyQueries';
-import type { OfficialDocument } from '../lib/api/types';
-import { colors } from '../theme/tokens';
+  Icon,
+  ListRow,
+  PillInput,
+  ScreenHeader,
+  SectionHeader,
+  StatusBadge,
+  radii,
+  spacing,
+  typography,
+  useTheme,
+  type IconName,
+  type Palette,
+  type Tint,
+} from '@/components/opes-ui';
+import { AsyncBoundary, CareButton, InfoRow, NoticeBanner } from '@/components/care/shared';
+import { DocumentUnavailableError, asyncStateOf, fmtDocDate, shareDocumentLink } from '@/components/docs/shared';
+import { useIsOnline } from '@/lib/offline';
+import { useDocumentViewer } from '@/lib/api/queries';
+import { useDocumentLibrary } from '@/lib/api/privacyQueries';
+import type { OfficialDocument, OfficialDocumentDetail } from '@/lib/api/types';
 
-/**
- * Documents — the official, independently verifiable papers a facility has
- * issued to the patient (discharge summaries, lab reports, medical
- * certificates, vaccination cards…).
- *
- * Reference: `Mobile app screens/a_tall_smartphone_app_screenshot_ui_mobile_health.png`
- * — the "Documents" screen, already drawn in the gold/cream brand: title +
- * subtitle, a search field, a row of counted category chips, one white card
- * per document with a tinted rounded-square icon tile, title, source, a meta
- * line, and a colour-coded category pill, closing on a gold privacy block
- * with a "Manage Access" button.
- *
- * Two deliberate departures from that reference, both because the API does not
- * support what it draws:
- *  - No "Upload" button. There is no mobile document-upload endpoint; every
- *    document here is issued by a facility, so an upload affordance would be a
- *    dead end and would misrepresent where these documents come from.
- *  - The meta line shows the reference number instead of "PDF · 1.2 MB". The
- *    list endpoint returns no file format or size, and inventing them on a
- *    document the patient may hand to a third party is not acceptable.
- * "Manage Access" is wired to the real privacy hub.
- *
- * GET /mobile/documents returns an empty list for a patient with no issued
- * documents, so the empty state is the state most patients will actually see:
- * it is built to read as "nothing has been issued yet", with a real next step,
- * rather than as a broken screen. Nothing here is fabricated — the list, the
- * verification code and the verify URL all come from the API.
- */
-
-/** Icon + tint per document type, following the reference's colour coding
- * (lab green, clinical coral, records blue, prescription amber). */
-const TYPE_META: Record<string, { icon: LucideIcon; tone: Tone }> = {
-  discharge_summary: { icon: FileText, tone: 'danger' },
-  lab_report: { icon: FlaskConical, tone: 'success' },
-  referral_letter: { icon: Send, tone: 'warning' },
-  vaccination_card: { icon: Syringe, tone: 'info' },
-  medical_certificate: { icon: BadgeCheck, tone: 'info' },
-  prescription: { icon: Pill, tone: 'brand' },
-  invoice: { icon: Hash, tone: 'muted' },
+/** Icon + tint per document type — §1: labs/meds green, documents blue, referrals purple. */
+const TYPE_META: Record<string, { icon: IconName; tint: Tint }> = {
+  discharge_summary: { icon: 'document-text', tint: 'blue' },
+  lab_report: { icon: 'flask', tint: 'green' },
+  referral_letter: { icon: 'send', tint: 'purple' },
+  vaccination_card: { icon: 'syringe', tint: 'green' },
+  medical_certificate: { icon: 'check-circle', tint: 'blue' },
+  prescription: { icon: 'pill', tint: 'green' },
+  invoice: { icon: 'receipt', tint: 'amber' },
 };
+const DEFAULT_META: { icon: IconName; tint: Tint } = { icon: 'document', tint: 'blue' };
 
-type Notice = { tone: Tone; icon: LucideIcon; body: string };
+type NoticeTone = 'pending' | 'warning' | 'critical' | 'normal';
+type Notice = { tone: NoticeTone; message: string };
 
 export default function DocumentsScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
-  const locale = i18n.language?.startsWith('fr') ? 'fr-FR' : 'en-US';
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
+  const online = useIsOnline();
 
   const library = useDocumentLibrary();
   const viewer = useDocumentViewer();
-  const [openingId, setOpeningId] = useState<string | null>(null);
+
+  const [selected, setSelected] = useState<OfficialDocument | null>(null);
+  const [detail, setDetail] = useState<OfficialDocumentDetail | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [busy, setBusy] = useState<'open' | 'share' | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [query, setQuery] = useState('');
 
@@ -109,10 +85,10 @@ export default function DocumentsScreen() {
   const total = library.data?.total ?? 0;
 
   const typeLabel = (type: string) =>
-    t(`documents.type.${type}`, { defaultValue: humanizeSlug(type) });
+    t(`documents.type.${type}`, { defaultValue: t('documents.type.other') });
 
-  /** Distinct types present, with their counts — the reference's counted
-   * chip row. Only offered once there is genuinely something to narrow down. */
+  /** Distinct types present, with their counts — only offered once there is
+   * genuinely something to narrow down. */
   const types = useMemo(() => {
     const counts = new Map<string, number>();
     for (const doc of documents) counts.set(doc.document_type, (counts.get(doc.document_type) ?? 0) + 1);
@@ -127,368 +103,538 @@ export default function DocumentsScreen() {
       if (typeFilter !== 'all' && doc.document_type !== typeFilter) return false;
       if (!needle) return true;
       return [doc.title, doc.facility_name, doc.document_number, doc.verification_code]
-        .filter(Boolean)
-        .some((field) => (field as string).toLowerCase().includes(needle));
+        .filter((field): field is string => !!field)
+        .some((field) => field.toLowerCase().includes(needle));
     });
   }, [documents, typeFilter, query]);
 
   const isNarrowed = typeFilter !== 'all' || query.trim().length > 0;
 
-  const handleView = (doc: OfficialDocument) => {
+  const state = asyncStateOf(library, {
+    offline: !online,
+    offlineMessage: t('opesCore.errors.offlineBody'),
+  });
+
+  const openPreview = (doc: OfficialDocument) => {
+    setSelected(doc);
+    setDetail(null);
     setNotice(null);
-    setOpeningId(doc.id);
+  };
+  const closePreview = () => {
+    setSelected(null);
+    setNotice(null);
+  };
+
+  const handleOpen = (doc: OfficialDocument) => {
+    setNotice(null);
+    setBusy('open');
     // The backend mints a fresh, short-lived verify_url per view, so the URL is
     // fetched at tap time rather than cached with the list.
     viewer.mutate(doc.id, {
-      onSuccess: async (detail) => {
-        setOpeningId(null);
-        if (!detail.verify_url) {
-          setNotice({ tone: 'danger', icon: CircleAlert, body: t('documents.noVerifyUrl') });
+      onSuccess: async (d) => {
+        setBusy(null);
+        setDetail(d);
+        if (!d.verify_url) {
+          setNotice({ tone: 'critical', message: t('documents.noVerifyUrl') });
           return;
         }
         try {
-          await Linking.openURL(detail.verify_url);
+          await Linking.openURL(d.verify_url);
         } catch {
-          setNotice({ tone: 'danger', icon: CircleAlert, body: t('documents.viewError') });
+          setNotice({ tone: 'critical', message: t('documents.viewError') });
         }
       },
       onError: () => {
-        setOpeningId(null);
-        setNotice({ tone: 'danger', icon: CircleAlert, body: t('documents.viewError') });
+        setBusy(null);
+        setNotice({ tone: 'critical', message: t('documents.viewError') });
       },
     });
   };
 
-  const header = (
-    <View>
-      <RightsHeader
+  const handleShare = async (doc: OfficialDocument) => {
+    setNotice(null);
+    setBusy('share');
+    try {
+      await shareDocumentLink(doc.id, doc.title);
+    } catch (e) {
+      setNotice({
+        tone: 'critical',
+        message: e instanceof DocumentUnavailableError ? e.message : t('documents.viewError'),
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // ── Preview panel ─────────────────────────────────────────────────────────
+  if (selected) {
+    return (
+      <SafeAreaView style={s.screen} edges={['top', 'bottom']}>
+        <ScreenHeader
+          title={t('opesDocs.preview.title')}
+          align="center"
+          onBack={closePreview}
+          actions={[{ icon: 'lock', onPress: () => router.push('/privacy'), accessibilityLabel: t('documents.manageAccess') }]}
+        />
+        <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+          <PreviewPanel
+            doc={selected}
+            detail={detail}
+            notice={notice}
+            busy={busy}
+            typeLabel={typeLabel(selected.document_type)}
+            onOpen={() => handleOpen(selected)}
+            onShare={() => void handleShare(selected)}
+            onManageAccess={() => router.push('/privacy')}
+            onBack={closePreview}
+          />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Library ───────────────────────────────────────────────────────────────
+  return (
+    <SafeAreaView style={s.screen} edges={['top', 'bottom']}>
+      <ScreenHeader
         title={t('documents.title')}
         subtitle={t('documents.subtitle')}
-        icon={ShieldCheck}
+        actions={[{ icon: 'lock', onPress: () => router.push('/privacy'), accessibilityLabel: t('documents.manageAccess') }]}
       />
+      <ScrollView
+        contentContainerStyle={s.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={library.isRefetching && !library.isFetchingNextPage}
+            onRefresh={() => library.refetch()}
+            tintColor={colors.blue}
+          />
+        }
+      >
+        <NoticeBanner icon="shield-check" tone="normal" title={t('documents.verifiedTitle')} message={t('documents.verifiedBody')} />
+        {notice ? <NoticeBanner icon="alert-circle" tone={notice.tone} message={notice.message} /> : null}
 
-      <View className="mt-5">
-        <InlineNotice
-          tone="brand"
-          icon={BadgeCheck}
-          title={t('documents.verifiedTitle')}
-          body={t('documents.verifiedBody')}
-        />
-      </View>
-
-      {notice ? (
-        <View className="mt-3">
-          <InlineNotice tone={notice.tone} icon={notice.icon} body={notice.body} />
-        </View>
-      ) : null}
-
-      {documents.length > 0 ? (
-        <>
-          {/* Search — the reference's "Search documents…" field, running over
-              the fields the list endpoint actually returns. */}
-          <View
-            className="mt-5 flex-row items-center rounded-2xl bg-white px-4"
-            style={{ borderWidth: 1, borderColor: colors.cream[300], height: 48 }}
-          >
-            <Search size={17} color={colors.navy.muted} />
-            <TextInput
-              className="ml-2.5 flex-1 text-[14px] text-navy-text"
-              placeholder={t('documents.searchPlaceholder')}
-              placeholderTextColor={colors.navy.muted}
-              autoCapitalize="none"
-              autoCorrect={false}
-              value={query}
-              onChangeText={setQuery}
-            />
-            {query.length > 0 ? (
-              <Pressable
-                onPress={() => setQuery('')}
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel={t('documents.clearSearch')}
-              >
-                <X size={16} color={colors.navy.muted} />
-              </Pressable>
-            ) : null}
-          </View>
-
-          {types.length > 1 ? (
-            <View className="mt-4 flex-row flex-wrap" style={{ gap: 8 }}>
-              <ChoiceChip
-                label={`${t('documents.filterAll')} · ${total}`}
-                selected={typeFilter === 'all'}
-                onPress={() => setTypeFilter('all')}
-              />
-              {types.map(({ type, count }) => (
-                <ChoiceChip
-                  key={type}
-                  label={`${typeLabel(type)} · ${count}`}
-                  selected={typeFilter === type}
-                  onPress={() => setTypeFilter(type)}
+        <AsyncBoundary
+          state={state}
+          loadingLabel={t('documents.loading')}
+          isEmpty={(lib) => lib.documents.length === 0}
+          empty={
+            <>
+              <Card>
+                <EmptyState
+                  icon="folder"
+                  tint="blue"
+                  title={t('documents.empty')}
+                  message={t('documents.emptyBody')}
+                  actionLabel={t('documents.emptyAction')}
+                  onAction={() => router.push('/export-records')}
                 />
-              ))}
-            </View>
-          ) : null}
-
-          <Text className="mb-3 mt-5 text-[12px] font-bold uppercase tracking-wide text-navy-muted">
-            {isNarrowed
-              ? t('documents.matchLabel', { count: visible.length })
-              : t('documents.countLabel', { count: total })}
-          </Text>
-        </>
-      ) : (
-        <View className="mt-6" />
-      )}
-    </View>
-  );
-
-  return (
-    <Screen className="px-0">
-      {library.isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={colors.brand[500]} size="large" />
-          <Text className="mt-3 text-[13px] text-navy-muted">{t('documents.loading')}</Text>
-        </View>
-      ) : library.isError ? (
-        <View className="flex-1 items-center justify-center px-8">
-          <CircleAlert size={28} color={colors.semantic.danger} />
-          <Text className="mt-3 text-center text-[15px] font-bold text-navy-text">
-            {t('documents.errorTitle')}
-          </Text>
-          <Text className="mt-1.5 text-center text-[13px] leading-5 text-navy-secondary">
-            {t('documents.loadError')}
-          </Text>
-          <Pressable
-            onPress={() => library.refetch()}
-            accessibilityRole="button"
-            className="mt-5 flex-row items-center rounded-full border border-brand-500 px-5 py-2.5"
-          >
-            <RefreshCw size={14} color={colors.brand[600]} />
-            <Text className="ml-2 text-[13px] font-bold text-brand-600">{t('documents.retry')}</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <FlatList
-          data={visible}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={library.isRefetching && !library.isFetchingNextPage}
-              onRefresh={() => library.refetch()}
-              tintColor={colors.brand[500]}
-            />
+              </Card>
+              <PrivacyBlock onManageAccess={() => router.push('/privacy')} />
+            </>
           }
-          ListHeaderComponent={header}
-          ItemSeparatorComponent={() => <View className="h-3" />}
-          ListEmptyComponent={
-            documents.length === 0 ? (
-              <EmptyState
-                icon={FolderOpen}
-                title={t('documents.empty')}
-                body={t('documents.emptyBody')}
-                actionLabel={t('documents.emptyAction')}
-                onAction={() => router.push('/export-records')}
+        >
+          {() => (
+            <>
+              <PillInput
+                icon={<Icon name="search" size={18} color={colors.textMuted} />}
+                placeholder={t('documents.searchPlaceholder')}
+                placeholderTextColor={colors.textMuted}
+                value={query}
+                onChangeText={setQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="search"
+                clearButtonMode="while-editing"
+                accessibilityLabel={t('documents.searchPlaceholder')}
               />
-            ) : (
-              <EmptyState
-                icon={Search}
-                tone="muted"
-                title={t('documents.filterEmptyTitle')}
-                body={t('documents.filterEmptyBody')}
-                actionLabel={t('documents.clearFilters')}
-                onAction={() => {
-                  setTypeFilter('all');
-                  setQuery('');
-                }}
+
+              {types.length > 1 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
+                  <Chip
+                    label={t('documents.filterAll')}
+                    count={total}
+                    selected={typeFilter === 'all'}
+                    onPress={() => setTypeFilter('all')}
+                  />
+                  {types.map(({ type, count }) => (
+                    <Chip
+                      key={type}
+                      label={typeLabel(type)}
+                      count={count}
+                      selected={typeFilter === type}
+                      onPress={() => setTypeFilter(type)}
+                    />
+                  ))}
+                </ScrollView>
+              ) : null}
+
+              <SectionHeader
+                variant="overline"
+                title={isNarrowed ? t('documents.matchLabel', { count: visible.length }) : t('documents.countLabel', { count: total })}
+                style={s.listHeader}
               />
-            )
-          }
-          renderItem={({ item }) => (
-            <DocumentCard
-              doc={item}
-              locale={locale}
-              loading={openingId === item.id}
-              onView={() => handleView(item)}
-            />
-          )}
-          ListFooterComponent={
-            <View>
+
+              {visible.length === 0 ? (
+                <Card>
+                  <EmptyState
+                    icon="search"
+                    tint="blue"
+                    title={t('documents.filterEmptyTitle')}
+                    message={t('documents.filterEmptyBody')}
+                    actionLabel={t('documents.clearFilters')}
+                    onAction={() => {
+                      setTypeFilter('all');
+                      setQuery('');
+                    }}
+                  />
+                </Card>
+              ) : (
+                <Card variant="flush">
+                  {visible.map((doc, i) => {
+                    const meta = TYPE_META[doc.document_type] ?? DEFAULT_META;
+                    return (
+                      <ListRow
+                        key={doc.id}
+                        icon={meta.icon}
+                        tint={meta.tint}
+                        title={doc.title}
+                        meta={[doc.facility_name, doc.issued_at ? fmtDocDate(doc.issued_at) : null]}
+                        trailing={<StatusBadge status={doc.document_type} tone="neutral" label={typeLabel(doc.document_type)} size="sm" />}
+                        onPress={() => openPreview(doc)}
+                        accessibilityHint={t('documents.view')}
+                        divider={i < visible.length - 1}
+                      />
+                    );
+                  })}
+                </Card>
+              )}
+
               {library.hasNextPage ? (
-                <Pressable
-                  onPress={() => library.fetchNextPage()}
-                  disabled={library.isFetchingNextPage}
-                  accessibilityRole="button"
-                  className="mt-4 flex-row items-center justify-center rounded-2xl bg-white py-3.5"
-                  style={CARD_SHADOW}
-                >
-                  {library.isFetchingNextPage ? (
-                    <ActivityIndicator size="small" color={colors.brand[600]} />
-                  ) : (
-                    <>
-                      <Text className="text-[13px] font-bold text-brand-600">
-                        {t('documents.loadMore')}
-                      </Text>
-                      <ChevronDown size={15} color={colors.brand[600]} style={{ marginLeft: 4 }} />
-                    </>
-                  )}
-                </Pressable>
+                <CareButton
+                  variant="secondary"
+                  label={t('documents.loadMore')}
+                  iconRight="chevron-down"
+                  loading={library.isFetchingNextPage}
+                  onPress={() => void library.fetchNextPage()}
+                />
               ) : null}
 
-              {/* The reference's closing privacy block — gold tint, padlock,
-                  and a real "Manage Access" route into the privacy hub. */}
-              <View className="mt-5 rounded-2xl bg-brand-50 p-4">
-                <View className="flex-row items-start">
-                  <View className="h-10 w-10 items-center justify-center rounded-full bg-brand-100">
-                    <Lock size={17} color={colors.brand[600]} />
-                  </View>
-                  <View className="ml-3 flex-1">
-                    <Text className="text-[13px] font-bold text-navy-text">
-                      {t('documents.privacyBlockTitle')}
-                    </Text>
-                    <Text className="mt-1 text-[12px] leading-[18px] text-navy-secondary">
-                      {t('documents.privacyBlockBody')}
-                    </Text>
-                  </View>
-                </View>
-                <Pressable
-                  onPress={() => router.push('/privacy')}
-                  accessibilityRole="button"
-                  className="mt-3.5 h-11 flex-row items-center justify-center rounded-xl border border-brand-500"
-                >
-                  <Text className="text-[13px] font-bold text-brand-600">
-                    {t('documents.manageAccess')}
-                  </Text>
-                  <ChevronRight size={15} color={colors.brand[600]} />
-                </Pressable>
-              </View>
-
-              {documents.length > 0 ? (
-                <View className="mt-4">
-                  <InlineNotice tone="muted" icon={ShieldCheck} body={t('documents.footerNote')} />
-                </View>
-              ) : null}
-            </View>
-          }
-        />
-      )}
-    </Screen>
+              <PrivacyBlock onManageAccess={() => router.push('/privacy')} />
+              <NoticeBanner icon="shield-check" tone="pending" message={t('documents.footerNote')} />
+            </>
+          )}
+        </AsyncBoundary>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-function DocumentCard({
+/* ------------------------------------------------------------------ preview */
+
+function PreviewPanel({
   doc,
-  locale,
-  loading,
-  onView,
+  detail,
+  notice,
+  busy,
+  typeLabel,
+  onOpen,
+  onShare,
+  onManageAccess,
+  onBack,
 }: {
   doc: OfficialDocument;
-  locale: string;
-  loading: boolean;
-  onView: () => void;
+  detail: OfficialDocumentDetail | null;
+  notice: Notice | null;
+  busy: 'open' | 'share' | null;
+  typeLabel: string;
+  onOpen: () => void;
+  onShare: () => void;
+  onManageAccess: () => void;
+  onBack: () => void;
 }) {
   const { t } = useTranslation();
-  const meta = TYPE_META[doc.document_type] ?? { icon: FileText, tone: 'muted' as Tone };
-  const Icon = meta.icon;
-  const { surface, ink } = toneColors(meta.tone);
-  const typeLabel = t(`documents.type.${doc.document_type}`, {
-    defaultValue: humanizeSlug(doc.document_type),
-  });
+  const { colors, statusMap, tintMap } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
 
-  const issued = doc.issued_at ? new Date(doc.issued_at) : null;
-  const issuedValid = issued && !Number.isNaN(issued.getTime());
+  // A verification code is what makes the paper independently checkable.
+  const verified = !!doc.verification_code;
+  const issued = doc.issued_at ? fmtDocDate(doc.issued_at) : '';
+  const meta = TYPE_META[doc.document_type] ?? DEFAULT_META;
+  const tint = tintMap[meta.tint];
 
   return (
-    <View className="rounded-2xl bg-white p-4" style={CARD_SHADOW}>
-      <View className="flex-row items-start">
-        {/* Rounded-square tinted tile, colour-coded by type — as drawn in the
-            Documents reference. */}
-        <View
-          className="h-12 w-12 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: surface }}
-        >
-          <Icon size={20} color={ink} />
+    <>
+      {/* Hero */}
+      <View style={s.hero}>
+        <View style={[s.heroIcon, { backgroundColor: tint.bg }]}>
+          <Icon name={meta.icon} size={28} color={tint.fg} />
         </View>
-        <View className="ml-3 flex-1 pr-2">
-          <Text className="text-[15px] font-extrabold leading-5 text-navy-text" numberOfLines={2}>
+        <View style={s.heroBody}>
+          {/* The document title is the facility's — never translated. */}
+          <Text style={s.heroTitle} numberOfLines={2}>
             {doc.title}
           </Text>
+          <Text style={s.heroMeta}>
+            {issued ? t('documents.issuedOn', { date: issued }) : t('opesCore.common.notRecorded')}
+          </Text>
           {doc.facility_name ? (
-            <View className="mt-1 flex-row items-center">
-              <Building2 size={11} color={colors.navy.muted} />
-              <Text className="ml-1.5 flex-1 text-[12px] text-navy-secondary" numberOfLines={1}>
+            <View style={s.heroPlace}>
+              <Icon name="location" size={14} color={colors.link} />
+              <Text style={s.heroPlaceText} numberOfLines={1}>
                 {doc.facility_name}
               </Text>
             </View>
           ) : null}
         </View>
-        <Chip tone={meta.tone} label={typeLabel} />
+        <StatusBadge
+          status={verified ? 'verified' : 'pending'}
+          tone={verified ? 'normal' : 'warning'}
+          icon={verified ? 'check-circle' : 'alert-circle'}
+          label={verified ? t('opesDocs.preview.verified') : t('opesDocs.preview.pending')}
+        />
       </View>
 
-      {/* Meta line — date and reference. The list endpoint returns no file
-          format or size, so neither is shown rather than guessed. */}
-      <View className="mt-3 flex-row flex-wrap items-center" style={{ gap: 12 }}>
-        {issuedValid ? (
-          <View className="flex-row items-center">
-            <CalendarClock size={12} color={colors.navy.muted} />
-            <Text className="ml-1.5 text-[12px] text-navy-secondary">
-              {t('documents.issuedOn', {
-                date: issued.toLocaleDateString(locale, {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                }),
-              })}
-            </Text>
-          </View>
-        ) : null}
-        {doc.document_number ? (
-          <View className="flex-row items-center">
-            <Hash size={12} color={colors.navy.muted} />
-            <Text className="ml-1.5 text-[12px] text-navy-secondary" numberOfLines={1}>
-              {t('documents.referenceNumber', { number: doc.document_number })}
-            </Text>
-          </View>
-        ) : null}
-      </View>
+      {notice ? <NoticeBanner icon="alert-circle" tone={notice.tone} message={notice.message} /> : null}
 
-      <View className="mt-3.5 border-t border-cream-200 pt-3.5">
-        {doc.verification_code ? (
-          <View className="flex-row items-center">
-            <BadgeCheck size={13} color={colors.semantic.success} />
-            <Text className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-navy-muted">
-              {t('documents.verificationCode')}
+      {/* File sheet */}
+      <Card>
+        <View style={s.previewRow}>
+          <View style={s.sheet}>
+            <Icon name="document-text" size={34} color={colors.blue} />
+            <Text style={s.sheetCaption} numberOfLines={2}>
+              {doc.document_number ?? typeLabel}
             </Text>
           </View>
-        ) : null}
-        {doc.verification_code ? (
-          <Text
-            className="mt-1 text-[12px] font-semibold text-navy-text"
-            style={{ letterSpacing: 0.5 }}
-            numberOfLines={1}
-          >
-            {doc.verification_code}
-          </Text>
-        ) : null}
+          <View style={s.previewBody}>
+            <View style={s.previewHead}>
+              <View style={[s.fileIcon, { backgroundColor: statusMap.critical.bg }]}>
+                <Icon name="document-text" size={20} color={statusMap.critical.fg} />
+              </View>
+              <View style={s.previewNameBox}>
+                <Text style={s.previewName} numberOfLines={2}>
+                  {doc.title}
+                </Text>
+                <Text style={s.previewMeta} numberOfLines={1}>
+                  {typeLabel}
+                </Text>
+              </View>
+            </View>
+            <Text style={s.previewDesc}>{t('opesDocs.preview.documentDesc')}</Text>
+            <View style={s.chip}>
+              <Icon name="shield-check" size={16} color={colors.link} />
+              <Text style={s.chipText}>
+                {verified ? t('opesDocs.preview.verifiedDocument') : t('opesDocs.preview.awaitingVerification')}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Card>
 
-        <Pressable
-          onPress={onView}
-          disabled={loading}
-          accessibilityRole="button"
-          className="mt-3 h-12 flex-row items-center justify-center rounded-xl bg-brand-500"
-          style={{ opacity: loading ? 0.7 : 1 }}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color={colors.white} />
-          ) : (
-            <>
-              <Text className="mr-2 text-[13px] font-bold text-white">{t('documents.view')}</Text>
-              <ExternalLink size={14} color={colors.white} />
-            </>
-          )}
-        </Pressable>
-      </View>
-    </View>
+      {/* Details */}
+      <Card variant="flush">
+        <View style={s.rows}>
+          <InfoRow
+            icon="building"
+            tint="blue"
+            label={t('opesDocs.detail.facility', { defaultValue: 'Issuing facility' })}
+            value={doc.facility_name ?? t('opesCore.common.notRecorded')}
+            divider
+          />
+          <InfoRow
+            icon="calendar"
+            tint="blue"
+            label={t('opesDocs.detail.issued', { defaultValue: 'Issued' })}
+            value={issued || t('opesCore.common.notRecorded')}
+            divider={!!doc.document_number || !!doc.verification_code || !!detail?.expires_at}
+          />
+          {doc.document_number ? (
+            <InfoRow
+              icon="document"
+              tint="blue"
+              label={t('opesDocs.detail.reference', { defaultValue: 'Reference number' })}
+              value={doc.document_number}
+              divider={!!doc.verification_code || !!detail?.expires_at}
+            />
+          ) : null}
+          {doc.verification_code ? (
+            <InfoRow
+              icon="shield-check"
+              tint="green"
+              label={t('documents.verificationCode')}
+              value={doc.verification_code}
+              divider={!!detail?.expires_at}
+            />
+          ) : null}
+          {detail?.expires_at ? (
+            <InfoRow
+              icon="clock"
+              tint="amber"
+              label={t('opesDocs.detail.expires', { defaultValue: 'Valid until' })}
+              value={fmtDocDate(detail.expires_at)}
+            />
+          ) : null}
+        </View>
+      </Card>
+
+      {/* Actions */}
+      <Card variant="flush">
+        <ListRow
+          icon="external-link"
+          tint="blue"
+          title={t('documents.view')}
+          subtitle={t('opesDocs.preview.openSub', { defaultValue: 'Opens the sealed original with its verification link' })}
+          onPress={busy ? undefined : onOpen}
+          chevron={busy !== 'open'}
+          trailing={busy === 'open' ? <ActivityIndicator size="small" color={colors.blue} /> : undefined}
+          divider
+        />
+        <ListRow
+          icon="share"
+          tint="blue"
+          title={t('opesDocs.preview.shareTitle')}
+          subtitle={t('opesDocs.preview.shareSub')}
+          onPress={busy ? undefined : onShare}
+          chevron={busy !== 'share'}
+          trailing={busy === 'share' ? <ActivityIndicator size="small" color={colors.blue} /> : undefined}
+          divider
+        />
+        <ListRow
+          icon="lock"
+          tint="purple"
+          title={t('documents.manageAccess')}
+          subtitle={t('documents.privacyBlockBody')}
+          onPress={onManageAccess}
+        />
+      </Card>
+
+      <NoticeBanner icon="shield-check" tone="pending" message={t('documents.footerNote')} />
+
+      <CareButton
+        variant="secondary"
+        icon="chevron-left"
+        label={t('opesDocs.preview.backToLibrary', { defaultValue: 'Back to documents' })}
+        onPress={onBack}
+      />
+    </>
   );
 }
+
+/* ------------------------------------------------------------------ privacy */
+
+/** The reference's closing privacy block, with a real "Manage access" route. */
+function PrivacyBlock({ onManageAccess }: { onManageAccess: () => void }) {
+  const { t } = useTranslation();
+  const { colors, tintMap } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <Card>
+      <View style={s.privacyRow}>
+        <View style={[s.privacyMark, { backgroundColor: tintMap.blue.bg }]}>
+          <Icon name="lock" size={20} color={tintMap.blue.fg} />
+        </View>
+        <View style={s.privacyBody}>
+          <Text style={s.privacyTitle}>{t('documents.privacyBlockTitle')}</Text>
+          <Text style={s.privacyText}>{t('documents.privacyBlockBody')}</Text>
+        </View>
+      </View>
+      <CareButton variant="secondary" label={t('documents.manageAccess')} iconRight="chevron-right" onPress={onManageAccess} style={s.privacyButton} />
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ styles */
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.page },
+    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
+    chips: { flexDirection: 'row', gap: spacing.sm, paddingRight: spacing.md },
+    listHeader: { marginBottom: 0 },
+
+    hero: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md - 4 },
+    heroIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: radii.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroBody: { flex: 1, minWidth: 0, gap: 3 },
+    heroTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.size.lg, color: colors.textPrimary },
+    heroMeta: { fontFamily: typography.fontFamily.regular, fontSize: typography.size.sm, color: colors.textSecondary },
+    heroPlace: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    heroPlaceText: { flex: 1, fontFamily: typography.fontFamily.medium, fontSize: typography.size.sm, color: colors.link },
+
+    previewRow: { flexDirection: 'row', gap: spacing.md - 4 },
+    sheet: {
+      width: 96,
+      height: 136,
+      borderRadius: radii.sm,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      padding: spacing.sm,
+    },
+    sheetCaption: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: 10,
+      textAlign: 'center',
+      color: colors.textMuted,
+    },
+    previewBody: { flex: 1, minWidth: 0, gap: spacing.sm },
+    previewHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    fileIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    previewNameBox: { flex: 1, minWidth: 0, gap: 2 },
+    previewName: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm, color: colors.link },
+    previewMeta: { fontFamily: typography.fontFamily.regular, fontSize: typography.size.xs, color: colors.textSecondary },
+    previewDesc: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textSecondary,
+    },
+    chip: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: radii.pill,
+      backgroundColor: colors.primarySoft,
+    },
+    chipText: { flexShrink: 1, fontFamily: typography.fontFamily.medium, fontSize: typography.size.sm, color: colors.link },
+
+    // InfoRow carries no horizontal inset of its own — it expects a padded card.
+    rows: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+
+    privacyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md - 4 },
+    privacyMark: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    privacyBody: { flex: 1, minWidth: 0, gap: 3 },
+    privacyTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.md, color: colors.textPrimary },
+    privacyText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textSecondary,
+    },
+    privacyButton: { marginTop: spacing.md },
+  });

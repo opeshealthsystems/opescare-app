@@ -1,37 +1,35 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
+  StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as SecureStore from 'expo-secure-store';
 import {
-  Apple,
-  ArrowLeft,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
-  FlaskConical,
-  Lock,
-  ShieldLock,
-  Stethoscope,
-  User,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../../components/ui/Screen';
-import { Button } from '../../components/ui/Button';
-import { TextField } from '../../components/ui/TextField';
-import { Logo } from '../../components/ui/Logo';
-import { MedicalWatermark } from '../../components/auth/MedicalWatermark';
-import { GoogleMark } from '../../components/icons/GoogleMark';
-import { useAuthStore } from '../../lib/store/auth';
-import { colors } from '../../theme/tokens';
+  Card,
+  GradientButton,
+  Icon,
+  ListRow,
+  ScreenHeader,
+  PillInput,
+  StatusBadge,
+  radii,
+  spacing,
+  typography,
+  useTheme,
+  type IconName,
+  type Palette,
+} from '@/components/opes-ui';
+import { FieldLabel, FormError, Note } from '@/components/enrol/shared';
+import { Screen } from '@/components/ui/Screen';
+import { GoogleMark } from '@/components/icons/GoogleMark';
+import { useAuthStore } from '@/lib/store/auth';
 
 /** Dev-only quick-login shortcuts for local/demo backends (seeded by
  * DemoUsersSeeder). Only the patient account can actually sign into this
@@ -40,19 +38,25 @@ import { colors } from '../../theme/tokens';
 const DEMO_ACCOUNTS = [
   {
     key: 'patient',
-    icon: User,
+    icon: 'person',
     labelKey: 'auth.demoLoginPatient',
     email: 'demo.patient@opescare.test',
     password: 'DemoPass!2026',
   },
   {
     key: 'doctor',
-    icon: Stethoscope,
+    icon: 'stethoscope',
     labelKey: 'auth.demoLoginDoctor',
     email: null,
     password: null,
   },
-] as const;
+] as const satisfies readonly {
+  key: string;
+  icon: IconName;
+  labelKey: string;
+  email: string | null;
+  password: string | null;
+}[];
 
 /**
  * "Remember my email" persistence. Only the identifier is stored — never the
@@ -93,6 +97,8 @@ const rememberedEmail: RememberedEmailStore =
 export default function LoginScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const loginWithEmail = useAuthStore((s) => s.loginWithEmail);
   const clearError = useAuthStore((s) => s.clearError);
   const storeError = useAuthStore((s) => s.error);
@@ -163,50 +169,26 @@ export default function LoginScreen() {
     }
   };
 
-  return (
-    <Screen>
-      <MedicalWatermark opacity={0.16} />
+  const handleBack = () =>
+    router.canGoBack() ? router.back() : router.replace('/(auth)/welcome');
 
+  return (
+    <Screen className="px-0">
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.screen}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        <ScreenHeader
+          title={t('auth.welcomeBack')}
+          subtitle={t('auth.signInSubtitle')}
+          onBack={handleBack}
+        />
+
         <ScrollView
-          className="flex-1"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: 32 }}
+          contentContainerStyle={styles.content}
         >
-          <Pressable
-            onPress={() =>
-              router.canGoBack() ? router.back() : router.replace('/(auth)/welcome')
-            }
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.back')}
-            hitSlop={8}
-            className="mt-2 h-11 w-11 items-center justify-center rounded-full border border-brand-300"
-            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-          >
-            <ArrowLeft size={18} color={colors.brand[600]} />
-          </Pressable>
-
-          <View className="items-center pb-2 pt-3">
-            <Logo size={88} />
-          </View>
-
-          <Text
-            className="mt-5 text-center font-extrabold text-navy-text"
-            style={{ fontSize: 26, lineHeight: 32 }}
-          >
-            {t('auth.welcomeBack')}
-          </Text>
-          <Text
-            className="mt-2 self-center text-center text-navy-secondary"
-            style={{ fontSize: 14, lineHeight: 21, maxWidth: 300 }}
-          >
-            {t('auth.signInSubtitle')}
-          </Text>
-
           {__DEV__ ? (
             <DemoAccountPicker
               open={demoMenuOpen}
@@ -216,11 +198,11 @@ export default function LoginScreen() {
             />
           ) : null}
 
-          <View className="mt-7">
-            <TextField
-              label={t('auth.emailOrHealthId')}
+          <View>
+            <FieldLabel text={t('auth.emailOrHealthId')} />
+            <PillInput
+              icon={<Icon name="person" size={18} color={colors.blue} />}
               placeholder={t('auth.emailPlaceholder')}
-              icon={User}
               autoCapitalize="none"
               autoCorrect={false}
               autoComplete="email"
@@ -233,25 +215,26 @@ export default function LoginScreen() {
                 resetErrors();
               }}
               error={fieldErrors.email}
+              accessibilityLabel={t('auth.emailOrHealthId')}
             />
+          </View>
 
-            <View className="mb-2 flex-row items-center justify-between">
-              <Text className="text-sm font-semibold text-navy-text">{t('auth.password')}</Text>
-              <Pressable
+          <View>
+            <View style={styles.labelRow}>
+              <FieldLabel text={t('auth.password')} />
+              <TouchableOpacity
                 onPress={() => router.push('/(auth)/forgot-password')}
                 accessibilityRole="link"
                 hitSlop={8}
               >
-                <Text className="text-sm font-semibold text-brand-500">
-                  {t('auth.forgotPassword')}
-                </Text>
-              </Pressable>
+                <Text style={styles.link}>{t('auth.forgotPassword')}</Text>
+              </TouchableOpacity>
             </View>
-            <TextField
+            <PillInput
+              icon={<Icon name="lock" size={18} color={colors.blue} />}
               placeholder={t('auth.passwordPlaceholder')}
-              icon={Lock}
-              secureToggle
-              secureTextEntry
+              isPassword
+              autoCapitalize="none"
               autoComplete="current-password"
               textContentType="password"
               returnKeyType="go"
@@ -262,158 +245,99 @@ export default function LoginScreen() {
               }}
               onSubmitEditing={handleSignIn}
               error={fieldErrors.password}
+              accessibilityLabel={t('auth.password')}
             />
-
-            <Pressable
-              onPress={() => setRememberMe((v) => !v)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: rememberMe }}
-              accessibilityLabel={t('auth.rememberEmail')}
-              hitSlop={6}
-              className="mb-5 flex-row items-center"
-            >
-              <View
-                className="mr-2 h-5 w-5 items-center justify-center rounded"
-                style={{
-                  borderWidth: 1.5,
-                  borderColor: colors.brand[500],
-                  backgroundColor: rememberMe ? colors.brand[500] : 'transparent',
-                }}
-              >
-                {rememberMe ? <Check size={13} color={colors.white} strokeWidth={3} /> : null}
-              </View>
-              <Text className="text-sm text-navy-secondary">{t('auth.rememberEmail')}</Text>
-            </Pressable>
-
-            {storeError ? (
-              <View
-                className="mb-4 flex-row items-start rounded-2xl p-3"
-                style={{ backgroundColor: colors.semantic.dangerSurface }}
-              >
-                <Text className="flex-1 text-sm text-danger">{storeError}</Text>
-              </View>
-            ) : null}
-
-            <Button label={t('auth.signIn')} onPress={handleSignIn} loading={submitting} />
-
-            <View className="my-6 flex-row items-center">
-              <View className="h-px flex-1 bg-cream-300" />
-              <Text className="mx-3 text-xs font-bold tracking-widest text-brand-500">
-                {t('auth.or')}
-              </Text>
-              <View className="h-px flex-1 bg-cream-300" />
-            </View>
-
-            {/* Google / Apple sign-in has no backend: the mobile auth surface
-             * exposes only email+password, phone+PIN -> OTP and password reset
-             * (lib/api/endpoints.ts). Rather than ship two rows that swallow a
-             * tap, they render disabled and say so. */}
-            <AlternateSignIn
-              renderIcon={(color) => <GoogleMark size={19} color={color} />}
-              label={t('auth.continueWithGoogle')}
-              badge={t('auth.soon')}
-              disabled
-            />
-            <View className="h-3" />
-            <AlternateSignIn
-              icon={Apple}
-              label={t('auth.continueWithApple')}
-              badge={t('auth.soon')}
-              disabled
-            />
-            <Text className="mb-3 mt-2 px-1 text-xs leading-4 text-navy-muted">
-              {t('auth.socialUnavailable')}
-            </Text>
-            <AlternateSignIn
-              icon={ShieldLock}
-              label={t('auth.signInWithHealthId')}
-              badge={t('auth.recommended')}
-              highlighted
-              onPress={() => router.push('/(auth)/otp')}
-            />
-
-            <View className="mt-5 flex-row items-start rounded-2xl bg-brand-50 p-4">
-              <ShieldLock size={16} color={colors.brand[600]} style={{ marginTop: 1 }} />
-              <Text className="ml-3 flex-1 text-xs leading-5 text-navy-secondary">
-                {t('auth.encryptionNote')}
-              </Text>
-            </View>
-
-            <Pressable
-              onPress={() => router.push('/(auth)/signup')}
-              accessibilityRole="link"
-              className="mt-7 flex-row items-center justify-center pb-2"
-              hitSlop={8}
-            >
-              <Text className="text-sm text-navy-secondary">{t('auth.noAccount')} </Text>
-              <Text className="text-sm font-semibold text-brand-500">{t('auth.createAccount')}</Text>
-              <ChevronRight size={16} color={colors.brand[500]} style={{ marginLeft: 2 }} />
-            </Pressable>
           </View>
+
+          <TouchableOpacity
+            onPress={() => setRememberMe((v) => !v)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: rememberMe }}
+            accessibilityLabel={t('auth.rememberEmail')}
+            hitSlop={6}
+            activeOpacity={0.7}
+            style={styles.remember}
+          >
+            <View style={[styles.checkbox, rememberMe && styles.checkboxOn]}>
+              {rememberMe ? (
+                <Icon name="check" size={13} color={colors.textOnBrand} strokeWidth={2.6} />
+              ) : null}
+            </View>
+            <Text style={styles.rememberText}>{t('auth.rememberEmail')}</Text>
+          </TouchableOpacity>
+
+          <FormError message={storeError ?? null} />
+
+          <GradientButton label={t('auth.signIn')} onPress={handleSignIn} loading={submitting} />
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>{t('auth.or')}</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Google / Apple sign-in has no backend: the mobile auth surface
+           * exposes only email+password, phone+PIN -> OTP and password reset
+           * (lib/api/endpoints.ts). Rather than ship two rows that swallow a
+           * tap, they render disabled and say so. */}
+          <Card variant="flush">
+            <ListRow
+              leading={
+                <View style={styles.mutedCircle}>
+                  <GoogleMark size={18} color={colors.textMuted} strokeWidth={1.8} />
+                </View>
+              }
+              title={t('auth.continueWithGoogle')}
+              trailing={<StatusBadge status="soon" tone="neutral" label={t('auth.soon')} size="sm" />}
+              chevron={false}
+              accessibilityLabel={`${t('auth.continueWithGoogle')} — ${t('auth.soon')}`}
+              divider
+            />
+            <ListRow
+              leading={
+                <View style={styles.mutedCircle}>
+                  <Icon name="id-card" size={20} color={colors.textMuted} />
+                </View>
+              }
+              title={t('auth.continueWithApple')}
+              trailing={<StatusBadge status="soon" tone="neutral" label={t('auth.soon')} size="sm" />}
+              chevron={false}
+              accessibilityLabel={`${t('auth.continueWithApple')} — ${t('auth.soon')}`}
+              divider
+            />
+            <ListRow
+              icon="shield-check"
+              tint="blue"
+              title={t('auth.signInWithHealthId')}
+              trailing={
+                <StatusBadge
+                  status="recommended"
+                  tone="pending"
+                  label={t('auth.recommended')}
+                  size="sm"
+                />
+              }
+              onPress={() => router.push('/(auth)/otp')}
+              accessibilityLabel={`${t('auth.signInWithHealthId')} — ${t('auth.recommended')}`}
+            />
+          </Card>
+          <Text style={styles.meta}>{t('auth.socialUnavailable')}</Text>
+
+          <Note icon="lock" text={t('auth.encryptionNote')} />
+
+          <TouchableOpacity
+            onPress={() => router.push('/(auth)/signup')}
+            accessibilityRole="link"
+            style={styles.footerLink}
+            hitSlop={8}
+          >
+            <Text style={styles.footerText}>{t('auth.noAccount')} </Text>
+            <Text style={styles.link}>{t('auth.createAccount')}</Text>
+            <Icon name="chevron-right" size={16} color={colors.link} />
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
-  );
-}
-
-/** One row in the alternate sign-in stack. A row without a real destination is
- * rendered disabled and carries a badge saying why — it must never look
- * tappable and then do nothing. */
-function AlternateSignIn({
-  icon: Icon,
-  renderIcon,
-  label,
-  badge,
-  highlighted = false,
-  disabled = false,
-  onPress,
-}: {
-  icon?: LucideIcon;
-  renderIcon?: (color: string) => ReactNode;
-  label: string;
-  badge?: string;
-  highlighted?: boolean;
-  disabled?: boolean;
-  onPress?: () => void;
-}) {
-  const glyphColor = disabled ? colors.navy.muted : highlighted ? colors.brand[600] : colors.navy.text;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled || !onPress}
-      accessibilityRole="button"
-      accessibilityLabel={badge ? `${label} — ${badge}` : label}
-      accessibilityState={{ disabled: disabled || !onPress }}
-      className="h-14 flex-row items-center rounded-2xl border bg-white px-4"
-      style={({ pressed }) => ({
-        borderColor: highlighted ? colors.brand[300] : colors.cream[300],
-        backgroundColor: disabled ? colors.cream[50] : colors.white,
-        opacity: disabled ? 0.6 : pressed ? 0.75 : 1,
-      })}
-    >
-      {renderIcon ? renderIcon(glyphColor) : Icon ? <Icon size={19} color={glyphColor} /> : null}
-      <Text
-        className="ml-3 flex-1 text-sm font-semibold"
-        style={{ color: disabled ? colors.navy.muted : colors.navy.text }}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
-      {badge ? (
-        <View
-          className="rounded-full px-3 py-1"
-          style={{ backgroundColor: disabled ? colors.cream[200] : colors.brand[50] }}
-        >
-          <Text
-            className="text-[10px] font-semibold"
-            style={{ color: disabled ? colors.navy.muted : colors.brand[600] }}
-          >
-            {badge}
-          </Text>
-        </View>
-      ) : null}
-    </Pressable>
   );
 }
 
@@ -432,62 +356,193 @@ function DemoAccountPicker({
   onSelect: (account: (typeof DEMO_ACCOUNTS)[number]) => void;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
-    <View className="mt-6">
-      <Pressable
+    <View style={styles.demo}>
+      <TouchableOpacity
         onPress={onToggle}
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
-        className="flex-row items-center rounded-xl border border-dashed px-3 py-2"
-        style={{ borderColor: colors.brand[300], backgroundColor: 'transparent' }}
+        activeOpacity={0.7}
+        style={styles.demoToggle}
       >
-        <FlaskConical size={13} color={colors.navy.muted} />
-        <Text
-          className="ml-2 flex-1 font-semibold uppercase text-navy-muted"
-          style={{ fontSize: 10, letterSpacing: 1 }}
-          numberOfLines={1}
-        >
+        <Icon name="flask" size={13} color={colors.textMuted} />
+        <Text style={styles.demoLabel} numberOfLines={1}>
           {t('auth.demoLoginLabel')}
         </Text>
-        {open ? (
-          <ChevronUp size={14} color={colors.navy.muted} />
-        ) : (
-          <ChevronDown size={14} color={colors.navy.muted} />
-        )}
-      </Pressable>
+        <Icon name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textMuted} />
+      </TouchableOpacity>
 
       {open ? (
-        <View
-          className="mt-2 overflow-hidden rounded-xl border border-dashed"
-          style={{ borderColor: colors.cream[300], backgroundColor: colors.cream[50] }}
-        >
+        <View style={styles.demoMenu}>
           {DEMO_ACCOUNTS.map((account, index) => (
-            <Pressable
+            <TouchableOpacity
               key={account.key}
               onPress={() => onSelect(account)}
               accessibilityRole="button"
-              className={`flex-row items-center px-3 py-2.5 ${
-                index > 0 ? 'border-t border-cream-200' : ''
-              }`}
+              activeOpacity={0.7}
+              style={[styles.demoRow, index > 0 && styles.demoRowDivider]}
             >
-              <account.icon size={14} color={colors.navy.muted} />
-              <Text className="ml-2 flex-1 text-xs text-navy-secondary" numberOfLines={1}>
+              <Icon name={account.icon} size={14} color={colors.textMuted} />
+              <Text style={styles.demoRowText} numberOfLines={1}>
                 {t(account.labelKey)}
               </Text>
-            </Pressable>
+            </TouchableOpacity>
           ))}
         </View>
       ) : null}
 
       {notice ? (
-        <View
-          className="mt-2 rounded-xl border border-dashed p-3"
-          style={{ borderColor: colors.cream[300] }}
-        >
-          <Text className="text-xs leading-4 text-navy-secondary">{notice}</Text>
+        <View style={styles.demoNotice}>
+          <Text style={styles.demoNoticeText}>{notice}</Text>
         </View>
       ) : null}
     </View>
   );
 }
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1 },
+    content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm },
+
+    labelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingRight: spacing.sm,
+    },
+    link: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.link,
+    },
+
+    remember: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginTop: -spacing.xs,
+      marginBottom: spacing.xs,
+      marginLeft: spacing.sm,
+    },
+    checkbox: {
+      width: 20,
+      height: 20,
+      borderRadius: radii.sm - 2,
+      borderWidth: 1.5,
+      borderColor: colors.blue,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxOn: { backgroundColor: colors.blue },
+    rememberText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
+
+    dividerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+      marginVertical: spacing.sm,
+    },
+    dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+    dividerText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      letterSpacing: 1.5,
+      color: colors.link,
+    },
+
+    mutedCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.pill,
+      backgroundColor: colors.divider,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    meta: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textMuted,
+      marginHorizontal: spacing.sm,
+    },
+
+    footerLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    footerText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
+
+    demo: { marginBottom: spacing.sm },
+    demoToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      paddingHorizontal: spacing.sm + 4,
+      paddingVertical: spacing.sm,
+    },
+    demoLabel: {
+      flex: 1,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: 10,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      color: colors.textMuted,
+    },
+    demoMenu: {
+      marginTop: spacing.sm,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      backgroundColor: colors.surfaceMuted,
+    },
+    demoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.sm + 4,
+      paddingVertical: 10,
+    },
+    demoRowDivider: { borderTopWidth: 1, borderTopColor: colors.border },
+    demoRowText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textSecondary,
+    },
+    demoNotice: {
+      marginTop: spacing.sm,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      padding: spacing.sm + 4,
+    },
+    demoNoticeText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+  });

@@ -1,48 +1,40 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
-  Pressable,
+  RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Baby,
-  BadgeCheck,
-  Bug,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  CircleAlert,
-  CircleDot,
-  Clock,
-  Crosshair,
-  Droplet,
-  FileText,
-  FlaskConical,
-  HeartPulse,
-  Info,
-  MapPin,
-  Minus,
-  Package,
-  Pill,
-  Plus,
-  ShieldPlus,
-  ShoppingCart,
-  Sparkles,
-  Store,
-  Ticket,
-  Wind,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../../components/ui/Screen';
-import { Button } from '../../components/ui/Button';
+  Card,
+  Chip,
+  EmptyState,
+  GradientButton,
+  Icon,
+  ListRow,
+  ScreenHeader,
+  SectionHeader,
+  StatusBadge,
+  formatDate,
+  formatDateTime,
+  radii,
+  spacing,
+  typography,
+  useDialog,
+  useTheme,
+  type IconName,
+  type Palette,
+  type StatusTone,
+} from '@/components/opes-ui';
+import { CardOverline, FactCell, MedButton, TintCircle } from '@/components/meds/shared';
 import { FacilityMap } from '@/components/map/FacilityMap';
-import { colors } from '../../theme/tokens';
 import {
   useCancelMedicineReservation,
   useMedicine,
@@ -50,22 +42,27 @@ import {
   useNearbyPharmacies,
   usePrescriptionsForReservation,
   useReserveMedicine,
+  type Medicine,
   type MedicineReservation,
   type NearbyPharmacy,
   type StockStatusValue,
-} from '../../lib/api/queries';
-import { formatXaf, formatXafBare, reserveErrorCode } from '../../lib/api/pharmacyQueries';
+} from '@/lib/api/queries';
+import { formatXaf, formatXafBare, reserveErrorCode } from '@/lib/api/pharmacyQueries';
 
 /**
  * Selected Medicine — the drill-in from the Medicine Finder.
  *
- * Reference: the right-hand "Selected Medicine" column of
- * `Mobile app screens/a_clean_mobile_app_ui_screenshot_of_a_medicine_fi.png`
- * — medicine summary, About, pack-size options, price at the chosen pharmacy,
- * Reserve / Get Directions / Call Pharmacy, and the "Have a prescription?"
- * block. On a phone that column is a full screen, with the reference's
- * left-hand pharmacy list folded in as the stocking-pharmacy picker so the
- * price and the Reserve button always refer to a pharmacy you actually chose.
+ * Presentation: the OPES kit, laid out after `UIUX/src/screens/meds/
+ * MedicationDetailScreen.tsx` — identity card with `TintCircle` + `FactCell`s,
+ * overlined detail cards, the stocking-pharmacy picker as `Card variant="flush"`
+ * + `ListRow`s with stock `StatusBadge`s, the embedded in-app `FacilityMap`,
+ * a `GradientButton` "Reserve" confirmed through the kit `Dialog`, and
+ * `MedButton` secondary actions (call / view pharmacy). Colours come from
+ * `useTheme()` — the app's own palette.
+ *
+ * Data layer is untouched: `useMedicine`, `useNearbyPharmacies`,
+ * `useReserveMedicine`, `useCancelMedicineReservation`,
+ * `useMedicineReservations`, `usePrescriptionsForReservation`.
  *
  * The search origin (lat/lng/radius) travels in the route params so this screen
  * asks GET /mobile/pharmacy/nearby the same question the list screen did —
@@ -75,18 +72,18 @@ import { formatXaf, formatXafBare, reserveErrorCode } from '../../lib/api/pharma
  * the patient pays at the counter (Mobile Money capture is a later step).
  */
 
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  pill: Pill,
-  'shield-plus': ShieldPlus,
-  droplet: Droplet,
-  'heart-pulse': HeartPulse,
-  'flask-conical': FlaskConical,
-  wind: Wind,
-  sparkles: Sparkles,
-  'circle-dot': CircleDot,
-  bug: Bug,
-  baby: Baby,
-  package: Package,
+const CATEGORY_ICONS: Record<string, IconName> = {
+  pill: 'pill',
+  'shield-plus': 'shield',
+  droplet: 'droplet',
+  'heart-pulse': 'heart-pulse',
+  'flask-conical': 'flask',
+  wind: 'lungs',
+  sparkles: 'sun',
+  'circle-dot': 'target',
+  bug: 'microscope',
+  baby: 'baby',
+  package: 'first-aid',
 };
 
 /** MedicineReservationService::MAX_QUANTITY — the server clamps to this too. */
@@ -102,17 +99,30 @@ function numberParam(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-const CARD_SHADOW = {
-  shadowColor: colors.navy.text,
-  shadowOpacity: 0.05,
-  shadowRadius: 10,
-  shadowOffset: { width: 0, height: 3 },
-  elevation: 2,
-};
+/**
+ * The kit's `toneForStatus` does not know the pharmacy stock vocabulary
+ * (`in_stock` / `low_stock` / `out_of_stock`), so the tone is mapped here and
+ * passed explicitly to `StatusBadge`.
+ */
+function stockTone(status: StockStatusValue | undefined): StatusTone {
+  switch (status) {
+    case 'in_stock':
+      return 'normal';
+    case 'low_stock':
+      return 'warning';
+    case 'out_of_stock':
+      return 'critical';
+    default:
+      return 'neutral';
+  }
+}
 
 export default function MedicineDetailScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const dialog = useDialog();
   const params = useLocalSearchParams<{
     medicineId?: string;
     pharmacyId?: string;
@@ -142,7 +152,7 @@ export default function MedicineDetailScreen() {
   const [prescriptionListOpen, setPrescriptionListOpen] = useState(false);
   const [confirmed, setConfirmed] = useState<MedicineReservation | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
-  const [cancelError, setCancelError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const medicine = useMedicine(medicineId);
   const pharmacies = useNearbyPharmacies({
@@ -201,590 +211,451 @@ export default function MedicineDetailScreen() {
   const canReserve =
     reservationEnabled && !heldHere && (!needsPrescription || !!prescriptionId) && !confirmed;
 
-  const onReserve = () => {
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/pharmacy'));
+
+  const widenRadius = () => {
+    if (!nextRadiusKm) return;
+    setRadiusKm(nextRadiusKm);
+    setPharmacyId(null);
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([medicine.refetch(), pharmacies.refetch(), reservations.refetch()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [medicine, pharmacies, reservations]);
+
+  /** Places the hold. Runs inside the kit Dialog's confirm action. */
+  const placeReservation = async () => {
     if (!pharmacy || !medicineId) return;
     setErrorCode(null);
-    reserve.mutate(
-      {
+    try {
+      const reservation = await reserve.mutateAsync({
         medicine_id: medicineId,
         care_facility_id: pharmacy.id,
         quantity,
         pack_size: packSize,
         prescription_id: prescriptionId,
+      });
+      setConfirmed(reservation);
+      dialog.alert(
+        t('pharmacy.reserveSuccessTitle'),
+        t('pharmacy.reserveSuccessBody', {
+          reference: reservation.reference,
+          pharmacy: reservation.pharmacy?.name ?? pharmacy.name,
+        }),
+        'success',
+      );
+    } catch (error) {
+      const code = reserveErrorCode(error);
+      setErrorCode(code);
+      const isRx = code === 'PRESCRIPTION_REQUIRED';
+      dialog.alert(
+        isRx ? t('pharmacy.prescriptionExplainerTitle') : t('pharmacy.loadFailed'),
+        t(`pharmacy.reserveError.${code}`, { defaultValue: t('pharmacy.reserveError.generic') }),
+        isRx ? 'info' : 'critical',
+      );
+    }
+  };
+
+  const confirmReserve = () => {
+    if (!pharmacy || !medicine.data) return;
+    dialog.confirm({
+      title: t('pharmacy.reserve'),
+      message: [
+        medicine.data.name,
+        pharmacy.name,
+        [t('pharmacy.reservationQuantity', { count: quantity }), packSize].filter(Boolean).join(' · '),
+        `${t('pharmacy.totalPrice')}: ${formatXaf(totalPrice) ?? t('pharmacy.priceUnavailable')}`,
+        '',
+        t('pharmacy.paymentNote'),
+      ].join('\n'),
+      confirmLabel: t('pharmacy.reserve'),
+      tone: 'info',
+      onConfirm: placeReservation,
+    });
+  };
+
+  /** Cancelling a hold is destructive and unrecoverable — confirm first. */
+  const confirmCancel = (hold: MedicineReservation) =>
+    dialog.confirm({
+      title: t('pharmacy.reservationCancel'),
+      message: [hold.pharmacy?.name, t('pharmacy.reservationRef', { reference: hold.reference })]
+        .filter(Boolean)
+        .join('\n'),
+      confirmLabel: t('pharmacy.reservationCancel'),
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await cancelReservation.mutateAsync({ id: hold.id });
+        } catch {
+          dialog.alert(t('pharmacy.loadFailed'), t('pharmacy.reservationCancelFailed'), 'critical');
+        }
       },
-      {
-        onSuccess: (reservation) => setConfirmed(reservation),
-        onError: (error) => setErrorCode(reserveErrorCode(error)),
-      },
+    });
+
+  const callPharmacy = () => {
+    const number = callablePhone(pharmacy);
+    if (!number) return;
+    Linking.openURL(`tel:${number.replace(/\s/g, '')}`).catch(() =>
+      dialog.alert(
+        t('opesMeds.pharmacy.callFailTitle'),
+        t('opesMeds.pharmacy.callFailBody', { pharmacy: pharmacy?.name ?? '', phone: number }),
+        'warning',
+      ),
     );
   };
 
   if (!medicineId) {
     return (
-      <Screen>
-        <View className="flex-1 items-center justify-center">
-          <CircleAlert size={22} color={colors.semantic.danger} />
-          <Text className="mt-2 text-sm text-navy-secondary">{t('pharmacy.loadFailed')}</Text>
-          <Pressable
-            onPress={() => router.replace('/pharmacy')}
-            className="mt-4 rounded-xl border border-brand-500 px-4 py-2"
-            accessibilityRole="button"
-          >
-            <Text className="text-xs font-bold text-brand-600">{t('pharmacy.back')}</Text>
-          </Pressable>
+      <SafeAreaView edges={['top']} style={styles.screen}>
+        <ScreenHeader title={t('pharmacy.selectedMedicine')} onBack={goBack} />
+        <View style={styles.content}>
+          <Card variant="flush">
+            <EmptyState
+              icon="alert-circle"
+              tint="red"
+              title={t('pharmacy.loadFailed')}
+              actionLabel={t('pharmacy.back')}
+              onAction={() => router.replace('/pharmacy')}
+            />
+          </Card>
         </View>
-      </Screen>
+      </SafeAreaView>
     );
   }
 
-  const CategoryIcon = CATEGORY_ICONS[medicine.data?.category_icon ?? 'pill'] ?? Pill;
-  const min = medicine.data?.availability.price_min ?? null;
-  const max = medicine.data?.availability.price_max ?? null;
-  const priceRangeLabel =
-    min !== null && max !== null && min !== max
-      ? t('pharmacy.priceRangeValue', { min: formatXafBare(min), max: formatXaf(max) })
-      : (formatXaf(min ?? max) ?? t('pharmacy.priceUnavailable'));
+  const disabledReason = !canReserve && !confirmed
+    ? !pharmacy
+      ? t('pharmacy.noPharmacySelected')
+      : heldHere
+        ? t('pharmacy.reservationHeldHere')
+        : !reservationEnabled
+          ? pharmacy.stock?.status === 'out_of_stock'
+            ? t('pharmacy.outOfStockNote')
+            : t('pharmacy.noReservationEnabled')
+          : t('pharmacy.reserveError.PRESCRIPTION_REQUIRED')
+    : null;
 
   return (
-    <Screen className="px-0">
+    <SafeAreaView edges={['top']} style={styles.screen}>
+      <ScreenHeader
+        title={t('pharmacy.selectedMedicine')}
+        subtitle={t('opesMeds.detail.subtitle')}
+        onBack={goBack}
+      />
+
       <ScrollView
-        className="flex-1 px-6"
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.blue} />
+        }
       >
-        {/* Header */}
-        <View className="mt-2 flex-row items-center">
-          <Pressable
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/pharmacy'))}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={t('pharmacy.back')}
-            className="h-10 w-10 items-center justify-center rounded-xl border border-cream-300 bg-white"
-          >
-            <ChevronLeft size={20} color={colors.navy.text} />
-          </Pressable>
-          <Text className="ml-3 flex-1 text-base font-extrabold text-navy-text">
-            {t('pharmacy.selectedMedicine')}
-          </Text>
-        </View>
-
         {medicine.isPending ? (
-          <View className="mt-20 items-center">
-            <ActivityIndicator color={colors.brand[500]} />
+          <View style={styles.loading} accessibilityLiveRegion="polite">
+            <ActivityIndicator color={colors.blue} />
+            <Text style={styles.loadingText}>{t('opesMeds.detail.loading')}</Text>
           </View>
         ) : medicine.isError || !medicine.data ? (
-          <View className="mt-10 items-center rounded-2xl border border-cream-300 bg-white px-6 py-8">
-            <View
-              className="h-12 w-12 items-center justify-center rounded-full"
-              style={{ backgroundColor: colors.semantic.dangerSurface }}
-            >
-              <CircleAlert size={20} color={colors.semantic.danger} />
-            </View>
-            <Text className="mt-3 text-center text-sm text-navy-secondary">
-              {t('pharmacy.loadFailed')}
-            </Text>
-            <Pressable
-              onPress={() => medicine.refetch()}
-              className="mt-4 rounded-xl border border-brand-500 px-4 py-2"
-              accessibilityRole="button"
-            >
-              <Text className="text-xs font-bold text-brand-600">{t('pharmacy.retry')}</Text>
-            </Pressable>
-          </View>
+          <Card variant="flush">
+            <EmptyState
+              icon="alert-circle"
+              tint="red"
+              title={t('pharmacy.loadFailed')}
+              actionLabel={t('pharmacy.retry')}
+              onAction={() => medicine.refetch()}
+            />
+          </Card>
         ) : (
           <>
-            {/* Medicine hero */}
-            <LinearGradient
-              colors={[colors.brand[600], colors.brand[500], colors.brand[300]]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ borderRadius: 24, marginTop: 18, padding: 20 }}
-            >
-              <View className="flex-row">
-                <View className="h-16 w-16 items-center justify-center rounded-2xl bg-white/20">
-                  <CategoryIcon size={28} color={colors.white} />
-                </View>
-                <View className="ml-4 flex-1">
-                  <Text className="text-lg font-extrabold text-white">{medicine.data.name}</Text>
-                  <Text className="mt-1 text-xs text-white/85">
-                    {t('pharmacy.generic', { name: medicine.data.generic_name })}
-                  </Text>
-                  {medicine.data.strength || medicine.data.form ? (
-                    <Text className="mt-0.5 text-xs text-white/75">
-                      {medicine.data.strength && medicine.data.form
-                        ? t('pharmacy.strengthForm', {
-                            strength: medicine.data.strength,
-                            form: medicine.data.form,
-                          })
-                        : (medicine.data.strength ?? medicine.data.form)}
-                    </Text>
-                  ) : null}
-                </View>
-              </View>
+            {/* -- Identity ------------------------------------------------- */}
+            <IdentityCard medicine={medicine.data} />
 
-              <View className="mt-4 flex-row flex-wrap" style={{ gap: 6 }}>
-                <HeroBadge
-                  label={
-                    medicine.data.prescription_required
-                      ? t('pharmacy.prescriptionRequired')
-                      : t('pharmacy.prescriptionNotRequired')
-                  }
-                />
-                {medicine.data.is_controlled ? (
-                  <HeroBadge label={t('pharmacy.controlled')} />
-                ) : null}
-                <HeroBadge label={t(`pharmacy.categories.${medicine.data.category}`, {
-                  defaultValue: medicine.data.category_label,
-                })} />
-              </View>
-
-              <View className="mt-4 flex-row items-end justify-between border-t border-white/25 pt-4">
-                <View className="flex-1 pr-3">
-                  <Text className="text-[10px] font-medium text-white/80">
-                    {t('pharmacy.priceRange')}
-                  </Text>
-                  <Text className="mt-0.5 text-xl font-extrabold text-white">
-                    {priceRangeLabel}
-                  </Text>
-                </View>
-                <View className="items-end">
-                  <Text className="text-[10px] font-medium text-white/80">
-                    {medicine.data.availability.is_available
-                      ? t('pharmacy.available')
-                      : t('pharmacy.unavailable')}
-                  </Text>
-                  <Text className="mt-0.5 text-xs font-bold text-white" numberOfLines={1}>
-                    {medicine.data.availability.is_available
-                      ? t('pharmacy.pharmacyCount', {
-                          count: medicine.data.availability.pharmacy_count,
-                        })
-                      : t('pharmacy.availabilityNone')}
-                  </Text>
-                </View>
-              </View>
-            </LinearGradient>
-
-            {/* Existing holds on this medicine */}
+            {/* -- Existing holds on this medicine -------------------------- */}
             {existingHolds.length > 0 ? (
-              <View className="mt-4 rounded-2xl border border-brand-100 bg-brand-50 p-4">
-                <View className="flex-row items-center">
-                  <View className="h-9 w-9 items-center justify-center rounded-full bg-white">
-                    <Ticket size={16} color={colors.brand[600]} />
-                  </View>
-                  <Text className="ml-3 flex-1 text-sm font-bold text-navy-text">
-                    {t('pharmacy.reservationsTitle')}
-                  </Text>
-                </View>
-
-                <View className="mt-3" style={{ gap: 8 }}>
-                  {existingHolds.map((hold) => (
-                    <View key={hold.id} className="rounded-xl border border-cream-300 bg-white p-3">
-                      <View className="flex-row items-start justify-between">
-                        <View className="flex-1 pr-2">
-                          <Text className="text-xs font-bold text-navy-text" numberOfLines={1}>
-                            {hold.pharmacy?.name ?? t('pharmacy.selectedMedicine')}
-                          </Text>
-                          <Text className="mt-0.5 text-[10px] text-navy-secondary">
-                            {t('pharmacy.reservationQuantity', { count: hold.quantity })}
-                            {hold.total_price !== null
-                              ? `  ·  ${formatXaf(hold.total_price)}`
-                              : ''}
-                          </Text>
-                        </View>
-                        <View className="rounded-lg bg-cream-200 px-2 py-1">
-                          <Text className="text-[10px] font-bold text-navy-secondary">
-                            {t('pharmacy.reservationRef', { reference: hold.reference })}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View className="mt-2 flex-row items-center justify-between border-t border-cream-200 pt-2">
-                        <Text className="flex-1 pr-2 text-[10px] text-navy-muted" numberOfLines={1}>
-                          {formatDateTime(hold.expires_at, i18n.language)
-                            ? t('pharmacy.reservationExpires', {
-                                when: formatDateTime(hold.expires_at, i18n.language),
-                              })
-                            : hold.status_label}
-                        </Text>
-                        {hold.is_cancellable ? (
-                          <Pressable
-                            onPress={() => {
-                              setCancelError(false);
-                              cancelReservation.mutate(
-                                { id: hold.id },
-                                { onError: () => setCancelError(true) },
-                              );
-                            }}
-                            disabled={cancelReservation.isPending}
-                            hitSlop={6}
-                            accessibilityRole="button"
-                            className="rounded-lg px-2 py-1"
-                            style={{
-                              backgroundColor: colors.semantic.dangerSurface,
-                              opacity:
-                                cancelReservation.isPending &&
-                                cancelReservation.variables?.id === hold.id
-                                  ? 0.6
-                                  : 1,
-                            }}
-                          >
-                            <Text
-                              className="text-[10px] font-bold"
-                              style={{ color: colors.semantic.danger }}
-                            >
-                              {t('pharmacy.reservationCancel')}
-                            </Text>
-                          </Pressable>
-                        ) : null}
-                      </View>
-                    </View>
-                  ))}
-                </View>
-
-                {cancelError ? (
-                  <Text className="mt-2 text-[11px]" style={{ color: colors.semantic.danger }}>
-                    {t('pharmacy.reservationCancelFailed')}
-                  </Text>
-                ) : null}
-              </View>
+              <Card>
+                <CardOverline title={t('pharmacy.reservationsTitle')} />
+                {existingHolds.map((hold, index) => {
+                  const expiry = formatDateTime(hold.expires_at);
+                  const busy =
+                    cancelReservation.isPending && cancelReservation.variables?.id === hold.id;
+                  return (
+                    <ListRow
+                      key={hold.id}
+                      icon="receipt"
+                      tint="amber"
+                      title={hold.pharmacy?.name ?? t('pharmacy.selectedMedicine')}
+                      meta={[
+                        t('pharmacy.reservationRef', { reference: hold.reference }),
+                        t('pharmacy.reservationQuantity', { count: hold.quantity }),
+                        hold.total_price !== null ? formatXaf(hold.total_price) : null,
+                        expiry ? t('pharmacy.reservationExpires', { when: expiry }) : hold.status_label,
+                      ]}
+                      trailing={
+                        hold.is_cancellable ? (
+                          <MedButton
+                            label={t('pharmacy.reservationCancel')}
+                            icon="close"
+                            variant="ghost"
+                            size="sm"
+                            disabled={busy}
+                            onPress={() => confirmCancel(hold)}
+                          />
+                        ) : undefined
+                      }
+                      chevron={false}
+                      divider={index < existingHolds.length - 1}
+                      style={styles.flushRow}
+                    />
+                  );
+                })}
+              </Card>
             ) : null}
 
-            {/* About */}
-            <SectionTitle>{t('pharmacy.aboutMedicine')}</SectionTitle>
-            <View className="mt-2 rounded-2xl border border-cream-300 bg-white p-4">
-              <Text className="text-sm leading-5 text-navy-secondary">
+            {/* -- About ---------------------------------------------------- */}
+            <Card>
+              <CardOverline title={t('pharmacy.aboutMedicine')} />
+              <Text style={styles.body}>
                 {medicine.data.description ?? t('pharmacy.noDescription')}
               </Text>
               {medicine.data.indications.length > 0 ? (
-                <View className="mt-3 flex-row flex-wrap" style={{ gap: 6 }}>
+                <View style={styles.chipWrap}>
                   {medicine.data.indications.map((tag) => (
-                    <View key={tag} className="rounded-lg bg-cream-200 px-2 py-1">
-                      <Text className="text-[11px] font-medium text-navy-secondary">{tag}</Text>
-                    </View>
+                    <Chip key={tag} label={tag} />
                   ))}
                 </View>
               ) : null}
-            </View>
+            </Card>
 
-            {/* Pack size */}
+            {/* -- Pack size ------------------------------------------------ */}
             {medicine.data.pack_size_options.length > 0 ? (
-              <>
-                <SectionTitle>{t('pharmacy.packSizeOptions')}</SectionTitle>
-                <View className="mt-2 flex-row flex-wrap" style={{ gap: 8 }}>
-                  {medicine.data.pack_size_options.map((option) => {
-                    const active = option === packSize;
-                    return (
-                      <Pressable
-                        key={option}
-                        onPress={() => setPackSize(option)}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: active }}
-                        className={`rounded-xl border px-3 py-2.5 ${
-                          active ? 'border-brand-500 bg-brand-50' : 'border-cream-300 bg-white'
-                        }`}
-                      >
-                        <Text
-                          className={`text-xs font-semibold ${
-                            active ? 'text-brand-700' : 'text-navy-secondary'
-                          }`}
-                        >
-                          {option}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
+              <Card>
+                <CardOverline title={t('pharmacy.packSizeOptions')} />
+                <View style={styles.chipWrap}>
+                  {medicine.data.pack_size_options.map((option) => (
+                    <Chip
+                      key={option}
+                      label={option}
+                      selected={option === packSize}
+                      onPress={() => setPackSize(option)}
+                    />
+                  ))}
                 </View>
-              </>
+              </Card>
             ) : null}
 
-            {/* Quantity */}
-            <SectionTitle>{t('pharmacy.quantity')}</SectionTitle>
-            <View className="mt-2 flex-row items-center justify-between rounded-2xl border border-cream-300 bg-white px-4 py-3">
-              <View className="flex-1 pr-3">
-                <Text className="text-[11px] text-navy-secondary">
-                  {t('pharmacy.quantityHint', { max: MAX_QUANTITY })}
-                </Text>
-              </View>
-              <View className="flex-row items-center">
-                <Pressable
-                  onPress={() => setQuantity((q) => Math.max(1, q - 1))}
-                  disabled={quantity <= 1}
-                  className="h-9 w-9 items-center justify-center rounded-xl border border-cream-300 bg-cream-100"
-                  style={{ opacity: quantity <= 1 ? 0.4 : 1 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('pharmacy.quantity')}
-                >
-                  <Minus size={15} color={colors.navy.text} />
-                </Pressable>
-                <Text className="mx-4 text-base font-extrabold text-navy-text">{quantity}</Text>
-                <Pressable
-                  onPress={() => setQuantity((q) => Math.min(MAX_QUANTITY, q + 1))}
-                  disabled={quantity >= MAX_QUANTITY}
-                  className="h-9 w-9 items-center justify-center rounded-xl border border-cream-300 bg-cream-100"
-                  style={{ opacity: quantity >= MAX_QUANTITY ? 0.4 : 1 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('pharmacy.quantity')}
-                >
-                  <Plus size={15} color={colors.navy.text} />
-                </Pressable>
-              </View>
-            </View>
+            {/* -- Quantity ------------------------------------------------- */}
+            <Card>
+              <CardOverline
+                title={t('pharmacy.quantity')}
+                right={
+                  <View style={styles.stepper}>
+                    <StepperButton
+                      icon="minus"
+                      disabled={quantity <= 1}
+                      onPress={() => setQuantity((q) => Math.max(1, q - 1))}
+                      accessibilityLabel={`${t('pharmacy.quantity')} −`}
+                    />
+                    <Text style={styles.stepperValue} accessibilityLiveRegion="polite">
+                      {quantity}
+                    </Text>
+                    <StepperButton
+                      icon="plus"
+                      disabled={quantity >= MAX_QUANTITY}
+                      onPress={() => setQuantity((q) => Math.min(MAX_QUANTITY, q + 1))}
+                      accessibilityLabel={`${t('pharmacy.quantity')} +`}
+                    />
+                  </View>
+                }
+              />
+              <Text style={styles.hint}>{t('pharmacy.quantityHint', { max: MAX_QUANTITY })}</Text>
+            </Card>
 
-            {/* Stocking pharmacies */}
-            <View className="mt-6 flex-row items-center justify-between">
-              <Text className="flex-1 pr-3 text-base font-bold text-navy-text">
-                {t('pharmacy.pharmaciesStocking')}
+            {/* -- Stocking pharmacies -------------------------------------- */}
+            <View>
+              <SectionHeader
+                title={t('pharmacy.pharmaciesStocking')}
+                actionLabel={t('pharmacy.radius', { km: radiusKm })}
+                actionChevron={!!nextRadiusKm}
+                onAction={nextRadiusKm ? widenRadius : undefined}
+              />
+              {/* The header action carries the radius while it can still be
+                  widened; at the 50 km cap there is no action, so say it here. */}
+              <Text style={styles.sectionHint}>
+                {t('pharmacy.pharmaciesStockingHint')}
+                {nextRadiusKm ? '' : `  ·  ${t('pharmacy.radius', { km: radiusKm })}`}
               </Text>
-              {nextRadiusKm ? (
-                <Pressable
-                  onPress={() => {
-                    setRadiusKm(nextRadiusKm);
-                    setPharmacyId(null);
-                  }}
-                  className="flex-row items-center rounded-xl border border-cream-300 bg-white px-3 py-1.5"
-                  accessibilityRole="button"
-                  accessibilityLabel={t('pharmacy.radiusPickerTitle')}
-                >
-                  <Crosshair size={12} color={colors.brand[600]} />
-                  <Text className="ml-1.5 text-[10px] font-bold text-navy-secondary">
-                    {t('pharmacy.radius', { km: radiusKm })}
-                  </Text>
-                </Pressable>
-              ) : (
-                <View className="rounded-xl border border-cream-300 bg-white px-3 py-1.5">
-                  <Text className="text-[10px] font-bold text-navy-secondary">
-                    {t('pharmacy.radius', { km: radiusKm })}
-                  </Text>
+
+              {pharmacies.isPending ? (
+                <View style={styles.loading} accessibilityLiveRegion="polite">
+                  <ActivityIndicator color={colors.blue} />
+                  <Text style={styles.loadingText}>{t('pharmacy.loadingPharmacies')}</Text>
                 </View>
+              ) : pharmacies.isError ? (
+                <Card variant="flush">
+                  <EmptyState
+                    icon="alert-circle"
+                    tint="red"
+                    title={t('pharmacy.loadFailed')}
+                    actionLabel={t('pharmacy.retry')}
+                    onAction={() => pharmacies.refetch()}
+                  />
+                </Card>
+              ) : pharmacyRows.length === 0 ? (
+                // No pharmacy inside the radius has reported this medicine —
+                // not the same as "no pharmacies exist here", so say the stock
+                // thing first and offer a wider search.
+                <Card variant="flush">
+                  <EmptyState
+                    icon="store"
+                    tint="blue"
+                    title={t('pharmacy.availabilityNone')}
+                    message={t('pharmacy.noPharmacies', { km: radiusKm })}
+                    actionLabel={
+                      nextRadiusKm
+                        ? `${t('pharmacy.radiusPickerTitle')}: ${t('pharmacy.radius', { km: nextRadiusKm })}`
+                        : undefined
+                    }
+                    onAction={nextRadiusKm ? widenRadius : undefined}
+                  />
+                </Card>
+              ) : (
+                <Card variant="flush">
+                  {pharmacyRows.map((row, index) => (
+                    <PharmacyOptionRow
+                      key={row.id}
+                      pharmacy={row}
+                      selected={pharmacy?.id === row.id}
+                      divider={index < pharmacyRows.length - 1}
+                      onPress={() => {
+                        setPharmacyId(row.id);
+                        setConfirmed(null);
+                        setErrorCode(null);
+                      }}
+                    />
+                  ))}
+                </Card>
               )}
             </View>
-            <Text className="mt-0.5 text-[11px] text-navy-secondary">
-              {t('pharmacy.pharmaciesStockingHint')}
-            </Text>
 
-            {pharmacies.isPending ? (
-              <View className="mt-4 items-center">
-                <ActivityIndicator color={colors.brand[500]} />
-                <Text className="mt-2 text-[11px] text-navy-muted">
-                  {t('pharmacy.loadingPharmacies')}
-                </Text>
-              </View>
-            ) : pharmacies.isError ? (
-              <View className="mt-3 items-center rounded-2xl border border-cream-300 bg-white px-6 py-6">
-                <CircleAlert size={20} color={colors.semantic.danger} />
-                <Text className="mt-2 text-center text-xs text-navy-secondary">
-                  {t('pharmacy.loadFailed')}
-                </Text>
-                <Pressable
-                  onPress={() => pharmacies.refetch()}
-                  className="mt-3 rounded-xl border border-brand-500 px-4 py-2"
-                  accessibilityRole="button"
-                >
-                  <Text className="text-xs font-bold text-brand-600">{t('pharmacy.retry')}</Text>
-                </Pressable>
-              </View>
-            ) : pharmacyRows.length === 0 ? (
-              <View className="mt-3 items-center rounded-2xl border border-cream-300 bg-white px-6 py-8">
-                <View className="h-12 w-12 items-center justify-center rounded-full bg-cream-200">
-                  <Store size={20} color={colors.navy.muted} />
-                </View>
-                {/* No pharmacy inside the radius has reported this medicine —
-                    not the same as "no pharmacies exist here", so say the
-                    stock thing first and offer a wider search. */}
-                <Text className="mt-3 text-center text-sm font-bold text-navy-text">
-                  {t('pharmacy.availabilityNone')}
-                </Text>
-                <Text className="mt-1 text-center text-xs leading-4 text-navy-secondary">
-                  {t('pharmacy.noPharmacies', { km: radiusKm })}
-                </Text>
-                {nextRadiusKm ? (
-                  <Pressable
-                    onPress={() => {
-                      setRadiusKm(nextRadiusKm);
-                      setPharmacyId(null);
-                    }}
-                    className="mt-4 rounded-xl border border-brand-500 px-4 py-2"
-                    accessibilityRole="button"
-                  >
-                    <Text className="text-xs font-bold text-brand-600">
-                      {`${t('pharmacy.radiusPickerTitle')}: ${t('pharmacy.radius', { km: nextRadiusKm })}`}
-                    </Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ) : (
-              <View className="mt-3" style={{ gap: 10 }}>
-                {pharmacyRows.map((row) => (
-                  <PharmacyOption
-                    key={row.id}
-                    pharmacy={row}
-                    selected={pharmacy?.id === row.id}
-                    onPress={() => {
-                      setPharmacyId(row.id);
-                      setConfirmed(null);
-                      setErrorCode(null);
-                    }}
-                    onOpenFacility={() =>
-                      router.push({ pathname: '/facility/[id]', params: { id: row.id } })
-                    }
-                  />
-                ))}
-              </View>
-            )}
+            {/* -- Where it is: embedded, in-app map (no external maps app) -- */}
+            {pharmacy && pharmacy.latitude != null && pharmacy.longitude != null ? (
+              <Card variant="flush">
+                <FacilityMap facilities={pharmacy} height={180} directions />
+              </Card>
+            ) : null}
 
-            {/* Price summary */}
-            <View
-              className="mt-6 rounded-2xl border border-cream-300 bg-white p-4"
-              style={CARD_SHADOW}
-            >
-              <View className="flex-row items-center justify-between">
-                <Text className="text-[11px] text-navy-secondary">{t('pharmacy.unitPrice')}</Text>
-                <Text className="text-xs font-semibold text-navy-text">
-                  {formatXaf(unitPrice) ?? t('pharmacy.priceUnavailable')}
-                </Text>
-              </View>
-              <View className="mt-2 flex-row items-center justify-between">
-                <Text className="text-[11px] text-navy-secondary">{t('pharmacy.quantity')}</Text>
-                <Text className="text-xs font-semibold text-navy-text">
-                  {t('pharmacy.reservationQuantity', { count: quantity })}
-                </Text>
-              </View>
-
-              <View className="mt-3 border-t border-cream-200 pt-3">
-                <Text className="text-[11px] text-navy-muted">{t('pharmacy.totalPrice')}</Text>
-                <Text className="mt-1 text-2xl font-extrabold text-brand-600">
+            {/* -- Price summary -------------------------------------------- */}
+            <Card>
+              <CardOverline title={t('pharmacy.totalPrice')} />
+              <SummaryLine
+                label={t('pharmacy.unitPrice')}
+                value={formatXaf(unitPrice) ?? t('pharmacy.priceUnavailable')}
+              />
+              <SummaryLine
+                label={t('pharmacy.quantity')}
+                value={t('pharmacy.reservationQuantity', { count: quantity })}
+              />
+              <SummaryLine
+                label={t('pharmacy.selectedPharmacy')}
+                value={pharmacy?.name ?? t('pharmacy.noPharmacySelected')}
+              />
+              <View style={styles.totalRow}>
+                <Text style={styles.total}>
                   {formatXaf(totalPrice) ?? t('pharmacy.priceUnavailable')}
                 </Text>
-                <Text className="mt-1 text-xs text-navy-secondary" numberOfLines={1}>
-                  {pharmacy?.name ?? t('pharmacy.noPharmacySelected')}
-                </Text>
               </View>
-
-              <View className="mt-3 flex-row items-start rounded-xl bg-cream-100 p-3">
-                <Info size={13} color={colors.navy.muted} style={{ marginTop: 1 }} />
-                <Text className="ml-2 flex-1 text-[11px] leading-4 text-navy-secondary">
-                  {t('pharmacy.paymentNote')}
-                </Text>
+              <View style={styles.infoStrip}>
+                <Icon name="info" size={18} color={colors.blue} />
+                <Text style={styles.infoText}>{t('pharmacy.paymentNote')}</Text>
               </View>
-            </View>
+            </Card>
 
-            {/* Prescription — this is business logic, not an error */}
+            {/* -- Prescription — business logic, not an error ---------------- */}
             {needsPrescription ? (
-              <View className="mt-4 rounded-2xl border border-brand-100 bg-brand-50 p-4">
-                <View className="flex-row items-start">
-                  <View className="h-9 w-9 items-center justify-center rounded-full bg-white">
-                    <FileText size={16} color={colors.brand[600]} />
-                  </View>
-                  <View className="ml-3 flex-1">
-                    <Text className="text-sm font-bold text-navy-text">
-                      {t('pharmacy.prescriptionExplainerTitle')}
-                    </Text>
-                    <Text className="mt-1 text-xs leading-4 text-navy-secondary">
-                      {t('pharmacy.prescriptionExplainerBody')}
-                    </Text>
+              <Card>
+                <View style={styles.rxHead}>
+                  <TintCircle icon="document-text" tint="blue" />
+                  <View style={styles.rxBody}>
+                    <Text style={styles.rxTitle}>{t('pharmacy.prescriptionExplainerTitle')}</Text>
+                    <Text style={styles.body}>{t('pharmacy.prescriptionExplainerBody')}</Text>
                   </View>
                 </View>
 
-                <Pressable
-                  onPress={() => setPrescriptionListOpen((open) => !open)}
-                  className="mt-3 h-11 flex-row items-center justify-center rounded-xl border border-brand-500 bg-white px-3"
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: prescriptionListOpen }}
-                >
-                  {prescriptionId ? (
-                    <Check size={15} color={colors.brand[600]} />
-                  ) : (
-                    <FileText size={15} color={colors.brand[600]} />
-                  )}
-                  <Text className="ml-2 text-xs font-bold text-brand-600">
-                    {prescriptionId
+                <MedButton
+                  label={
+                    prescriptionId
                       ? t('pharmacy.prescriptionAttached')
-                      : t('pharmacy.attachPrescription')}
-                  </Text>
-                </Pressable>
+                      : t('pharmacy.attachPrescription')
+                  }
+                  icon={prescriptionId ? 'check' : 'paperclip'}
+                  iconRight={prescriptionListOpen ? 'chevron-up' : 'chevron-down'}
+                  variant={prescriptionId ? 'ghost' : 'secondary'}
+                  onPress={() => setPrescriptionListOpen((open) => !open)}
+                  style={styles.rxButton}
+                />
 
                 {prescriptionListOpen ? (
                   prescriptions.isPending ? (
-                    <View className="mt-3 items-center">
-                      <ActivityIndicator color={colors.brand[500]} />
+                    <View style={styles.loading}>
+                      <ActivityIndicator color={colors.blue} />
                     </View>
                   ) : (prescriptions.data ?? []).length === 0 ? (
-                    <View className="mt-3 items-center rounded-xl border border-cream-300 bg-white px-4 py-5">
-                      <Text className="text-center text-xs text-navy-secondary">
-                        {t('pharmacy.noPrescriptions')}
-                      </Text>
-                      <Pressable
-                        onPress={() => router.push('/prescriptions')}
-                        className="mt-3 rounded-xl border border-brand-500 px-4 py-2"
-                        accessibilityRole="button"
-                      >
-                        <Text className="text-xs font-bold text-brand-600">
-                          {t('pharmacy.openPrescriptions')}
-                        </Text>
-                      </Pressable>
-                    </View>
+                    <EmptyState
+                      icon="document"
+                      tint="blue"
+                      title={t('pharmacy.noPrescriptions')}
+                      actionLabel={t('pharmacy.openPrescriptions')}
+                      onAction={() => router.push('/prescriptions')}
+                    />
                   ) : (
-                    <View className="mt-3 overflow-hidden rounded-xl border border-cream-300 bg-white">
+                    <Card variant="flush" style={styles.rxList}>
                       {(prescriptions.data ?? []).map((rx, index, all) => {
                         const active = rx.id === prescriptionId;
+                        // facility_name is nullable on the prescriptions payload;
+                        // when it is absent the item count becomes the headline
+                        // rather than a placeholder.
+                        const items = t('pharmacy.prescriptionItems', { count: rx.item_count });
                         return (
-                          <Pressable
+                          <ListRow
                             key={rx.id}
+                            icon="document-text"
+                            tint={active ? 'green' : 'blue'}
+                            title={rx.facility_name ?? items}
+                            meta={[rx.facility_name ? items : null, formatDate(rx.prescribed_at) || null]}
+                            trailing={
+                              active ? <Icon name="check" size={18} color={colors.blue} /> : undefined
+                            }
+                            chevron={false}
+                            divider={index < all.length - 1}
                             onPress={() => {
                               setPrescriptionId(active ? null : rx.id);
                               setPrescriptionListOpen(false);
                               setErrorCode(null);
                             }}
-                            accessibilityRole="button"
-                            accessibilityState={{ selected: active }}
-                            className={`flex-row items-center justify-between px-3 py-3 ${
-                              index === all.length - 1 ? '' : 'border-b border-cream-200'
-                            }`}
-                          >
-                            <View className="flex-1 pr-2">
-                              {/* facility_name is nullable on the prescriptions
-                                  payload; when it is absent the item count
-                                  becomes the headline rather than a placeholder. */}
-                              <Text
-                                className="text-xs font-semibold text-navy-text"
-                                numberOfLines={1}
-                              >
-                                {rx.facility_name ??
-                                  t('pharmacy.prescriptionItems', { count: rx.item_count })}
-                              </Text>
-                              <Text className="mt-0.5 text-[11px] text-navy-secondary">
-                                {rx.facility_name
-                                  ? t('pharmacy.prescriptionItems', { count: rx.item_count })
-                                  : ''}
-                                {rx.prescribed_at
-                                  ? `${rx.facility_name ? '  ·  ' : ''}${formatDate(rx.prescribed_at, i18n.language)}`
-                                  : ''}
-                              </Text>
-                            </View>
-                            {active ? <Check size={16} color={colors.brand[600]} /> : null}
-                          </Pressable>
+                          />
                         );
                       })}
-                    </View>
+                    </Card>
                   )
                 ) : null}
-              </View>
+              </Card>
             ) : null}
 
-            {/* Outcome banners */}
+            {/* -- Outcome strips (the Dialog is transient; these persist) --- */}
             {confirmed ? (
-              <View
-                className="mt-4 flex-row rounded-2xl p-4"
-                style={{ backgroundColor: colors.semantic.successSurface }}
-              >
-                <View className="mr-3 h-9 w-9 items-center justify-center rounded-full bg-white">
-                  <BadgeCheck size={16} color={colors.semantic.success} />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-bold" style={{ color: colors.semantic.success }}>
+              <View style={[styles.outcome, { backgroundColor: colors.statusNormalBg }]}>
+                <Icon name="check-circle" size={20} color={colors.statusNormal} />
+                <View style={styles.outcomeBody}>
+                  <Text style={[styles.outcomeTitle, { color: colors.statusNormal }]}>
                     {t('pharmacy.reserveSuccessTitle')}
                   </Text>
-                  <Text className="mt-1 text-xs leading-4 text-navy-secondary">
+                  <Text style={styles.body}>
                     {t('pharmacy.reserveSuccessBody', {
                       reference: confirmed.reference,
                       pharmacy: confirmed.pharmacy?.name ?? pharmacy?.name ?? '',
@@ -796,36 +667,40 @@ export default function MedicineDetailScreen() {
 
             {errorCode ? (
               <View
-                className="mt-4 flex-row rounded-2xl p-4"
-                style={{
-                  backgroundColor:
-                    errorCode === 'PRESCRIPTION_REQUIRED'
-                      ? colors.semantic.infoSurface
-                      : colors.semantic.dangerSurface,
-                }}
+                style={[
+                  styles.outcome,
+                  {
+                    backgroundColor:
+                      errorCode === 'PRESCRIPTION_REQUIRED'
+                        ? colors.statusPendingBg
+                        : colors.statusCriticalBg,
+                  },
+                ]}
               >
-                <View className="mr-3 h-9 w-9 items-center justify-center rounded-full bg-white">
-                  {errorCode === 'PRESCRIPTION_REQUIRED' ? (
-                    <FileText size={16} color={colors.semantic.info} />
-                  ) : (
-                    <CircleAlert size={16} color={colors.semantic.danger} />
-                  )}
-                </View>
-                <View className="flex-1">
+                <Icon
+                  name={errorCode === 'PRESCRIPTION_REQUIRED' ? 'document-text' : 'alert-circle'}
+                  size={20}
+                  color={
+                    errorCode === 'PRESCRIPTION_REQUIRED' ? colors.statusPending : colors.statusCritical
+                  }
+                />
+                <View style={styles.outcomeBody}>
                   <Text
-                    className="text-xs font-bold"
-                    style={{
-                      color:
-                        errorCode === 'PRESCRIPTION_REQUIRED'
-                          ? colors.semantic.info
-                          : colors.semantic.danger,
-                    }}
+                    style={[
+                      styles.outcomeTitle,
+                      {
+                        color:
+                          errorCode === 'PRESCRIPTION_REQUIRED'
+                            ? colors.statusPending
+                            : colors.statusCritical,
+                      },
+                    ]}
                   >
                     {errorCode === 'PRESCRIPTION_REQUIRED'
                       ? t('pharmacy.prescriptionExplainerTitle')
                       : t('pharmacy.loadFailed')}
                   </Text>
-                  <Text className="mt-1 text-xs leading-4 text-navy-secondary">
+                  <Text style={styles.body}>
                     {t(`pharmacy.reserveError.${errorCode}`, {
                       defaultValue: t('pharmacy.reserveError.generic'),
                     })}
@@ -834,101 +709,185 @@ export default function MedicineDetailScreen() {
               </View>
             ) : null}
 
-            {/* Where it is: embedded, in-app map (no external maps app) */}
-            {pharmacy && pharmacy.latitude != null && pharmacy.longitude != null ? (
-              <View className="mt-4">
-                <FacilityMap facilities={pharmacy} height={180} directions />
-              </View>
-            ) : null}
-
-            {/* Actions */}
-            <View className="mt-5" style={{ gap: 12 }}>
-              <Button
+            {/* -- Actions -------------------------------------------------- */}
+            <View style={styles.actions}>
+              <GradientButton
                 label={t('pharmacy.reserve')}
-                onPress={onReserve}
-                leftIcon={ShoppingCart}
-                showChevron={false}
+                onPress={confirmReserve}
                 loading={reserve.isPending}
                 disabled={!canReserve}
+                accessibilityHint={t('pharmacy.paymentNote')}
               />
 
-              {callablePhone(pharmacy) ? (
-                <Button
-                  label={t('pharmacy.callPharmacy')}
-                  variant="outline"
-                  onPress={() => {
-                    const number = callablePhone(pharmacy);
-                    if (number) Linking.openURL(`tel:${number}`).catch(() => undefined);
-                  }}
-                />
-              ) : null}
-            </View>
+              {/* Why the CTA is disabled — never leave a dead button unexplained. */}
+              {disabledReason ? <Text style={styles.disabledReason}>{disabledReason}</Text> : null}
 
-            {/* Why the CTA is disabled — never leave a dead button unexplained. */}
-            {!canReserve && !confirmed ? (
-              <Text className="mt-3 text-center text-[11px] leading-4 text-navy-muted">
-                {!pharmacy
-                  ? t('pharmacy.noPharmacySelected')
-                  : heldHere
-                    ? t('pharmacy.reservationHeldHere')
-                    : !reservationEnabled
-                      ? pharmacy.stock?.status === 'out_of_stock'
-                        ? t('pharmacy.outOfStockNote')
-                        : t('pharmacy.noReservationEnabled')
-                      : t('pharmacy.reserveError.PRESCRIPTION_REQUIRED')}
-              </Text>
-            ) : null}
+              <View style={styles.secondaryActions}>
+                {callablePhone(pharmacy) ? (
+                  <MedButton
+                    label={t('pharmacy.callPharmacy')}
+                    icon="phone"
+                    variant="secondary"
+                    onPress={callPharmacy}
+                    style={styles.secondaryAction}
+                  />
+                ) : null}
+                {pharmacy ? (
+                  <MedButton
+                    label={t('pharmacy.viewPharmacy')}
+                    icon="store"
+                    variant="secondary"
+                    onPress={() =>
+                      router.push({ pathname: '/facility/[id]', params: { id: pharmacy.id } })
+                    }
+                    style={styles.secondaryAction}
+                  />
+                ) : null}
+              </View>
+            </View>
           </>
         )}
-
-        <View className="h-10" />
       </ScrollView>
-    </Screen>
+
+      {dialog.element}
+    </SafeAreaView>
   );
 }
 
 /* ── Pieces ───────────────────────────────────────────────────────────────── */
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <Text className="mt-6 text-base font-bold text-navy-text">{children}</Text>;
-}
+/** Name, generic, strength/form, Rx/controlled badges, price range, fact cells. */
+function IdentityCard({ medicine }: { medicine: Medicine }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
-function HeroBadge({ label }: { label: string }) {
+  const min = medicine.availability.price_min ?? null;
+  const max = medicine.availability.price_max ?? null;
+  const priceRangeLabel =
+    min !== null && max !== null && min !== max
+      ? t('pharmacy.priceRangeValue', { min: formatXafBare(min), max: formatXaf(max) })
+      : (formatXaf(min ?? max) ?? t('pharmacy.priceUnavailable'));
+
+  const strengthForm =
+    medicine.strength && medicine.form
+      ? t('pharmacy.strengthForm', { strength: medicine.strength, form: medicine.form })
+      : (medicine.strength ?? medicine.form ?? null);
+
+  const categoryLabel = t(`pharmacy.categories.${medicine.category}`, {
+    defaultValue: medicine.category_label,
+  });
+
   return (
-    <View className="rounded-lg bg-white/20 px-2 py-1">
-      <Text className="text-[10px] font-bold text-white">{label}</Text>
-    </View>
+    <Card>
+      <View style={styles.identity}>
+        <TintCircle
+          icon={CATEGORY_ICONS[medicine.category_icon] ?? 'pill'}
+          tint="blue"
+          size={72}
+          square
+        />
+        <View style={styles.identityBody}>
+          <Text style={styles.drugName} numberOfLines={2}>
+            {medicine.name}
+          </Text>
+          <Text style={styles.drugForm}>{t('pharmacy.generic', { name: medicine.generic_name })}</Text>
+          {strengthForm ? <Text style={styles.drugForm}>{strengthForm}</Text> : null}
+          <View style={styles.badgeRow}>
+            <StatusBadge
+              status={medicine.prescription_required ? 'pending' : 'normal'}
+              tone={medicine.prescription_required ? 'pending' : 'normal'}
+              label={
+                medicine.prescription_required
+                  ? t('pharmacy.prescriptionRequired')
+                  : t('pharmacy.prescriptionNotRequired')
+              }
+              size="sm"
+            />
+            {medicine.is_controlled ? (
+              <StatusBadge
+                status="controlled"
+                tone="warning"
+                label={t('pharmacy.controlled')}
+                size="sm"
+              />
+            ) : null}
+          </View>
+        </View>
+        <View style={styles.identityAside}>
+          <Text style={styles.asideLabel}>{t('pharmacy.priceRange')}</Text>
+          <Text style={styles.asideValue}>{priceRangeLabel}</Text>
+          <Text style={[styles.asideLabel, styles.asideLabelSpaced]}>
+            {medicine.availability.is_available ? t('pharmacy.available') : t('pharmacy.unavailable')}
+          </Text>
+          <Text
+            style={[
+              styles.asideValue,
+              { color: medicine.availability.is_available ? colors.statusNormal : colors.textSecondary },
+            ]}
+            numberOfLines={2}
+          >
+            {medicine.availability.is_available
+              ? t('pharmacy.pharmacyCount', { count: medicine.availability.pharmacy_count })
+              : t('pharmacy.availabilityNone')}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.identityFacts}>
+        <FactCell
+          icon="capsule"
+          label={t('opesMeds.detail.dose')}
+          value={medicine.strength ?? '—'}
+          align="center"
+        />
+        <FactCell
+          icon="pill"
+          label={t('pharmacy.form', { defaultValue: 'Form' })}
+          value={medicine.form ?? '—'}
+          align="center"
+          divided
+        />
+        <FactCell
+          icon="grid"
+          label={t('pharmacy.category', { defaultValue: 'Category' })}
+          value={categoryLabel}
+          align="center"
+          divided
+        />
+        <FactCell
+          icon="cart"
+          label={t('pharmacy.packSizeOptions')}
+          value={medicine.default_pack_size ?? '—'}
+          align="center"
+          divided
+        />
+      </View>
+    </Card>
   );
 }
 
-function stockTone(status: StockStatusValue | undefined): { color: string; surface: string } {
-  switch (status) {
-    case 'in_stock':
-      return { color: colors.semantic.success, surface: colors.semantic.successSurface };
-    case 'low_stock':
-      return { color: colors.semantic.warning, surface: colors.semantic.warningSurface };
-    case 'out_of_stock':
-      return { color: colors.semantic.danger, surface: colors.semantic.dangerSurface };
-    default:
-      return { color: colors.navy.muted, surface: colors.cream[200] };
-  }
-}
-
-function PharmacyOption({
+/** One stocking pharmacy in the picker: stock badge, price, distance, hours. */
+function PharmacyOptionRow({
   pharmacy,
   selected,
+  divider,
   onPress,
-  onOpenFacility,
 }: {
   pharmacy: NearbyPharmacy;
   selected: boolean;
+  divider: boolean;
   onPress: () => void;
-  onOpenFacility: () => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const price = formatXaf(pharmacy.stock?.unit_price);
-  const tone = stockTone(pharmacy.stock?.status);
-  const reportedAt = formatDate(pharmacy.stock?.last_reported_at, i18n.language) || null;
+  const stockLabel = pharmacy.stock
+    ? t(`pharmacy.stock.${pharmacy.stock.status}`)
+    : t('pharmacy.stock.unknown');
+  const reportedAt = formatDate(pharmacy.stock?.last_reported_at) || null;
 
   const hoursLine = pharmacy.is_24_hours
     ? t('pharmacy.open24')
@@ -943,88 +902,84 @@ function PharmacyOption({
             : t('pharmacy.closed');
 
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      className={`rounded-2xl border p-3 ${
-        selected ? 'border-brand-500 bg-brand-50' : 'border-cream-300 bg-white'
-      }`}
-      style={selected ? undefined : CARD_SHADOW}
-    >
-      <View className="flex-row items-start">
-        <View
-          className="h-11 w-11 items-center justify-center rounded-xl"
-          style={{ backgroundColor: selected ? colors.white : colors.brand[50] }}
-        >
-          <Store size={18} color={colors.brand[600]} />
-        </View>
-
-        <View className="ml-3 flex-1">
-          <Text className="text-sm font-bold text-navy-text" numberOfLines={1}>
-            {pharmacy.name}
-          </Text>
-          <View className="mt-1 flex-row items-center">
-            <MapPin size={11} color={colors.navy.muted} />
-            <Text className="ml-1 text-[11px] text-navy-secondary" numberOfLines={1}>
-              {t('pharmacy.distanceKm', { km: pharmacy.distance_km })}
-            </Text>
-            <Clock size={11} color={colors.navy.muted} style={{ marginLeft: 10 }} />
-            <Text className="ml-1 flex-1 text-[11px] text-navy-secondary" numberOfLines={1}>
-              {hoursLine}
-            </Text>
-          </View>
-        </View>
-
-        <View
-          className="h-5 w-5 items-center justify-center rounded-full border"
-          style={{
-            borderColor: selected ? colors.brand[500] : colors.cream[300],
-            backgroundColor: selected ? colors.brand[500] : colors.white,
-          }}
-        >
-          {selected ? <Check size={12} color={colors.white} /> : null}
-        </View>
-      </View>
-
-      <View className="mt-2.5 flex-row items-center justify-between border-t border-cream-200 pt-2.5">
-        <View className="flex-1 flex-row items-center">
-          <View className="rounded-lg px-2 py-1" style={{ backgroundColor: tone.surface }}>
-            <Text className="text-[10px] font-bold" style={{ color: tone.color }}>
-              {pharmacy.stock
-                ? t(`pharmacy.stock.${pharmacy.stock.status}`)
-                : t('pharmacy.stock.unknown')}
-            </Text>
-          </View>
-          {pharmacy.stock?.packs_available ? (
-            <Text className="ml-2 text-[10px] text-navy-secondary" numberOfLines={1}>
-              {t('pharmacy.packsLeft', { count: pharmacy.stock.packs_available })}
-            </Text>
-          ) : reportedAt ? (
-            <Text className="ml-2 flex-1 text-[10px] text-navy-muted" numberOfLines={1}>
-              {t('pharmacy.stockUpdated', { when: reportedAt })}
-            </Text>
-          ) : null}
-        </View>
-
-        <View className="flex-row items-center">
+    <ListRow
+      leading={<TintCircle icon={selected ? 'check' : 'store'} tint={selected ? 'green' : 'blue'} />}
+      title={pharmacy.name}
+      meta={[
+        t('pharmacy.distanceKm', { km: pharmacy.distance_km }),
+        hoursLine,
+        pharmacy.stock?.packs_available
+          ? t('pharmacy.packsLeft', { count: pharmacy.stock.packs_available })
+          : reportedAt
+            ? t('pharmacy.stockUpdated', { when: reportedAt })
+            : null,
+      ]}
+      trailing={
+        <View style={styles.rowAside}>
           {price ? (
-            <Text className="mr-3 text-xs font-extrabold text-brand-700">{price}</Text>
-          ) : null}
-          <Pressable
-            onPress={onOpenFacility}
-            hitSlop={6}
-            accessibilityRole="button"
-            className="flex-row items-center"
-          >
-            <Text className="text-[11px] font-bold text-brand-600">
-              {t('pharmacy.viewPharmacy')}
+            <Text style={styles.rowPrice} numberOfLines={1}>
+              {price}
             </Text>
-            <ChevronRight size={12} color={colors.brand[600]} />
-          </Pressable>
+          ) : null}
+          <StatusBadge
+            status={pharmacy.stock?.status ?? 'unknown'}
+            tone={stockTone(pharmacy.stock?.status)}
+            label={stockLabel}
+            size="sm"
+          />
         </View>
-      </View>
-    </Pressable>
+      }
+      chevron={false}
+      divider={divider}
+      onPress={onPress}
+      style={selected ? styles.selectedRow : undefined}
+      accessibilityLabel={[pharmacy.name, stockLabel, price, hoursLine].filter(Boolean).join(', ')}
+      accessibilityHint={selected ? t('pharmacy.selectedPharmacy') : t('pharmacy.reserveHere')}
+    />
+  );
+}
+
+function StepperButton({
+  icon,
+  disabled,
+  onPress,
+  accessibilityLabel,
+}: {
+  icon: IconName;
+  disabled: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={6}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
+      style={[styles.stepperButton, disabled && styles.stepperButtonOff]}
+    >
+      <Icon name={icon} size={18} color={colors.blue} />
+    </TouchableOpacity>
+  );
+}
+
+function SummaryLine({ label, value }: { label: string; value: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <View style={styles.summaryLine} accessible accessibilityLabel={`${label}, ${value}`}>
+      <Text style={styles.summaryLabel} numberOfLines={1}>
+        {label}
+      </Text>
+      <Text style={styles.summaryValue} numberOfLines={2}>
+        {value}
+      </Text>
+    </View>
   );
 }
 
@@ -1041,29 +996,194 @@ function callablePhone(pharmacy: NearbyPharmacy | null): string | null {
   return digits.length >= 4 ? raw : null;
 }
 
-function localeTag(language: string): string {
-  return language?.startsWith('fr') ? 'fr-FR' : 'en-US';
-}
+/* ── Styles ───────────────────────────────────────────────────────────────── */
 
-function formatDateTime(value: string | null | undefined, language: string): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat(localeTag(language), {
-    day: 'numeric',
-    month: 'short',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date);
-}
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: c.page },
+    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
 
-function formatDate(value: string | null | undefined, language: string): string {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat(localeTag(language), {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-}
+    loading: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm },
+    loadingText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+
+    body: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: c.textSecondary,
+    },
+    hint: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+    sectionHint: {
+      marginTop: -spacing.xs,
+      marginBottom: spacing.sm + 2,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+
+    // Identity card (MED-005 recipe)
+    identity: { flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 },
+    // At 320px the 72px badge + 122px aside would crush the drug name into ~38px.
+    // A minWidth on the body drops the aside to its own line on narrow screens;
+    // wider screens keep badge, name and aside on one row.
+    identityBody: { flex: 1, minWidth: 160, gap: 2 },
+    drugName: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+      lineHeight: typography.lineHeight.lg,
+      color: c.textPrimary,
+    },
+    drugForm: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: c.textSecondary,
+    },
+    badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+    identityAside: {
+      width: 122,
+      paddingLeft: 12,
+      borderLeftWidth: 1,
+      borderLeftColor: c.divider,
+      gap: 1,
+    },
+    asideLabel: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textSecondary,
+    },
+    asideLabelSpaced: { marginTop: spacing.sm },
+    asideValue: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: c.link,
+    },
+    identityFacts: {
+      flexDirection: 'row',
+      marginTop: spacing.md,
+      paddingTop: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: c.divider,
+    },
+
+    chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
+
+    // Rows placed inside a padded card sit flush with its edges.
+    flushRow: { paddingHorizontal: 0 },
+    selectedRow: { backgroundColor: c.primarySoft },
+
+    rowAside: { alignItems: 'flex-end', gap: 4 },
+    rowPrice: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: c.link,
+    },
+
+    stepper: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    stepperButton: {
+      width: 34,
+      height: 34,
+      borderRadius: radii.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.primarySoft,
+    },
+    stepperButtonOff: { opacity: 0.4 },
+    stepperValue: {
+      minWidth: 28,
+      textAlign: 'center',
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.md,
+      color: c.textPrimary,
+    },
+
+    summaryLine: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+      paddingVertical: 6,
+    },
+    summaryLabel: {
+      flexShrink: 0,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: c.textSecondary,
+    },
+    summaryValue: {
+      flex: 1,
+      textAlign: 'right',
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: c.textPrimary,
+    },
+    totalRow: {
+      marginTop: spacing.sm,
+      paddingTop: spacing.sm + 2,
+      borderTopWidth: 1,
+      borderTopColor: c.divider,
+    },
+    total: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xxl,
+      lineHeight: typography.lineHeight.xxl,
+      color: c.link,
+    },
+    infoStrip: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      marginTop: spacing.sm + 2,
+      padding: spacing.sm + 2,
+      borderRadius: radii.sm,
+      backgroundColor: c.primarySoft,
+    },
+    infoText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textSecondary,
+    },
+
+    rxHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 4 },
+    rxBody: { flex: 1, minWidth: 0, gap: 4 },
+    rxTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: c.textPrimary,
+    },
+    rxButton: { marginTop: spacing.md },
+    rxList: { marginTop: spacing.sm },
+
+    outcome: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm + 2,
+      padding: spacing.md - 2,
+      borderRadius: radii.md,
+    },
+    outcomeBody: { flex: 1, minWidth: 0, gap: 2 },
+    outcomeTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
+
+    actions: { gap: spacing.sm + 4 },
+    disabledReason: {
+      textAlign: 'center',
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textMuted,
+    },
+    secondaryActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    secondaryAction: { flexGrow: 1, flexBasis: '45%' },
+  });

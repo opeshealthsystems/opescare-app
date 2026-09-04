@@ -1,36 +1,56 @@
 import { useMemo } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
+import { Screen } from '@/components/ui/Screen';
+import { FacilityMap } from '@/components/map/FacilityMap';
 import {
-  ArrowLeft,
-  CalendarPlus,
-  CalendarX,
-  ChevronRight,
-  Clock,
-  Globe,
-  Mail,
-  MapPin,
-  Phone,
-  ShieldCheck,
-  Stethoscope,
-  TriangleAlert,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../../components/ui/Screen';
-import { Button } from '../../components/ui/Button';
-import { FacilityMap } from '../../components/map/FacilityMap';
-import { colors } from '../../theme/tokens';
+  Card,
+  EmptyState,
+  GradientButton,
+  Icon,
+  ListRow,
+  ScreenHeader,
+  SectionHeader,
+  StatusBadge,
+  formatLabel,
+  radii,
+  spacing,
+  typography,
+  useTheme,
+  type IconName,
+  type Palette,
+  type Tint,
+} from '@/components/opes-ui';
+import {
+  CareButton,
+  DEPARTMENT_TYPE_ICON,
+  ErrorBlock,
+  InfoRow,
+  LoadingBlock,
+  NoticeBanner,
+  ProviderAvatar,
+  departmentTypeLabel,
+  type DepartmentType,
+  type Translate,
+} from '@/components/care/shared';
 import {
   useFacilityDetail,
   useFacilityProviders,
   useFacilitySlots,
   type CareFacilityHour,
-  type FacilityProviderSummary,
-} from '../../lib/api/queries';
+  type CareFacilityService,
+} from '@/lib/api/queries';
 import {
-  iconForFacilityType,
   joinLocationParts,
   openStateToday,
   telUrl,
@@ -38,11 +58,13 @@ import {
   weekdayLabel,
   websiteUrl,
   type OpenState,
-} from '../../lib/careMap/facilityDisplay';
+} from '@/lib/careMap/facilityDisplay';
 
 /**
  * Facility profile — the drill-in from Care Access and the booking flow's
- * facility picker.
+ * facility picker. Presentation is the OPES CARE-005 profile layout
+ * (`UIUX/src/screens/care/FacilityProfileScreen.tsx`) ported onto this
+ * app's existing data layer; nothing below fetches differently than before.
  *
  * The honest-bookability rule lives here. Of the 903 listed institutions only
  * **17** are linked to an internal `facilities` row and therefore have
@@ -52,92 +74,68 @@ import {
  * the booking card below reads that response and says which of three situations
  * this facility is in — not connected, connected but nothing open, or bookable
  * right now — and only the last one shows a booking CTA.
+ *
+ * Where the facility is stays an *embedded* map (`FacilityMap`, the finder's
+ * in-app map with in-app directions). There is deliberately no external
+ * maps link on this screen.
  */
 
-/** Two-letter monogram — staff_profiles carries no photo column, so avatars are initials. */
-function providerInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '—';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+/**
+ * Kit glyph for each `care_facilities.facility_type`. The care map keeps its
+ * Lucide set; this screen is kit-only. The kit has no tooth glyph yet, so
+ * dental falls back to the first-aid cross.
+ */
+const FACILITY_TYPE_ICON: Record<string, IconName> = {
+  hospital: 'building',
+  clinic: 'stethoscope',
+  health_center: 'first-aid',
+  pharmacy: 'pill',
+  laboratory: 'flask',
+  dental: 'first-aid',
+  diagnostic_center: 'microscope',
+  imaging_center: 'image',
+  blood_bank: 'droplet',
+};
+
+const facilityTypeIcon = (type: string): IconName => FACILITY_TYPE_ICON[type] ?? 'location';
+
+/**
+ * `care_facility_services.service_category` is free text seeded from a small
+ * vocabulary ("emergency, diagnostic, consultation, lab, imaging…"). Fold it
+ * onto the kit's department types so every service row gets the same icon its
+ * department would in the finder.
+ */
+const SERVICE_CATEGORY_TYPE: Record<string, DepartmentType> = {
+  clinic: 'clinic',
+  clinical: 'clinic',
+  consultation: 'clinic',
+  procedure: 'clinic',
+  surgery: 'clinic',
+  laboratory: 'laboratory',
+  lab: 'laboratory',
+  diagnostic: 'laboratory',
+  pharmacy: 'pharmacy',
+  imaging: 'imaging',
+  radiology: 'imaging',
+  emergency: 'emergency',
+};
+
+const SERVICE_TINT: Record<DepartmentType, Tint> = {
+  clinic: 'blue',
+  laboratory: 'green',
+  pharmacy: 'green',
+  imaging: 'purple',
+  emergency: 'red',
+};
+
+function serviceDepartmentType(category: string | null): DepartmentType | null {
+  if (!category) return null;
+  return SERVICE_CATEGORY_TYPE[category.trim().toLowerCase().replace(/[\s-]+/g, '_')] ?? null;
 }
 
-function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {
-  return (
-    <View className="mb-2 mt-6">
-      <Text className="text-sm font-bold text-navy-text">{title}</Text>
-      {subtitle ? <Text className="text-xs text-navy-muted">{subtitle}</Text> : null}
-    </View>
-  );
-}
-
-function Tag({ label }: { label: string }) {
-  return (
-    <View className="rounded-full bg-cream-200 px-2.5 py-1">
-      <Text className="text-[10px] font-semibold uppercase text-navy-secondary">{label}</Text>
-    </View>
-  );
-}
-
-function ContactRow({
-  icon: Icon,
-  label,
-  value,
-  onPress,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  onPress?: () => void;
-}) {
-  const body = (
-    <View className="flex-row items-center py-3">
-      <Icon size={16} color={colors.brand[600]} />
-      <View className="ml-3 flex-1">
-        <Text className="text-xs text-navy-muted">{label}</Text>
-        <Text className="mt-0.5 text-sm font-semibold text-navy-text">{value}</Text>
-      </View>
-      {onPress ? <ChevronRight size={16} color={colors.navy.muted} /> : null}
-    </View>
-  );
-  return onPress ? <Pressable onPress={onPress}>{body}</Pressable> : body;
-}
-
-function ProviderRow({
-  provider,
-  onPress,
-}: {
-  provider: FacilityProviderSummary;
-  onPress: () => void;
-}) {
-  const subtitle = [provider.job_title, provider.department].filter(Boolean).join(' · ');
-  return (
-    <Pressable onPress={onPress} className="mb-3 flex-row items-center rounded-2xl bg-white p-4">
-      <View
-        className="h-12 w-12 items-center justify-center rounded-full"
-        style={{ backgroundColor: colors.brand[50] }}
-      >
-        <Text className="text-sm font-extrabold text-brand-600">
-          {providerInitials(provider.name)}
-        </Text>
-      </View>
-      <View className="ml-3 flex-1">
-        <Text className="text-base font-bold text-navy-text" numberOfLines={1}>
-          {provider.name}
-        </Text>
-        {subtitle ? (
-          <Text className="mt-0.5 text-xs text-navy-secondary" numberOfLines={1}>
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
-      <ChevronRight size={18} color={colors.navy.muted} />
-    </Pressable>
-  );
-}
-
-/** Small "Open now / Closed / Open 24 hours" pill derived from published hours. */
-function OpenStatePill({ state, t }: { state: OpenState; t: TFunction }) {
+/** "Open · closes 17:00" / "Closed · opens 08:00" as a kit status pill. */
+function OpenStateBadge({ state }: { state: OpenState }) {
+  const { t } = useTranslation();
   if (state.kind === 'unknown') return null;
 
   const isOpen = state.kind === 'open' || state.kind === 'open24';
@@ -151,27 +149,86 @@ function OpenStatePill({ state, t }: { state: OpenState; t: TFunction }) {
           : t('facility.closedToday');
 
   return (
-    <View
-      className="self-start rounded-full px-2.5 py-1"
-      style={{
-        backgroundColor: isOpen ? colors.semantic.successSurface : colors.cream[200],
-      }}
+    <StatusBadge
+      status={isOpen ? 'open' : 'closed'}
+      tone={isOpen ? 'normal' : state.kind === 'closedNow' ? 'warning' : 'neutral'}
+      label={label}
+      icon="clock"
+      size="sm"
+      style={{ alignSelf: 'flex-start' }}
+    />
+  );
+}
+
+/** The circular quick action under the identity block (Call / Email / Website / Share). */
+function CircleAction({
+  icon,
+  label,
+  onPress,
+  disabled,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <TouchableOpacity
+      style={[styles.action, disabled && styles.actionOff]}
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
     >
-      <Text
-        className="text-[10px] font-bold"
-        style={{ color: isOpen ? colors.semantic.success : colors.navy.secondary }}
-      >
-        {label}
-      </Text>
-    </View>
+      <View style={styles.actionCircle}>
+        <Icon name={icon} size={22} color={colors.blue} />
+      </View>
+      <Text style={styles.actionLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function ServiceRow({
+  service,
+  divider,
+  tr,
+}: {
+  service: CareFacilityService;
+  divider: boolean;
+  tr: Translate;
+}) {
+  const type = serviceDepartmentType(service.service_category);
+  return (
+    <ListRow
+      icon={type ? DEPARTMENT_TYPE_ICON[type] : 'clipboard'}
+      tint={type ? SERVICE_TINT[type] : 'blue'}
+      title={service.service_name}
+      meta={[
+        service.service_category ? departmentTypeLabel(tr, type ?? service.service_category) : null,
+        service.specialty,
+        service.appointment_required ? tr('facility.appointmentRequired') : null,
+        service.walk_in_allowed ? tr('facility.walkInAllowed') : null,
+      ]}
+      divider={divider}
+    />
   );
 }
 
 export default function FacilityDetailScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const params = useLocalSearchParams<{ id?: string }>();
   const facilityId = params.id;
+
+  // The shared care helpers take a plain `(key, params) => string`; i18next's
+  // `t` is that, minus its overload noise.
+  const tr: Translate = (key, options) => String(t(key, options));
 
   const facilityQuery = useFacilityDetail(facilityId);
   const providersQuery = useFacilityProviders(facilityId);
@@ -180,6 +237,7 @@ export default function FacilityDetailScreen() {
   const facility = facilityQuery.data;
   const providers = providersQuery.data?.data ?? [];
   const insurances = facility?.insurances ?? [];
+  const services = facility?.services ?? [];
 
   const hours = useMemo(
     () =>
@@ -190,8 +248,12 @@ export default function FacilityDetailScreen() {
   );
 
   const openState = useMemo<OpenState>(() => openStateToday(hours), [hours]);
-
   const todayIndex = new Date().getDay();
+
+  const address = facility
+    ? joinLocationParts(facility.address, facility.city, facility.region)
+    : '';
+  const hasCoords = facility?.latitude != null && facility?.longitude != null;
 
   const openUrl = (url: string) => {
     Linking.openURL(url).catch(() => {});
@@ -212,6 +274,7 @@ export default function FacilityDetailScreen() {
       })
     : null;
 
+  /* ── Actions — every one the previous screen offered survives ──────── */
   const goToBooking = () => {
     if (!facility) return;
     router.push({ pathname: '/appointments/book', params: { facilityId: facility.id } });
@@ -221,416 +284,487 @@ export default function FacilityDetailScreen() {
     if (facility?.phone_primary) openUrl(telUrl(facility.phone_primary));
   };
 
+  const emailFacility = () => {
+    if (facility?.email) openUrl(`mailto:${facility.email}`);
+  };
+
+  const openWebsite = () => {
+    if (facility?.website) openUrl(websiteUrl(facility.website));
+  };
+
+  const shareFacility = () => {
+    if (!facility) return;
+    const line = [facility.facility_name, address, facility.phone_primary].filter(Boolean).join(' · ');
+    Share.share({ message: line }).catch(() => {});
+  };
+
+  const goBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)/home');
+  };
+
+  const contactRows = facility
+    ? [
+        facility.phone_primary
+          ? {
+              key: 'phone',
+              icon: 'phone' as IconName,
+              title: t('facility.phone'),
+              value: facility.phone_primary,
+              onPress: callFacility,
+            }
+          : null,
+        facility.phone_secondary
+          ? {
+              key: 'phone2',
+              icon: 'phone' as IconName,
+              title: t('facility.phone'),
+              value: facility.phone_secondary,
+              onPress: () => openUrl(telUrl(facility.phone_secondary as string)),
+            }
+          : null,
+        facility.email
+          ? {
+              key: 'email',
+              icon: 'mail' as IconName,
+              title: t('facility.email'),
+              value: facility.email,
+              onPress: emailFacility,
+            }
+          : null,
+        facility.website
+          ? {
+              key: 'website',
+              icon: 'globe' as IconName,
+              title: t('facility.website'),
+              value: facility.website,
+              onPress: openWebsite,
+            }
+          : null,
+      ].filter((row): row is NonNullable<typeof row> => row !== null)
+    : [];
+
   return (
     <Screen className="px-0">
-      <View className="flex-row items-center px-6 pt-2">
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={8}
-          className="h-11 w-11 items-center justify-center rounded-full border border-brand-300"
-        >
-          <ArrowLeft size={18} color={colors.brand[600]} />
-        </Pressable>
-        <Text className="ml-4 flex-1 text-lg font-extrabold text-navy-text" numberOfLines={1}>
-          {facility?.facility_name ?? t('facility.title')}
-        </Text>
-      </View>
+      <ScreenHeader
+        title={t('facility.title')}
+        subtitle={t('facility.profileSubtitle', {
+          defaultValue: 'Details, services, clinicians and opening hours.',
+        })}
+        onBack={goBack}
+      />
 
       {facilityQuery.isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={colors.brand[500]} />
-        </View>
+        <LoadingBlock label={t('facility.loading', { defaultValue: 'Loading facility…' })} />
       ) : facilityQuery.isError || !facility ? (
-        <View className="flex-1 items-center justify-center px-10">
-          <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-brand-50">
-            <TriangleAlert size={26} color={colors.brand[500]} />
-          </View>
-          <Text className="text-center text-sm text-navy-secondary">{t('facility.loadError')}</Text>
-          <Pressable
-            onPress={() => facilityQuery.refetch()}
-            className="mt-4 rounded-xl px-5 py-2.5"
-            style={{ backgroundColor: colors.brand[500] }}
-          >
-            <Text className="text-sm font-semibold text-white">{t('facility.retry')}</Text>
-          </Pressable>
-        </View>
+        <ErrorBlock message={t('facility.loadError')} onRetry={() => facilityQuery.refetch()} />
       ) : (
-        <ScrollView className="flex-1 px-6 pt-4" contentContainerStyle={{ paddingBottom: 40 }}>
+        <ScrollView contentContainerStyle={styles.content}>
           {/* ── Identity ──────────────────────────────────────────────── */}
-          <View className="rounded-2xl bg-white p-4">
-            <View className="flex-row items-start">
-              <View
-                className="mr-3 h-12 w-12 items-center justify-center rounded-2xl"
-                style={{ backgroundColor: colors.brand[50] }}
-              >
-                {(() => {
-                  const Icon = iconForFacilityType(facility.facility_type);
-                  return <Icon size={22} color={colors.brand[600]} />;
-                })()}
+          <Card>
+            <View style={styles.identity}>
+              <View style={styles.thumb}>
+                <Icon name={facilityTypeIcon(facility.facility_type)} size={34} color={colors.blue} />
               </View>
-              <View className="flex-1">
-                <Text className="text-lg font-extrabold text-navy-text">
+              <View style={styles.identityBody}>
+                <Text style={styles.name} numberOfLines={2}>
                   {facility.facility_name}
                 </Text>
-                <View className="mt-1 flex-row items-start">
-                  <MapPin size={12} color={colors.navy.muted} style={{ marginTop: 2 }} />
-                  <Text className="ml-1 flex-1 text-xs text-navy-secondary">
-                    {joinLocationParts(facility.address, facility.city, facility.region) || '—'}
-                  </Text>
-                </View>
-                <View className="mt-2 flex-row flex-wrap items-center" style={{ gap: 6 }}>
-                  <Tag
+                <View style={styles.tagRow}>
+                  <StatusBadge
+                    status={facility.facility_type}
+                    tone="neutral"
+                    size="sm"
                     label={t(`careMap.types.${facility.facility_type}`, {
-                      defaultValue: facility.facility_type,
+                      defaultValue: formatLabel(facility.facility_type),
                     })}
                   />
                   {facility.ownership_type ? (
-                    <Tag
+                    <StatusBadge
+                      status={facility.ownership_type}
+                      tone="neutral"
+                      size="sm"
                       label={t(`facility.ownership.${facility.ownership_type}`, {
-                        defaultValue: facility.ownership_type,
+                        defaultValue: formatLabel(facility.ownership_type),
                       })}
                     />
                   ) : null}
-                  <OpenStatePill state={openState} t={t} />
                 </View>
+                <View style={styles.metaRow}>
+                  <Icon name="location" size={16} color={colors.textSecondary} />
+                  <Text style={styles.meta}>{address || '—'}</Text>
+                </View>
+                <OpenStateBadge state={openState} />
               </View>
             </View>
 
-            <View className="mt-4 flex-row" style={{ gap: 8 }}>
-              {facility.phone_primary ? (
-                <Pressable
-                  onPress={callFacility}
-                  className="flex-1 flex-row items-center justify-center rounded-2xl py-3"
-                  style={{ backgroundColor: colors.brand[500] }}
-                >
-                  <Phone size={15} color={colors.white} />
-                  <Text className="ml-2 text-sm font-semibold text-white">
-                    {t('facility.callAction')}
-                  </Text>
-                </Pressable>
-              ) : null}
+            <View style={styles.actions}>
+              <CircleAction
+                icon="phone"
+                label={t('facility.callAction')}
+                disabled={!facility.phone_primary}
+                onPress={callFacility}
+              />
+              <CircleAction
+                icon="mail"
+                label={t('facility.email')}
+                disabled={!facility.email}
+                onPress={emailFacility}
+              />
+              <CircleAction
+                icon="globe"
+                label={t('facility.website')}
+                disabled={!facility.website}
+                onPress={openWebsite}
+              />
+              <CircleAction
+                icon="share"
+                label={t('opesCare.facilityProfile.share')}
+                onPress={shareFacility}
+              />
             </View>
-          </View>
+          </Card>
 
           {/* ── Where it is: embedded, in-app map (no external maps app) ─ */}
-          {facility.latitude != null && facility.longitude != null ? (
-            <View className="mt-4">
-              <FacilityMap facilities={facility} height={200} directions />
+          {hasCoords ? (
+            <View>
+              <SectionHeader title={t('opesCare.facilityProfile.location')} variant="overline" />
+              <Card variant="flush">
+                <FacilityMap
+                  facilities={{
+                    id: facility.id,
+                    name: facility.facility_name,
+                    latitude: facility.latitude,
+                    longitude: facility.longitude,
+                    city: facility.city,
+                    region: facility.region,
+                    type: facility.facility_type,
+                    phone: facility.phone_primary,
+                  }}
+                  height={200}
+                  directions
+                />
+              </Card>
             </View>
           ) : null}
 
           {/* ── Appointments: state of the real slot link ─────────────── */}
-          <SectionTitle title={t('facility.booking.title')} />
-          <View className="rounded-2xl bg-white p-4">
-            {slotsQuery.isLoading ? (
-              <View className="flex-row items-center py-1">
-                <ActivityIndicator size="small" color={colors.brand[500]} />
-                <Text className="ml-3 text-sm text-navy-secondary">
-                  {t('facility.booking.checking')}
-                </Text>
-              </View>
-            ) : slotsQuery.isError ? (
-              <View className="flex-row items-start">
-                <TriangleAlert size={16} color={colors.semantic.warning} style={{ marginTop: 2 }} />
-                <Text className="ml-3 flex-1 text-sm text-navy-secondary">
-                  {t('facility.booking.errorBody')}
-                </Text>
-              </View>
-            ) : !isLinkedForBooking ? (
-              <View>
-                <View className="flex-row items-start">
-                  <CalendarX size={16} color={colors.navy.muted} style={{ marginTop: 2 }} />
-                  <View className="ml-3 flex-1">
-                    <Text className="text-sm font-bold text-navy-text">
-                      {t('facility.booking.unavailableTitle')}
-                    </Text>
-                    <Text className="mt-1 text-xs leading-4 text-navy-secondary">
-                      {t('facility.booking.unavailableBody')}
-                    </Text>
-                  </View>
+          <View>
+            <SectionHeader title={t('facility.booking.title')} variant="overline" />
+            <Card>
+              {slotsQuery.isLoading ? (
+                <View style={styles.checking}>
+                  <ActivityIndicator size="small" color={colors.blue} />
+                  <Text style={styles.checkingText}>{t('facility.booking.checking')}</Text>
                 </View>
-                {facility.phone_primary ? (
-                  <Pressable
-                    onPress={callFacility}
-                    className="mt-3 flex-row items-center justify-center rounded-xl border py-2.5"
-                    style={{ borderColor: colors.brand[300] }}
-                  >
-                    <Phone size={14} color={colors.brand[600]} />
-                    <Text className="ml-2 text-xs font-semibold text-brand-600">
-                      {t('facility.booking.callInstead')}
-                    </Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ) : slots.length === 0 ? (
-              <View>
-                <View className="flex-row items-start">
-                  <Clock size={16} color={colors.navy.muted} style={{ marginTop: 2 }} />
-                  <View className="ml-3 flex-1">
-                    <Text className="text-sm font-bold text-navy-text">
-                      {t('facility.booking.noSlotsTitle')}
-                    </Text>
-                    <Text className="mt-1 text-xs leading-4 text-navy-secondary">
-                      {t('facility.booking.noSlotsBody')}
-                    </Text>
-                  </View>
-                </View>
-                <Pressable
-                  onPress={goToBooking}
-                  className="mt-3 flex-row items-center justify-center rounded-xl border py-2.5"
-                  style={{ borderColor: colors.brand[300] }}
-                >
-                  <CalendarPlus size={14} color={colors.brand[600]} />
-                  <Text className="ml-2 text-xs font-semibold text-brand-600">
-                    {t('facility.booking.checkDates')}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View>
-                <View className="flex-row items-start">
-                  <ShieldCheck
-                    size={16}
-                    color={colors.semantic.success}
-                    style={{ marginTop: 2 }}
+              ) : slotsQuery.isError ? (
+                <NoticeBanner
+                  tone="warning"
+                  icon="alert-triangle"
+                  message={t('facility.booking.errorBody')}
+                />
+              ) : !isLinkedForBooking ? (
+                <View style={styles.stack}>
+                  <NoticeBanner
+                    tone="pending"
+                    icon="info"
+                    title={t('facility.booking.unavailableTitle')}
+                    message={t('facility.booking.unavailableBody')}
                   />
-                  <View className="ml-3 flex-1">
-                    <Text className="text-sm font-bold text-navy-text">
-                      {t('facility.booking.availableTitle')}
-                    </Text>
-                    <Text className="mt-1 text-xs leading-4 text-navy-secondary">
-                      {/* Deliberately not named `count`: that key triggers
-                          i18next's plural resolution, which would look for
-                          `availableBody_one` / `_other` instead of this key. */}
-                      {t('facility.booking.availableBody', {
-                        slotCount: slots.length,
-                        when: nextSlotLabel ?? '',
-                      })}
-                    </Text>
-                  </View>
+                  {facility.phone_primary ? (
+                    <CareButton
+                      variant="secondary"
+                      icon="phone"
+                      label={t('facility.booking.callInstead')}
+                      onPress={callFacility}
+                    />
+                  ) : null}
                 </View>
-                <View className="mt-4">
-                  <Button
-                    label={t('facility.bookHere')}
-                    leftIcon={CalendarPlus}
+              ) : slots.length === 0 ? (
+                <View style={styles.stack}>
+                  <NoticeBanner
+                    tone="pending"
+                    icon="clock"
+                    title={t('facility.booking.noSlotsTitle')}
+                    message={t('facility.booking.noSlotsBody')}
+                  />
+                  <CareButton
+                    variant="secondary"
+                    icon="calendar"
+                    label={t('facility.booking.checkDates')}
                     onPress={goToBooking}
                   />
                 </View>
-              </View>
-            )}
+              ) : (
+                <View style={styles.stack}>
+                  <NoticeBanner
+                    tone="normal"
+                    icon="shield-check"
+                    title={t('facility.booking.availableTitle')}
+                    // Deliberately not named `count`: that key triggers
+                    // i18next's plural resolution, which would look for
+                    // `availableBody_one` / `_other` instead of this key.
+                    message={t('facility.booking.availableBody', {
+                      slotCount: slots.length,
+                      when: nextSlotLabel ?? '',
+                    })}
+                  />
+                  <GradientButton label={t('facility.bookHere')} onPress={goToBooking} />
+                </View>
+              )}
+            </Card>
           </View>
 
           {/* ── About ─────────────────────────────────────────────────── */}
           {facility.description ? (
-            <>
-              <SectionTitle title={t('facility.aboutTitle')} />
-              <View className="rounded-2xl bg-white p-4">
-                <Text className="text-sm leading-5 text-navy-secondary">{facility.description}</Text>
-              </View>
-            </>
+            <View>
+              <SectionHeader title={t('facility.aboutTitle')} variant="overline" />
+              <Card>
+                <Text style={styles.about}>{facility.description}</Text>
+              </Card>
+            </View>
           ) : null}
 
           {/* ── Doctors & specialists ─────────────────────────────────── */}
-          <View className="mb-2 mt-6 flex-row items-end justify-between">
-            <View className="flex-1">
-              <Text className="text-sm font-bold text-navy-text">{t('facility.doctorsTitle')}</Text>
-              <Text className="text-xs text-navy-muted">{t('facility.doctorsSubtitle')}</Text>
-            </View>
-            <Stethoscope size={18} color={colors.brand[600]} />
+          <View>
+            <SectionHeader
+              title={
+                providers.length > 0
+                  ? `${t('facility.doctorsTitle')} (${providers.length})`
+                  : t('facility.doctorsTitle')
+              }
+            />
+            {providersQuery.isLoading ? (
+              <Card>
+                <View style={styles.checking}>
+                  <ActivityIndicator size="small" color={colors.blue} />
+                  <Text style={styles.checkingText}>{t('facility.doctorsSubtitle')}</Text>
+                </View>
+              </Card>
+            ) : providersQuery.isError ? (
+              <Card>
+                <EmptyState
+                  icon="alert-circle"
+                  tint="red"
+                  title={t('facility.loadDoctorsError')}
+                  actionLabel={t('facility.retry')}
+                  onAction={() => providersQuery.refetch()}
+                />
+              </Card>
+            ) : providers.length === 0 ? (
+              <Card>
+                <EmptyState
+                  icon="stethoscope"
+                  title={t('facility.noDoctors')}
+                  message={t('facility.doctorsSubtitle')}
+                />
+              </Card>
+            ) : (
+              <Card variant="flush">
+                {providers.map((provider, index) => (
+                  <ListRow
+                    key={provider.id}
+                    leading={<ProviderAvatar name={provider.name} size={44} />}
+                    title={provider.name}
+                    meta={[provider.job_title, provider.department]}
+                    onPress={() => router.push(`/doctor/${provider.id}`)}
+                    divider={index < providers.length - 1}
+                  />
+                ))}
+              </Card>
+            )}
           </View>
 
-          {providersQuery.isLoading ? (
-            <View className="items-center py-6">
-              <ActivityIndicator color={colors.brand[500]} />
-            </View>
-          ) : providersQuery.isError ? (
-            <View className="rounded-2xl bg-white p-4">
-              <Text className="text-sm text-navy-secondary">{t('facility.loadDoctorsError')}</Text>
-            </View>
-          ) : providers.length === 0 ? (
-            <View className="rounded-2xl bg-white p-4">
-              <Text className="text-sm text-navy-secondary">{t('facility.noDoctors')}</Text>
-            </View>
-          ) : (
-            providers.map((provider) => (
-              <ProviderRow
-                key={provider.id}
-                provider={provider}
-                onPress={() => router.push(`/doctor/${provider.id}`)}
-              />
-            ))
-          )}
-
           {/* ── Services ──────────────────────────────────────────────── */}
-          <SectionTitle title={t('facility.servicesTitle')} />
-          {facility.services.length === 0 ? (
-            <View className="rounded-2xl bg-white p-4">
-              <Text className="text-sm text-navy-secondary">{t('facility.noServices')}</Text>
-            </View>
-          ) : (
-            <View className="rounded-2xl bg-white p-4">
-              {facility.services.map((service, index) => (
-                <View
-                  key={`${service.service_name}-${index}`}
-                  className="py-2.5"
-                  style={
-                    index > 0 ? { borderTopWidth: 1, borderTopColor: colors.cream[300] } : undefined
-                  }
-                >
-                  <Text className="text-sm font-semibold text-navy-text">
-                    {service.service_name}
-                  </Text>
-                  <View className="mt-1.5 flex-row flex-wrap items-center" style={{ gap: 6 }}>
-                    {service.specialty ? <Tag label={service.specialty} /> : null}
-                    {service.appointment_required ? (
-                      <Tag label={t('facility.appointmentRequired')} />
-                    ) : null}
-                    {service.walk_in_allowed ? <Tag label={t('facility.walkInAllowed')} /> : null}
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
+          <View>
+            <SectionHeader title={t('facility.servicesTitle')} variant="overline" />
+            {services.length === 0 ? (
+              <Card>
+                <EmptyState icon="clipboard" title={t('facility.noServices')} />
+              </Card>
+            ) : (
+              <Card variant="flush">
+                {services.map((service, index) => (
+                  <ServiceRow
+                    key={`${service.service_name}-${index}`}
+                    service={service}
+                    divider={index < services.length - 1}
+                    tr={tr}
+                  />
+                ))}
+              </Card>
+            )}
+          </View>
 
           {/* ── Opening hours ─────────────────────────────────────────── */}
-          {hours.length > 0 ? (
-            <>
-              <SectionTitle title={t('facility.hoursTitle')} />
-              <View className="rounded-2xl bg-white p-4">
-                {hours.map((hour, index) => {
-                  const isToday = hour.day_of_week === todayIndex;
-                  return (
-                    <View
-                      key={`${hour.day_of_week}-${index}`}
-                      className="flex-row items-center justify-between py-2"
-                      style={
-                        index > 0
-                          ? { borderTopWidth: 1, borderTopColor: colors.cream[300] }
-                          : undefined
-                      }
-                    >
-                      <View className="flex-row items-center">
-                        <Clock
-                          size={14}
-                          color={isToday ? colors.brand[600] : colors.navy.muted}
-                        />
-                        <Text
-                          className={`ml-2 text-sm ${isToday ? 'font-bold text-navy-text' : 'text-navy-secondary'}`}
-                        >
-                          {weekdayLabel(hour.day_of_week, i18n.language)}
-                        </Text>
-                        {isToday ? (
-                          <View
-                            className="ml-2 rounded-full px-2 py-0.5"
-                            style={{ backgroundColor: colors.brand[50] }}
-                          >
-                            <Text className="text-[9px] font-bold uppercase text-brand-600">
-                              {t('facility.todayLabel')}
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
-                      <Text
-                        className={`text-sm ${isToday ? 'font-bold text-navy-text' : 'font-semibold text-navy-secondary'}`}
-                      >
-                        {hour.is_24_hours
-                          ? t('facility.open24')
-                          : hour.is_closed
-                            ? t('facility.closed')
-                            : `${trimTime(hour.opens_at) ?? '—'} – ${trimTime(hour.closes_at) ?? '—'}`}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            </>
-          ) : (
-            <>
-              <SectionTitle title={t('facility.hoursTitle')} />
-              <View className="rounded-2xl bg-white p-4">
-                <Text className="text-sm text-navy-secondary">{t('facility.hoursUnknown')}</Text>
-              </View>
-            </>
-          )}
+          <View>
+            <SectionHeader title={t('facility.hoursTitle')} variant="overline" />
+            {hours.length === 0 ? (
+              <Card>
+                <EmptyState icon="clock" title={t('facility.hoursUnknown')} />
+              </Card>
+            ) : (
+              <Card variant="flush">
+                <View style={styles.rowsPad}>
+                  {hours.map((hour, index) => {
+                    const isToday = hour.day_of_week === todayIndex;
+                    const day = weekdayLabel(hour.day_of_week, i18n.language);
+                    return (
+                      <InfoRow
+                        key={`${hour.day_of_week}-${index}`}
+                        icon="clock"
+                        tint={isToday ? 'blue' : 'purple'}
+                        label={isToday ? `${day} · ${t('facility.todayLabel')}` : day}
+                        value={
+                          hour.is_24_hours
+                            ? t('facility.open24')
+                            : hour.is_closed
+                              ? t('facility.closed')
+                              : `${trimTime(hour.opens_at) ?? '—'} – ${trimTime(hour.closes_at) ?? '—'}`
+                        }
+                        valueColor={isToday ? colors.link : undefined}
+                        divider={index < hours.length - 1}
+                      />
+                    );
+                  })}
+                </View>
+              </Card>
+            )}
+          </View>
 
           {/* ── Accepted insurance ────────────────────────────────────── */}
           {insurances.length > 0 ? (
-            <>
-              <SectionTitle
-                title={t('facility.insurancesTitle')}
-                subtitle={t('facility.insurancesSubtitle')}
-              />
-              <View className="rounded-2xl bg-white p-4">
+            <View>
+              <SectionHeader title={t('facility.insurancesTitle')} variant="overline" />
+              <Card variant="flush">
                 {insurances.map((insurance, index) => (
-                  <View
+                  <ListRow
                     key={`${insurance.insurance_name}-${index}`}
-                    className="flex-row items-center justify-between py-2.5"
-                    style={
-                      index > 0
-                        ? { borderTopWidth: 1, borderTopColor: colors.cream[300] }
-                        : undefined
+                    icon="shield-check"
+                    tint="green"
+                    title={insurance.insurance_name}
+                    subtitle={t('facility.insurancesSubtitle')}
+                    trailing={
+                      insurance.cashless_available ? (
+                        <StatusBadge
+                          status="cashless"
+                          tone="normal"
+                          size="sm"
+                          label={t('facility.insuranceCashless')}
+                        />
+                      ) : undefined
                     }
-                  >
-                    <Text className="mr-3 flex-1 text-sm font-semibold text-navy-text">
-                      {insurance.insurance_name}
-                    </Text>
-                    {insurance.cashless_available ? (
-                      <View
-                        className="rounded-full px-2.5 py-1"
-                        style={{ backgroundColor: colors.semantic.successSurface }}
-                      >
-                        <Text
-                          className="text-[10px] font-bold"
-                          style={{ color: colors.semantic.success }}
-                        >
-                          {t('facility.insuranceCashless')}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
+                    divider={index < insurances.length - 1}
+                  />
                 ))}
-              </View>
-            </>
+              </Card>
+            </View>
           ) : null}
 
           {/* ── Contact ───────────────────────────────────────────────── */}
-          {facility.phone_primary || facility.email || facility.website ? (
-            <>
-              <SectionTitle title={t('facility.contactTitle')} />
-              <View className="rounded-2xl bg-white px-4">
-                {facility.phone_primary ? (
-                  <ContactRow
-                    icon={Phone}
-                    label={t('facility.phone')}
-                    value={facility.phone_primary}
-                    onPress={callFacility}
+          {contactRows.length > 0 ? (
+            <View>
+              <SectionHeader title={t('facility.contactTitle')} variant="overline" />
+              <Card variant="flush">
+                {contactRows.map((row, index) => (
+                  <ListRow
+                    key={row.key}
+                    icon={row.icon}
+                    title={row.title}
+                    subtitle={row.value}
+                    onPress={row.onPress}
+                    divider={index < contactRows.length - 1}
                   />
-                ) : null}
-                {facility.email ? (
-                  <ContactRow
-                    icon={Mail}
-                    label={t('facility.email')}
-                    value={facility.email}
-                    onPress={() => openUrl(`mailto:${facility.email}`)}
-                  />
-                ) : null}
-                {facility.website ? (
-                  <ContactRow
-                    icon={Globe}
-                    label={t('facility.website')}
-                    value={facility.website}
-                    onPress={() => openUrl(websiteUrl(facility.website as string))}
-                  />
-                ) : null}
-              </View>
-            </>
+                ))}
+              </Card>
+            </View>
           ) : null}
 
-          <Text className="mt-6 text-center text-[10px] leading-4 text-navy-muted">
-            {t('facility.directoryNote')}
-          </Text>
+          <Text style={styles.note}>{t('facility.directoryNote')}</Text>
         </ScrollView>
       )}
     </Screen>
   );
 }
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+
+    identity: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md - 2 },
+    thumb: {
+      width: 82,
+      height: 82,
+      borderRadius: radii.md,
+      backgroundColor: colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    identityBody: { flex: 1, minWidth: 0, gap: 6 },
+    name: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+      lineHeight: typography.lineHeight.lg,
+      color: colors.textPrimary,
+    },
+    tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    metaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+    meta: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textSecondary,
+    },
+
+    actions: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginTop: spacing.md,
+      paddingTop: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: colors.divider,
+    },
+    action: { alignItems: 'center', gap: 6 },
+    actionOff: { opacity: 0.4 },
+    actionCircle: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    actionLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      color: colors.textPrimary,
+    },
+
+    about: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textSecondary,
+    },
+
+    checking: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2, paddingVertical: 2 },
+    checkingText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
+    stack: { gap: spacing.md },
+
+    rowsPad: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+
+    note: {
+      marginTop: spacing.sm,
+      textAlign: 'center',
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textMuted,
+    },
+  });

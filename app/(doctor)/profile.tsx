@@ -1,0 +1,1021 @@
+/**
+ * Doctor — the clinician's own account (`/(doctor)/profile`).
+ *
+ * Port of `UIUX/src/screens/doctor/DoctorProfileScreen.tsx` onto expo-router,
+ * the OPES UI kit and this app's doctor foundation.
+ *
+ * Four things live here, in this order:
+ *
+ *   • WHO IS SIGNED IN — name, role, e-mail and facility from
+ *     `GET /mobile/doctor/me` (`useDoctorMe`).
+ *   • THE PROFESSIONAL PROFILE — what colleagues and patients see
+ *     (`useDoctorProfile`), EDITABLE in place through `useUpdateDoctorProfile`.
+ *     Exactly the eight keys `ProviderProfileEdit` accepts are editable. The
+ *     consultation fee, its currency and the LICENCE STATUS are shown and never
+ *     editable here: credentialing asserts them, a clinician does not
+ *     self-declare them.
+ *   • APPEARANCE — the kit's palette switch, mirroring the patient Settings
+ *     screen. Device-local, never written to the API. `togglePalette()` is the
+ *     whole act: the root layout persists it through `ThemeProvider`'s
+ *     `onPaletteChange` under `opescare.palette`, so this screen must NOT
+ *     write the key itself or the two would fight.
+ *   • SIGN OUT — the auth store's `logout()`, which clears the stored token.
+ *
+ * Honesty rules carried from the rest of the app: a save whose OUTCOME IS
+ * UNKNOWN (a timeout) is never painted as success — the Dialog says so and
+ * points at where to check; and the profile shown after a save is the one the
+ * server recorded, never the unsent draft.
+ *
+ * NO PHOTO CONTROL. `useUploadDoctorPhoto` exists in the data layer, but this
+ * app bundles no image picker (`expo-image-picker` is not a dependency), and
+ * the brief is explicit: omit the control rather than add a dependency. An
+ * existing `photo_url` IS rendered — the hero shows the real photo when the
+ * server has one and initials when it does not.
+ *
+ * Backend gap: the finder does not serve `/mobile/doctor/*` yet, so `me` and
+ * `profile` both 404. Everything that does not need the API — Appearance and
+ * Sign out — still works, and the parts that do say honestly that they are not
+ * served rather than rendering a blank identity.
+ *
+ * i18n: `opesDoctor.profile.*`. Every string carries a `defaultValue`.
+ * Locale files are not edited here.
+ */
+import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  Image,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import axios from 'axios';
+import {
+  Card,
+  EmptyState,
+  GradientButton,
+  Icon,
+  ListRow,
+  PillInput,
+  ScreenHeader,
+  SectionHeader,
+  StaleNotice,
+  StatusBadge,
+  radii,
+  spacing,
+  typography,
+  useDialog,
+  useTheme,
+  type Palette,
+  type ScreenHeaderAction,
+  type StatusTone,
+} from '@/components/opes-ui';
+import {
+  CareButton,
+  LoadingBlock,
+  describeFailure,
+  fmtMoney,
+  type Translate,
+} from '@/components/care/shared';
+// ── Doctor foundation (owned by the foundation agent) ─────────────────────
+import {
+  useDoctorMe,
+  useDoctorProfile,
+  useUpdateDoctorProfile,
+  type ProviderLicenseStatus,
+  type ProviderProfile,
+  type ProviderProfileEdit,
+} from '@/lib/api/doctorQueries';
+import { useAuthStore } from '@/lib/store/auth';
+
+/** 404 / 501: this server does not serve the clinician surface yet. */
+function isNotServed(e: unknown): boolean {
+  const status = axios.isAxiosError(e) ? e.response?.status : undefined;
+  return status === 404 || status === 501;
+}
+
+/** Failure copy for a write, saying plainly when the outcome is unknown. */
+function writeFailureMessage(t: Translate, e: unknown, checkHint: string): string {
+  const f = describeFailure(e);
+  const outcomeUnknown = f.kind === 'timeout' || f.kind === 'server' || f.kind === 'unknown';
+  return outcomeUnknown
+    ? t('opesCore.errors.unknownOutcome', { message: f.message, checkHint })
+    : f.message;
+}
+
+/** Two initials for the identity mark. Honorifics are not initials. */
+function initials(name: string): string {
+  const parts = name
+    .replace(/\b(dr|prof|mr|mrs|ms|m|mme)\.?\b/gi, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return '?';
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
+/**
+ * `license_status` → a badge tone. An UNKNOWN status is shown neutrally and
+ * never hidden: a licence this client cannot classify is still a fact on the
+ * record, and silently dropping it would read as "no licence recorded".
+ */
+function licenseTone(status: ProviderLicenseStatus | null): StatusTone {
+  switch (status) {
+    case 'active':
+      return 'normal';
+    case 'pending':
+      return 'warning';
+    case 'expired':
+    case 'suspended':
+      return 'critical';
+    default:
+      return 'neutral';
+  }
+}
+
+/** A comma-separated free-text field ↔ a trimmed, non-empty string array. */
+function splitList(value: string): string[] {
+  return value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/** The edit form, as strings — exactly the keys `ProviderProfileEdit` accepts. */
+type EditForm = {
+  title: string;
+  specialty: string;
+  subspecialty: string;
+  bio: string;
+  years_experience: string;
+  languages: string;
+  qualifications: string;
+  room: string;
+};
+
+function formFrom(p: ProviderProfile | null): EditForm {
+  return {
+    title: p?.title ?? '',
+    specialty: p?.specialty ?? '',
+    subspecialty: p?.subspecialty ?? '',
+    bio: p?.bio ?? '',
+    years_experience: p?.years_experience != null ? String(p.years_experience) : '',
+    languages: (p?.languages ?? []).join(', '),
+    qualifications: (p?.qualifications ?? []).join(', '),
+    room: p?.room ?? '',
+  };
+}
+
+function editFromForm(f: EditForm): ProviderProfileEdit {
+  const years = f.years_experience.trim();
+  const parsed = years === '' ? null : Number.parseInt(years, 10);
+  return {
+    title: f.title.trim() || null,
+    specialty: f.specialty.trim() || null,
+    subspecialty: f.subspecialty.trim() || null,
+    bio: f.bio.trim() || null,
+    // A years box someone typed "abc" into is NOT zero years of experience.
+    years_experience: parsed != null && Number.isFinite(parsed) ? parsed : null,
+    languages: splitList(f.languages),
+    qualifications: splitList(f.qualifications),
+    room: f.room.trim() || null,
+  };
+}
+
+export default function DoctorProfileScreen() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const { colors, palette, togglePalette } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const dialog = useDialog();
+
+  /** `opesDoctor.<key>` with a readable default until the catalogue lands. */
+  const tx = useCallback(
+    (key: string, defaultValue: string, p?: Record<string, unknown>) =>
+      String(t(`opesDoctor.${key}`, { defaultValue, ...p })),
+    [t]
+  );
+  const tr = useCallback<Translate>(
+    (key, p) => String(t(key, p as Record<string, unknown>)),
+    [t]
+  );
+
+  /**
+   * `users.role` → a word. A role the catalogue does not name is "Staff",
+   * never the raw column value dumped on screen.
+   */
+  const roleLabel = useCallback(
+    (role: string | null | undefined): string => {
+      if (!role) return tx('profile.roleFallback', 'Staff');
+      const hit = String(t(`opesDoctor.profile.role.${role}`, { defaultValue: '' }));
+      return hit || tx('profile.roleFallback', 'Staff');
+    },
+    [t, tx]
+  );
+
+  const licenseLabel = useCallback(
+    (status: ProviderLicenseStatus | null): string => {
+      if (!status) return tx('profile.licenseFallback', 'On record');
+      const hit = String(t(`opesDoctor.profile.license.${status}`, { defaultValue: '' }));
+      return hit || tx('profile.licenseFallback', 'On record');
+    },
+    [t, tx]
+  );
+
+  /** A known code is named; an unknown one is shown as the server sent it. */
+  const languageLabel = useCallback(
+    (code: string): string => {
+      const hit = String(
+        t(`opesDoctor.profile.langName.${code.toLowerCase()}`, { defaultValue: '' })
+      );
+      return hit || code;
+    },
+    [t]
+  );
+
+  const me = useDoctorMe();
+  const profileQuery = useDoctorProfile();
+  const update = useUpdateDoctorProfile();
+  const logout = useAuthStore((s) => s.logout);
+
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<EditForm>(() => formFrom(null));
+  const [signingOut, setSigningOut] = useState(false);
+
+  const profile = profileQuery.data ?? null;
+
+  // Coming back to this tab should reflect a role or a profile changed on a
+  // workstation — but an OPEN EDITOR is never yanked out from under the
+  // clinician by a background refetch. The first focus is the mount fetch.
+  const firstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      void me.refetch();
+      if (!editing) void profileQuery.refetch();
+      // The two `refetch`s are stable for the life of their query observers.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editing])
+  );
+
+  // ── Edit ────────────────────────────────────────────────────────────────
+
+  const startEdit = useCallback(() => {
+    setForm(formFrom(profileQuery.data ?? null));
+    setEditing(true);
+  }, [profileQuery.data]);
+
+  const setField = useCallback(
+    (key: keyof EditForm) => (value: string) => setForm((f) => ({ ...f, [key]: value })),
+    []
+  );
+
+  const save = useCallback(async () => {
+    try {
+      // The mutation writes the SERVER's answer into the cache, so what the
+      // screen shows next is the stored truth, not the draft just typed.
+      await update.mutateAsync(editFromForm(form));
+      setEditing(false);
+    } catch (e) {
+      dialog.alert(
+        tx('profile.saveFailedTitle', 'Profile not saved'),
+        writeFailureMessage(
+          tr,
+          e,
+          tx(
+            'profile.saveCheckHint',
+            'Open your profile again to see whether your changes were saved.'
+          )
+        ),
+        'critical'
+      );
+      // Stay in edit mode: nothing typed is lost and one more tap retries.
+    }
+  }, [form, update, dialog, tx, tr]);
+
+  // ── Sign out ────────────────────────────────────────────────────────────
+
+  const signOut = useCallback(async () => {
+    setSigningOut(true);
+    try {
+      await logout();
+    } catch {
+      setSigningOut(false);
+      dialog.alert(
+        tx('profile.failedTitle', 'Could not sign out'),
+        tx(
+          'profile.failedBody',
+          'This session is still open on this device. Check your connection and try again.'
+        ),
+        'critical'
+      );
+    }
+  }, [logout, dialog, tx]);
+
+  const confirmSignOut = useCallback(() => {
+    dialog.confirm({
+      title: tx('profile.confirmTitle', 'Sign out?'),
+      message: tx(
+        'profile.confirmMessage',
+        'You are signed in as {{name}}. Signing out ends this session on this device. You will need to sign in again.',
+        { name: me.data?.name ?? profile?.display_name ?? '—' }
+      ),
+      confirmLabel: tx('profile.confirmCta', 'Sign Out'),
+      cancelLabel: tx('profile.confirmCancel', 'Stay signed in'),
+      destructive: true,
+      onConfirm: signOut,
+    });
+  }, [dialog, tx, me.data?.name, profile?.display_name, signOut]);
+
+  // ── Header ──────────────────────────────────────────────────────────────
+
+  const headerActions: ScreenHeaderAction[] | undefined = useMemo(
+    () =>
+      editing
+        ? undefined
+        : [
+            {
+              icon: 'edit',
+              onPress: startEdit,
+              accessibilityLabel: tx('profile.editProfile', 'Edit profile'),
+            },
+          ],
+    [editing, startEdit, tx]
+  );
+
+  const displayName = profile?.display_name || me.data?.name || '—';
+  const heroSubtitle = profile?.title || roleLabel(me.data?.role);
+
+  // ── Stale notices — a failed refresh over data on screen is never fresh ──
+
+  const meStale =
+    me.isError && me.data !== undefined ? (
+      <StaleNotice
+        message={describeFailure(me.error).message}
+        loadedAt={me.dataUpdatedAt ? new Date(me.dataUpdatedAt) : null}
+        onRetry={() => void me.refetch()}
+        retrying={me.isFetching}
+      />
+    ) : null;
+
+  const profileStale =
+    profileQuery.isError && profileQuery.data !== undefined ? (
+      <StaleNotice
+        message={describeFailure(profileQuery.error).message}
+        loadedAt={profileQuery.dataUpdatedAt ? new Date(profileQuery.dataUpdatedAt) : null}
+        onRetry={() => void profileQuery.refetch()}
+        retrying={profileQuery.isFetching}
+      />
+    ) : null;
+
+  // ── Identity ────────────────────────────────────────────────────────────
+
+  let identity: React.ReactNode;
+  if (me.isPending) {
+    identity = <LoadingBlock label={tx('profile.loading', 'Loading your account…')} />;
+  } else if (me.isError && me.data === undefined) {
+    const notServed = isNotServed(me.error);
+    identity = (
+      <Card variant="flush">
+        <EmptyState
+          icon={notServed ? 'id-card' : 'alert-circle'}
+          tint={notServed ? 'blue' : 'red'}
+          title={
+            notServed
+              ? tx('shared.notServedTitle', 'Not available on this server yet')
+              : tr('opesCore.errors.unknownTitle')
+          }
+          message={
+            notServed
+              ? tx(
+                  'shared.notServedProfile',
+                  'Your clinician account and professional profile will appear here once the clinician service is enabled for this app.'
+                )
+              : describeFailure(me.error).message
+          }
+          actionLabel={tr('opesCore.common.retry')}
+          onAction={() => void me.refetch()}
+        />
+      </Card>
+    );
+  } else {
+    identity = (
+      <View style={styles.hero}>
+        <View style={styles.avatar}>
+          {profile?.photo_url ? (
+            <Image
+              source={{ uri: profile.photo_url }}
+              style={styles.avatarImage}
+              accessibilityIgnoresInvertColors
+              accessibilityLabel={displayName}
+            />
+          ) : (
+            <Text style={styles.avatarText}>{initials(displayName)}</Text>
+          )}
+        </View>
+        <View style={styles.heroIdentity}>
+          <Text style={styles.heroName} numberOfLines={2}>
+            {displayName}
+          </Text>
+          <View style={styles.heroChip}>
+            <Icon name="stethoscope" size={14} color={colors.textOnBrand} />
+            <Text style={styles.heroChipText} numberOfLines={1}>
+              {heroSubtitle}
+            </Text>
+          </View>
+          {!!me.data?.facility_name && (
+            <Text style={styles.heroFacility} numberOfLines={1}>
+              {me.data.facility_name}
+            </Text>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // ── Professional profile ────────────────────────────────────────────────
+
+  const dash = tx('profile.notSet', 'Not set');
+
+  let professional: React.ReactNode;
+  if (editing) {
+    professional = (
+      <Card>
+        <Text style={styles.editHint}>
+          {tx(
+            'profile.editHint',
+            'Update the details colleagues and patients see. The consultation fee and licence are set by the hospital.'
+          )}
+        </Text>
+
+        <Field
+          styles={styles}
+          label={tx('profile.fieldTitle', 'Title')}
+          value={form.title}
+          onChangeText={setField('title')}
+          placeholder={tx('profile.fieldTitlePlaceholder', 'e.g. Consultant')}
+        />
+        <Field
+          styles={styles}
+          label={tx('profile.fieldSpecialty', 'Specialty')}
+          value={form.specialty}
+          onChangeText={setField('specialty')}
+          placeholder={tx('profile.fieldSpecialtyPlaceholder', 'e.g. Cardiology')}
+        />
+        <Field
+          styles={styles}
+          label={tx('profile.fieldSubspecialty', 'Subspecialty')}
+          value={form.subspecialty}
+          onChangeText={setField('subspecialty')}
+          placeholder={tx('profile.fieldSubspecialtyPlaceholder', 'e.g. Electrophysiology')}
+        />
+        <Field
+          styles={styles}
+          label={tx('profile.fieldExperience', 'Years of experience')}
+          value={form.years_experience}
+          onChangeText={setField('years_experience')}
+          placeholder={tx('profile.fieldExperiencePlaceholder', 'e.g. 11')}
+          keyboardType="number-pad"
+        />
+        <Field
+          styles={styles}
+          label={tx('profile.fieldRoom', 'Consulting room')}
+          value={form.room}
+          onChangeText={setField('room')}
+          placeholder={tx('profile.fieldRoomPlaceholder', 'e.g. 4')}
+        />
+        <Field
+          styles={styles}
+          label={tx('profile.fieldLanguages', 'Languages')}
+          value={form.languages}
+          onChangeText={setField('languages')}
+          hint={tx('profile.fieldLanguagesHint', 'Separate each language with a comma.')}
+        />
+        <Field
+          styles={styles}
+          label={tx('profile.fieldQualifications', 'Qualifications')}
+          value={form.qualifications}
+          onChangeText={setField('qualifications')}
+          hint={tx('profile.fieldQualificationsHint', 'Separate each qualification with a comma.')}
+        />
+        <Field
+          styles={styles}
+          label={tx('profile.fieldBio', 'About you')}
+          value={form.bio}
+          onChangeText={setField('bio')}
+          placeholder={tx('profile.fieldBioPlaceholder', 'A short professional biography.')}
+          multiline
+        />
+
+        <GradientButton
+          label={tx('profile.save', 'Save changes')}
+          icon="none"
+          loading={update.isPending}
+          disabled={update.isPending}
+          onPress={() => void save()}
+        />
+        <CareButton
+          label={tx('profile.cancel', 'Cancel')}
+          variant="secondary"
+          disabled={update.isPending}
+          onPress={() => setEditing(false)}
+          style={styles.cancelButton}
+        />
+      </Card>
+    );
+  } else if (profileQuery.isPending) {
+    professional = <LoadingBlock label={tx('profile.profileLoading', 'Loading your profile…')} />;
+  } else if (profileQuery.isError && profileQuery.data === undefined) {
+    const notServed = isNotServed(profileQuery.error);
+    professional = (
+      <Card variant="flush">
+        <EmptyState
+          icon={notServed ? 'stethoscope' : 'alert-circle'}
+          tint={notServed ? 'blue' : 'red'}
+          title={
+            notServed
+              ? tx('shared.notServedTitle', 'Not available on this server yet')
+              : tr('opesCore.errors.unknownTitle')
+          }
+          message={
+            notServed
+              ? tx(
+                  'shared.notServedProfileDetail',
+                  'Your title, specialty, languages and qualifications will appear here once the clinician service is enabled for this app.'
+                )
+              : describeFailure(profileQuery.error).message
+          }
+          actionLabel={tr('opesCore.common.retry')}
+          onAction={() => void profileQuery.refetch()}
+        />
+      </Card>
+    );
+  } else if (profile === null) {
+    // `null` is a real answer — no profile created yet — and is NOT a failure.
+    professional = (
+      <Card>
+        <Text style={styles.emptyTitle}>
+          {tx('profile.noProfileTitle', 'No professional profile yet')}
+        </Text>
+        <Text style={styles.hint}>
+          {tx(
+            'profile.noProfileBody',
+            'Your professional details have not been set up yet. Add your title, specialty and more so colleagues and patients can see who you are.'
+          )}
+        </Text>
+        <CareButton
+          label={tx('profile.addDetails', 'Add my details')}
+          icon="edit"
+          onPress={startEdit}
+          style={styles.addButton}
+        />
+      </Card>
+    );
+  } else {
+    const years =
+      profile.years_experience != null
+        ? tx('profile.experienceYears', '{{count}} years', { count: profile.years_experience })
+        : dash;
+    const languages =
+      profile.languages.length > 0 ? profile.languages.map(languageLabel).join(', ') : dash;
+    const qualifications =
+      profile.qualifications.length > 0 ? profile.qualifications.join(', ') : dash;
+    const fee =
+      profile.consultation_fee != null && profile.currency
+        ? fmtMoney(profile.consultation_fee, profile.currency)
+        : null;
+
+    professional = (
+      <>
+        {/* The licence is a STATEMENT, not a row someone might tap to change:
+            credentialing asserts it, so it gets its own card and no chevron. */}
+        <Card style={styles.licenseCard}>
+          <View style={styles.licenseRow}>
+            <View style={styles.licenseLabelWrap}>
+              <Icon name="shield-check" size={18} color={colors.textSecondary} />
+              <Text style={styles.licenseLabel}>{tx('profile.rowLicense', 'Licence')}</Text>
+            </View>
+            <StatusBadge
+              status={profile.license_status ?? 'unknown'}
+              tone={licenseTone(profile.license_status)}
+              label={licenseLabel(profile.license_status)}
+            />
+          </View>
+        </Card>
+
+        <Card variant="flush">
+          <ListRow
+            icon="stethoscope"
+            tint="blue"
+            title={tx('profile.rowSpecialty', 'Specialty')}
+            subtitle={profile.specialty || dash}
+            chevron={false}
+            divider
+          />
+          {!!profile.subspecialty && (
+            <ListRow
+              icon="stethoscope"
+              tint="blue"
+              title={tx('profile.rowSubspecialty', 'Subspecialty')}
+              subtitle={profile.subspecialty}
+              chevron={false}
+              divider
+            />
+          )}
+          <ListRow
+            icon="star"
+            tint="amber"
+            title={tx('profile.rowExperience', 'Experience')}
+            subtitle={years}
+            chevron={false}
+            divider
+          />
+          <ListRow
+            icon="globe"
+            tint="green"
+            title={tx('profile.rowLanguages', 'Languages')}
+            subtitle={languages}
+            chevron={false}
+            divider
+          />
+          <ListRow
+            icon="book"
+            tint="purple"
+            title={tx('profile.rowQualifications', 'Qualifications')}
+            subtitle={qualifications}
+            chevron={false}
+            divider
+          />
+          <ListRow
+            icon="location"
+            tint="blue"
+            title={tx('profile.rowRoom', 'Consulting room')}
+            subtitle={profile.room || dash}
+            chevron={false}
+            divider={fee !== null}
+          />
+          {fee !== null && (
+            <ListRow
+              icon="credit-card"
+              tint="blue"
+              title={tx('profile.rowFee', 'Consultation fee')}
+              subtitle={fee}
+              value={tx('profile.feeReadOnly', 'Set by the hospital — not editable here.')}
+              chevron={false}
+            />
+          )}
+        </Card>
+
+        <Card style={styles.aboutCard}>
+          <Text style={styles.aboutLabel}>{tx('profile.aboutTitle', 'About')}</Text>
+          <Text style={[styles.aboutBody, !profile.bio && styles.aboutEmpty]}>
+            {profile.bio || tx('profile.bioEmpty', 'No biography added yet.')}
+          </Text>
+        </Card>
+      </>
+    );
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────
+
+  const paletteIsOpes = palette === 'opes';
+
+  return (
+    <SafeAreaView edges={['top']} style={styles.screen}>
+      <ScreenHeader
+        title={tx('profile.title', 'Profile')}
+        subtitle={tx('profile.subtitle', 'Your account on this device')}
+        showBack={router.canGoBack()}
+        onBack={() => router.back()}
+        actions={headerActions}
+      />
+
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={(me.isFetching || profileQuery.isFetching) && !me.isPending}
+            onRefresh={() => {
+              void me.refetch();
+              if (!editing) void profileQuery.refetch();
+            }}
+            tintColor={colors.blue}
+          />
+        }
+      >
+        {meStale}
+        {profileStale}
+
+        {identity}
+
+        <View>
+          <SectionHeader
+            title={tx('profile.sectionProfile', 'Professional profile')}
+            variant="overline"
+          />
+          {professional}
+        </View>
+
+        {!!me.data && (
+          <View>
+            <SectionHeader title={tx('profile.sectionAccount', 'Account')} variant="overline" />
+            <Card variant="flush">
+              <ListRow
+                icon="person"
+                tint="blue"
+                title={tx('profile.rowName', 'Name')}
+                subtitle={me.data.name}
+                chevron={false}
+                divider
+              />
+              <ListRow
+                icon="id-card"
+                tint="blue"
+                title={tx('profile.rowRole', 'Role')}
+                subtitle={roleLabel(me.data.role)}
+                chevron={false}
+                divider
+              />
+              <ListRow
+                icon="mail"
+                tint="blue"
+                title={tx('profile.rowEmail', 'Email')}
+                subtitle={me.data.email ?? dash}
+                chevron={false}
+                divider
+              />
+              <ListRow
+                icon="shield-check"
+                tint={me.data.is_active ? 'green' : 'red'}
+                title={tx('profile.rowStatus', 'Account status')}
+                chevron={false}
+                trailing={
+                  <StatusBadge
+                    status={me.data.is_active ? 'active' : 'inactive'}
+                    tone={me.data.is_active ? 'normal' : 'critical'}
+                    label={
+                      me.data.is_active
+                        ? tx('profile.statusActive', 'Active')
+                        : tx('profile.statusInactive', 'Inactive')
+                    }
+                    size="sm"
+                  />
+                }
+              />
+            </Card>
+          </View>
+        )}
+
+        {/* ── Appearance — device-local, persisted by the root layout ───── */}
+        <View>
+          <SectionHeader title={tr('opesCore.profile.preferences')} variant="overline" />
+          <Card variant="flush">
+            <ListRow
+              icon="contrast"
+              tint="purple"
+              title={tr('opesCore.profile.theme')}
+              subtitle={tr('settings.appearance.body', {
+                defaultValue: 'Switch between the OpesCare brand and the OPES template palette.',
+              })}
+              chevron={false}
+              trailing={
+                <View style={styles.switchWithValue}>
+                  <Text style={styles.switchValue} numberOfLines={1}>
+                    {paletteIsOpes
+                      ? tr('settings.appearance.opes', { defaultValue: 'OPES' })
+                      : tr('settings.appearance.opescare', { defaultValue: 'OpesCare' })}
+                  </Text>
+                  <Switch
+                    value={paletteIsOpes}
+                    // `togglePalette()` is the whole act: the root layout's
+                    // `onPaletteChange` writes `opescare.palette`. Persisting
+                    // here as well would be two writers for one key.
+                    onValueChange={togglePalette}
+                    trackColor={{ false: colors.divider, true: colors.primarySoft }}
+                    thumbColor={paletteIsOpes ? colors.blue : colors.surface}
+                    ios_backgroundColor={colors.divider}
+                    accessibilityLabel={tr('opesCore.profile.theme')}
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: paletteIsOpes }}
+                  />
+                </View>
+              }
+            />
+          </Card>
+        </View>
+
+        {/* ── Sign out ──────────────────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={tx('profile.sectionSession', 'This device')} variant="overline" />
+          <Card>
+            <Text style={styles.hint}>
+              {tx(
+                'profile.signOutHint',
+                'Sign out before you hand this phone to anyone else. Everything cached on this device — patient names, results, conversations — is removed when you do.'
+              )}
+            </Text>
+            <CareButton
+              label={tx('profile.signOut', 'Sign Out')}
+              variant="danger"
+              icon="logout"
+              loading={signingOut}
+              disabled={signingOut}
+              onPress={confirmSignOut}
+              style={styles.signOutButton}
+            />
+          </Card>
+        </View>
+      </ScrollView>
+
+      {dialog.element}
+    </SafeAreaView>
+  );
+}
+
+/** A labelled kit `PillInput`, with an optional hint under it. */
+function Field({
+  styles,
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  hint,
+  multiline,
+  keyboardType,
+}: {
+  styles: ReturnType<typeof makeStyles>;
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder?: string;
+  hint?: string;
+  multiline?: boolean;
+  keyboardType?: 'number-pad';
+}) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <PillInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        multiline={multiline}
+        keyboardType={keyboardType}
+        accessibilityLabel={label}
+        style={multiline ? styles.inputMultiline : undefined}
+      />
+      {!!hint && <Text style={styles.fieldHint}>{hint}</Text>}
+    </View>
+  );
+}
+
+const AVATAR = 74;
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.page },
+    content: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.md },
+
+    hero: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      backgroundColor: colors.navy,
+      borderRadius: radii.lg,
+      padding: spacing.md,
+    },
+    avatar: {
+      width: AVATAR,
+      height: AVATAR,
+      borderRadius: AVATAR / 2,
+      backgroundColor: colors.navyLight,
+      borderWidth: 3,
+      borderColor: colors.blue,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: { width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2 },
+    avatarText: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+      color: colors.textOnBrand,
+    },
+    heroIdentity: { flex: 1, minWidth: 0, gap: spacing.xs },
+    heroName: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+      color: colors.textOnBrand,
+    },
+    heroChip: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      borderRadius: radii.pill,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      backgroundColor: colors.navyLight,
+    },
+    heroChipText: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      color: colors.textOnBrand,
+    },
+    heroFacility: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textOnBrand,
+      opacity: 0.85,
+    },
+
+    emptyTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+    },
+    addButton: { marginTop: spacing.md },
+    hint: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+
+    licenseCard: { marginBottom: spacing.md },
+    licenseRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+    },
+    licenseLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    licenseLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+
+    aboutCard: { marginTop: spacing.md },
+    aboutLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+    },
+    aboutBody: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textSecondary,
+    },
+    aboutEmpty: { fontStyle: 'italic', color: colors.textMuted },
+
+    editHint: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+      marginBottom: spacing.md,
+    },
+    field: { marginBottom: spacing.xs },
+    fieldLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      color: colors.textSecondary,
+      marginBottom: spacing.xs,
+      marginLeft: spacing.md,
+    },
+    inputMultiline: { minHeight: 72, textAlignVertical: 'top' },
+    fieldHint: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+      marginTop: -spacing.sm,
+      marginBottom: spacing.sm,
+      marginLeft: spacing.md,
+    },
+    cancelButton: { marginTop: spacing.sm },
+
+    switchWithValue: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    switchValue: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.xs,
+      color: colors.textSecondary,
+    },
+
+    signOutButton: { marginTop: spacing.md },
+  });

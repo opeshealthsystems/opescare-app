@@ -1,0 +1,26 @@
+{
+  "name": "@opes/ui-kit",
+  "version": "0.1.0",
+  "description": "Portable OPES design tokens + themed React Native component library, extracted from the OPES EMR mobile app.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "sideEffects": [
+    "*.png"
+  ],
+  "peerDependencies": {
+    "react": ">=18",
+    "react-native": ">=0.74",
+    "react-native-svg": ">=15",
+    "expo-linear-gradient": ">=13"
+  },
+  "files": [
+    "index.ts",
+    "theme.ts",
+    "i18n.ts",
+    "format.ts",
+    "components",
+    "assets",
+    "DESIGN_SPEC.md",
+    "README.md"
+  ]
+}

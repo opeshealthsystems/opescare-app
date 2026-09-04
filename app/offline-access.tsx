@@ -1,31 +1,39 @@
-import { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
-  AlertTriangle,
-  Check,
-  CircleAlert,
-  CloudOff,
-  Database,
-  HeartPulse,
-  Lock,
-  Pill,
-  RefreshCw,
-  ShieldCheck,
-  Smartphone,
-  Trash2,
-  UploadCloud,
-  Wifi,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../components/ui/Screen';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
-import { Chip } from '../components/ui/Chip';
-import { SkeletonCard } from '../components/ui/Skeleton';
-import { ConfirmPanel, InlineNotice, ScreenHeader } from '../components/settings/SettingsUi';
+  Card,
+  Chip,
+  EmptyState,
+  GradientButton,
+  Icon,
+  ListRow,
+  ScreenHeader,
+  SectionHeader,
+  StatusBadge,
+  radii,
+  spacing,
+  typography,
+  useDialog,
+  useTheme,
+  type IconName,
+  type Palette,
+  type StatusTone,
+  type Tint,
+} from '@/components/opes-ui';
 import {
+  useCachedEmergencyProfile,
   useDisableOfflineAccess,
   useEnableOfflineAccess,
   useFlushOfflineOutbox,
@@ -35,8 +43,6 @@ import {
 import { useIsOnline } from '../lib/offline/connectivity';
 import { formatDateTime, formatSavedAt } from '../lib/offline/relativeTime';
 import type { OfflineScope } from '../lib/offline/scopes';
-import type { ScopeCacheSummary } from '../lib/offline/cache';
-import { colors, radii, sizing, spacing, typography } from '../theme/tokens';
 
 /**
  * Offline access — the patient-facing control for the backend's limited
@@ -45,12 +51,10 @@ import { colors, radii, sizing, spacing, typography } from '../theme/tokens';
  * The patient opts in, sees exactly what is held on this device and when it
  * was last refreshed, and can erase it. Nothing is stored before they say yes.
  *
- * No reference screen in `Mobile app screens/` covers offline access — the
- * reference set has no equivalent — so this follows the app's established
- * language instead: `ScreenHeader`, overline-labelled groups, `Card` blocks
- * and `InlineNotice` callouts, exactly as Settings and Help use them.
+ * This screen governs PHI held on the handset, so the re-skin changed the
+ * presentation and nothing else: every consent sentence, every warning and
+ * every honest limit below is the same string it was before.
  *
- * Two honest limits are surfaced in the UI rather than hidden:
  *  1. **Erasing does not revoke the server-side authorisation.** The API has
  *     no revoke route at all — `routes/api.php` exposes only
  *     `POST /mobile/offline/policies` and `POST .../{policy}/queue`. Erasing
@@ -59,9 +63,16 @@ import { colors, radii, sizing, spacing, typography } from '../theme/tokens';
  *  2. **On web the copy is not encrypted at rest** — `localStorage` offers no
  *     at-rest encryption, and the screen says so.
  *
- * Every confirmation is in-screen. `Alert.alert` is a silent no-op on React
- * Native Web, so a destructive confirm built on it never fires there — this
- * screen previously erased behind such a dialog.
+ * Every confirmation is in-screen, now through the kit `Dialog`. `Alert.alert`
+ * is a silent no-op on React Native Web, so a destructive confirm built on it
+ * never fires there; the sheet behaves identically on web, iOS and Android,
+ * and the opt-in confirm repeats the mode's consent copy before a single byte
+ * of the record is written to the device.
+ *
+ * The kit has no `wifi`, `cloud-off`, `database` or `smartphone` glyph, so the
+ * connection chip uses `globe` / `alert-circle`, the record scope uses
+ * `folder`, and the device row uses `fingerprint` — which is literally what
+ * identifies the device here (`opescare_device_fingerprint`).
  */
 
 const SCOPE_LABEL_KEY: Record<OfflineScope, string> = {
@@ -72,31 +83,43 @@ const SCOPE_LABEL_KEY: Record<OfflineScope, string> = {
   emergency_profile: 'offline.scopeEmergencyProfile',
 };
 
-const SCOPE_ICON: Record<OfflineScope, LucideIcon> = {
-  demographics: Smartphone,
-  appointments: Database,
-  medications: Pill,
-  allergies: AlertTriangle,
-  emergency_profile: HeartPulse,
+const SCOPE_ICON: Record<OfflineScope, IconName> = {
+  demographics: 'person',
+  appointments: 'calendar',
+  medications: 'pill',
+  allergies: 'alert-triangle',
+  emergency_profile: 'heart-pulse',
+};
+
+const SCOPE_TINT: Record<OfflineScope, Tint> = {
+  demographics: 'blue',
+  appointments: 'blue',
+  medications: 'green',
+  allergies: 'amber',
+  emergency_profile: 'red',
 };
 
 type Mode = 'full' | 'emergency';
-type Notice = { tone: 'danger' | 'warning' | 'success'; body: string };
+type ScreenNotice = { tone: StatusTone; icon: IconName; body: string };
 
 export default function OfflineAccessScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const isOnline = useIsOnline();
+  const { colors, tintMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const dialog = useDialog();
 
   const { data: status, isLoading, refetch, isRefetching } = useOfflineStatus();
   const enableMutation = useEnableOfflineAccess();
   const syncMutation = useSyncOfflineCache();
   const disableMutation = useDisableOfflineAccess();
   const flushMutation = useFlushOfflineOutbox();
+  // Local read only — what the emergency card on this device actually holds.
+  const emergencyProfile = useCachedEmergencyProfile();
 
   const [mode, setMode] = useState<Mode>('full');
-  const [notice, setNotice] = useState<Notice | null>(null);
-  const [confirmingErase, setConfirmingErase] = useState(false);
+  const [notice, setNotice] = useState<ScreenNotice | null>(null);
 
   const enabled = status?.enabled ?? false;
   const policy = status?.policy ?? null;
@@ -109,7 +132,7 @@ export default function OfflineAccessScreen() {
    * always lands in the page rather than in an OS dialog that web ignores. */
   const requireConnection = useCallback(() => {
     if (isOnline) return true;
-    setNotice({ tone: 'warning', body: t('offline.errorNeedsConnection') });
+    setNotice({ tone: 'warning', icon: 'alert-circle', body: t('offline.errorNeedsConnection') });
     return false;
   }, [isOnline, t]);
 
@@ -118,7 +141,10 @@ export default function OfflineAccessScreen() {
     if (!requireConnection()) return;
     enableMutation.mutate(
       { emergencyAccess: mode === 'emergency' },
-      { onError: () => setNotice({ tone: 'danger', body: t('offline.errorEnable') }) },
+      {
+        onError: () =>
+          setNotice({ tone: 'critical', icon: 'alert-circle', body: t('offline.errorEnable') }),
+      },
     );
   }, [enableMutation, mode, requireConnection, t]);
 
@@ -126,7 +152,8 @@ export default function OfflineAccessScreen() {
     setNotice(null);
     if (!requireConnection()) return;
     syncMutation.mutate(undefined, {
-      onError: () => setNotice({ tone: 'danger', body: t('offline.errorSync') }),
+      onError: () =>
+        setNotice({ tone: 'critical', icon: 'alert-circle', body: t('offline.errorSync') }),
     });
   }, [requireConnection, syncMutation, t]);
 
@@ -134,629 +161,664 @@ export default function OfflineAccessScreen() {
     setNotice(null);
     if (!requireConnection()) return;
     flushMutation.mutate(undefined, {
-      onError: () => setNotice({ tone: 'danger', body: t('offline.errorSync') }),
+      onError: () =>
+        setNotice({ tone: 'critical', icon: 'alert-circle', body: t('offline.errorSync') }),
     });
   }, [flushMutation, requireConnection, t]);
 
   const handleErase = useCallback(() => {
     setNotice(null);
     disableMutation.mutate(undefined, {
-      onSuccess: () => {
-        setConfirmingErase(false);
-        setNotice({ tone: 'success', body: t('offline.erased') });
-      },
-      onError: () => setNotice({ tone: 'danger', body: t('offline.errorErase') }),
+      onSuccess: () => setNotice({ tone: 'normal', icon: 'check-circle', body: t('offline.erased') }),
+      onError: () =>
+        setNotice({ tone: 'critical', icon: 'alert-circle', body: t('offline.errorErase') }),
     });
   }, [disableMutation, t]);
 
+  /**
+   * The opt-in confirm. The message repeats, verbatim, what this mode will
+   * copy onto the device, the retention promise, and — on web — that the copy
+   * is not encrypted at rest. Consent is asked before anything is written.
+   */
+  const confirmEnable = useCallback(() => {
+    const modeBody = mode === 'emergency' ? t('offline.modeEmergencyBody') : t('offline.modeFullBody');
+    const parts = [modeBody, t('offline.privacyNote')];
+    if (status && !status.encryptedAtRest) parts.push(t('offline.webNotice'));
+    dialog.confirm({
+      title: t('offline.enableCta'),
+      message: parts.join('\n\n'),
+      confirmLabel: t('offline.enableCta'),
+      cancelLabel: t('opesCore.common.cancel'),
+      tone: 'warning',
+      onConfirm: () => handleEnable(),
+    });
+  }, [dialog, handleEnable, mode, status, t]);
+
+  /** The opt-out confirm — the full "this cannot be undone" consent string. */
+  const confirmErase = useCallback(() => {
+    dialog.confirm({
+      title: t('offline.disableConfirmTitle'),
+      message: t('offline.disableConfirmBody'),
+      confirmLabel: t('offline.disableCta'),
+      cancelLabel: t('offline.disableCancel'),
+      destructive: true,
+      onConfirm: () => handleErase(),
+    });
+  }, [dialog, handleErase, t]);
+
+  const onToggleOffline = useCallback(
+    (next: boolean) => (next ? confirmEnable() : confirmErase()),
+    [confirmEnable, confirmErase],
+  );
+
+  const scopeRows = (status?.scopes ?? []).filter((scope) => grantedScopes.includes(scope.scope));
+  const busy = enableMutation.isPending || disableMutation.isPending;
+
   return (
-    <Screen className="px-0">
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      <ScreenHeader
+        title={t('offline.title')}
+        subtitle={t('offline.subtitle')}
+        onBack={() => router.back()}
+        right={
+          <Chip
+            label={isOnline ? t('offline.statusOnline') : t('offline.statusOffline')}
+            icon={isOnline ? 'globe' : 'alert-circle'}
+            selected={isOnline}
+          />
+        }
+      />
+
       <ScrollView
-        className="flex-1"
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: spacing['2xl'], paddingBottom: spacing['4xl'] }}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brand[500]} />
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            tintColor={colors.blue}
+            colors={[colors.blue]}
+          />
         }
       >
-        <ScreenHeader
-          title={t('offline.title')}
-          subtitle={t('offline.subtitle')}
-          onBack={() => router.back()}
-          action={
-            <Chip
-              label={isOnline ? t('offline.statusOnline') : t('offline.statusOffline')}
-              tone={isOnline ? 'success' : 'warning'}
-              icon={isOnline ? Wifi : CloudOff}
-            />
-          }
-        />
+        {notice ? <Notice tone={notice.tone} icon={notice.icon} text={notice.body} /> : null}
 
-        {notice ? (
-          <View style={{ marginTop: spacing.lg }}>
-            <InlineNotice
-              tone={notice.tone}
-              icon={notice.tone === 'success' ? Check : CircleAlert}
-              body={notice.body}
-            />
-          </View>
-        ) : null}
-
+        {/* Web storage is not encrypted at rest — the patient is told, always. */}
         {status && !status.encryptedAtRest ? (
-          <View style={{ marginTop: spacing.lg }}>
-            <InlineNotice tone="warning" icon={AlertTriangle} body={t('offline.webNotice')} />
-          </View>
+          <Notice tone="warning" icon="alert-triangle" text={t('offline.webNotice')} />
         ) : null}
 
         {isLoading ? (
-          <View style={{ marginTop: spacing.xl, gap: spacing.lg }}>
-            <SkeletonCard rows={2} />
-            <SkeletonCard rows={3} />
-          </View>
-        ) : !enabled ? (
-          /* ── Opt in ──────────────────────────────────────────────── */
+          <LoadingCard label={t('opesCore.common.loading')} />
+        ) : (
           <>
-            <Card className="mt-6" padding="lg">
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View
-                  style={{
-                    width: sizing.tile.md,
-                    height: sizing.tile.md,
-                    borderRadius: radii.tile,
-                    backgroundColor: colors.brand[50],
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <CloudOff color={colors.brand[600]} size={sizing.icon.lg} />
+            {/* ── What this is, and whether it is on ───────────────────── */}
+            <Card>
+              <View style={styles.head}>
+                <View style={[styles.circle, { backgroundColor: tintMap.blue.bg }]}>
+                  <Icon name="lock" size={20} color={tintMap.blue.fg} />
                 </View>
-                <View style={{ flex: 1, marginLeft: spacing.md }}>
-                  <Text
-                    style={{
-                      fontSize: typography.size.lg,
-                      lineHeight: typography.lineHeight.lg,
-                      fontWeight: typography.weight.bold,
-                      color: colors.navy.text,
-                    }}
-                  >
-                    {t('offline.notEnabledTitle')}
+                <View style={styles.headText}>
+                  <Text style={styles.headTitle}>
+                    {enabled ? t('offline.savedDataTitle') : t('offline.notEnabledTitle')}
+                  </Text>
+                  <Text style={styles.headBody}>
+                    {enabled ? t('offline.privacyNote') : t('offline.notEnabledBody')}
                   </Text>
                 </View>
               </View>
-              <Text
-                style={{
-                  marginTop: spacing.md,
-                  fontSize: typography.size.sm,
-                  lineHeight: typography.lineHeight.sm,
-                  color: colors.navy.secondary,
-                }}
-              >
-                {t('offline.notEnabledBody')}
-              </Text>
+              <View style={styles.headBadge}>
+                <StatusBadge
+                  status={enabled ? 'active' : 'inactive'}
+                  tone={enabled ? 'normal' : 'neutral'}
+                  label={
+                    enabled ? t('records.status.active') : t('records.status.inactive')
+                  }
+                  icon={enabled ? 'check-circle' : 'lock'}
+                  size="sm"
+                />
+              </View>
             </Card>
 
-            <SectionLabel text={t('offline.chooseMode')} />
-            <ModeOption
-              selected={mode === 'full'}
-              onPress={() => setMode('full')}
-              icon={Database}
-              title={t('offline.modeFull')}
-              body={t('offline.modeFullBody')}
-            />
-            <View style={{ height: spacing.md }} />
-            <ModeOption
-              selected={mode === 'emergency'}
-              onPress={() => setMode('emergency')}
-              icon={HeartPulse}
-              title={t('offline.modeEmergency')}
-              body={t('offline.modeEmergencyBody')}
-            />
-
-            <View style={{ marginTop: spacing.xl }}>
-              <Button
-                label={enableMutation.isPending ? t('offline.enabling') : t('offline.enableCta')}
-                onPress={handleEnable}
-                loading={enableMutation.isPending}
-                disabled={!isOnline}
-                leftIcon={Lock}
-                showChevron={false}
-              />
-            </View>
-            {!isOnline ? (
-              <Text
-                style={{
-                  marginTop: spacing.sm,
-                  textAlign: 'center',
-                  fontSize: typography.size.xs,
-                  color: colors.navy.muted,
-                }}
-              >
-                {t('offline.errorNeedsConnection')}
-              </Text>
-            ) : null}
-          </>
-        ) : (
-          /* ── Enabled ─────────────────────────────────────────────── */
-          <>
-            {/* Device authorisation — the server-side policy this device holds */}
-            <SectionLabel text={t('offline.policyTitle')} />
-            <Card padding="lg">
-              {policy?.emergency_access ? (
-                <View style={{ marginBottom: spacing.md, flexDirection: 'row' }}>
-                  <Chip
-                    label={t('offline.policyEmergencyBadge')}
-                    tone="danger"
-                    icon={HeartPulse}
-                  />
-                </View>
-              ) : null}
-
-              <DetailRow icon={Smartphone} label={t('offline.policyDevice')} value={policy?.device_id ?? '—'} />
-              <DetailRow
-                icon={Lock}
-                label={t('offline.policyEncryption')}
-                value={
-                  status?.encryptedAtRest
-                    ? t('offline.policyEncryptionOn')
-                    : t('offline.policyEncryptionOff')
-                }
-              />
-              <DetailRow
-                icon={ShieldCheck}
-                label={t('offline.policyExpires')}
-                value={
-                  status?.policyUsable
-                    ? (formatDateTime(policy?.expires_at, i18n.language) ?? '—')
-                    : t('offline.policyExpired')
-                }
-                danger={!status?.policyUsable}
-                isLast={!policy?.review_required}
-              />
-
-              {policy?.review_required ? (
-                <Text
-                  style={{
-                    marginTop: spacing.sm,
-                    fontSize: typography.size.xs,
-                    lineHeight: typography.lineHeight.xs,
-                    color: colors.navy.muted,
-                  }}
-                >
-                  {t('offline.policyReviewNote')}
-                </Text>
-              ) : null}
-            </Card>
-
-            {/* What is actually on the device right now */}
-            <SectionLabel text={t('offline.savedDataTitle')} />
-            <Text
-              style={{
-                marginTop: -spacing.sm,
-                marginBottom: spacing.md,
-                fontSize: typography.size.xs,
-                color: colors.navy.muted,
-              }}
-            >
-              {lastSavedLabel ? t('offline.lastSaved', { when: lastSavedLabel }) : t('offline.neverSaved')}
-            </Text>
-
-            <Card padding="none" style={{ paddingHorizontal: spacing.lg }}>
-              {(status?.scopes ?? [])
-                .filter((scope) => grantedScopes.includes(scope.scope))
-                .map((scope, index, list) => (
-                  <ScopeRow
-                    key={scope.scope}
-                    scope={scope}
-                    isLast={index === list.length - 1}
-                    t={t}
-                  />
-                ))}
-            </Card>
-
-            <View style={{ marginTop: spacing.lg }}>
-              <Button
-                label={syncMutation.isPending ? t('offline.syncing') : t('offline.syncCta')}
-                onPress={handleSync}
-                loading={syncMutation.isPending}
-                disabled={!isOnline}
-                leftIcon={RefreshCw}
-                variant="outline"
-                showChevron={false}
-              />
-            </View>
-            {!isOnline ? (
-              <Text
-                style={{
-                  marginTop: spacing.sm,
-                  textAlign: 'center',
-                  fontSize: typography.size.xs,
-                  color: colors.navy.muted,
-                }}
-              >
-                {t('offline.syncOfflineHint')}
-              </Text>
-            ) : null}
-            {syncMutation.isSuccess && syncMutation.data ? (
-              <Text
-                style={{
-                  marginTop: spacing.sm,
-                  textAlign: 'center',
-                  fontSize: typography.size.xs,
-                  color: colors.semantic.success,
-                }}
-              >
-                {t('offline.syncDone', {
-                  done: syncMutation.data.outcomes.filter((outcome) => outcome.ok).length,
-                  total: syncMutation.data.outcomes.length,
-                })}
-              </Text>
-            ) : null}
-
-            {/* Changes captured while offline, awaiting reconciliation */}
-            <SectionLabel text={t('offline.outboxTitle')} />
-            <Card padding="lg">
-              <Text
-                style={{
-                  fontSize: typography.size.sm,
-                  lineHeight: typography.lineHeight.sm,
-                  color: colors.navy.secondary,
-                }}
-              >
-                {t('offline.outboxBody')}
-              </Text>
-
-              {outbox.length === 0 ? (
-                <Text
-                  style={{
-                    marginTop: spacing.md,
-                    fontSize: typography.size.sm,
-                    fontWeight: typography.weight.semibold,
-                    color: colors.navy.muted,
-                  }}
-                >
-                  {t('offline.outboxEmpty')}
-                </Text>
-              ) : (
-                <>
-                  {outbox.map((item) => (
-                    <View
-                      key={item.id}
-                      style={{ marginTop: spacing.md, flexDirection: 'row', alignItems: 'center' }}
-                    >
-                      <UploadCloud color={colors.brand[600]} size={sizing.icon.sm} />
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          flex: 1,
-                          marginLeft: spacing.sm,
-                          fontSize: typography.size.xs,
-                          color: colors.navy.text,
-                        }}
-                      >
-                        {item.method} {item.path}
-                      </Text>
-                      <Text style={{ fontSize: typography.size.xs, color: colors.navy.muted }}>
-                        {formatSavedAt(item.capturedAt, t)}
-                      </Text>
-                    </View>
-                  ))}
-                  <View style={{ marginTop: spacing.lg }}>
-                    <Button
-                      label={
-                        flushMutation.isPending ? t('offline.outboxSending') : t('offline.outboxSendCta')
-                      }
-                      onPress={handleFlush}
-                      loading={flushMutation.isPending}
-                      disabled={!isOnline}
-                      leftIcon={UploadCloud}
-                      variant="outline"
-                      showChevron={false}
+            {/* ── The master switch ────────────────────────────────────── */}
+            <Card variant="flush">
+              <ListRow
+                icon="lock"
+                tint={enabled ? 'green' : 'amber'}
+                title={t('settings.device.offline')}
+                subtitle={t('settings.device.offlineBody')}
+                chevron={false}
+                trailing={
+                  busy ? (
+                    <ActivityIndicator color={colors.blue} />
+                  ) : (
+                    <ThemedSwitch
+                      value={enabled}
+                      onValueChange={onToggleOffline}
+                      accessibilityLabel={t('settings.device.offline')}
                     />
-                  </View>
-                </>
-              )}
-
-              {flushMutation.isSuccess && flushMutation.data ? (
-                <Text
-                  style={{
-                    marginTop: spacing.sm,
-                    fontSize: typography.size.xs,
-                    color: colors.semantic.success,
-                  }}
-                >
-                  {t('offline.outboxSent', { count: flushMutation.data.queued })}
-                </Text>
-              ) : null}
+                  )
+                }
+              />
             </Card>
 
-            <View style={{ marginTop: spacing.lg }}>
-              <InlineNotice tone="gold" icon={ShieldCheck} body={t('offline.privacyNote')} />
-            </View>
-
-            {/* Opt out — in-screen confirm, and honest about what it does not do */}
-            <SectionLabel text={t('offline.disableTitle')} />
-            {confirmingErase ? (
-              <ConfirmPanel
-                icon={Trash2}
-                title={t('offline.disableConfirmTitle')}
-                body={t('offline.disableConfirmBody')}
-                confirmLabel={t('offline.disableCta')}
-                cancelLabel={t('offline.disableCancel')}
-                onConfirm={handleErase}
-                onCancel={() => setConfirmingErase(false)}
-                busy={disableMutation.isPending}
-              />
-            ) : (
+            {!enabled ? (
+              /* ── Opt in ────────────────────────────────────────────── */
               <>
-                <Text
-                  style={{
-                    marginTop: -spacing.sm,
-                    marginBottom: spacing.md,
-                    fontSize: typography.size.sm,
-                    lineHeight: typography.lineHeight.sm,
-                    color: colors.navy.secondary,
-                  }}
-                >
-                  {t('offline.disableBody')}
-                </Text>
-                <Pressable
-                  onPress={() => setConfirmingErase(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('offline.disableCta')}
-                  style={({ pressed }) => ({
-                    height: sizing.control.lg,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: radii.card,
-                    borderWidth: 1,
-                    borderColor: colors.semantic.danger,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                >
-                  <Trash2 color={colors.semantic.danger} size={sizing.icon.md} />
-                  <Text
-                    style={{
-                      marginLeft: spacing.sm,
-                      fontSize: typography.size.md,
-                      fontWeight: typography.weight.semibold,
-                      color: colors.semantic.danger,
-                    }}
-                  >
-                    {t('offline.disableCta')}
+                <View>
+                  <SectionHeader title={t('offline.chooseMode')} variant="overline" />
+                  <Card variant="flush">
+                    <ModeRow
+                      selected={mode === 'full'}
+                      onPress={() => setMode('full')}
+                      icon="folder"
+                      tint="blue"
+                      title={t('offline.modeFull')}
+                      body={t('offline.modeFullBody')}
+                      divider
+                    />
+                    <ModeRow
+                      selected={mode === 'emergency'}
+                      onPress={() => setMode('emergency')}
+                      icon="heart-pulse"
+                      tint="red"
+                      title={t('offline.modeEmergency')}
+                      body={t('offline.modeEmergencyBody')}
+                    />
+                  </Card>
+                </View>
+
+                <View style={styles.actionBlock}>
+                  <GradientButton
+                    label={enableMutation.isPending ? t('offline.enabling') : t('offline.enableCta')}
+                    onPress={confirmEnable}
+                    loading={enableMutation.isPending}
+                    disabled={!isOnline}
+                    icon="none"
+                  />
+                  {!isOnline ? (
+                    <Text style={styles.hint}>{t('offline.errorNeedsConnection')}</Text>
+                  ) : null}
+                </View>
+              </>
+            ) : (
+              /* ── Enabled ───────────────────────────────────────────── */
+              <>
+                {/* Device authorisation — the server-side policy this device holds */}
+                <View>
+                  <SectionHeader title={t('offline.policyTitle')} variant="overline" />
+                  <Card variant="flush">
+                    {policy?.emergency_access ? (
+                      <View style={styles.policyBadge}>
+                        <StatusBadge
+                          status="emergency"
+                          tone="critical"
+                          label={t('offline.policyEmergencyBadge')}
+                          icon="heart-pulse"
+                          size="sm"
+                        />
+                      </View>
+                    ) : null}
+
+                    <ListRow
+                      icon="fingerprint"
+                      tint="blue"
+                      title={t('offline.policyDevice')}
+                      subtitle={policy?.device_id ?? t('opesCore.common.none')}
+                      chevron={false}
+                      divider
+                    />
+                    <ListRow
+                      icon="lock"
+                      tint={status?.encryptedAtRest ? 'green' : 'amber'}
+                      title={t('offline.policyEncryption')}
+                      subtitle={
+                        status?.encryptedAtRest
+                          ? t('offline.policyEncryptionOn')
+                          : t('offline.policyEncryptionOff')
+                      }
+                      chevron={false}
+                      divider
+                    />
+                    <ListRow
+                      icon="shield-check"
+                      tint={status?.policyUsable ? 'green' : 'red'}
+                      title={t('offline.policyExpires')}
+                      subtitle={
+                        status?.policyUsable
+                          ? (formatDateTime(policy?.expires_at, i18n.language) ??
+                            t('opesCore.common.none'))
+                          : t('offline.policyExpired')
+                      }
+                      chevron={false}
+                    />
+
+                    {policy?.review_required ? (
+                      <Text style={styles.policyNote}>{t('offline.policyReviewNote')}</Text>
+                    ) : null}
+                  </Card>
+                </View>
+
+                {/* What is actually on the device right now */}
+                <View>
+                  <SectionHeader title={t('offline.savedDataTitle')} variant="overline" />
+                  <Text style={styles.lastSaved}>
+                    {lastSavedLabel
+                      ? t('offline.lastSaved', { when: lastSavedLabel })
+                      : t('offline.neverSaved')}
                   </Text>
-                </Pressable>
+
+                  {scopeRows.length === 0 ? (
+                    <Card variant="flush">
+                      <EmptyState
+                        icon="folder"
+                        tint="blue"
+                        title={t('offline.savedDataTitle')}
+                        message={t('offline.neverSaved')}
+                      />
+                    </Card>
+                  ) : (
+                    <Card variant="flush">
+                      {scopeRows.map((scope, index) => {
+                        const savedWhen = formatSavedAt(scope.cachedAt, t);
+                        const meta: (string | undefined)[] = [
+                          savedWhen
+                            ? t('offline.lastSaved', { when: savedWhen })
+                            : t('offline.scopeEmpty'),
+                        ];
+                        // The emergency card is the one scope whose *contents*
+                        // matter at a glance, so what is actually cached is
+                        // named — read from this device, never the network.
+                        if (scope.scope === 'emergency_profile' && emergencyProfile.data) {
+                          const profile = emergencyProfile.data;
+                          if (profile.blood_group) {
+                            meta.push(`${t('editProfile.bloodGroup')} ${profile.blood_group}`);
+                          }
+                          meta.push(
+                            `${profile.allergies.length} ${t('profile.allergies')}`,
+                            `${profile.conditions.length} ${t('profile.conditions')}`,
+                          );
+                        }
+                        return (
+                          <ListRow
+                            key={scope.scope}
+                            icon={SCOPE_ICON[scope.scope]}
+                            tint={SCOPE_TINT[scope.scope]}
+                            title={t(SCOPE_LABEL_KEY[scope.scope])}
+                            meta={meta}
+                            chevron={false}
+                            divider={index < scopeRows.length - 1}
+                            value={
+                              scope.itemCount !== null
+                                ? t('offline.itemsSaved', { count: scope.itemCount })
+                                : undefined
+                            }
+                            valueColor={colors.textSecondary}
+                          />
+                        );
+                      })}
+                    </Card>
+                  )}
+                </View>
+
+                <View style={styles.actionBlock}>
+                  <GradientButton
+                    label={syncMutation.isPending ? t('offline.syncing') : t('offline.syncCta')}
+                    onPress={handleSync}
+                    loading={syncMutation.isPending}
+                    disabled={!isOnline}
+                    icon="none"
+                  />
+                  {!isOnline ? <Text style={styles.hint}>{t('offline.syncOfflineHint')}</Text> : null}
+                  {syncMutation.isSuccess && syncMutation.data ? (
+                    <Text style={[styles.hint, styles.hintGood]}>
+                      {t('offline.syncDone', {
+                        done: syncMutation.data.outcomes.filter((outcome) => outcome.ok).length,
+                        total: syncMutation.data.outcomes.length,
+                      })}
+                    </Text>
+                  ) : null}
+                </View>
+
+                {/* Changes captured while offline, awaiting reconciliation */}
+                <View>
+                  <SectionHeader title={t('offline.outboxTitle')} variant="overline" />
+                  <Card>
+                    <Text style={styles.cardBody}>{t('offline.outboxBody')}</Text>
+
+                    {outbox.length === 0 ? (
+                      <Text style={styles.outboxEmpty}>{t('offline.outboxEmpty')}</Text>
+                    ) : (
+                      <>
+                        {outbox.map((item) => (
+                          <View key={item.id} style={styles.outboxItem}>
+                            <Icon name="upload" size={16} color={colors.blue} />
+                            <Text style={styles.outboxPath} numberOfLines={1}>
+                              {item.method} {item.path}
+                            </Text>
+                            <Text style={styles.outboxWhen}>{formatSavedAt(item.capturedAt, t)}</Text>
+                          </View>
+                        ))}
+                        <GradientButton
+                          label={
+                            flushMutation.isPending
+                              ? t('offline.outboxSending')
+                              : t('offline.outboxSendCta')
+                          }
+                          onPress={handleFlush}
+                          loading={flushMutation.isPending}
+                          disabled={!isOnline}
+                          icon="none"
+                          style={styles.outboxButton}
+                        />
+                      </>
+                    )}
+
+                    {flushMutation.isSuccess && flushMutation.data ? (
+                      <Text style={[styles.hint, styles.hintGood, styles.hintLeft]}>
+                        {t('offline.outboxSent', { count: flushMutation.data.queued })}
+                      </Text>
+                    ) : null}
+                  </Card>
+                </View>
+
+                {/* Retention promise — kept verbatim. */}
+                <Notice tone="pending" icon="shield-check" text={t('offline.privacyNote')} />
+
+                {/* Opt out — honest about what it does not do. */}
+                <View>
+                  <SectionHeader title={t('offline.disableTitle')} variant="overline" />
+                  <Text style={styles.cardBodyLoose}>{t('offline.disableBody')}</Text>
+                  <TouchableOpacity
+                    onPress={confirmErase}
+                    disabled={disableMutation.isPending}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('offline.disableCta')}
+                    accessibilityState={{
+                      disabled: disableMutation.isPending,
+                      busy: disableMutation.isPending,
+                    }}
+                    style={[styles.danger, disableMutation.isPending && styles.dangerBusy]}
+                  >
+                    {disableMutation.isPending ? (
+                      <ActivityIndicator size="small" color={colors.statusCritical} />
+                    ) : (
+                      <Icon name="trash" size={18} color={colors.statusCritical} />
+                    )}
+                    <Text style={styles.dangerText}>
+                      {disableMutation.isPending ? t('offline.erasing') : t('offline.disableCta')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </>
             )}
           </>
         )}
       </ScrollView>
-    </Screen>
+
+      {dialog.element}
+    </SafeAreaView>
   );
 }
 
-// ---------------------------------------------------------------------------
+// ── Pieces ──────────────────────────────────────────────────────────────────
 
-function SectionLabel({ text }: { text: string }) {
+/** A `Switch` painted with the active palette. */
+function ThemedSwitch({
+  value,
+  onValueChange,
+  accessibilityLabel,
+}: {
+  value: boolean;
+  onValueChange: (next: boolean) => void;
+  accessibilityLabel: string;
+}) {
+  const { colors } = useTheme();
   return (
-    <Text
-      style={{
-        marginTop: spacing['3xl'],
-        marginBottom: spacing.md,
-        fontSize: typography.size.xs,
-        lineHeight: typography.lineHeight.xs,
-        fontWeight: typography.weight.bold,
-        letterSpacing: typography.tracking.overline,
-        textTransform: 'uppercase',
-        color: colors.brand[600],
-      }}
-    >
-      {text}
-    </Text>
+    <Switch
+      value={value}
+      onValueChange={onValueChange}
+      trackColor={{ false: colors.divider, true: colors.primarySoft }}
+      thumbColor={value ? colors.blue : colors.surface}
+      ios_backgroundColor={colors.divider}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+    />
   );
 }
 
-function ModeOption({
+/** One opt-in mode, as a selectable row with a radio in the trailing slot. */
+function ModeRow({
   selected,
   onPress,
-  icon: Icon,
+  icon,
+  tint,
   title,
   body,
+  divider,
 }: {
   selected: boolean;
   onPress: () => void;
-  icon: LucideIcon;
+  icon: IconName;
+  tint: Tint;
   title: string;
   body: string;
+  divider?: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <Card
-      variant={selected ? 'elevated' : 'flat'}
-      padding="lg"
+    <ListRow
+      icon={icon}
+      tint={tint}
+      title={title}
+      subtitle={body}
       onPress={onPress}
-      accessibilityLabel={title}
-      style={selected ? { borderColor: colors.brand[500], borderWidth: 1.5 } : undefined}
+      chevron={false}
+      divider={divider}
+      accessibilityLabel={`${title}. ${body}`}
+      trailing={
+        <View style={[styles.radio, selected && styles.radioOn]}>
+          {selected ? <Icon name="check" size={13} color={colors.textOnBrand} /> : null}
+        </View>
+      }
+    />
+  );
+}
+
+/** Tinted inline notice: icon + body. */
+function Notice({ tone, icon, text }: { tone: StatusTone; icon: IconName; text: string }) {
+  const { colors, statusMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const skin = statusMap[tone];
+  return (
+    <View
+      style={[styles.notice, { backgroundColor: skin.bg }]}
+      accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
     >
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-        <View
-          style={{
-            width: sizing.tile.md,
-            height: sizing.tile.md,
-            borderRadius: radii.tile,
-            backgroundColor: selected ? colors.brand[50] : colors.surface.sunken,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Icon color={selected ? colors.brand[600] : colors.navy.secondary} size={sizing.icon.lg} />
-        </View>
+      <Icon name={icon} size={18} color={skin.fg} />
+      <Text style={styles.noticeText}>{text}</Text>
+    </View>
+  );
+}
 
-        <View style={{ flex: 1, marginLeft: spacing.md }}>
-          <Text
-            style={{
-              fontSize: typography.size.md,
-              lineHeight: typography.lineHeight.md,
-              fontWeight: typography.weight.bold,
-              color: colors.navy.text,
-            }}
-          >
-            {title}
-          </Text>
-          <Text
-            style={{
-              marginTop: 3,
-              fontSize: typography.size.sm,
-              lineHeight: typography.lineHeight.sm,
-              color: colors.navy.secondary,
-            }}
-          >
-            {body}
-          </Text>
-        </View>
-
-        <View
-          style={{
-            marginLeft: spacing.sm,
-            marginTop: 2,
-            width: 22,
-            height: 22,
-            borderRadius: radii.pill,
-            borderWidth: 1.5,
-            borderColor: selected ? colors.brand[500] : colors.line.strong,
-            backgroundColor: selected ? colors.brand[500] : 'transparent',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {selected ? <Check color={colors.white} size={13} /> : null}
-        </View>
+function LoadingCard({ label }: { label: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <Card>
+      <View style={styles.loading} accessibilityLiveRegion="polite">
+        <ActivityIndicator color={colors.blue} />
+        <Text style={styles.loadingText}>{label}</Text>
       </View>
     </Card>
   );
 }
 
-function DetailRow({
-  icon: Icon,
-  label,
-  value,
-  danger = false,
-  isLast = false,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  danger?: boolean;
-  isLast?: boolean;
-}) {
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        paddingBottom: isLast ? 0 : spacing.md,
-        marginBottom: isLast ? 0 : spacing.md,
-        borderBottomWidth: isLast ? 0 : sizing.hairline,
-        borderBottomColor: colors.line.subtle,
-      }}
-    >
-      <Icon color={colors.navy.muted} size={sizing.icon.sm} style={{ marginTop: 1 }} />
-      <Text
-        style={{
-          marginLeft: spacing.sm,
-          width: 118,
-          fontSize: typography.size.xs,
-          lineHeight: typography.lineHeight.xs,
-          color: colors.navy.muted,
-        }}
-      >
-        {label}
-      </Text>
-      <Text
-        numberOfLines={2}
-        style={{
-          flex: 1,
-          fontSize: typography.size.xs,
-          lineHeight: typography.lineHeight.xs,
-          fontWeight: typography.weight.semibold,
-          color: danger ? colors.semantic.danger : colors.navy.text,
-        }}
-      >
-        {value}
-      </Text>
-    </View>
-  );
-}
+// ── Styles (colour-dependent, built per palette) ───────────────────────────
 
-function ScopeRow({
-  scope,
-  isLast,
-  t,
-}: {
-  scope: ScopeCacheSummary;
-  isLast: boolean;
-  t: (key: string, options?: Record<string, unknown>) => string;
-}) {
-  const Icon = SCOPE_ICON[scope.scope];
-  const savedWhen = formatSavedAt(scope.cachedAt, t);
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.page },
+    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
 
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: spacing.md + 2,
-        borderBottomWidth: isLast ? 0 : sizing.hairline,
-        borderBottomColor: colors.line.subtle,
-      }}
-    >
-      <View
-        style={{
-          width: sizing.tile.sm,
-          height: sizing.tile.sm,
-          borderRadius: radii.tile,
-          backgroundColor: colors.brand[50],
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Icon color={colors.brand[600]} size={sizing.icon.md} />
-      </View>
+    head: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 4 },
+    circle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headText: { flex: 1, minWidth: 0 },
+    headTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: colors.textPrimary,
+    },
+    headBody: {
+      marginTop: 4,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+    headBadge: { flexDirection: 'row', marginTop: spacing.md },
 
-      <View style={{ flex: 1, marginLeft: spacing.md }}>
-        <Text
-          style={{
-            fontSize: typography.size.md,
-            lineHeight: typography.lineHeight.md,
-            fontWeight: typography.weight.semibold,
-            color: colors.navy.text,
-          }}
-        >
-          {t(SCOPE_LABEL_KEY[scope.scope])}
-        </Text>
-        <Text
-          style={{
-            marginTop: 2,
-            fontSize: typography.size.xs,
-            lineHeight: typography.lineHeight.xs,
-            color: colors.navy.muted,
-          }}
-        >
-          {savedWhen ? t('offline.lastSaved', { when: savedWhen }) : t('offline.scopeEmpty')}
-        </Text>
-      </View>
+    // Policy
+    policyBadge: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
+    },
+    policyNote: {
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.md,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textMuted,
+    },
 
-      {scope.itemCount !== null ? (
-        <Text
-          style={{
-            marginLeft: spacing.sm,
-            fontSize: typography.size.xs,
-            fontWeight: typography.weight.semibold,
-            color: colors.brand[600],
-          }}
-        >
-          {t('offline.itemsSaved', { count: scope.itemCount })}
-        </Text>
-      ) : null}
-    </View>
-  );
-}
+    lastSaved: {
+      marginBottom: spacing.sm,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+    },
+
+    // Choice radio
+    radio: {
+      width: 22,
+      height: 22,
+      borderRadius: radii.pill,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    radioOn: { borderColor: colors.blue, backgroundColor: colors.blue },
+
+    // Actions
+    actionBlock: { gap: spacing.sm },
+    hint: {
+      textAlign: 'center',
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+    },
+    hintGood: { color: colors.statusNormal },
+    hintLeft: { textAlign: 'left', marginTop: spacing.sm },
+
+    // Outbox
+    cardBody: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textSecondary,
+    },
+    cardBodyLoose: {
+      marginBottom: spacing.md,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textSecondary,
+    },
+    outboxEmpty: {
+      marginTop: spacing.md,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.textMuted,
+    },
+    outboxItem: {
+      marginTop: spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    outboxPath: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textPrimary,
+    },
+    outboxWhen: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+    },
+    outboxButton: { marginTop: spacing.md },
+
+    // Destructive
+    danger: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      height: 52,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: colors.statusCritical,
+      backgroundColor: colors.surface,
+    },
+    dangerBusy: { opacity: 0.6 },
+    dangerText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: colors.statusCritical,
+    },
+
+    // Notices
+    notice: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm + 4,
+      padding: spacing.md - 2,
+      borderRadius: radii.md,
+    },
+    noticeText: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textSecondary,
+    },
+
+    // Loading
+    loading: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.md,
+    },
+    loadingText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
+  });

@@ -1,53 +1,69 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  Text,
-  View,
-  type ViewStyle,
-} from 'react-native';
+/**
+ * Home — the daily landing surface, on the OPES CORE-006 Home Dashboard layout.
+ *
+ * Presentation only. The data layer is untouched: `useHealthIdCard`
+ * (health id, blood type, status), the auth store's `patient` (name, allergy
+ * count), `useUpcomingAppointments`, `useLatestVitals`
+ * (GET /mobile/vitals/latest), `useUnreadNotificationCount` (the bell),
+ * plus `useTimeline` for the "Recent records" list and
+ * `useActivePrescriptionSummary` for the prescriptions cell of the summary
+ * band. Nothing here is placeholder; every empty section is a deliberate
+ * `EmptyState`.
+ *
+ * Layout, top to bottom (UIUX/src/screens/core/HomeDashboardScreen.tsx):
+ *   BrandHeader (bell + avatar) → greeting + compact Health ID card →
+ *   Health Summary band → Quick Actions tiles → Upcoming (AppointmentRow) →
+ *   Recent records (flush Card + ListRows) → Health Vitals → care-plan card.
+ *
+ * Every destination the previous Home reached is still reachable:
+ *   /notifications (bell) · /(tabs)/profile (avatar) · /(tabs)/health-id
+ *   (ID card, blood-group + status cells) · copy Health ID (ID card) ·
+ *   /care-map ("All services" + tile) · /doctors · /appointments/book (tile +
+ *   empty CTA) · /blood-finder · /pharmacy · /(tabs)/records (tile, band
+ *   "View All", records "View all") · /prescriptions (band cell) ·
+ *   /prescriptions/[id] (timeline rows) · /appointments (Upcoming "View all") ·
+ *   /appointments/[id] (AppointmentRow) · /care-plans (care-plan card) ·
+ *   vitals "See all / Show less" (in place).
+ *
+ * Deliberate departures from the previous screen, and why:
+ *   - The inline QR is gone from the ID card. The kit's compact card is a
+ *     shortcut to the full Health ID tab, where the scannable QR lives one tap
+ *     away; at 375pt the QR was what clipped the Health ID string.
+ *   - Cards are bordered, not shadowed (DESIGN_SPEC §4).
+ *   - Colours come from `useTheme()` so the screen follows the palette switch.
+ */
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import QRCode from 'react-native-qrcode-svg';
 import {
-  BadgeCheck,
-  Bell,
-  Cake,
-  CalendarDays,
-  CalendarPlus,
-  Check,
-  ChevronRight,
-  CircleAlert,
-  Clock,
-  Copy,
-  Droplet,
-  Droplets,
-  FolderHeart,
-  Gauge,
-  Hand,
-  HeartPulse,
-  Hourglass,
-  MapPin,
-  Pill,
-  QrCode,
-  RefreshCw,
-  ShieldCheck,
-  Target,
-  Thermometer,
-  TriangleAlert,
-  Wind,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../../components/ui/Screen';
-import { Skeleton } from '../../components/ui/Skeleton';
-import { UnreadBadge } from '../../components/ui/UnreadBadge';
-import { useAuthStore } from '../../lib/store/auth';
-import { useHealthIdCard, useUpcomingAppointments } from '../../lib/api/queries';
-import { useUnreadNotificationCount } from '../../lib/api/appConfigQueries';
+  Card,
+  EmptyState,
+  Icon,
+  ListRow,
+  SectionHeader,
+  StatusBadge,
+  a11yJoin,
+  formatDate,
+  formatTime,
+  iconStroke,
+  radii,
+  spacing,
+  typography,
+  useTheme,
+  type IconName,
+  type Palette,
+  type StatusTone,
+  type Tint,
+} from '@/components/opes-ui';
+import { AppointmentRow, LoadingBlock } from '@/components/care/shared';
+import { ActionTile, Avatar, BrandHeader } from '@/components/core/shared';
+import { useAuthStore } from '@/lib/store/auth';
+import { useHealthIdCard, useTimeline, useUpcomingAppointments } from '@/lib/api/queries';
+import { useUnreadNotificationCount } from '@/lib/api/appConfigQueries';
+import { useActivePrescriptionSummary } from '@/lib/api/prescriptionQueries';
 import {
   isOutOfRange,
   readingAge,
@@ -55,131 +71,167 @@ import {
   type VitalKey,
   type VitalMeasure,
   type VitalStatus,
-} from '../../lib/api/vitalsQueries';
-import { colors } from '../../theme/tokens';
+} from '@/lib/api/vitalsQueries';
+import type { TimelineEvent } from '@/lib/api/types';
+
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+// ── Quick actions ─────────────────────────────────────────────────────────
+
+type QuickAction = { key: string; icon: IconName; label: (t: Translate) => string; route: string };
 
 /**
- * Home — the daily landing surface.
- *
- * Structure follows `Mobile app screens/a_clean_mobile_app_home_dashboard_ui_screenshot.png`:
- * greeting block, gold Health ID hero with a real scannable QR and three
- * inline detail columns, ONE quick-action card holding five actions separated
- * by hairlines, then Upcoming Appointment and Health Vitals side by side, and
- * the care-plan promo.
- *
- * Everything on screen is real data: `useHealthIdCard` (health id, blood type,
- * dob, status, qr_payload), the auth store's `patient` (allergy count),
- * `useUpcomingAppointments` and `useLatestVitals`
- * (GET /mobile/vitals/latest — see lib/api/vitalsQueries.ts). Nothing is
- * placeholder; the demo patient's genuinely empty sections render deliberate
- * empty states.
- *
- * Deliberate departures from the reference, and why:
- *   - No hamburger at top-left. There is no drawer, and no menu route exists
- *     under `app/`; a control that opens nothing is worse than no control.
- *   - The Health ID avatar is a monogram, not a photo. There is no
- *     photo-upload endpoint, so a stock face would be a fabrication.
- *   - Inside the narrow Vitals column each reading is label-over-value rather
- *     than the reference's single line. French labels ("Fréq. respiratoire")
- *     do not fit beside a value in ~150pt, and truncating a clinical label is
- *     not an acceptable trade.
- *
- * NativeWind note: `className` is inert on `LinearGradient` (no cssInterop is
- * registered), so every gradient here is styled with inline `style`.
+ * Six tiles, two rows of three. Every route is a file under `app/` except
+ * `/doctors`, which is being added alongside this screen (linked by path).
+ * "Find a facility" / "Find a doctor" have no locale key yet — same keys and
+ * defaults as the Quick-Add sheet, so one locale addition fixes both.
  */
-
-/** Soft elevation shared by every white card, so the surfaces read as one set. */
-const CARD_SHADOW: ViewStyle = {
-  shadowColor: colors.navy.text,
-  shadowOpacity: 0.06,
-  shadowRadius: 14,
-  shadowOffset: { width: 0, height: 6 },
-  elevation: 2,
-};
-
-/** Warmer, deeper lift for the Health ID hero — it should sit above the rest. */
-const HERO_SHADOW: ViewStyle = {
-  shadowColor: colors.brand[900],
-  shadowOpacity: 0.3,
-  shadowRadius: 22,
-  shadowOffset: { width: 0, height: 12 },
-  elevation: 8,
-};
-
-interface QuickActionSpec {
-  key: string;
-  icon: LucideIcon;
-  labelKey: string;
-  route: string;
-}
-
-/**
- * Four real destinations in one row, matching the reference's single
- * quick-action card. Every route is a file under `app/`:
- * appointments/book.tsx, (tabs)/records.tsx, prescriptions/index.tsx,
- * blood-finder.tsx.
- *
- * Find Blood stands in for the reference's "View All Services": `/blood-finder`
- * has NO other entry point in the whole app, whereas "all services"
- * (`/care-map`) is still reachable from this section's header action and from
- * the Records tab.
- */
-const QUICK_ACTIONS: QuickActionSpec[] = [
-  { key: 'book', icon: CalendarPlus, labelKey: 'home.quickActions.bookAppointment', route: '/appointments/book' },
-  { key: 'records', icon: FolderHeart, labelKey: 'home.quickActions.healthRecords', route: '/(tabs)/records' },
-  { key: 'prescriptions', icon: Pill, labelKey: 'home.quickActions.prescriptions', route: '/prescriptions' },
-  { key: 'blood', icon: Droplets, labelKey: 'home.quickActions.findBlood', route: '/blood-finder' },
+const QUICK_ACTIONS: QuickAction[] = [
+  {
+    key: 'facility',
+    icon: 'building',
+    label: (t) => t('opesCore.quickAdd.findFacility', { defaultValue: 'Find a facility' }),
+    route: '/care-map',
+  },
+  {
+    key: 'doctor',
+    icon: 'stethoscope',
+    label: (t) => t('opesCore.quickAdd.findDoctor', { defaultValue: 'Find a doctor' }),
+    route: '/doctors',
+  },
+  { key: 'book', icon: 'calendar-plus', label: (t) => t('home.quickActions.bookAppointment'), route: '/appointments/book' },
+  { key: 'blood', icon: 'droplet', label: (t) => t('home.quickActions.findBlood'), route: '/blood-finder' },
+  { key: 'medicine', icon: 'pill', label: (t) => t('pharmacy.title'), route: '/pharmacy' },
+  { key: 'records', icon: 'folder-plus', label: (t) => t('home.quickActions.healthRecords'), route: '/(tabs)/records' },
 ];
 
-/** Icon + label for each measure the vitals endpoint can return. */
-const VITAL_META: Record<VitalKey, { icon: LucideIcon; labelKey: string }> = {
-  heart_rate: { icon: HeartPulse, labelKey: 'home.vitals.heartRate' },
-  blood_pressure: { icon: Gauge, labelKey: 'home.vitals.bloodPressure' },
-  blood_sugar: { icon: Droplet, labelKey: 'home.vitals.bloodSugar' },
-  oxygen_saturation: { icon: Wind, labelKey: 'home.vitals.oxygenSaturation' },
-  temperature: { icon: Thermometer, labelKey: 'home.vitals.temperature' },
-  respiratory_rate: { icon: Wind, labelKey: 'home.vitals.respiratoryRate' },
+// ── Recent-record presentation ────────────────────────────────────────────
+
+const RECORD_META: Record<TimelineEvent['event_type'], { icon: IconName; tint: Tint; titleKey: string }> = {
+  visit: { icon: 'stethoscope', tint: 'purple', titleKey: 'records.item.visitTitle' },
+  lab_result: { icon: 'flask', tint: 'green', titleKey: 'records.item.labTitle' },
+  prescription: { icon: 'capsule', tint: 'blue', titleKey: 'records.item.prescriptionTitle' },
+};
+
+/** How many timeline rows Home shows before "View all" takes over. */
+const RECENT_RECORDS_COUNT = 4;
+
+// ── Vitals presentation ───────────────────────────────────────────────────
+
+/**
+ * Kit glyph per measure. The kit has no thermometer / gauge / wind glyphs:
+ * blood pressure uses `activity`, breathing and SpO₂ use `lungs`, temperature
+ * uses `sun` — reported in the hand-off rather than inlined as SVG here.
+ */
+const VITAL_META: Record<VitalKey, { icon: IconName; labelKey: string }> = {
+  heart_rate: { icon: 'heart-rate', labelKey: 'home.vitals.heartRate' },
+  blood_pressure: { icon: 'activity', labelKey: 'home.vitals.bloodPressure' },
+  blood_sugar: { icon: 'droplet', labelKey: 'home.vitals.bloodSugar' },
+  oxygen_saturation: { icon: 'lungs', labelKey: 'home.vitals.oxygenSaturation' },
+  temperature: { icon: 'sun', labelKey: 'home.vitals.temperature' },
+  respiratory_rate: { icon: 'lungs', labelKey: 'home.vitals.respiratoryRate' },
 };
 
 /** How many readings the card shows before "See all" expands it in place. */
 const VITALS_COLLAPSED_COUNT = 4;
 
+/**
+ * Tone for an advisory status. `critical` is critical, anything else out of
+ * range is warning, `unknown` is deliberately neutral — the API declined to
+ * classify, so neither does the UI.
+ */
+function vitalTone(status: VitalStatus): { tone: StatusTone; tint: Tint } {
+  switch (status) {
+    case 'normal':
+      return { tone: 'normal', tint: 'green' };
+    case 'critical':
+      return { tone: 'critical', tint: 'red' };
+    case 'low':
+    case 'high':
+    case 'abnormal':
+      return { tone: 'warning', tint: 'amber' };
+    default:
+      return { tone: 'neutral', tint: 'blue' };
+  }
+}
+
+// ── Formatting ────────────────────────────────────────────────────────────
+
+/** Time-of-day greeting from the device clock — chrome, never server text. */
+function greetingKey(hour: number): string {
+  if (hour < 12) return 'opesCore.home.greetingMorning';
+  if (hour < 18) return 'opesCore.home.greetingAfternoon';
+  return 'opesCore.home.greetingEvening';
+}
+
+/** `0` is a real, reassuring answer ("None") — not a missing value. */
+function formatCount(count: number | null | undefined, t: Translate): string {
+  if (count == null) return '—';
+  if (count === 0) return t('home.healthId.none');
+  return String(count);
+}
+
+/**
+ * "Last updated: Today, 7:30 AM" only while that is true; otherwise the label
+ * degrades to yesterday, an explicit day count, or a full date.
+ */
+function formatUpdated(recordedAt: string | null, t: Translate): string {
+  const age = readingAge(recordedAt);
+  if (!recordedAt || age.freshness === 'unknown' || age.days === null) {
+    return t('home.vitals.updatedOn', { date: '—' });
+  }
+  if (age.freshness === 'today') return t('home.vitals.updatedToday', { time: formatTime(recordedAt) });
+  if (age.days === 1) return t('home.vitals.updatedYesterday', { time: formatTime(recordedAt) });
+  if (age.freshness === 'recent') return t('home.vitals.updatedDaysAgo', { days: age.days });
+  return t('home.vitals.updatedOn', { date: formatDate(recordedAt) });
+}
+
+// ── Screen ────────────────────────────────────────────────────────────────
+
 export default function HomeScreen() {
-  const { t, i18n } = useTranslation();
-  const patient = useAuthStore((s) => s.patient);
+  const { t } = useTranslation();
   const router = useRouter();
+  const { colors, tintMap, statusMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const patient = useAuthStore((s) => s.patient);
+  const authStatus = useAuthStore((s) => s.status);
   const healthId = useHealthIdCard();
   const appointments = useUpcomingAppointments();
   const vitals = useLatestVitals();
-  const nextAppointment = appointments.data?.data?.[0];
+  const timeline = useTimeline(RECENT_RECORDS_COUNT);
+  const prescriptions = useActivePrescriptionSummary();
   // Lightweight count endpoint, not the heavy list. Resolves to 0 (no badge)
-  // while loading or on error; the existing mark-read mutations invalidate the
-  // ['notifications'] key prefix, which refreshes this immediately. Gated on
-  // auth so it can never fire a pre-auth 401 into the refresh interceptor.
-  const authStatus = useAuthStore((s) => s.status);
+  // while loading or on error. Gated on auth so it can never fire a pre-auth
+  // 401 into the refresh interceptor.
   const unreadCount = useUnreadNotificationCount(authStatus === 'authenticated');
+
+  const nextAppointment = appointments.data?.data?.[0];
+  const statusValue = (healthId.data?.status ?? patient?.status ?? '').toLowerCase();
+  const isVerified = statusValue === 'verified' || statusValue === 'active';
+  const displayName = healthId.data?.display_name ?? patient?.display_name ?? patient?.first_name ?? '';
+  const healthIdValue = healthId.data?.health_id ?? patient?.health_id ?? null;
+  const bloodGroup = healthId.data?.blood_type ?? patient?.blood_group ?? null;
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([healthId.refetch(), appointments.refetch(), vitals.refetch()]);
+      await Promise.all([
+        healthId.refetch(),
+        appointments.refetch(),
+        vitals.refetch(),
+        timeline.refetch(),
+        prescriptions.refetch(),
+      ]);
     } finally {
       setRefreshing(false);
     }
-  }, [healthId, appointments, vitals]);
-
-  const initial = patient?.first_name?.[0]?.toUpperCase() ?? '?';
-  const statusValue = (healthId.data?.status ?? patient?.status ?? '').toLowerCase();
-  const isVerified = statusValue === 'verified' || statusValue === 'active';
-  const qrPayload = healthId.data?.qr_payload;
-  const displayName = healthId.data?.display_name ?? patient?.display_name ?? '';
-  const healthIdValue = healthId.data?.health_id ?? patient?.health_id ?? null;
+  }, [healthId, appointments, vitals, timeline, prescriptions]);
 
   // ── Copy the Health ID ──────────────────────────────────────────────────
-  // The reference puts a copy control beside the number. It writes the REAL
-  // id via expo-clipboard and reports the outcome for two seconds; there is no
-  // silent success, and a failure says so rather than pretending it worked.
+  // Writes the REAL id via expo-clipboard and reports the outcome for two
+  // seconds; there is no silent success, and a failure says so.
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -203,970 +255,668 @@ export default function HomeScreen() {
     copyTimer.current = setTimeout(() => setCopyState('idle'), 2000);
   }, [healthIdValue]);
 
+  // ── Vitals expand/collapse ──────────────────────────────────────────────
+  const [vitalsExpanded, setVitalsExpanded] = useState(false);
+  const measures = vitals.data?.measures ?? [];
+  const visibleMeasures = vitalsExpanded ? measures : measures.slice(0, VITALS_COLLAPSED_COUNT);
+  const canExpandVitals = measures.length > VITALS_COLLAPSED_COUNT;
+  const vitalsAge = readingAge(vitals.data?.recorded_at);
+
+  const events = timeline.data?.timeline ?? [];
+
+  const openRecord = (ev: TimelineEvent) => {
+    if (ev.event_type === 'prescription') router.push(`/prescriptions/${ev.id}`);
+    else router.push('/(tabs)/records');
+  };
+
   return (
-    <Screen className="px-0">
-      <ScrollView
-        className="flex-1 px-6"
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand[500]} />
-        }
-      >
-        {/* ── Header ─────────────────────────────────────────────────────── */}
-        <View className="mt-2 flex-row items-center justify-between">
-          <View className="flex-1 flex-row items-center pr-3">
-            <LinearGradient
-              colors={[colors.brand[300], colors.brand[500], colors.brand[700]]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: 10,
-              }}
-            >
-              <HeartPulse color={colors.cream[50]} size={17} />
-            </LinearGradient>
-            <View className="flex-1">
-              <View className="flex-row items-center">
-                <Text className="text-[17px] font-extrabold text-navy-text">Opes</Text>
-                <Text className="text-[17px] font-extrabold text-brand-500">Care</Text>
-              </View>
-              <Text className="text-[8px] font-medium text-navy-secondary" numberOfLines={1}>
-                {t('auth.tagline')}
-              </Text>
-            </View>
-          </View>
-
-          <View className="flex-row items-center gap-4">
-            <Pressable
-              onPress={() => router.push('/notifications')}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={t('notifications.title')}
-            >
-              <View
-                className="h-10 w-10 items-center justify-center rounded-full bg-white"
-                style={{ borderWidth: 1, borderColor: colors.cream[300] }}
-              >
-                <Bell size={19} color={colors.navy.text} />
-                {/* Count renders as its own accessible text node; the button
-                    above carries the "Notification Center" label. No new
-                    notifications.* i18n key needed. */}
-                <UnreadBadge count={unreadCount} />
-              </View>
-            </Pressable>
-            <Pressable
-              onPress={() => router.push('/(tabs)/profile')}
-              hitSlop={4}
-              accessibilityRole="button"
-              accessibilityLabel={t('profile.title')}
-            >
-              <View
-                className="h-10 w-10 items-center justify-center rounded-full bg-brand-100"
-                style={{ borderWidth: 1.5, borderColor: colors.brand[300] }}
-              >
-                <Text className="text-[15px] font-extrabold text-brand-600">{initial}</Text>
-              </View>
-            </Pressable>
-          </View>
-        </View>
-
-        {/* ── Greeting ───────────────────────────────────────────────────── */}
-        <View className="mt-7 flex-row items-center justify-between">
-          <View className="flex-1 pr-4">
-            <Text className="text-[22px] font-extrabold leading-7 text-navy-text">
-              {t(greetingKey())}
-            </Text>
-            <View className="flex-row items-center">
-              <Text className="text-[22px] font-extrabold leading-8 text-brand-500" numberOfLines={1}>
-                {patient?.first_name ?? '—'}
-              </Text>
-              <Hand size={21} color={colors.brand[300]} style={{ marginLeft: 8 }} />
-            </View>
-            <Text className="mt-1.5 text-[13px] leading-5 text-navy-secondary">{t('home.subtitle')}</Text>
-          </View>
-
-          {/* Brand medallion — the shield motif from the reference header. */}
-          <View
-            className="h-[72px] w-[72px] items-center justify-center rounded-full"
-            style={{ backgroundColor: colors.brand[50] }}
-          >
-            <View
-              className="h-[70px] w-[70px] items-center justify-center rounded-full"
-              style={{ borderWidth: 1, borderColor: colors.brand[100] }}
-            >
-              <LinearGradient
-                colors={[colors.brand[300], colors.brand[500], colors.brand[700]]}
-                start={{ x: 0.2, y: 0 }}
-                end={{ x: 0.8, y: 1 }}
-                style={{
-                  width: 58,
-                  height: 58,
-                  borderRadius: 20,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <ShieldCheck color={colors.white} size={28} />
-              </LinearGradient>
-            </View>
-          </View>
-        </View>
-
-        {/* ── Health ID hero ─────────────────────────────────────────────── */}
-        <LinearGradient
-          colors={[colors.brand[600], colors.brand[500], colors.brand[300]]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            borderRadius: 24,
-            marginTop: 24,
-            padding: 18,
-            overflow: 'hidden',
-            ...HERO_SHADOW,
-          }}
-        >
-          {/* Decorative watermarks — non-interactive, clipped by the card. */}
-          <View
-            style={{
-              position: 'absolute',
-              right: -46,
-              top: -56,
-              width: 168,
-              height: 168,
-              borderRadius: 84,
-              backgroundColor: 'rgba(255,255,255,0.10)',
-              pointerEvents: 'none',
-            }}
-          />
-          <View
-            style={{
-              position: 'absolute',
-              left: -60,
-              bottom: -70,
-              width: 150,
-              height: 150,
-              borderRadius: 75,
-              backgroundColor: 'rgba(255,255,255,0.07)',
-              pointerEvents: 'none',
-            }}
-          />
-
-          {/* The reference puts a patient photo here. The API exposes none, and
-              a stock face would fabricate identity data — so the slot held a
-              monogram instead. At 375pt that monogram cost 52pt and clipped the
-              Health ID itself to "OC-DEMO-…", while duplicating an initial the
-              patient's own name already carries two lines below. Dropping it
-              gives the credential number the width it needs. */}
-          <View className="flex-row items-start justify-between">
-            <View className="flex-1">
-              {/* letterSpacing 1 across 18 uppercase characters was ~18px of
-                  overflow on its own; 0.6 keeps the eyebrow's spaced-caps feel
-                  and lets the full label render at 375px. */}
-              <Text
-                className="text-[10px] font-bold uppercase text-white/80"
-                style={{ letterSpacing: 0.6 }}
-                numberOfLines={1}
-              >
-                {t('home.healthId.title')}
-              </Text>
-
-              {healthId.isLoading ? (
-                <ActivityIndicator color={colors.white} style={{ marginTop: 8, alignSelf: 'flex-start' }} />
-              ) : (
-                <View className="mt-1 flex-row items-center">
-                  <Text
-                    className="flex-1 text-[15px] font-extrabold text-white"
-                    numberOfLines={1}
-                  >
-                    {healthIdValue ?? '—'}
-                  </Text>
-                  {healthIdValue ? (
-                    <Pressable
-                      onPress={onCopyHealthId}
-                      hitSlop={10}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('home.healthId.copy')}
-                      className="ml-1.5 items-center justify-center rounded-lg"
-                      style={({ pressed }) => ({
-                        width: 24,
-                        height: 24,
-                        backgroundColor: 'rgba(255,255,255,0.22)',
-                        opacity: pressed ? 0.7 : 1,
-                      })}
-                    >
-                      {copyState === 'copied' ? (
-                        <Check size={13} color={colors.white} />
-                      ) : (
-                        <Copy size={13} color={colors.white} />
-                      )}
-                    </Pressable>
-                  ) : null}
-                </View>
-              )}
-
-              {displayName ? (
-                <Text className="mt-0.5 text-[11px] font-medium text-white/85" numberOfLines={1}>
-                  {displayName}
-                </Text>
-              ) : null}
-
-              <View className="mt-2 flex-row items-center">
-                <View
-                  className="flex-row items-center self-start rounded-full px-2 py-0.5"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.24)' }}
-                >
-                  {isVerified ? (
-                    <BadgeCheck size={12} color={colors.white} />
-                  ) : (
-                    <Hourglass size={11} color={colors.white} />
-                  )}
-                  <Text className="ml-1 text-[10px] font-bold text-white" numberOfLines={1}>
-                    {t(isVerified ? 'home.healthId.verified' : 'home.healthId.pending')}
-                  </Text>
-                </View>
-
-                {copyState !== 'idle' ? (
-                  <Text className="ml-2 flex-1 text-[10px] font-semibold text-white/90" numberOfLines={1}>
-                    {t(copyState === 'copied' ? 'home.healthId.copied' : 'home.healthId.copyFailed')}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-
-            {/* Real, scannable QR straight off the card payload. */}
-            <Pressable
-              onPress={() => router.push('/(tabs)/health-id')}
-              accessibilityRole="button"
-              accessibilityLabel={t('home.healthId.showQr')}
-              className="ml-2"
-            >
-              <View className="items-center rounded-2xl bg-white p-1.5" style={{ width: 66 }}>
-                <View className="items-center justify-center" style={{ height: 54, width: 54 }}>
-                  {qrPayload ? (
-                    <QRCode
-                      value={qrPayload}
-                      size={54}
-                      color={colors.navy.text}
-                      backgroundColor={colors.white}
-                    />
-                  ) : (
-                    <QrCode size={28} color={colors.navy.muted} />
-                  )}
-                </View>
-              </View>
-            </Pressable>
-          </View>
-
-          <View className="my-3.5 h-px" style={{ backgroundColor: 'rgba(255,255,255,0.28)' }} />
-
-          {healthId.isError ? (
-            <View className="flex-row items-center justify-between">
-              <View className="flex-1 flex-row items-center pr-3">
-                <CircleAlert size={15} color={colors.white} />
-                <Text className="ml-2 flex-1 text-[12px] text-white/95">
-                  {t('home.healthId.loadError')}
-                </Text>
-              </View>
-              <Pressable
-                onPress={() => healthId.refetch()}
-                hitSlop={8}
-                accessibilityRole="button"
-                className="flex-row items-center rounded-full px-3 py-1.5"
-                style={{ backgroundColor: 'rgba(255,255,255,0.24)' }}
-              >
-                <RefreshCw size={12} color={colors.white} />
-                <Text className="ml-1.5 text-[11px] font-bold text-white">{t('home.retry')}</Text>
-              </Pressable>
-            </View>
-          ) : (
-            /* Three inline detail columns, as the reference lays them out —
-               but the reference also keeps "View ID Card" on this same line.
-               That mockup is 852px wide; at 375pt a fourth item leaves each
-               column ~44pt and clips the date to "Apr 1…". The link moves to
-               its own line so the three stats get the full width. */
-            <View className="flex-col">
-              <View className="flex-row">
-                <HeroDetail
-                  icon={Droplets}
-                  label={t('home.healthId.bloodGroup')}
-                  value={healthId.data?.blood_type ?? patient?.blood_group ?? '—'}
-                />
-                <HeroDetail
-                  icon={TriangleAlert}
-                  label={t('home.healthId.allergies')}
-                  value={formatCount(patient?.allergies_count, t)}
-                />
-                <HeroDetail
-                  icon={Cake}
-                  label={t('home.healthId.dateOfBirth')}
-                  value={formatDate(healthId.data?.dob ?? patient?.dob, i18n.language)}
-                />
-              </View>
-
-              <Pressable
-                onPress={() => router.push('/(tabs)/health-id')}
-                hitSlop={8}
-                accessibilityRole="button"
-                className="mt-2 flex-row items-center self-end"
-                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
-              >
-                <Text className="text-[12px] font-bold text-white" numberOfLines={1}>
-                  {t('home.healthId.viewCard')}
-                </Text>
-                <ChevronRight size={14} color={colors.white} style={{ marginLeft: 1 }} />
-              </Pressable>
-            </View>
-          )}
-        </LinearGradient>
-
-        {/* ── Quick actions ──────────────────────────────────────────────── */}
-        <SectionHeader
-          title={t('home.quickActions.title')}
-          actionLabel={t('home.quickActions.viewAllServices')}
-          onAction={() => router.push('/care-map')}
+    <View style={styles.screen}>
+      <SafeAreaView edges={['top']} style={styles.safe}>
+        <BrandHeader
+          onBell={() => router.push('/notifications')}
+          bellBadge={unreadCount}
+          right={<Avatar name={displayName} onPress={() => router.push('/(tabs)/profile')} />}
         />
 
-        {/* ONE card, five actions, hairline dividers — as in the reference. */}
-        <View
-          className="flex-row overflow-hidden rounded-3xl bg-white py-3.5"
-          style={{ borderWidth: 1, borderColor: colors.cream[300], ...CARD_SHADOW }}
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.blue} />}
         >
-          {QUICK_ACTIONS.map((action, index) => (
-            <View key={action.key} className="flex-1 flex-row">
-              {index > 0 ? (
-                <View className="my-0.5 w-px" style={{ backgroundColor: colors.line.subtle }} />
-              ) : null}
-              <ActionCell
-                icon={action.icon}
-                label={t(action.labelKey)}
-                onPress={() => router.push(action.route)}
+          {/* ── Greeting + compact Health ID card ─────────────────────── */}
+          <View style={styles.greetRow}>
+            <View style={styles.greetCol}>
+              <Text style={styles.greeting}>{t(greetingKey(new Date().getHours()))},</Text>
+              <Text style={styles.name} numberOfLines={2}>
+                {displayName || '—'}
+              </Text>
+              <View style={styles.taglineRow}>
+                <Icon name="shield-check" size={16} color={colors.blue} />
+                <Text style={styles.tagline}>{t('home.subtitle')}</Text>
+              </View>
+            </View>
+
+            {/* Not itself pressable: the copy button and the "View ID Card"
+                link inside it are buttons, and a button inside a button is
+                invalid HTML that react-native-web un-nests. */}
+            <View style={styles.idCardSlot}>
+              <Card style={styles.idCard}>
+                <Text style={styles.idCardTitle} numberOfLines={2}>
+                  {t('home.healthId.title')}
+                </Text>
+
+                {healthId.isLoading ? (
+                  <ActivityIndicator color={colors.blue} style={styles.idCardSpinner} />
+                ) : healthId.isError && !healthIdValue ? (
+                  <TouchableOpacity
+                    onPress={() => healthId.refetch()}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('home.retry')}
+                    style={styles.idCardRetry}
+                  >
+                    <Icon name="alert-circle" size={14} color={colors.statusCritical} />
+                    <Text style={styles.idCardRetryText} numberOfLines={2}>
+                      {t('home.healthId.loadError')} {t('home.retry')}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.idCardValueRow}>
+                    <Text style={styles.idCardValue} numberOfLines={1}>
+                      {t('opesCore.home.idCardValue', { id: healthIdValue ?? '—' })}
+                    </Text>
+                    {healthIdValue ? (
+                      <TouchableOpacity
+                        onPress={onCopyHealthId}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('home.healthId.copy')}
+                        style={styles.copyButton}
+                      >
+                        <Icon
+                          name={copyState === 'copied' ? 'check' : 'copy'}
+                          size={13}
+                          color={copyState === 'copied' ? colors.statusNormal : colors.link}
+                          strokeWidth={iconStroke.bold}
+                        />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                )}
+
+                {copyState !== 'idle' ? (
+                  <Text
+                    style={[styles.copyFeedback, copyState === 'failed' && { color: colors.statusCritical }]}
+                    numberOfLines={2}
+                    accessibilityLiveRegion="polite"
+                  >
+                    {t(copyState === 'copied' ? 'home.healthId.copied' : 'home.healthId.copyFailed')}
+                  </Text>
+                ) : (
+                  <View style={styles.idCardBadgeRow}>
+                    <StatusBadge
+                      status={isVerified ? 'verified' : 'pending'}
+                      label={t(isVerified ? 'home.healthId.verified' : 'home.healthId.pending')}
+                      icon={isVerified ? 'check-circle' : 'clock'}
+                      size="sm"
+                    />
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  onPress={() => router.push('/(tabs)/health-id')}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('home.healthId.viewCard')}
+                  accessibilityHint={t('home.healthId.showQr')}
+                  style={styles.idCardLinkRow}
+                >
+                  <Text style={styles.idCardLink} numberOfLines={1}>
+                    {t('home.healthId.viewCard')}
+                  </Text>
+                  <Icon name="chevron-right" size={14} color={colors.link} />
+                </TouchableOpacity>
+              </Card>
+            </View>
+          </View>
+
+          {/* ── Health Summary band ───────────────────────────────────── */}
+          <View style={styles.band}>
+            <View style={styles.bandHeader}>
+              <View style={styles.bandTitleRow}>
+                <Icon name="bar-chart" size={18} color={colors.textOnBrand} strokeWidth={iconStroke.bold} />
+                <Text style={styles.bandTitle}>{t('opesCore.home.summaryTitle')}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => router.push('/(tabs)/records')}
+                hitSlop={8}
+                accessibilityRole="button"
+                // There are several "View all" buttons on this dashboard;
+                // naming the section keeps the rotor list navigable.
+                accessibilityLabel={`${t('opesCore.home.viewAll')}: ${t('opesCore.home.summaryTitle')}`}
+              >
+                <Text style={styles.bandAction}>{t('opesCore.home.viewAll')}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.bandInner}>
+              <SummaryCell
+                styles={styles}
+                tintMap={tintMap}
+                label={t('home.healthId.bloodGroup')}
+                icon="droplet"
+                tint="red"
+                value={bloodGroup ?? '—'}
+                caption={t('opesCore.home.allergiesCaption', {
+                  defaultValue: 'Allergies: {{value}}',
+                  value: formatCount(patient?.allergies_count, t),
+                })}
+                onPress={() => router.push('/(tabs)/health-id')}
+              />
+              <SummaryCell
+                styles={styles}
+                tintMap={tintMap}
+                divided
+                label={t('opesCore.home.nextAppointment')}
+                icon="calendar-check"
+                tint="blue"
+                value={nextAppointment?.scheduled_at ? formatDate(nextAppointment.scheduled_at) : '—'}
+                caption={
+                  nextAppointment
+                    ? nextAppointment.scheduled_at
+                      ? formatTime(nextAppointment.scheduled_at)
+                      : t('appointments.noDate')
+                    : t('opesCore.home.nothingBooked')
+                }
+                onPress={() =>
+                  router.push(nextAppointment ? `/appointments/${nextAppointment.id}` : '/appointments/book')
+                }
+              />
+              <SummaryCell
+                styles={styles}
+                tintMap={tintMap}
+                divided
+                label={t('home.quickActions.prescriptions')}
+                icon="capsule"
+                tint="green"
+                value={prescriptions.data ? String(prescriptions.data.prescriptionCount) : '—'}
+                caption={
+                  prescriptions.data
+                    ? t('records.item.prescriptionItems', { count: prescriptions.data.medicationCount })
+                    : prescriptions.isLoading
+                      ? t('opesCore.common.loading')
+                      : t('opesCore.common.unknown')
+                }
+                onPress={() => router.push('/prescriptions')}
+              />
+              <SummaryCell
+                styles={styles}
+                tintMap={tintMap}
+                divided
+                label={t('opesCore.home.healthIdStatus')}
+                icon="shield-check"
+                tint={isVerified ? 'green' : 'amber'}
+                value={t(isVerified ? 'opesCore.home.statusVerified' : 'opesCore.home.statusPending')}
+                valueColor={isVerified ? colors.statusNormal : colors.statusWarning}
+                caption={t(isVerified ? 'opesCore.home.allSystemsConnected' : 'opesCore.home.verificationNeeded')}
+                onPress={() => router.push('/(tabs)/health-id')}
               />
             </View>
-          ))}
-        </View>
+          </View>
 
-        {/* ── Appointment + Vitals, side by side (reference arrangement) ─── */}
-        {/* The reference places these side by side, but that mockup is 852px
-            wide. At a real 375px viewport two columns leave each card ~170pt,
-            which clipped the appointment title, every vital's unit ("mm…"),
-            and the card headings themselves. Measured, not assumed. Stacking
-            keeps the reference's content and order while letting a blood
-            pressure render as "120/80 mmHg" instead of "120/…". */}
-        <View className="mt-7" style={{ gap: 12 }}>
+          {/* ── Quick actions ─────────────────────────────────────────── */}
           <View>
-            <AppointmentCard
-              query={appointments}
-              appointment={nextAppointment}
-              language={i18n.language}
-              t={t}
-              onOpen={(id) => router.push(`/appointments/${id}`)}
-              onBook={() => router.push('/appointments/book')}
+            <SectionHeader
+              title={t('home.quickActions.title')}
+              actionLabel={t('home.quickActions.viewAllServices')}
+              actionChevron
+              onAction={() => router.push('/care-map')}
             />
+            <View style={styles.tileGrid}>
+              {[QUICK_ACTIONS.slice(0, 3), QUICK_ACTIONS.slice(3)].map((row, i) => (
+                <View key={i} style={styles.tileRow}>
+                  {row.map((a) => (
+                    <ActionTile key={a.key} icon={a.icon} label={a.label(t)} onPress={() => router.push(a.route)} />
+                  ))}
+                </View>
+              ))}
+            </View>
           </View>
+
+          {/* ── Upcoming appointment ──────────────────────────────────── */}
           <View>
-            <VitalsCard query={vitals} language={i18n.language} t={t} />
+            <SectionHeader
+              title={t('appointments.upcoming')}
+              actionLabel={t('home.appointment.viewAll')}
+              onAction={() => router.push('/appointments')}
+            />
+            <Card variant="flush">
+              {appointments.isLoading ? (
+                <LoadingBlock label={t('opesCare.home.loading')} />
+              ) : appointments.isError ? (
+                <EmptyState
+                  icon="alert-circle"
+                  tint="red"
+                  title={t('home.appointment.loadError')}
+                  actionLabel={t('home.retry')}
+                  onAction={() => appointments.refetch()}
+                />
+              ) : nextAppointment ? (
+                <AppointmentRow
+                  appointment={nextAppointment}
+                  onPress={() => router.push(`/appointments/${nextAppointment.id}`)}
+                />
+              ) : (
+                <EmptyState
+                  icon="calendar"
+                  tint="blue"
+                  title={t('home.appointment.empty')}
+                  message={t('home.appointment.emptyBody')}
+                  actionLabel={t('home.appointment.emptyCta')}
+                  onAction={() => router.push('/appointments/book')}
+                />
+              )}
+            </Card>
           </View>
-        </View>
 
-        {/* ── Care-plan promo ────────────────────────────────────────────── */}
-        <Pressable
-          onPress={() => router.push('/care-plans')}
-          accessibilityRole="button"
-          className="mb-2 mt-7 overflow-hidden rounded-3xl p-5"
-          style={{
-            backgroundColor: colors.cream[200],
-            borderWidth: 1,
-            borderColor: colors.cream[300],
-          }}
-        >
-          <View
-            style={{
-              position: 'absolute',
-              right: -34,
-              top: -34,
-              width: 128,
-              height: 128,
-              borderRadius: 64,
-              backgroundColor: colors.cream[50],
-              opacity: 0.7,
-              pointerEvents: 'none',
-            }}
-          />
-          <View className="flex-row items-center">
-            <View
-              className="h-10 w-10 items-center justify-center rounded-2xl"
-              style={{ backgroundColor: colors.brand[100] }}
-            >
-              <Target size={19} color={colors.brand[600]} />
-            </View>
-            <Text className="ml-3 flex-1 text-[16px] font-extrabold leading-5 text-navy-text">
-              {t('home.insights.title')}
-            </Text>
+          {/* ── Recent records ────────────────────────────────────────── */}
+          <View>
+            <SectionHeader title={t('opesCore.home.recentRecords')} onAction={() => router.push('/(tabs)/records')} />
+            <Card variant="flush">
+              {timeline.isLoading ? (
+                <LoadingBlock label={t('records.loading')} />
+              ) : timeline.isError ? (
+                <EmptyState
+                  icon="alert-circle"
+                  tint="red"
+                  title={t('records.error.title')}
+                  message={t('records.error.body')}
+                  actionLabel={t('records.error.retry')}
+                  onAction={() => timeline.refetch()}
+                />
+              ) : events.length === 0 ? (
+                <EmptyState
+                  icon="folder"
+                  tint="blue"
+                  title={t('opesCore.home.noRecords')}
+                  message={t('opesCore.home.noRecordsHint')}
+                />
+              ) : (
+                events.slice(0, RECENT_RECORDS_COUNT).map((ev, i, all) => {
+                  const meta = RECORD_META[ev.event_type];
+                  const category = t(`records.category.${ev.event_type}`);
+                  const summary = ev.summary?.trim();
+                  return (
+                    <ListRow
+                      key={`${ev.event_type}-${ev.id}`}
+                      icon={meta.icon}
+                      tint={meta.tint}
+                      title={summary || t(meta.titleKey)}
+                      meta={[
+                        summary ? category : (ev.facility_name ?? t('records.item.unknownFacility')),
+                        formatDate(ev.occurred_at),
+                      ]}
+                      onPress={() => openRecord(ev)}
+                      divider={i < all.length - 1}
+                    />
+                  );
+                })
+              )}
+            </Card>
           </View>
-          <Text className="mt-3 text-[13px] leading-5 text-navy-secondary">
-            {t('home.insights.body')}
-          </Text>
-          <View
-            className="mt-4 flex-row items-center self-start rounded-2xl px-4 py-2.5"
-            style={{ backgroundColor: colors.brand[500] }}
+
+          {/* ── Health Vitals ─────────────────────────────────────────── */}
+          {/* "See all" expands in place: there is no vitals screen to send the
+              patient to, and a link that goes nowhere useful is worse than none. */}
+          <View>
+            <SectionHeader
+              title={t('home.vitals.title')}
+              actionLabel={canExpandVitals ? t(vitalsExpanded ? 'home.vitals.showLess' : 'home.vitals.seeAll') : undefined}
+              onAction={canExpandVitals ? () => setVitalsExpanded((v) => !v) : undefined}
+            />
+            <Card variant="flush">
+              {vitals.isLoading ? (
+                <LoadingBlock />
+              ) : vitals.isError ? (
+                <EmptyState
+                  icon="alert-circle"
+                  tint="red"
+                  title={t('home.vitals.loadError')}
+                  actionLabel={t('home.retry')}
+                  onAction={() => vitals.refetch()}
+                />
+              ) : measures.length === 0 ? (
+                <EmptyState
+                  icon="heart-rate"
+                  tint="blue"
+                  title={t('home.vitals.empty')}
+                  message={t('home.vitals.emptyBody')}
+                />
+              ) : (
+                <>
+                  {visibleMeasures.map((m: VitalMeasure) => {
+                    const meta = VITAL_META[m.key];
+                    const { tone, tint } = vitalTone(m.status);
+                    const flagged = isOutOfRange(m.status) || m.status === 'unknown';
+                    return (
+                      <ListRow
+                        key={m.key}
+                        icon={meta?.icon ?? 'heart-rate'}
+                        tint={tint}
+                        title={meta ? t(meta.labelKey) : m.key}
+                        // The status in words as well as in colour — never colour alone.
+                        subtitle={flagged ? t(`home.vitals.status.${m.status}`) : undefined}
+                        value={m.unit ? `${m.value} ${m.unit}` : m.value}
+                        valueColor={statusMap[tone].fg}
+                        chevron={false}
+                        divider
+                      />
+                    );
+                  })}
+                  <View style={styles.vitalsFooter}>
+                    <Text style={styles.vitalsUpdated} numberOfLines={2}>
+                      {formatUpdated(vitals.data?.recorded_at ?? null, t)}
+                    </Text>
+                    {vitalsAge.freshness === 'stale' ? (
+                      <Text style={styles.vitalsStale} numberOfLines={2}>
+                        {t('home.vitals.staleNote')}
+                      </Text>
+                    ) : null}
+                  </View>
+                </>
+              )}
+            </Card>
+          </View>
+
+          {/* ── Care-plan card ────────────────────────────────────────── */}
+          <Card
+            onPress={() => router.push('/care-plans')}
+            accessibilityLabel={a11yJoin(t('home.insights.title'), t('home.insights.body'))}
+            accessibilityHint={t('home.insights.cta')}
           >
-            <Text className="text-[13px] font-bold text-white">{t('home.insights.cta')}</Text>
-            <ChevronRight size={15} color={colors.white} style={{ marginLeft: 3 }} />
-          </View>
-        </Pressable>
-
-        <View className="h-10" />
-      </ScrollView>
-    </Screen>
-  );
-}
-
-/* ── Cards ───────────────────────────────────────────────────────────────── */
-
-type Translate = (key: string, options?: Record<string, unknown>) => string;
-
-/**
- * Upcoming appointment, laid out for the narrow left column: the calendar
- * chip sits above the details rather than beside them, so a provider name has
- * the card's full width instead of ~70pt.
- */
-function AppointmentCard({
-  query,
-  appointment,
-  language,
-  t,
-  onOpen,
-  onBook,
-}: {
-  query: { isLoading: boolean; isError: boolean; refetch: () => unknown };
-  appointment:
-    | {
-        id: string;
-        scheduled_at?: string | null;
-        provider_name?: string | null;
-        appointment_type?: string | null;
-        facility_name?: string | null;
-      }
-    | undefined;
-  language: string;
-  t: Translate;
-  onOpen: (id: string) => void;
-  onBook: () => void;
-}) {
-  return (
-    <ColumnCard>
-      <CardHeading icon={CalendarDays} title={t('home.appointment.title')} />
-
-      {query.isLoading ? (
-        <View className="py-6">
-          <Skeleton height={44} radius={12} />
-          <Skeleton height={12} radius={6} style={{ marginTop: 12 }} />
-          <Skeleton height={12} radius={6} width="70%" style={{ marginTop: 6 }} />
-        </View>
-      ) : query.isError ? (
-        <CardError message={t('home.appointment.loadError')} retryLabel={t('home.retry')} onRetry={query.refetch} />
-      ) : appointment ? (
-        <>
-          {appointment.scheduled_at ? (
-            <View className="mt-3 flex-row">
-              <DateChip value={appointment.scheduled_at} language={language} />
-            </View>
-          ) : null}
-
-          <Text className="mt-2.5 text-[14px] font-extrabold leading-[18px] text-navy-text" numberOfLines={2}>
-            {appointment.provider_name ?? appointment.appointment_type ?? '—'}
-          </Text>
-          {appointment.provider_name && appointment.appointment_type ? (
-            <Text className="mt-0.5 text-[11px] text-navy-muted" numberOfLines={1}>
-              {appointment.appointment_type}
-            </Text>
-          ) : null}
-
-          {appointment.scheduled_at ? (
-            <View className="mt-2 flex-row items-center">
-              <Clock size={12} color={colors.brand[600]} />
-              <Text className="ml-1.5 flex-1 text-[12px] font-semibold text-brand-600" numberOfLines={1}>
-                {formatTime(appointment.scheduled_at, language)}
+            <View style={styles.promoHeader}>
+              <View style={[styles.promoIcon, { backgroundColor: tintMap.blue.bg }]}>
+                <Icon name="target" size={20} color={tintMap.blue.fg} />
+              </View>
+              <Text style={styles.promoTitle} numberOfLines={2}>
+                {t('home.insights.title')}
               </Text>
             </View>
-          ) : null}
-
-          {appointment.facility_name ? (
-            <View className="mt-1 flex-row items-center">
-              <MapPin size={12} color={colors.navy.muted} />
-              <Text className="ml-1.5 flex-1 text-[12px] text-navy-secondary" numberOfLines={2}>
-                {appointment.facility_name}
-              </Text>
+            <Text style={styles.promoBody}>{t('home.insights.body')}</Text>
+            <View style={styles.promoCtaRow}>
+              <Text style={styles.promoCta}>{t('home.insights.cta')}</Text>
+              <Icon name="chevron-right" size={16} color={colors.link} />
             </View>
-          ) : null}
-
-          <View className="flex-1" />
-
-          <Pressable
-            onPress={() => onOpen(appointment.id)}
-            accessibilityRole="button"
-            className="mt-3 flex-row items-center justify-between rounded-2xl px-3 py-2.5"
-            style={({ pressed }) => ({
-              backgroundColor: colors.cream[100],
-              opacity: pressed ? 0.75 : 1,
-            })}
-          >
-            <Text className="flex-1 pr-1 text-[11px] font-bold text-navy-text" numberOfLines={2}>
-              {t('home.appointment.viewDetails')}
-            </Text>
-            <ChevronRight size={15} color={colors.brand[600]} />
-          </Pressable>
-        </>
-      ) : (
-        /* Deliberate empty state — this is what the demo patient sees. */
-        <View className="flex-1 items-center justify-center py-2">
-          <View
-            className="h-12 w-12 items-center justify-center rounded-full"
-            style={{ backgroundColor: colors.brand[50] }}
-          >
-            <CalendarDays size={22} color={colors.brand[500]} />
-          </View>
-          <Text className="mt-2.5 text-center text-[13px] font-extrabold text-navy-text">
-            {t('home.appointment.empty')}
-          </Text>
-          <Text className="mt-1 text-center text-[11px] leading-4 text-navy-secondary" numberOfLines={3}>
-            {t('home.appointment.emptyBody')}
-          </Text>
-          <Pressable
-            onPress={onBook}
-            accessibilityRole="button"
-            className="mt-3 w-full flex-row items-center justify-center rounded-2xl px-2 py-2.5"
-            style={({ pressed }) => ({ backgroundColor: colors.brand[500], opacity: pressed ? 0.8 : 1 })}
-          >
-            <CalendarPlus size={13} color={colors.white} />
-            <Text className="ml-1.5 flex-shrink text-[11px] font-bold text-white" numberOfLines={2}>
-              {t('home.appointment.emptyCta')}
-            </Text>
-          </Pressable>
-        </View>
-      )}
-    </ColumnCard>
+          </Card>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
-/**
- * Health Vitals.
- *
- * Three things this card refuses to do, because a vital shown wrongly is a
- * clinical hazard rather than a cosmetic bug:
- *   - It never renders a measure the API did not return. No zeros, no dashes
- *     standing in for a reading that was never taken.
- *   - It always states the reading's age. A month-old blood pressure is
- *     labelled as such and carries an explicit warning.
- *   - Out-of-range values are coloured from `colors.semantic.*` and carry the
- *     status in words as well, so the signal survives a colour-blind reader.
- */
-function VitalsCard({
-  query,
-  language,
-  t,
+// ── Health Summary cell ───────────────────────────────────────────────────
+
+type Styles = ReturnType<typeof makeStyles>;
+
+function SummaryCell({
+  styles,
+  tintMap,
+  label,
+  icon,
+  tint,
+  value,
+  valueColor,
+  caption,
+  divided,
+  onPress,
 }: {
-  query: {
-    data: { measures: VitalMeasure[]; recorded_at: string | null } | undefined;
-    isLoading: boolean;
-    isError: boolean;
-    refetch: () => unknown;
-  };
-  language: string;
-  t: Translate;
+  styles: Styles;
+  tintMap: Record<Tint, { bg: string; fg: string }>;
+  label: string;
+  icon: IconName;
+  tint: Tint;
+  value: string;
+  valueColor?: string;
+  caption: string;
+  divided?: boolean;
+  onPress?: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const measures = query.data?.measures ?? [];
-  const visible = expanded ? measures : measures.slice(0, VITALS_COLLAPSED_COUNT);
-  const canExpand = measures.length > VITALS_COLLAPSED_COUNT;
-  const age = readingAge(query.data?.recorded_at);
-
-  return (
-    <ColumnCard>
-      <CardHeading
-        icon={HeartPulse}
-        title={t('home.vitals.title')}
-        /* "See all" expands in place: there is no vitals screen to send the
-           patient to, and a link that goes nowhere useful is worse than none. */
-        actionLabel={canExpand ? t(expanded ? 'home.vitals.showLess' : 'home.vitals.seeAll') : undefined}
-        onAction={canExpand ? () => setExpanded((v) => !v) : undefined}
-      />
-
-      {query.isLoading ? (
-        <View className="mt-3">
-          {[0, 1, 2, 3].map((row) => (
-            <View key={row} className="mb-3">
-              <Skeleton height={9} radius={5} width="62%" />
-              <Skeleton height={12} radius={6} width="44%" style={{ marginTop: 5 }} />
-            </View>
-          ))}
-        </View>
-      ) : query.isError ? (
-        <CardError message={t('home.vitals.loadError')} retryLabel={t('home.retry')} onRetry={query.refetch} />
-      ) : measures.length === 0 ? (
-        <View className="flex-1 items-center justify-center py-2">
-          <View
-            className="h-12 w-12 items-center justify-center rounded-full"
-            style={{ backgroundColor: colors.brand[50] }}
-          >
-            <HeartPulse size={22} color={colors.brand[500]} />
-          </View>
-          <Text className="mt-2.5 text-center text-[13px] font-extrabold text-navy-text">
-            {t('home.vitals.empty')}
-          </Text>
-          <Text className="mt-1 text-center text-[11px] leading-4 text-navy-secondary" numberOfLines={3}>
-            {t('home.vitals.emptyBody')}
-          </Text>
-        </View>
-      ) : (
-        <>
-          <View className="mt-2.5">
-            {visible.map((measure) => (
-              <VitalRow key={measure.key} measure={measure} t={t} />
-            ))}
-          </View>
-
-          <View className="flex-1" />
-
-          <View className="mt-2 h-px" style={{ backgroundColor: colors.line.subtle }} />
-          <Text className="mt-2 text-[10px] leading-[13px] text-navy-muted" numberOfLines={2}>
-            {formatUpdated(query.data?.recorded_at ?? null, language, t)}
-          </Text>
-          {age.freshness === 'stale' ? (
-            <Text
-              className="mt-1 text-[10px] font-semibold leading-[13px]"
-              style={{ color: colors.semantic.warning }}
-              numberOfLines={2}
-            >
-              {t('home.vitals.staleNote')}
-            </Text>
-          ) : null}
-        </>
-      )}
-    </ColumnCard>
-  );
-}
-
-/** One reading: label above value, so a long French label keeps full width. */
-function VitalRow({ measure, t }: { measure: VitalMeasure; t: Translate }) {
-  const meta = VITAL_META[measure.key];
-  const Icon = meta?.icon ?? HeartPulse;
-  const tone = statusTone(measure.status);
-  const flagged = isOutOfRange(measure.status);
-
-  return (
-    <View className="mb-2.5 flex-row items-start">
-      <View
-        className="mt-0.5 h-[18px] w-[18px] items-center justify-center rounded-md"
-        style={{ backgroundColor: tone.surface }}
-      >
-        <Icon size={11} color={tone.color} />
-      </View>
-      <View className="ml-1.5 flex-1">
-        <Text className="text-[10px] leading-[13px] text-navy-secondary" numberOfLines={1}>
-          {meta ? t(meta.labelKey) : measure.key}
-        </Text>
-        <View className="mt-0.5 flex-row items-baseline">
-          <Text
-            className="text-[13px] font-extrabold leading-4"
-            style={{ color: tone.color }}
-            numberOfLines={1}
-          >
-            {measure.value}
-          </Text>
-          {measure.unit ? (
-            <Text className="ml-1 text-[9px] font-semibold text-navy-muted" numberOfLines={1}>
-              {measure.unit}
-            </Text>
-          ) : null}
-        </View>
-        {/* The status in words as well as in colour — never colour alone. */}
-        {flagged || measure.status === 'unknown' ? (
-          <Text
-            className="mt-0.5 text-[9px] font-bold uppercase leading-[11px]"
-            style={{ color: tone.color, letterSpacing: 0.3 }}
-            numberOfLines={1}
-          >
-            {t(`home.vitals.status.${measure.status}`)}
-          </Text>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
-/* ── Pieces ──────────────────────────────────────────────────────────────── */
-
-/** The white card shell shared by the two side-by-side columns. */
-function ColumnCard({ children }: { children: React.ReactNode }) {
-  return (
-    <View
-      className="flex-1 rounded-3xl bg-white p-3.5"
-      style={{ borderWidth: 1, borderColor: colors.cream[300], ...CARD_SHADOW }}
-    >
-      {children}
-    </View>
-  );
-}
-
-/** Icon tile + title (+ optional right-hand action) inside a column card. */
-function CardHeading({
-  icon: Icon,
-  title,
-  actionLabel,
-  onAction,
-}: {
-  icon: LucideIcon;
-  title: string;
-  actionLabel?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <View className="flex-row items-center">
-      <View
-        className="h-6 w-6 items-center justify-center rounded-lg"
-        style={{ backgroundColor: colors.brand[50] }}
-      >
-        <Icon size={13} color={colors.brand[600]} />
-      </View>
-      <Text className="ml-1.5 flex-1 text-[12px] font-extrabold text-navy-text" numberOfLines={1}>
-        {title}
-      </Text>
-      {actionLabel && onAction ? (
-        <Pressable onPress={onAction} hitSlop={8} accessibilityRole="button">
-          <Text className="text-[10px] font-bold text-brand-600" numberOfLines={1}>
-            {actionLabel}
-          </Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
-/** Shared failure state for both column cards. */
-function CardError({
-  message,
-  retryLabel,
-  onRetry,
-}: {
-  message: string;
-  retryLabel: string;
-  onRetry: () => unknown;
-}) {
-  return (
-    <View className="flex-1 items-center justify-center py-3">
-      <CircleAlert size={20} color={colors.semantic.danger} />
-      <Text className="mt-2 text-center text-[11px] leading-4 text-navy-secondary">{message}</Text>
-      <Pressable
-        onPress={() => onRetry()}
-        accessibilityRole="button"
-        className="mt-2.5 flex-row items-center rounded-xl px-3 py-1.5"
-        style={({ pressed }) => ({ backgroundColor: colors.cream[200], opacity: pressed ? 0.75 : 1 })}
-      >
-        <RefreshCw size={11} color={colors.brand[600]} />
-        <Text className="ml-1.5 text-[11px] font-bold text-brand-600">{retryLabel}</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-function SectionHeader({
-  title,
-  actionLabel,
-  onAction,
-}: {
-  title: string;
-  actionLabel?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <View className="mb-3.5 mt-7 flex-row items-center justify-between">
-      <Text className="text-[17px] font-extrabold text-navy-text">{title}</Text>
-      {actionLabel && onAction ? (
-        <Pressable onPress={onAction} hitSlop={8} accessibilityRole="button">
-          <View className="flex-row items-center">
-            <Text className="text-[13px] font-bold text-brand-600">{actionLabel}</Text>
-            <ChevronRight size={14} color={colors.brand[600]} style={{ marginLeft: 1 }} />
-          </View>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
-/** One of the five cells in the single quick-action card. */
-function ActionCell({ icon: Icon, label, onPress }: { icon: LucideIcon; label: string; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      // Five cells across 375pt leave ~65pt each. "Appointment" and
-      // "Prescriptions" are ~62pt at this size, so the 2pt of horizontal
-      // padding was the difference between one clean line and a mid-word
-      // break ("Prescriptio / ns"). The hairline dividers already separate the
-      // cells, so the padding was buying nothing.
-      className="flex-1 items-center py-1"
-      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-    >
-      <View
-        className="h-9 w-9 items-center justify-center rounded-xl"
-        style={{ backgroundColor: colors.brand[50] }}
-      >
-        <Icon size={17} color={colors.brand[600]} />
-      </View>
-      <Text
-        className="mt-1.5 text-center text-[9.5px] font-bold text-navy-text"
-        style={{ lineHeight: 12 }}
-        numberOfLines={2}
-      >
+  const body = (
+    <>
+      <Text style={styles.cellLabel} numberOfLines={2}>
         {label}
       </Text>
-    </Pressable>
-  );
-}
-
-/** One of the Health ID hero's three inline detail columns. */
-function HeroDetail({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
-  return (
-    <View className="flex-1 pr-1.5">
-      <View className="flex-row items-center">
-        <Icon size={10} color="rgba(255,255,255,0.8)" />
-        <Text className="ml-1 flex-1 text-[9px] font-medium text-white/75" numberOfLines={2}>
-          {label}
-        </Text>
+      <View style={[styles.cellCircle, { backgroundColor: tintMap[tint].bg }]}>
+        <Icon name={icon} size={20} color={tintMap[tint].fg} />
       </View>
-      <Text className="mt-0.5 text-[12px] font-extrabold text-white" numberOfLines={1}>
+      <Text style={[styles.cellValue, valueColor ? { color: valueColor } : null]} numberOfLines={1}>
         {value}
       </Text>
-    </View>
+      <Text style={styles.cellCaption} numberOfLines={2}>
+        {caption}
+      </Text>
+    </>
   );
-}
 
-/** MAY / 22 / THU calendar chip, as in the appointment references. */
-function DateChip({ value, language }: { value: string; language: string }) {
+  if (!onPress) return <View style={[styles.cell, divided && styles.cellDivided]}>{body}</View>;
   return (
-    <View
-      className="overflow-hidden rounded-2xl"
-      style={{ width: 54, borderWidth: 1, borderColor: colors.cream[300] }}
+    <TouchableOpacity
+      style={[styles.cell, divided && styles.cellDivided]}
+      onPress={onPress}
+      activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={a11yJoin(label, value, caption)}
     >
-      <View className="items-center py-0.5" style={{ backgroundColor: colors.brand[500] }}>
-        <Text className="text-[9px] font-extrabold uppercase text-white" style={{ letterSpacing: 0.6 }}>
-          {formatMonth(value, language)}
-        </Text>
-      </View>
-      <View className="items-center py-1" style={{ backgroundColor: colors.cream[50] }}>
-        <Text className="text-[18px] font-extrabold leading-[22px] text-navy-text">
-          {formatDayNumber(value, language)}
-        </Text>
-        <Text className="text-[9px] font-semibold uppercase text-navy-muted">
-          {formatWeekday(value, language)}
-        </Text>
-      </View>
-    </View>
+      {body}
+    </TouchableOpacity>
   );
 }
 
-/* ── Clinical presentation ───────────────────────────────────────────────── */
+// ── Styles ────────────────────────────────────────────────────────────────
 
-/**
- * Colour for an advisory status, from `colors.semantic.*` only.
- * `critical` is danger, anything else out of range is warning, `unknown` is
- * deliberately neutral — the API declined to classify, so neither does the UI.
- */
-function statusTone(status: VitalStatus): { color: string; surface: string } {
-  switch (status) {
-    case 'normal':
-      return { color: colors.semantic.success, surface: colors.semantic.successSurface };
-    case 'critical':
-      return { color: colors.semantic.danger, surface: colors.semantic.dangerSurface };
-    case 'low':
-    case 'high':
-    case 'abnormal':
-      return { color: colors.semantic.warning, surface: colors.semantic.warningSurface };
-    default:
-      return { color: colors.semantic.neutral, surface: colors.semantic.neutralSurface };
-  }
-}
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.page },
+    safe: { flex: 1 },
+    content: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xl,
+      gap: spacing.md,
+    },
 
-/* ── Formatting ──────────────────────────────────────────────────────────── */
+    greetRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+    greetCol: { flex: 1, minWidth: 0 },
+    greeting: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.lg,
+      lineHeight: 26,
+      color: colors.textPrimary,
+    },
+    name: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xl,
+      lineHeight: 30,
+      color: colors.textPrimary,
+    },
+    taglineRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: spacing.sm,
+    },
+    tagline: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
 
-/** Time-of-day greeting, from the device clock — matches the references. */
-function greetingKey(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'home.greetingMorning';
-  if (hour < 18) return 'home.greetingAfternoon';
-  return 'home.greetingEvening';
-}
+    idCardSlot: { flex: 1, minWidth: 0 },
+    idCard: { padding: 10 },
+    idCardTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      lineHeight: 18,
+      color: colors.blue,
+    },
+    idCardSpinner: { alignSelf: 'flex-start', marginVertical: 6 },
+    idCardValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+    idCardValue: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: 11,
+      color: colors.textSecondary,
+    },
+    copyButton: {
+      width: 22,
+      height: 22,
+      borderRadius: radii.sm,
+      backgroundColor: colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    copyFeedback: {
+      marginTop: 6,
+      fontFamily: typography.fontFamily.medium,
+      fontSize: 10,
+      lineHeight: 13,
+      color: colors.statusNormal,
+    },
+    idCardBadgeRow: { flexDirection: 'row', marginTop: 6 },
+    idCardRetry: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+    idCardRetryText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: 10,
+      lineHeight: 13,
+      color: colors.textSecondary,
+    },
+    idCardLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 6, alignSelf: 'flex-start' },
+    idCardLink: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.xs,
+      color: colors.link,
+    },
 
-/** `0` is a real, reassuring answer ("None") — not a missing value. */
-function formatCount(count: number | null | undefined, t: Translate): string {
-  if (count == null) return '—';
-  if (count === 0) return t('home.healthId.none');
-  return String(count);
-}
+    band: {
+      backgroundColor: colors.blue,
+      borderRadius: radii.lg,
+      padding: 10,
+      gap: 10,
+    },
+    bandHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 6,
+      paddingTop: 2,
+    },
+    bandTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    bandTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: colors.textOnBrand,
+    },
+    bandAction: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.textOnBrand,
+    },
+    bandInner: {
+      flexDirection: 'row',
+      backgroundColor: colors.surface,
+      borderRadius: radii.md,
+      paddingVertical: 12,
+    },
+    cell: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: 'center',
+      paddingHorizontal: 4,
+      gap: 6,
+    },
+    cellDivided: {
+      borderLeftWidth: 1,
+      borderLeftColor: colors.divider,
+    },
+    cellLabel: {
+      minHeight: 28,
+      fontFamily: typography.fontFamily.medium,
+      fontSize: 11,
+      lineHeight: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    cellCircle: {
+      width: 44,
+      height: 44,
+      borderRadius: radii.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginVertical: 6,
+    },
+    cellValue: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: 13,
+      color: colors.textPrimary,
+      textAlign: 'center',
+    },
+    cellCaption: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: 10,
+      lineHeight: 13,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
 
-/**
- * "Last updated: Today, 7:30 AM" only while that is true; otherwise the label
- * degrades to yesterday, an explicit day count, or a full date.
- */
-function formatUpdated(recordedAt: string | null, language: string, t: Translate): string {
-  const age = readingAge(recordedAt);
-  if (!recordedAt || age.freshness === 'unknown' || age.days === null) {
-    return t('home.vitals.updatedOn', { date: '—' });
-  }
+    tileGrid: { gap: spacing.sm },
+    tileRow: { flexDirection: 'row', gap: spacing.sm },
 
-  if (age.freshness === 'today') {
-    return t('home.vitals.updatedToday', { time: formatTime(recordedAt, language) });
-  }
-  if (age.days === 1) {
-    return t('home.vitals.updatedYesterday', { time: formatTime(recordedAt, language) });
-  }
-  if (age.freshness === 'recent') {
-    return t('home.vitals.updatedDaysAgo', { days: age.days });
-  }
-  return t('home.vitals.updatedOn', { date: formatDate(recordedAt, language) });
-}
+    vitalsFooter: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: 12,
+      gap: 4,
+    },
+    vitalsUpdated: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textMuted,
+    },
+    vitalsStale: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.statusWarning,
+    },
 
-function localeTag(language: string): string {
-  return language?.startsWith('fr') ? 'fr-FR' : 'en-US';
-}
-
-function formatDate(value: string | null | undefined, language: string): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(localeTag(language), { day: 'numeric', month: 'short', year: 'numeric' }).format(
-    date,
-  );
-}
-
-function formatMonth(value: string, language: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat(localeTag(language), { month: 'short' }).format(date);
-}
-
-function formatDayNumber(value: string, language: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat(localeTag(language), { day: 'numeric' }).format(date);
-}
-
-function formatWeekday(value: string, language: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat(localeTag(language), { weekday: 'short' }).format(date);
-}
-
-function formatTime(value: string, language: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat(localeTag(language), { hour: 'numeric', minute: '2-digit' }).format(date);
-}
+    promoHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    promoIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    promoTitle: {
+      flex: 1,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      lineHeight: typography.lineHeight.md,
+      color: colors.textPrimary,
+    },
+    promoBody: {
+      marginTop: 10,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textSecondary,
+    },
+    promoCtaRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 12 },
+    promoCta: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.link,
+    },
+  });

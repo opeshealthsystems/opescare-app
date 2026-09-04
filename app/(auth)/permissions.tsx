@@ -1,26 +1,29 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
-  Bell,
-  Check,
-  ChevronRight,
-  CircleAlert,
-  Globe,
-  MapPin,
-  ShieldCheck,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../../components/ui/Screen';
-import { Button } from '../../components/ui/Button';
-import { Logo } from '../../components/ui/Logo';
-import { useAuthStore } from '../../lib/store/auth';
-import { useRegisterPushToken } from '../../lib/api/queries';
-import { colors } from '../../theme/tokens';
+  Card,
+  GradientButton,
+  Icon,
+  ListRow,
+  ScreenHeader,
+  StatusBadge,
+  spacing,
+  typography,
+  useTheme,
+  type IconName,
+  type Palette,
+  type StatusTone,
+  type Tint,
+} from '@/components/opes-ui';
+import { Note } from '@/components/enrol/shared';
+import { Screen } from '@/components/ui/Screen';
+import { useAuthStore } from '@/lib/store/auth';
+import { useRegisterPushToken } from '@/lib/api/queries';
 
 /**
  * One-time priming screen shown right after signup / first successful login
@@ -33,10 +36,10 @@ import { colors } from '../../theme/tokens';
  * funnels through `finish()`, which settles the auth status and replaces to
  * /(tabs)/home regardless of what the OS answered.
  *
- * Layout follows `Mobile app screens/a_clean_mobile_app_permission_screen_mockup_iphon.png`
- * (step badge, icon-badged rows with a status pill and chevron, privacy note,
- * continue + skip). Only the two permissions the app actually requests are
- * listed — the reference's camera/files/health-data rows would be decoration.
+ * Presentation is the OPES kit's list-card pattern: one `ListRow` per
+ * permission with a `StatusBadge` for its state. Only the two permissions the
+ * app actually requests are listed — camera/files/health-data rows would be
+ * decoration.
  */
 
 type PermissionState = 'checking' | 'undetermined' | 'granted' | 'denied';
@@ -85,6 +88,8 @@ function toState(status: string | undefined): PermissionState {
 export default function PermissionsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const completePermissionsPriming = useAuthStore((s) => s.completePermissionsPriming);
   const registerPushToken = useRegisterPushToken();
 
@@ -190,184 +195,152 @@ export default function PermissionsScreen() {
     }
   }, [notifState, locState, requestNotifications, requestLocation, finish]);
 
+  const notifDeniedOnWeb = notifState === 'denied' && !CAN_OPEN_OS_SETTINGS;
+  const locDeniedOnWeb = locState === 'denied' && !CAN_OPEN_OS_SETTINGS;
+
   return (
     <Screen className="px-0">
-      <ScrollView
-        className="flex-1 px-6"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 28 }}
-      >
-        <View className="items-center pb-1 pt-4">
-          <Logo size={64} markOnly />
-        </View>
+      <ScreenHeader
+        title={t('permissions.title')}
+        subtitle={t('permissions.subtitle')}
+        showBack={false}
+        right={<StatusBadge status="pending" tone="pending" label={t('permissions.stepBadge')} size="sm" />}
+      />
 
-        <View className="mt-4 items-center">
-          <View className="rounded-full bg-brand-50 px-4 py-1.5">
-            <Text className="text-xs font-bold text-brand-600">{t('permissions.stepBadge')}</Text>
-          </View>
-        </View>
-
-        <Text className="mt-4 text-center text-2xl font-extrabold text-navy-text">
-          {t('permissions.title')}
-        </Text>
-        <Text className="mt-2 text-center text-sm leading-5 text-navy-secondary">
-          {t('permissions.subtitle')}
-        </Text>
-
-        <View className="mt-7">
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <Card variant="flush">
           <PermissionRow
-            icon={Bell}
+            icon="bell"
+            tint="blue"
             title={t('permissions.notificationsTitle')}
             body={t('permissions.notificationsBody')}
             actionLabel={t('permissions.notificationsAction')}
             state={notifState}
-            t={t}
             onPress={() => handleRowPress(notifState, requestNotifications)}
+            divider
           />
           <PermissionRow
-            icon={MapPin}
+            icon="location"
+            tint="green"
             title={t('permissions.locationTitle')}
             body={t('permissions.locationBody')}
             actionLabel={t('permissions.locationAction')}
             state={locState}
-            t={t}
             onPress={() => handleRowPress(locState, requestLocation)}
           />
-        </View>
+        </Card>
 
-        {pushRegisterFailed ? (
-          <View
-            className="mt-1 flex-row items-start rounded-2xl p-4"
-            style={{ backgroundColor: colors.semantic.warningSurface }}
-          >
-            <CircleAlert size={16} color={colors.semantic.warning} />
-            <Text className="ml-3 flex-1 text-xs leading-4 text-navy-secondary">
-              {t('permissions.pushRegisterError')}
-            </Text>
+        {/* A denied permission is only actionable where OS settings can be
+            opened; on web the row is read-only and this says what to do. */}
+        {notifDeniedOnWeb || locDeniedOnWeb ? (
+          <View style={styles.webHint}>
+            <Icon name="globe" size={12} color={colors.textMuted} />
+            <Text style={styles.meta}>{t('permissions.deniedWebHint')}</Text>
           </View>
         ) : null}
 
-        <Text className="mt-4 text-center text-xs leading-4 text-navy-muted">
-          {t('permissions.optionalNote')}
-        </Text>
+        {pushRegisterFailed ? (
+          <Note icon="alert-triangle" text={t('permissions.pushRegisterError')} />
+        ) : null}
 
-        <View className="mt-5 flex-row items-start rounded-2xl bg-brand-50 p-4">
-          <ShieldCheck size={16} color={colors.brand[600]} />
-          <Text className="ml-3 flex-1 text-xs leading-4 text-navy-secondary">
-            {t('permissions.privacyNote')}
-          </Text>
-        </View>
+        <Text style={[styles.meta, styles.metaCenter]}>{t('permissions.optionalNote')}</Text>
 
-        <View className="mt-7">
-          <Button label={t('permissions.continue')} onPress={handleContinue} loading={busy} />
-        </View>
+        <Note icon="shield-check" text={t('permissions.privacyNote')} />
+
+        <GradientButton label={t('permissions.continue')} onPress={handleContinue} loading={busy} />
 
         {/* Deliberately never disabled: this is the escape hatch, and a
             pending OS prompt must not be able to trap the patient here. */}
-        <Pressable
+        <TouchableOpacity
           onPress={finish}
           accessibilityRole="button"
           hitSlop={8}
-          className="mt-4 items-center py-3"
+          style={styles.skip}
         >
-          <Text className="text-sm font-semibold text-brand-500">{t('permissions.skip')}</Text>
-        </Pressable>
+          <Text style={styles.skipText}>{t('permissions.skip')}</Text>
+        </TouchableOpacity>
       </ScrollView>
     </Screen>
   );
 }
 
 function PermissionRow({
-  icon: Icon,
+  icon,
+  tint,
   title,
   body,
   actionLabel,
   state,
-  t,
   onPress,
+  divider,
 }: {
-  icon: LucideIcon;
+  icon: IconName;
+  tint: Tint;
   title: string;
   body: string;
   actionLabel: string;
   state: PermissionState;
-  t: (key: string) => string;
   onPress: () => void;
+  divider?: boolean;
 }) {
+  const { t } = useTranslation();
   // A denied permission is only actionable where OS settings can be opened;
   // on web the row becomes a read-only explanation instead of a dead control.
-  const deniedOnWeb = state === 'denied' && !CAN_OPEN_OS_SETTINGS;
   const actionable = state === 'undetermined' || (state === 'denied' && CAN_OPEN_OS_SETTINGS);
 
-  const badge =
+  const badge: { label: string; tone: StatusTone; icon?: IconName } =
     state === 'granted'
-      ? {
-          label: t('permissions.statusAllowed'),
-          bg: colors.semantic.successSurface,
-          fg: colors.semantic.success,
-        }
+      ? { label: t('permissions.statusAllowed'), tone: 'normal', icon: 'check' }
       : state === 'denied'
         ? {
             label: CAN_OPEN_OS_SETTINGS
               ? t('permissions.openSettings')
               : t('permissions.statusDenied'),
-            bg: colors.semantic.dangerSurface,
-            fg: colors.semantic.danger,
+            tone: 'critical',
           }
         : state === 'checking'
-          ? {
-              label: t('permissions.statusChecking'),
-              bg: colors.cream[200],
-              fg: colors.navy.muted,
-            }
-          : { label: t('permissions.enable'), bg: colors.brand[50], fg: colors.brand[600] };
+          ? { label: t('permissions.statusChecking'), tone: 'neutral' }
+          : { label: t('permissions.enable'), tone: 'pending' };
 
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={!actionable}
-      accessibilityRole={actionable ? 'button' : undefined}
+    <ListRow
+      icon={icon}
+      tint={tint}
+      title={title}
+      subtitle={body}
+      trailing={<StatusBadge status={state} tone={badge.tone} label={badge.label} icon={badge.icon} size="sm" />}
+      onPress={actionable ? onPress : undefined}
+      chevron={actionable}
+      divider={divider}
       accessibilityLabel={actionable ? actionLabel : `${title}. ${badge.label}`}
-      className="mb-3 flex-row items-center rounded-2xl border border-cream-300 bg-white px-4 py-4"
-    >
-      <View className="h-11 w-11 items-center justify-center rounded-full bg-brand-50">
-        <Icon size={20} color={colors.brand[600]} />
-      </View>
-
-      <View className="ml-3 flex-1">
-        <Text className="text-[15px] font-bold text-navy-text">{title}</Text>
-        <Text className="mt-1 text-xs leading-4 text-navy-secondary">{body}</Text>
-        {deniedOnWeb ? (
-          <View className="mt-2 flex-row items-start">
-            <Globe size={12} color={colors.navy.muted} style={{ marginTop: 1 }} />
-            <Text className="ml-1.5 flex-1 text-xs leading-4 text-navy-muted">
-              {t('permissions.deniedWebHint')}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-
-      <View className="ml-2 items-end">
-        <View
-          className="flex-row items-center rounded-full px-3 py-1.5"
-          style={{ backgroundColor: badge.bg }}
-        >
-          {state === 'granted' ? (
-            <Check size={12} color={badge.fg} style={{ marginRight: 4 }} />
-          ) : null}
-          <Text className="text-xs font-semibold" style={{ color: badge.fg }}>
-            {badge.label}
-          </Text>
-        </View>
-      </View>
-
-      {actionable ? (
-        <ChevronRight size={18} color={colors.navy.muted} style={{ marginLeft: 4 }} />
-      ) : (
-        // Keeps every row's content on the same horizontal rhythm whether or
-        // not it carries a chevron.
-        <View style={{ width: 22 }} />
-      )}
-    </Pressable>
+    />
   );
 }
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.md },
+
+    webHint: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 6,
+      marginTop: -spacing.sm,
+      marginHorizontal: spacing.sm,
+    },
+    meta: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textMuted,
+    },
+    metaCenter: { flex: 0, textAlign: 'center' },
+
+    skip: { alignSelf: 'center', paddingVertical: spacing.sm },
+    skipText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.link,
+    },
+  });

@@ -1,0 +1,148 @@
+import React, { useState } from 'react';
+import { StyleSheet, Text, TextInput, TextInputProps, TouchableOpacity, View } from 'react-native';
+import Svg, { Circle, Ellipse, Line, Path, Polygon } from 'react-native-svg';
+import { useTranslation } from '../i18n';
+import { colors, radii, spacing, typography } from '../theme/theme';
+import { decorative } from './a11y';
+
+type Props = TextInputProps & {
+  icon?: React.ReactNode;
+  isPassword?: boolean;
+  error?: string;
+};
+
+/** Hexagon badge wrapping an icon, matching the login/signup screen inputs. */
+function HexBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={styles.hexWrap}>
+      <Svg width={36} height={36} viewBox="0 0 36 36" style={StyleSheet.absoluteFill}>
+        <Polygon points="18,2 32,10 32,26 18,34 4,26 4,10" fill="none" stroke={colors.blue} strokeWidth={1.4} />
+      </Svg>
+      <View style={styles.hexIcon}>{children}</View>
+    </View>
+  );
+}
+
+function EyeIcon({ visible }: { visible: boolean }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24">
+      <Polygon points="1,12 23,12" fill="none" />
+      {visible ? (
+        <>
+          <Ellipse cx={12} cy={12} rx={9} ry={5.5} fill="none" stroke={colors.blue} strokeWidth={1.6} />
+          <Circle cx={12} cy={12} r={2.4} fill={colors.blue} />
+        </>
+      ) : (
+        <>
+          <Path
+            d="M3 12s3.5-6.5 9-6.5S21 12 21 12s-3.5 6.5-9 6.5S3 12 3 12z"
+            fill="none"
+            stroke={colors.textMuted}
+            strokeWidth={1.6}
+          />
+          <Line x1={4} y1={4} x2={20} y2={20} stroke={colors.textMuted} strokeWidth={1.6} />
+        </>
+      )}
+    </Svg>
+  );
+}
+
+export function PillInput({ icon, isPassword, error, style, ...rest }: Props) {
+  const { t } = useTranslation();
+  const [secure, setSecure] = useState(!!isPassword);
+  const [focused, setFocused] = useState(false);
+
+  return (
+    <View style={styles.wrapper}>
+      <View style={[styles.container, focused && styles.containerFocused, !!error && styles.containerError]}>
+        {icon && (
+          <View {...decorative}>
+            <HexBadge>{icon}</HexBadge>
+          </View>
+        )}
+        <TextInput
+          style={[styles.input, style]}
+          placeholderTextColor={colors.textMuted}
+          secureTextEntry={secure}
+          aria-invalid={!!error}
+          onFocus={(e) => {
+            setFocused(true);
+            rest.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            rest.onBlur?.(e);
+          }}
+          {...rest}
+        />
+        {isPassword && (
+          <TouchableOpacity
+            onPress={() => setSecure((s) => !s)}
+            hitSlop={10}
+            accessibilityRole="button"
+            // The label names the OUTCOME, not the glyph. "Eye" tells a blind
+            // user nothing; "Show password" tells them what happens.
+            accessibilityLabel={secure ? t('components.showPassword') : t('components.hidePassword')}
+            accessibilityState={{ checked: !secure }}
+          >
+            <EyeIcon visible={!secure} />
+          </TouchableOpacity>
+        )}
+      </View>
+      {!!error && (
+        // Validation text appears after a submit the user made but not at the
+        // point they are focused, so it has to announce itself.
+        <Text style={styles.errorText} accessibilityLiveRegion="polite" accessibilityRole="alert">
+          {error}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  wrapper: {
+    marginBottom: spacing.md,
+  },
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.4,
+    borderColor: colors.border,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    gap: spacing.sm,
+  },
+  containerFocused: {
+    borderColor: colors.borderFocus,
+  },
+  containerError: {
+    borderColor: colors.danger,
+  },
+  hexWrap: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hexIcon: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  input: {
+    flex: 1,
+    fontFamily: typography.fontFamily.regular,
+    fontSize: typography.size.md,
+    color: colors.textPrimary,
+    paddingVertical: 12,
+  },
+  errorText: {
+    color: colors.danger,
+    fontFamily: typography.fontFamily.regular,
+    fontSize: typography.size.xs,
+    marginTop: 4,
+    marginLeft: spacing.md,
+  },
+});

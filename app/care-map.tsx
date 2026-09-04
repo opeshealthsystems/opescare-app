@@ -1,79 +1,88 @@
+/**
+ * Care Access — the patient-facing facility directory (screen 41 "Care Access
+ * Map" / 45 "Search & Filter" in the app plan), presented with the OPES UI kit
+ * in the layout of `UIUX/src/screens/care/FindFacilityScreen.tsx` (CARE-007).
+ *
+ * The port is presentation only. The data and domain layer is untouched:
+ * `useFacilityDirectory` pages `GET /mobile/facilities` (903 real Cameroonian
+ * institutions), `lib/careMap/facilityDisplay` owns sorting / distance / type
+ * vocabulary, and the location flow (silent reuse of a granted permission,
+ * explicit request, reverse-geocoded area snap) is verbatim. Three properties
+ * of that endpoint still shape the screen:
+ *
+ *  - **It applies no ORDER BY.** Rows come back in physical table order, which
+ *    begins on rural integrated health centres. The directory therefore opens
+ *    on a city (the patient's own once location is granted, Yaoundé
+ *    otherwise); "All Cameroon" stays one tap away and says plainly that it is
+ *    registry order.
+ *  - **Only 395 of 903 rows carry GPS.** Distance is optional everywhere: rows
+ *    without coordinates keep a distance-free row and, under distance sort,
+ *    sit in a labelled group at the end rather than being dropped.
+ *  - **It has no sort parameter.** Ordering is client-side over the pages
+ *    fetched so far, which the "showing N of M" line states rather than hides.
+ *
+ * The embedded `FacilityMap` (the finder's own OpenStreetMap embed with in-app
+ * directions) is a deliberate feature and takes the OPES layout's hero slot,
+ * directly under the search row.
+ */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
   Linking,
-  Pressable,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import {
-  ArrowLeft,
-  ChevronRight,
-  LocateFixed,
-  MapPin,
-  MapPinned,
-  Navigation,
-  Phone,
-  Search,
-  Settings,
-} from 'lucide-react-native';
 import { FacilityMap } from '@/components/map/FacilityMap';
-import { Screen } from '../components/ui/Screen';
-import { TextField } from '../components/ui/TextField';
-import { flattenFacilityPages, useFacilityDirectory } from '../lib/api/careMapQueries';
-import type { CareFacilitySummary } from '../lib/api/queries';
+import { Screen } from '@/components/ui/Screen';
+import {
+  Card,
+  Chip,
+  EmptyState,
+  GradientButton,
+  Icon,
+  ListRow,
+  ScreenHeader,
+  SectionHeader,
+  StaleNotice,
+  StatusBadge,
+  a11yJoin,
+  colors,
+  radii,
+  spacing,
+  tintMap,
+  typography,
+  type IconName,
+  type Tint,
+} from '@/components/opes-ui';
+import {
+  CareButton,
+  ErrorBlock,
+  LoadingBlock,
+  NoticeBanner,
+  SearchField,
+} from '@/components/care/shared';
+import { flattenFacilityPages, useFacilityDirectory } from '@/lib/api/careMapQueries';
+import type { CareFacilitySummary } from '@/lib/api/queries';
 import {
   CITY_SCOPES,
   DEFAULT_CITY_SCOPE,
   TYPE_FILTERS,
   facilityDistanceKm,
   formatDistance,
-  iconForFacilityType,
   joinLocationParts,
   normalizeText,
   sortFacilities,
   telUrl,
   type Coords,
   type FacilitySort,
-} from '../lib/careMap/facilityDisplay';
-import { colors } from '../theme/tokens';
-
-/**
- * Care Access — the patient-facing facility directory (screen 41 "Care Access
- * Map" / 45 "Search & Filter" in the app plan).
- *
- * Backed by `GET /mobile/facilities`, which serves 903 real Cameroonian
- * institutions across all ten regions. Three properties of that endpoint shape
- * this screen:
- *
- *  - **It applies no ORDER BY.** Rows come back in physical table order, which
- *    begins on rural integrated health centres ("CSI Ndogbessol, Eseka"). An
- *    unscoped first screen therefore looked broken. The fix is the area scope:
- *    the directory opens on a city (the patient's own once location is granted,
- *    Yaoundé otherwise), which lands the first rows on CHU de Yaoundé, the
- *    Hôpital Gynéco-Obstétrique et Pédiatrique, Centre Pasteur and the district
- *    hospitals. "All Cameroon" stays one tap away and says plainly that it is
- *    registry order.
- *  - **Only 395 of 903 rows carry GPS.** Distance is optional everywhere: rows
- *    without coordinates keep a distance-free layout and, under distance sort,
- *    sit in a clearly labelled group at the end rather than being dropped.
- *  - **It has no sort parameter.** Ordering is client-side over the pages
- *    fetched so far, which the "showing N of M" line next to the sort control
- *    states rather than hides.
- *
- * There is no map canvas here: `react-native-maps` is not a dependency of this
- * app, and drawing a fake one would be worse than not drawing one. The
- * reference's map is represented by the nearest-facility spotlight and the
- * per-row directions deep links.
- */
+} from '@/lib/careMap/facilityDisplay';
 
 type LocationState =
   /** Reading the already-granted permission on mount; render nothing yet. */
@@ -88,6 +97,42 @@ interface FacilityRow {
   facility: CareFacilitySummary;
   distanceKm: number | null;
 }
+
+const SORTS: FacilitySort[] = ['relevance', 'distance', 'name'];
+
+/* ── Facility-type presentation ─────────────────────────────────────────── */
+
+/**
+ * Kit glyph per `care_facilities.facility_type`. This is the finder's own
+ * vocabulary (hospital / health_center / dental / …), wider than the OPES
+ * department set in `shared.DEPARTMENT_TYPE_ICON`, so it is mapped here.
+ * There is no tooth glyph in the kit; `smile` stands in for dental.
+ */
+const FACILITY_TYPE_ICON: Record<string, IconName> = {
+  hospital: 'building',
+  clinic: 'stethoscope',
+  health_center: 'first-aid',
+  pharmacy: 'pill',
+  laboratory: 'flask',
+  imaging_center: 'image',
+  diagnostic_center: 'microscope',
+  dental: 'smile',
+  blood_bank: 'droplet',
+};
+
+/** Tint-circle convention from the design spec: green = labs/meds, purple = consultations, blue = the default. */
+const FACILITY_TYPE_TINT: Record<string, Tint> = {
+  laboratory: 'green',
+  pharmacy: 'green',
+  clinic: 'purple',
+  dental: 'purple',
+  blood_bank: 'red',
+};
+
+const facilityIcon = (type: string): IconName => FACILITY_TYPE_ICON[type] ?? 'location';
+const facilityTint = (type: string): Tint => FACILITY_TYPE_TINT[type] ?? 'blue';
+const typeLabelTr = (t: TFunction, type: string): string =>
+  String(t(`careMap.types.${type}`, { defaultValue: type }));
 
 /** Matches a reverse-geocoded place name against the offered city scopes. */
 function matchCityScope(...candidates: (string | null | undefined)[]): string | null {
@@ -104,37 +149,33 @@ function matchCityScope(...candidates: (string | null | undefined)[]): string | 
   return null;
 }
 
-/* ── Chips ──────────────────────────────────────────────────────────────── */
+/* ── Type tile (the CARE-007 "Department Types" strip) ──────────────────── */
 
-function Chip({
+function TypeTile({
+  icon,
   label,
-  active,
+  selected,
   onPress,
-  disabled = false,
 }: {
+  icon: IconName;
   label: string;
-  active: boolean;
+  selected: boolean;
   onPress: () => void;
-  disabled?: boolean;
 }) {
   return (
-    <Pressable
+    <TouchableOpacity
       onPress={onPress}
-      disabled={disabled}
-      className="rounded-full border px-4 py-2"
-      style={{
-        borderColor: active ? colors.brand[500] : colors.cream[300],
-        backgroundColor: active ? colors.brand[500] : colors.white,
-        opacity: disabled ? 0.45 : 1,
-      }}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      style={[styles.type, selected && styles.typeOn]}
     >
-      <Text
-        className="text-xs font-semibold"
-        style={{ color: active ? colors.white : colors.navy.secondary }}
-      >
+      <Icon name={icon} size={26} color={colors.blue} />
+      <Text style={styles.typeLabel} numberOfLines={2}>
         {label}
       </Text>
-    </Pressable>
+    </TouchableOpacity>
   );
 }
 
@@ -151,44 +192,38 @@ function LocationPrompt({
   onRequest: () => void;
   t: TFunction;
 }) {
-  // 'checking' keeps the gradient card from flashing in for the split second
-  // before we know an already-granted permission exists.
+  // 'checking' keeps the card from flashing in for the split second before we
+  // know an already-granted permission exists.
   if (state === 'granted' || state === 'checking') return null;
 
   if (state === 'denied' || state === 'unavailable') {
+    const denied = state === 'denied';
     return (
-      <View
-        className="mb-4 flex-row items-start rounded-2xl p-4"
-        style={{ backgroundColor: colors.brand[50] }}
-      >
-        <View
-          className="mr-3 h-10 w-10 items-center justify-center rounded-full"
-          style={{ backgroundColor: colors.white }}
-        >
-          <LocateFixed size={18} color={colors.brand[600]} />
+      <View style={styles.assist}>
+        <View style={styles.assistTop}>
+          <View style={styles.assistIcon}>
+            <Icon name="location" size={20} color={colors.textOnBrand} />
+          </View>
+          <View style={styles.assistBody}>
+            <Text style={styles.assistTitle}>
+              {denied ? t('careMap.locationDenied.title') : t('careMap.locationUnavailable.title')}
+            </Text>
+            <Text style={styles.assistText}>
+              {denied
+                ? t('careMap.locationDenied.body', { city: cityLabel })
+                : t('careMap.locationUnavailable.body', { city: cityLabel })}
+            </Text>
+          </View>
         </View>
-        <View className="flex-1">
-          <Text className="text-sm font-bold text-navy-text">
-            {state === 'denied' ? t('careMap.locationDenied.title') : t('careMap.locationUnavailable.title')}
-          </Text>
-          <Text className="mt-1 text-xs leading-4 text-navy-secondary">
-            {state === 'denied'
-              ? t('careMap.locationDenied.body', { city: cityLabel })
-              : t('careMap.locationUnavailable.body', { city: cityLabel })}
-          </Text>
-          {state === 'denied' ? (
-            <Pressable
-              onPress={() => Linking.openSettings().catch(() => {})}
-              className="mt-3 flex-row items-center self-start rounded-xl border px-3 py-2"
-              style={{ borderColor: colors.brand[300] }}
-            >
-              <Settings size={13} color={colors.brand[600]} />
-              <Text className="ml-2 text-xs font-semibold text-brand-600">
-                {t('careMap.locationDenied.action')}
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
+        {denied ? (
+          <CareButton
+            label={t('careMap.locationDenied.action')}
+            variant="secondary"
+            size="sm"
+            icon="settings"
+            onPress={() => Linking.openSettings().catch(() => {})}
+          />
+        ) : null}
       </View>
     );
   }
@@ -196,178 +231,103 @@ function LocationPrompt({
   const busy = state === 'requesting';
 
   return (
-    <LinearGradient
-      colors={[colors.brand[600], colors.brand[500], colors.brand[300]]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      // NativeWind's className→style transform does not apply to
-      // expo-linear-gradient (no cssInterop registered), so it must be inline.
-      style={{ borderRadius: 20, padding: 18, marginBottom: 16 }}
-    >
-      <View className="flex-row items-start">
-        <View className="mr-3 h-11 w-11 items-center justify-center rounded-full bg-white/90">
-          <LocateFixed size={20} color={colors.brand[600]} />
+    <View style={styles.assist}>
+      <View style={styles.assistTop}>
+        <View style={styles.assistIcon}>
+          <Icon name="location" size={20} color={colors.textOnBrand} />
         </View>
-        <View className="flex-1">
-          <Text className="text-base font-extrabold text-white">
-            {t('careMap.locationCta.title')}
-          </Text>
-          <Text className="mt-1 text-xs leading-4 text-white/90">
-            {t('careMap.locationCta.body')}
-          </Text>
+        <View style={styles.assistBody}>
+          <Text style={styles.assistTitle}>{t('careMap.locationCta.title')}</Text>
+          <Text style={styles.assistText}>{t('careMap.locationCta.body')}</Text>
         </View>
       </View>
-      <Pressable
+      <GradientButton
+        label={busy ? t('careMap.locationCta.working') : t('careMap.locationCta.action')}
+        loading={busy}
+        icon="none"
         onPress={onRequest}
-        disabled={busy}
-        className="mt-4 h-12 flex-row items-center justify-center rounded-2xl bg-white"
-        style={{ opacity: busy ? 0.7 : 1 }}
-      >
-        {busy ? (
-          <ActivityIndicator size="small" color={colors.brand[600]} />
-        ) : (
-          <Navigation size={16} color={colors.brand[600]} />
-        )}
-        <Text className="ml-2 text-sm font-bold text-brand-600">
-          {busy ? t('careMap.locationCta.working') : t('careMap.locationCta.action')}
-        </Text>
-      </Pressable>
-    </LinearGradient>
-  );
-}
-
-/* ── Nearest-facility spotlight ─────────────────────────────────────────── */
-
-function NearestFacilityCard({
-  row,
-  onOpen,
-  t,
-}: {
-  row: FacilityRow;
-  onOpen: () => void;
-  t: TFunction;
-}) {
-  const Icon = iconForFacilityType(row.facility.facility_type);
-  const meta = [
-    row.distanceKm != null ? formatDistance(row.distanceKm) : null,
-    t(`careMap.types.${row.facility.facility_type}`, {
-      defaultValue: row.facility.facility_type,
-    }),
-    row.facility.city,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-
-  return (
-    <View className="mb-4 rounded-2xl bg-white p-4">
-      <View className="flex-row items-center">
-        <View
-          className="mr-3 h-11 w-11 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: colors.brand[50] }}
-        >
-          <Icon size={20} color={colors.brand[600]} />
-        </View>
-        <View className="flex-1">
-          <Text className="text-[10px] font-bold uppercase tracking-wide text-navy-muted">
-            {t('careMap.nearestTitle')}
-          </Text>
-          <Text className="mt-0.5 text-base font-extrabold text-navy-text" numberOfLines={1}>
-            {row.facility.facility_name}
-          </Text>
-          <Text className="mt-0.5 text-xs text-navy-secondary" numberOfLines={1}>
-            {meta}
-          </Text>
-        </View>
-      </View>
-      <Pressable
-        onPress={onOpen}
-        className="mt-3 flex-row items-center justify-between pt-3"
-        style={{ borderTopWidth: 1, borderTopColor: colors.cream[300] }}
-      >
-        <Text className="text-sm font-semibold text-brand-600">{t('careMap.viewDetails')}</Text>
-        <ChevronRight size={16} color={colors.brand[600]} />
-      </Pressable>
+      />
     </View>
   );
 }
 
-/* ── List row ───────────────────────────────────────────────────────────── */
+/* ── Result rows ────────────────────────────────────────────────────────── */
 
-function FacilityCard({
+function FacilityListRow({
   row,
+  divider,
   onOpen,
   t,
 }: {
   row: FacilityRow;
+  divider: boolean;
   onOpen: () => void;
   t: TFunction;
 }) {
   const { facility } = row;
-  const Icon = iconForFacilityType(facility.facility_type);
+  const distance = row.distanceKm != null ? formatDistance(row.distanceKm) : undefined;
+  const typeLabel = typeLabelTr(t, facility.facility_type);
+  const where = joinLocationParts(facility.address, facility.city, facility.region);
 
   const handleCall = () => {
     if (!facility.phone_primary) return;
     Linking.openURL(telUrl(facility.phone_primary)).catch(() => {});
   };
 
-  return (
-    <View className="mb-3 rounded-2xl bg-white p-4">
-      <Pressable onPress={onOpen} className="flex-row items-start">
-        <View
-          className="mr-3 h-11 w-11 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: colors.brand[50] }}
-        >
-          <Icon size={20} color={colors.brand[600]} />
-        </View>
-        <View className="flex-1">
-          <View className="flex-row items-start">
-            <Text className="mr-2 flex-1 text-base font-bold text-navy-text" numberOfLines={2}>
-              {facility.facility_name}
-            </Text>
-            {row.distanceKm != null ? (
-              <View
-                className="flex-row items-center rounded-full px-2 py-0.5"
-                style={{ backgroundColor: colors.brand[50] }}
-              >
-                <Navigation size={10} color={colors.brand[600]} />
-                <Text className="ml-1 text-[11px] font-bold text-brand-600">
-                  {formatDistance(row.distanceKm)}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-          <View className="mt-1 flex-row items-start">
-            <MapPin size={12} color={colors.navy.muted} style={{ marginTop: 2 }} />
-            <Text className="ml-1 flex-1 text-xs text-navy-secondary" numberOfLines={2}>
-              {joinLocationParts(facility.address, facility.city, facility.region) || '—'}
-            </Text>
-          </View>
-          <View className="mt-2 flex-row items-center">
-            <View className="self-start rounded-full bg-cream-200 px-2.5 py-1">
-              <Text className="text-[10px] font-semibold uppercase text-navy-secondary">
-                {t(`careMap.types.${facility.facility_type}`, {
-                  defaultValue: facility.facility_type,
-                })}
-              </Text>
-            </View>
-          </View>
-        </View>
-        <ChevronRight size={18} color={colors.navy.muted} style={{ marginTop: 12 }} />
-      </Pressable>
-
-      <View className="mt-3 flex-row" style={{ gap: 8 }}>
-        {facility.phone_primary ? (
-          <Pressable
-            onPress={handleCall}
-            className="flex-1 flex-row items-center justify-center rounded-xl py-2.5"
-            style={{ backgroundColor: colors.brand[500] }}
-          >
-            <Phone size={14} color={colors.white} />
-            <Text className="ml-2 text-xs font-semibold text-white">{t('careMap.call')}</Text>
-          </Pressable>
-        ) : null}
-      </View>
+  // Distance stays the row's `value`; the Call action rides alongside it only
+  // when the register actually carries a number — never a dead button.
+  const trailing = facility.phone_primary ? (
+    <View style={styles.rowTrailing}>
+      {!!distance && <Text style={styles.rowValue}>{distance}</Text>}
+      <TouchableOpacity
+        onPress={handleCall}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={a11yJoin(String(t('careMap.call')), facility.facility_name)}
+        style={styles.callButton}
+      >
+        <Icon name="phone" size={16} color={tintMap.green.fg} />
+      </TouchableOpacity>
     </View>
+  ) : undefined;
+
+  return (
+    <ListRow
+      icon={facilityIcon(facility.facility_type)}
+      tint={facilityTint(facility.facility_type)}
+      title={facility.facility_name}
+      meta={[typeLabel, where || null]}
+      value={trailing ? undefined : distance}
+      trailing={trailing}
+      onPress={onOpen}
+      divider={divider}
+      accessibilityLabel={a11yJoin(facility.facility_name, typeLabel, where, distance)}
+      accessibilityHint={String(t('careMap.viewDetails'))}
+    />
+  );
+}
+
+function FacilityRows({
+  rows,
+  onOpen,
+  t,
+}: {
+  rows: FacilityRow[];
+  onOpen: (id: string) => void;
+  t: TFunction;
+}) {
+  return (
+    <Card variant="flush">
+      {rows.map((row, index) => (
+        <FacilityListRow
+          key={row.facility.id}
+          row={row}
+          divider={index < rows.length - 1}
+          onOpen={() => onOpen(row.facility.id)}
+          t={t}
+        />
+      ))}
+    </Card>
   );
 }
 
@@ -519,10 +479,22 @@ export default function CareMapScreen() {
     return best;
   }, [rows, coords]);
 
+  // Under distance sort the coordinate-less rows are grouped at the end behind
+  // an explicit label — they are never hidden, and never carry a fabricated
+  // distance.
+  const { located, unlocated, grouped } = useMemo(() => {
+    const located = rows.filter((row) => row.distanceKm != null);
+    const unlocated = rows.filter((row) => row.distanceKm == null);
+    const grouped = sort === 'distance' && !!coords && located.length > 0 && unlocated.length > 0;
+    return { located, unlocated, grouped };
+  }, [rows, sort, coords]);
+
   const total = directory.data?.pages[0]?.pagination.total ?? 0;
-  const cityLabel = cityScope || t('careMap.areaAll');
+  const cityLabel = cityScope || String(t('careMap.areaAll'));
   const isInitialLoading = directory.isLoading;
   const hasFilters = !!appliedSearch || !!typeFilter || !!cityScope;
+  const activeTypeKey = TYPE_FILTERS.find((filter) => filter.value === typeFilter)?.key ?? 'all';
+  const loadedAt = directory.dataUpdatedAt ? new Date(directory.dataUpdatedAt) : null;
 
   const resetToArea = (city: string) => {
     setCityScope(city);
@@ -530,308 +502,400 @@ export default function CareMapScreen() {
     setAreaUnmatched(false);
   };
 
-  const openFacility = (id: string) => router.push(`/facility/${id}`);
+  const clearAll = () => {
+    setSearchInput('');
+    setAppliedSearch('');
+    setTypeFilter('');
+    resetToArea('');
+  };
 
-  const listHeader = (
-    <View>
-      {/* Real embedded OpenStreetMap of every loaded facility — the in-app answer
-          to "where are these". Directions are handled inside the app; nothing
-          hands off to the device's native maps app. */}
-      <View className="mb-4">
-        <FacilityMap facilities={mapFacilities} height={260} />
-      </View>
-
-      <LocationPrompt
-        state={locationState}
-        cityLabel={cityLabel}
-        onRequest={requestLocation}
-        t={t}
-      />
-
-      {areaAutoMatched ? (
-        <View className="mb-4 flex-row items-center rounded-xl px-3 py-2" style={{ backgroundColor: colors.semantic.successSurface }}>
-          <LocateFixed size={13} color={colors.semantic.success} />
-          <Text className="ml-2 flex-1 text-[11px] text-navy-secondary">
-            {t('careMap.areaMatched', { city: cityScope })}
-          </Text>
-        </View>
-      ) : null}
-
-      {areaUnmatched ? (
-        <View className="mb-4 flex-row items-center rounded-xl px-3 py-2" style={{ backgroundColor: colors.cream[200] }}>
-          <MapPin size={13} color={colors.navy.muted} />
-          <Text className="ml-2 flex-1 text-[11px] text-navy-secondary">
-            {t('careMap.areaUnmatched', { city: cityLabel })}
-          </Text>
-        </View>
-      ) : null}
-
-      {!cityScope ? (
-        <View className="mb-4 flex-row items-start rounded-xl px-3 py-2.5" style={{ backgroundColor: colors.cream[200] }}>
-          <MapPinned size={13} color={colors.navy.muted} style={{ marginTop: 1 }} />
-          <Text className="ml-2 flex-1 text-[11px] leading-4 text-navy-secondary">
-            {t('careMap.areaAllHint')}
-          </Text>
-        </View>
-      ) : null}
-
-      {nearest ? (
-        <NearestFacilityCard
-          row={nearest}
-          onOpen={() => openFacility(nearest.facility.id)}
-          t={t}
-        />
-      ) : null}
-
-      {rows.length > 0 ? (
-        <View className="mb-3">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-xs font-semibold text-navy-secondary">
-              {t('careMap.resultCount', { loaded: rows.length, total })}
-            </Text>
-            <View className="flex-row" style={{ gap: 6 }}>
-              {(['relevance', 'distance', 'name'] as const).map((key) => (
-                <Pressable
-                  key={key}
-                  onPress={() => setSort(key)}
-                  disabled={key === 'distance' && !coords}
-                  className="rounded-full px-3 py-1.5"
-                  style={{
-                    backgroundColor: sort === key ? colors.brand[50] : colors.white,
-                    borderWidth: 1,
-                    borderColor: sort === key ? colors.brand[300] : colors.cream[300],
-                    opacity: key === 'distance' && !coords ? 0.4 : 1,
-                  }}
-                >
-                  <Text
-                    className="text-[11px] font-semibold"
-                    style={{ color: sort === key ? colors.brand[600] : colors.navy.secondary }}
-                  >
-                    {t(`careMap.sort.${key}`)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-          {directory.hasNextPage ? (
-            <Text className="mt-1 text-[10px] text-navy-muted">{t('careMap.sortNote')}</Text>
-          ) : null}
-        </View>
-      ) : null}
-    </View>
-  );
+  const applySearch = () => setAppliedSearch(searchInput.trim());
+  const refetch = () => {
+    void directory.refetch();
+  };
+  const openFacility = (id: string) => router.push({ pathname: '/facility/[id]', params: { id } });
+  const openDoctors = () => router.push('/doctors');
 
   return (
     <Screen className="px-0">
-      {/* ── Pinned header: identity, search, type filters ─────────────── */}
-      <View className="flex-row items-center px-6 pt-2">
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={8}
-          className="h-11 w-11 items-center justify-center rounded-full border border-brand-300"
-        >
-          <ArrowLeft size={18} color={colors.brand[600]} />
-        </Pressable>
-        <View className="ml-4 flex-1">
-          <Text className="text-lg font-extrabold text-navy-text" numberOfLines={1}>
-            {t('careMap.title')}
-          </Text>
-          <Text className="text-xs text-navy-secondary" numberOfLines={1}>
-            {t('careMap.subtitle')}
-          </Text>
-        </View>
-        {locationState === 'granted' ? (
-          <View
-            className="ml-2 flex-row items-center rounded-full px-3 py-1.5"
-            style={{ backgroundColor: colors.brand[50] }}
-          >
-            <LocateFixed size={12} color={colors.brand[600]} />
-            <Text className="ml-1 text-[10px] font-bold text-brand-600">
-              {t('careMap.locationOn')}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-
-      <View className="px-6 pt-4">
-        <TextField
-          placeholder={t('careMap.searchPlaceholder')}
-          icon={Search}
-          value={searchInput}
-          onChangeText={setSearchInput}
-          onSubmitEditing={() => setAppliedSearch(searchInput.trim())}
-          returnKeyType="search"
-          autoCorrect={false}
+      <View style={styles.screen}>
+        <ScreenHeader
+          title={t('careMap.title')}
+          subtitle={t('careMap.subtitle')}
+          right={
+            locationState === 'granted' ? (
+              <StatusBadge
+                status="active"
+                tone="normal"
+                icon="location"
+                size="sm"
+                label={t('careMap.locationOn')}
+              />
+            ) : undefined
+          }
         />
-      </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        className="-mt-1 grow-0"
-        style={{ flexGrow: 0, flexShrink: 0 }}
-        contentContainerStyle={{ gap: 8, paddingHorizontal: 24 }}
-      >
-        {TYPE_FILTERS.map((filter) => (
-          <Chip
-            key={filter.key}
-            label={t(`careMap.filters.${filter.key}`)}
-            active={typeFilter === filter.value}
-            onPress={() => setTypeFilter(filter.value)}
-          />
-        ))}
-      </ScrollView>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        className="mt-2 grow-0"
-        style={{ flexGrow: 0, flexShrink: 0 }}
-        contentContainerStyle={{ gap: 8, paddingHorizontal: 24 }}
-      >
-        <Chip
-          label={t('careMap.areaAll')}
-          active={cityScope === ''}
-          onPress={() => resetToArea('')}
-        />
-        {/* A geocoded city that is not one of the presets still gets a chip, so
-            the scope the app picked from the patient's position is visible and
-            reversible rather than silently applied. */}
-        {detectedCity && !CITY_SCOPES.some((city) => city === detectedCity) ? (
-          <Chip
-            label={detectedCity}
-            active={cityScope === detectedCity}
-            onPress={() => resetToArea(detectedCity)}
-          />
-        ) : null}
-        {CITY_SCOPES.map((city) => (
-          <Chip
-            key={city}
-            label={city}
-            active={cityScope === city}
-            onPress={() => resetToArea(city)}
-          />
-        ))}
-      </ScrollView>
-
-      {/* ── Results ───────────────────────────────────────────────────── */}
-      {isInitialLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={colors.brand[500]} />
-          <Text className="mt-3 text-xs text-navy-secondary">{t('careMap.loading')}</Text>
-        </View>
-      ) : directory.isError && rows.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-10">
-          <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-brand-50">
-            <MapPinned size={26} color={colors.brand[500]} />
-          </View>
-          <Text className="text-center text-sm text-navy-secondary">{t('careMap.loadError')}</Text>
-          <Pressable
-            onPress={() => directory.refetch()}
-            className="mt-4 rounded-xl px-5 py-2.5"
-            style={{ backgroundColor: colors.brand[500] }}
-          >
-            <Text className="text-sm font-semibold text-white">{t('careMap.retry')}</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <FlatList
-          data={rows}
-          className="mt-4 flex-1"
-          keyExtractor={(item) => item.facility.id}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32, flexGrow: 1 }}
+        <ScrollView
+          contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
               refreshing={directory.isRefetching && !directory.isFetchingNextPage}
-              onRefresh={() => directory.refetch()}
-              tintColor={colors.brand[500]}
+              onRefresh={refetch}
+              tintColor={colors.blue}
             />
           }
-          ListHeaderComponent={listHeader}
-          renderItem={({ item, index }) => {
-            // Under distance sort the coordinate-less rows are grouped at the
-            // end behind an explicit label — they are never hidden, and they
-            // never render a fabricated distance.
-            const startsUnlocatedGroup =
-              sort === 'distance' &&
-              !!coords &&
-              item.distanceKm == null &&
-              index > 0 &&
-              rows[index - 1].distanceKm != null;
+        >
+          {/* ── Search ──────────────────────────────────────────────────── */}
+          <View style={styles.searchRow}>
+            <SearchField
+              value={searchInput}
+              onChangeText={setSearchInput}
+              placeholder={t('careMap.searchPlaceholder')}
+              onSubmit={applySearch}
+            />
+            <TouchableOpacity
+              style={styles.filterButton}
+              activeOpacity={0.8}
+              onPress={applySearch}
+              accessibilityRole="button"
+              accessibilityLabel={t('opesCare.findFacility.applyFilters')}
+            >
+              <Icon name="filter" size={18} color={colors.link} />
+              <Text style={styles.filterText}>{t('opesCare.findFacility.filters')}</Text>
+            </TouchableOpacity>
+          </View>
 
-            return (
-              <View>
-                {startsUnlocatedGroup ? (
-                  <View className="mb-3 mt-1 flex-row items-center">
-                    <View className="h-px flex-1" style={{ backgroundColor: colors.cream[300] }} />
-                    <Text className="mx-3 text-[10px] font-semibold uppercase tracking-wide text-navy-muted">
-                      {t('careMap.noDistanceGroup')}
-                    </Text>
-                    <View className="h-px flex-1" style={{ backgroundColor: colors.cream[300] }} />
-                  </View>
-                ) : null}
-                <FacilityCard row={item} onOpen={() => openFacility(item.facility.id)} t={t} />
-              </View>
-            );
-          }}
-          ListEmptyComponent={
-            <View className="flex-1 items-center justify-center px-6 pt-16">
-              <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-brand-50">
-                <MapPinned size={26} color={colors.brand[500]} />
-              </View>
-              <Text className="text-base font-semibold text-navy-text">{t('careMap.empty')}</Text>
-              <Text className="mt-1 text-center text-sm text-navy-secondary">
-                {hasFilters ? t('careMap.emptyBodyFiltered') : t('careMap.emptyBody')}
-              </Text>
-              {hasFilters ? (
-                <Pressable
-                  onPress={() => {
-                    setSearchInput('');
-                    setAppliedSearch('');
-                    setTypeFilter('');
-                    resetToArea('');
-                  }}
-                  className="mt-4 rounded-xl border px-5 py-2.5"
-                  style={{ borderColor: colors.brand[300] }}
-                >
-                  <Text className="text-sm font-semibold text-brand-600">
-                    {t('careMap.clearFilters')}
-                  </Text>
-                </Pressable>
-              ) : null}
-            </View>
-          }
-          ListFooterComponent={
+          {/* ── Map hero: real embedded OpenStreetMap of every loaded facility,
+                 with in-app directions. Nothing hands off to a native maps app. */}
+          <View style={styles.mapWrap}>
+            <FacilityMap facilities={mapFacilities} height={260} />
+          </View>
+
+          <LocationPrompt
+            state={locationState}
+            cityLabel={cityLabel}
+            onRequest={requestLocation}
+            t={t}
+          />
+
+          {areaAutoMatched ? (
+            <NoticeBanner
+              icon="location"
+              tone="normal"
+              message={t('careMap.areaMatched', { city: cityScope })}
+            />
+          ) : null}
+
+          {areaUnmatched ? (
+            <NoticeBanner
+              icon="location"
+              tone="warning"
+              message={t('careMap.areaUnmatched', { city: cityLabel })}
+            />
+          ) : null}
+
+          {!cityScope ? (
+            <NoticeBanner icon="info" tone="pending" message={t('careMap.areaAllHint')} />
+          ) : null}
+
+          {/* ── Facility types (the CARE-007 type strip) ────────────────── */}
+          <View>
+            <SectionHeader
+              title={t('careMap.typesTitle', { defaultValue: 'Facility types' })}
+              actionLabel={
+                typeFilter ? t(`careMap.filters.${activeTypeKey}`) : t('opesCare.findFacility.allTypes')
+              }
+              onAction={() => setTypeFilter('')}
+            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.typeRow}
+            >
+              {TYPE_FILTERS.map((filter) => (
+                <TypeTile
+                  key={filter.key}
+                  icon={filter.value ? facilityIcon(filter.value) : 'grid'}
+                  label={t(`careMap.filters.${filter.key}`)}
+                  selected={typeFilter === filter.value}
+                  onPress={() =>
+                    setTypeFilter(filter.value && typeFilter === filter.value ? '' : filter.value)
+                  }
+                />
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* ── Area scope ──────────────────────────────────────────────── */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipRow}
+          >
+            <Chip
+              label={t('careMap.areaAll')}
+              selected={cityScope === ''}
+              onPress={() => resetToArea('')}
+            />
+            {/* A geocoded city that is not one of the presets still gets a chip,
+                so the scope the app picked from the patient's position is
+                visible and reversible rather than silently applied. */}
+            {detectedCity && !CITY_SCOPES.some((city) => city === detectedCity) ? (
+              <Chip
+                icon="location"
+                label={detectedCity}
+                selected={cityScope === detectedCity}
+                onPress={() => resetToArea(detectedCity)}
+              />
+            ) : null}
+            {CITY_SCOPES.map((city) => (
+              <Chip
+                key={city}
+                icon={city === detectedCity ? 'location' : undefined}
+                label={city}
+                selected={cityScope === city}
+                onPress={() => resetToArea(city)}
+              />
+            ))}
+          </ScrollView>
+
+          {/* ── Nearest-facility spotlight ──────────────────────────────── */}
+          {nearest ? (
             <View>
-              {directory.hasNextPage ? (
-                <Pressable
-                  onPress={() => directory.fetchNextPage()}
-                  disabled={directory.isFetchingNextPage}
-                  className="mt-2 items-center rounded-xl border py-3"
-                  style={{
-                    borderColor: colors.brand[300],
-                    opacity: directory.isFetchingNextPage ? 0.6 : 1,
-                  }}
-                >
-                  {directory.isFetchingNextPage ? (
-                    <ActivityIndicator size="small" color={colors.brand[500]} />
-                  ) : (
-                    <Text className="text-xs font-semibold text-brand-600">
-                      {t('careMap.loadMore')}
-                    </Text>
-                  )}
-                </Pressable>
-              ) : null}
-              {rows.length > 0 ? (
-                <Text className="mt-4 text-center text-[10px] leading-4 text-navy-muted">
-                  {t('careMap.disclaimer')}
-                </Text>
-              ) : null}
+              <SectionHeader
+                title={t('careMap.nearestTitle')}
+                actionLabel={t('careMap.viewDetails')}
+                actionChevron
+                onAction={() => openFacility(nearest.facility.id)}
+              />
+              <Card variant="flush">
+                <ListRow
+                  icon={facilityIcon(nearest.facility.facility_type)}
+                  tint={facilityTint(nearest.facility.facility_type)}
+                  title={nearest.facility.facility_name}
+                  meta={[typeLabelTr(t, nearest.facility.facility_type), nearest.facility.city]}
+                  value={formatDistance(nearest.distanceKm as number)}
+                  valueColor={colors.statusNormal}
+                  onPress={() => openFacility(nearest.facility.id)}
+                  accessibilityHint={t('careMap.viewDetails')}
+                />
+              </Card>
             </View>
-          }
-        />
-      )}
+          ) : null}
+
+          {/* ── Results ─────────────────────────────────────────────────── */}
+          {isInitialLoading ? (
+            <LoadingBlock label={t('careMap.loading')} />
+          ) : directory.isError && rows.length === 0 ? (
+            <ErrorBlock message={t('careMap.loadError')} onRetry={refetch} />
+          ) : (
+            <>
+              {/* A refresh that failed while rows are on screen must never
+                  pass as fresh. */}
+              {directory.isError ? (
+                <StaleNotice
+                  message={t('careMap.loadError')}
+                  loadedAt={loadedAt}
+                  onRetry={refetch}
+                  retrying={directory.isRefetching}
+                />
+              ) : null}
+
+              {rows.length > 0 ? (
+                <View>
+                  <SectionHeader
+                    title={t('careMap.resultCount', { loaded: rows.length, total })}
+                  />
+                  <View style={styles.sortRow}>
+                    {SORTS.map((key) => {
+                      const off = key === 'distance' && !coords;
+                      return (
+                        <Chip
+                          key={key}
+                          label={t(`careMap.sort.${key}`)}
+                          selected={sort === key}
+                          onPress={off ? undefined : () => setSort(key)}
+                          style={off ? styles.chipDisabled : undefined}
+                        />
+                      );
+                    })}
+                  </View>
+                  {directory.hasNextPage ? (
+                    <Text style={styles.sortNote}>{t('careMap.sortNote')}</Text>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {rows.length === 0 ? (
+                <Card>
+                  <EmptyState
+                    icon="location"
+                    tint="blue"
+                    title={t('careMap.empty')}
+                    message={hasFilters ? t('careMap.emptyBodyFiltered') : t('careMap.emptyBody')}
+                    actionLabel={hasFilters ? t('careMap.clearFilters') : undefined}
+                    onAction={hasFilters ? clearAll : undefined}
+                  />
+                </Card>
+              ) : grouped ? (
+                <View style={styles.stack}>
+                  <FacilityRows rows={located} onOpen={openFacility} t={t} />
+                  <SectionHeader
+                    variant="overline"
+                    title={t('careMap.noDistanceGroup')}
+                    style={styles.groupHeader}
+                  />
+                  <FacilityRows rows={unlocated} onOpen={openFacility} t={t} />
+                </View>
+              ) : (
+                <FacilityRows rows={rows} onOpen={openFacility} t={t} />
+              )}
+
+              {directory.hasNextPage ? (
+                <CareButton
+                  label={t('careMap.loadMore')}
+                  variant="secondary"
+                  icon="chevron-down"
+                  loading={directory.isFetchingNextPage}
+                  onPress={() => {
+                    void directory.fetchNextPage();
+                  }}
+                />
+              ) : null}
+
+              {rows.length > 0 ? (
+                <Text style={styles.disclaimer}>{t('careMap.disclaimer')}</Text>
+              ) : null}
+            </>
+          )}
+
+          {/* ── Find a doctor instead ───────────────────────────────────── */}
+          <View style={styles.assist}>
+            <View style={styles.assistTop}>
+              <View style={styles.assistIcon}>
+                <Icon name="person-search" size={20} color={colors.textOnBrand} />
+              </View>
+              <View style={styles.assistBody}>
+                <Text style={styles.assistTitle}>{t('opesCare.findProvider.assistTitle')}</Text>
+                <Text style={styles.assistText}>
+                  {t('careMap.findDoctor.body', {
+                    defaultValue: 'Search clinicians by name or specialty instead.',
+                  })}
+                </Text>
+              </View>
+            </View>
+            <CareButton
+              label={t('opesCare.findProvider.title')}
+              variant="secondary"
+              size="sm"
+              icon="person-search"
+              onPress={openDoctors}
+            />
+          </View>
+        </ScrollView>
+      </View>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+  stack: { gap: spacing.sm + 2 },
+
+  mapWrap: { borderRadius: radii.md, overflow: 'hidden' },
+
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2 },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 46,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.primarySoft,
+  },
+  filterText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm, color: colors.link },
+
+  typeRow: { gap: spacing.sm + 2, paddingRight: spacing.md },
+  type: {
+    width: 96,
+    paddingVertical: spacing.md - 2,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    gap: 6,
+  },
+  typeOn: { backgroundColor: colors.primarySoft, borderColor: colors.blue },
+  typeLabel: {
+    fontFamily: typography.fontFamily.medium,
+    fontSize: typography.size.xs,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+
+  chipRow: { gap: spacing.sm, paddingRight: spacing.md },
+  sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chipDisabled: { opacity: 0.45 },
+  sortNote: {
+    marginTop: spacing.sm,
+    fontFamily: typography.fontFamily.regular,
+    fontSize: typography.size.xs,
+    color: colors.textMuted,
+  },
+  groupHeader: { marginTop: spacing.sm, marginBottom: 0 },
+
+  rowTrailing: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  rowValue: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm, color: colors.link },
+  callButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: tintMap.green.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  disclaimer: {
+    fontFamily: typography.fontFamily.regular,
+    fontSize: typography.size.xs,
+    lineHeight: typography.lineHeight.xs,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+
+  assist: {
+    gap: spacing.sm + 2,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.primarySoft,
+  },
+  assistTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2 },
+  assistIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.blue,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assistBody: { flex: 1, minWidth: 0 },
+  assistTitle: {
+    fontFamily: typography.fontFamily.semiBold,
+    fontSize: typography.size.sm,
+    color: colors.textPrimary,
+  },
+  assistText: {
+    fontFamily: typography.fontFamily.regular,
+    fontSize: 11,
+    lineHeight: 15,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+});

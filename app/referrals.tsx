@@ -1,320 +1,337 @@
-import { ActivityIndicator, FlatList, RefreshControl, ScrollView, Text, View } from 'react-native';
+/**
+ * Referral cases — read-only (GET /mobile/referrals).
+ *
+ * Presentation follows the OPES kit's CARE-020 Referral Detail: each case is
+ * a flush card headed by its status badge (and an urgency badge when the
+ * clinician marked it urgent or emergency), then the referring → receiving
+ * facilities, urgency and reason as `InfoRow`s, the milestones the record
+ * actually carries, and the clinician's notes as a soft notice. An open case
+ * closes with the reference's "Next steps" rows, each wired to a real route.
+ *
+ * A referral is authored by a clinician, never by the patient: there is no
+ * mobile write endpoint (the source screen's "accept" / reminder writes have
+ * no counterpart here), so for any patient who has not been referred the
+ * empty state explains who creates one and what happens to it.
+ */
+import { useMemo, type ReactNode } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
-  AlertCircle,
-  AlertTriangle,
-  ArrowRightLeft,
-  Building2,
-  CalendarCheck,
-  CalendarClock,
-  Hospital,
-  Info,
-  NotebookPen,
-  RefreshCw,
-  Signpost,
-  Stethoscope,
-} from 'lucide-react-native';
-import { Screen } from '../components/ui/Screen';
-import {
-  Callout,
-  ExplainerSteps,
-  GhostButton,
-  IconTile,
+  Card,
+  EmptyState,
+  Icon,
+  ListRow,
   ScreenHeader,
-  StateHeading,
-  StatusPill,
-  type Tone,
-} from '../components/clinical/CareUi';
-import { colors } from '../theme/tokens';
+  SectionHeader,
+  StatusBadge,
+  formatDate,
+  formatLabel,
+  spacing,
+  typography,
+  useTheme,
+  type IconName,
+  type Palette,
+  type StatusTone,
+  type Tint,
+} from '@/components/opes-ui';
+import { AsyncBoundary, InfoRow, NoticeBanner } from '@/components/care/shared';
+import { asyncStateOf } from '@/components/docs/shared';
+import { useIsOnline } from '@/lib/offline';
 import {
   useReferrals,
   type Referral,
   type ReferralStatus,
   type ReferralUrgency,
-} from '../lib/api/queries';
+} from '@/lib/api/queries';
 
 /**
- * Referral cases — read-only (GET /mobile/referrals).
- *
- * ── Why the empty state is the design ─────────────────────────────────────
- * A referral is authored by a clinician, never by the patient: there is no
- * mobile write endpoint and there should not be one. For any patient who has
- * not been referred — which is the demo patient and most real patients — this
- * screen has no rows and no action to offer. A bare "nothing here" would read
- * as a broken screen, so the empty state explains who creates a referral, what
- * happens to it, and what will appear here when one exists.
- *
- * No reference image covers referrals (the 173-image reference set and its
- * 72-screen app plan contain no referral screen), so the layout follows the
- * established language: white `rounded-2xl` cards on cream, tinted icon tiles
- * leading each row, tinted status pills, gold accents from the tokens.
+ * Patient-facing tone for the referral lifecycle. `sent` is a live case the
+ * receiving facility has not answered yet, so it reads as pending, not done.
  */
-
-const STATUS_TONE: Record<ReferralStatus, Tone> = {
-  draft: 'neutral',
-  sent: 'info',
-  accepted: 'success',
-  rejected: 'danger',
+const STATUS_TONE: Record<ReferralStatus, StatusTone> = {
+  draft: 'warning',
+  sent: 'pending',
+  accepted: 'normal',
+  rejected: 'critical',
   cancelled: 'neutral',
-  completed: 'success',
+  completed: 'normal',
   expired: 'warning',
 };
 
-const URGENT: ReferralUrgency[] = ['urgent', 'emergency'];
+const URGENCY_TONE: Record<ReferralUrgency, StatusTone> = {
+  routine: 'neutral',
+  urgent: 'warning',
+  emergency: 'critical',
+};
 
-function formatDate(iso: string | null, locale: string): string | null {
-  if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
+const URGENCY_TINT: Record<ReferralUrgency, Tint> = {
+  routine: 'blue',
+  urgent: 'amber',
+  emergency: 'red',
+};
+
+const OPEN_STATUSES: ReferralStatus[] = ['sent', 'accepted'];
 
 export default function ReferralsScreen() {
-  const { t, i18n } = useTranslation();
-  const router = useRouter();
-  const { data, isLoading, isError, isRefetching, refetch } = useReferrals();
-  const referrals = data?.data ?? [];
-
-  const header = (
-    <ScreenHeader
-      title={t('referrals.title')}
-      subtitle={t('referrals.subtitle')}
-      onBack={() => router.back()}
-      trailingIcon={ArrowRightLeft}
-    />
-  );
-
-  if (isLoading) {
-    return (
-      <Screen className="px-0">
-        {header}
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={colors.brand[500]} size="large" />
-        </View>
-      </Screen>
-    );
-  }
-
-  if (isError) {
-    return (
-      <Screen className="px-0">
-        {header}
-        <View className="flex-1 justify-center px-8">
-          <StateHeading
-            icon={AlertCircle}
-            tone="danger"
-            title={t('referrals.loadErrorTitle')}
-            body={t('referrals.loadErrorBody')}
-          />
-          <View className="mt-7">
-            <GhostButton label={t('referrals.retry')} icon={RefreshCw} onPress={() => refetch()} />
-          </View>
-        </View>
-      </Screen>
-    );
-  }
-
-  // ── Empty: explain the process rather than showing a void ─────────────────
-  if (referrals.length === 0) {
-    return (
-      <Screen className="px-0">
-        {header}
-        <ScrollView
-          className="flex-1 px-6"
-          contentContainerStyle={{ paddingTop: 28, paddingBottom: 40 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={() => refetch()}
-              tintColor={colors.brand[500]}
-            />
-          }
-        >
-          <StateHeading
-            icon={Signpost}
-            title={t('referrals.emptyTitle')}
-            body={t('referrals.emptyBody')}
-          />
-
-          <Text className="mb-2 mt-8 text-sm font-bold text-navy-text">
-            {t('referrals.howItWorksTitle')}
-          </Text>
-          <ExplainerSteps
-            steps={[
-              {
-                icon: Stethoscope,
-                title: t('referrals.step1Title'),
-                body: t('referrals.step1Body'),
-              },
-              {
-                icon: Hospital,
-                title: t('referrals.step2Title'),
-                body: t('referrals.step2Body'),
-              },
-              {
-                icon: CalendarCheck,
-                title: t('referrals.step3Title'),
-                body: t('referrals.step3Body'),
-              },
-            ]}
-          />
-
-          <View className="mt-4">
-            <Callout
-              icon={Info}
-              tone="info"
-              title={t('referrals.emptyCalloutTitle')}
-              body={t('referrals.emptyCalloutBody')}
-            />
-          </View>
-        </ScrollView>
-      </Screen>
-    );
-  }
-
-  return (
-    <Screen className="px-0">
-      {header}
-      <FlatList
-        data={referrals}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 }}
-        ItemSeparatorComponent={() => <View className="h-3" />}
-        ListHeaderComponent={
-          <Text className="mb-3 text-xs font-bold uppercase text-navy-muted">
-            {t('referrals.countLabel', { count: referrals.length })}
-          </Text>
-        }
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={() => refetch()}
-            tintColor={colors.brand[500]}
-          />
-        }
-        renderItem={({ item }) => <ReferralCard referral={item} locale={i18n.language} />}
-      />
-    </Screen>
-  );
-}
-
-/** One facility node on the from → to rail. */
-function FacilityNode({ label, name, isOrigin }: { label: string; name: string; isOrigin: boolean }) {
-  return (
-    <View className="flex-row items-center">
-      <IconTile icon={Building2} tone={isOrigin ? 'neutral' : 'gold'} size={34} />
-      <View className="ml-3 flex-1">
-        <Text className="text-[10px] font-bold uppercase text-navy-muted">{label}</Text>
-        <Text className="text-sm font-bold text-navy-text" numberOfLines={2}>
-          {name}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-function ReferralCard({ referral, locale }: { referral: Referral; locale: string }) {
   const { t } = useTranslation();
-  const isUrgent = URGENT.includes(referral.urgency);
-  const urgencyColor =
-    referral.urgency === 'emergency' ? colors.semantic.danger : colors.semantic.warning;
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
+  const online = useIsOnline();
+  const query = useReferrals();
+
+  const state = asyncStateOf(query, {
+    offline: !online,
+    offlineMessage: t('opesCore.errors.offlineBody'),
+  });
+
+  return (
+    <SafeAreaView style={s.screen} edges={['top', 'bottom']}>
+      <ScreenHeader title={t('referrals.title')} subtitle={t('referrals.subtitle')} />
+      <ScrollView
+        contentContainerStyle={s.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={query.isRefetching} onRefresh={() => query.refetch()} tintColor={colors.blue} />
+        }
+      >
+        <AsyncBoundary
+          state={state}
+          loadingLabel={t('opesCore.common.loading')}
+          isEmpty={(res) => (res.data ?? []).length === 0}
+          empty={<EmptyReferrals />}
+        >
+          {(res) => {
+            const referrals = res.data ?? [];
+            return (
+              <>
+                <SectionHeader variant="overline" title={t('referrals.countLabel', { count: referrals.length })} />
+                {referrals.map((referral) => (
+                  <ReferralCard key={referral.id} referral={referral} />
+                ))}
+              </>
+            );
+          }}
+        </AsyncBoundary>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ------------------------------------------------------------------ card */
+
+function ReferralCard({ referral }: { referral: Referral }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
+
+  const isUrgent = referral.urgency === 'urgent' || referral.urgency === 'emergency';
+  const isOpen = OPEN_STATUSES.includes(referral.status);
+  const statusLabel = t(`referrals.status.${referral.status}`, { defaultValue: formatLabel(referral.status) });
+  const urgencyLabel = t(`referrals.urgency.${referral.urgency}`, { defaultValue: formatLabel(referral.urgency) });
 
   // Show every milestone the record actually carries, oldest first — a single
   // "latest date" line throws away the rest of the case history.
   const milestones = [
-    { key: 'referredOn', date: formatDate(referral.referred_at, locale) },
-    { key: 'acceptedOn', date: formatDate(referral.accepted_at, locale) },
-    { key: 'completedOn', date: formatDate(referral.completed_at, locale) },
-  ].filter((m): m is { key: string; date: string } => m.date !== null);
+    { key: 'referredOn', icon: 'calendar' as IconName, date: formatDate(referral.referred_at, '') },
+    { key: 'acceptedOn', icon: 'calendar-check' as IconName, date: formatDate(referral.accepted_at, '') },
+    { key: 'completedOn', icon: 'check-circle' as IconName, date: formatDate(referral.completed_at, '') },
+  ].filter((m) => m.date !== '');
+
+  const rows: ReactNode[] = [
+    <InfoRow key="from" icon="building" tint="blue" label={t('referrals.from')} value={referral.referring_facility} divider />,
+    <InfoRow key="to" icon="building" tint="purple" label={t('referrals.to')} value={referral.receiving_facility} divider />,
+    <InfoRow
+      key="urgency"
+      icon="alert-circle"
+      tint={URGENCY_TINT[referral.urgency] ?? 'blue'}
+      label={t('opesCare.referral.urgency', { defaultValue: 'Urgency' })}
+      value={urgencyLabel}
+      divider
+    />,
+    <InfoRow key="reason" icon="document-text" tint="blue" label={t('referrals.reason')} value={referral.reason} divider={milestones.length > 0} />,
+    ...milestones.map((m, i) => (
+      <InfoRow
+        key={m.key}
+        icon={m.icon}
+        tint="green"
+        label={t(`opesCare.referral.${m.key}`, {
+          defaultValue: m.key === 'referredOn' ? 'Referred' : m.key === 'acceptedOn' ? 'Accepted' : 'Completed',
+        })}
+        value={m.date}
+        divider={i < milestones.length - 1}
+      />
+    )),
+  ];
 
   return (
-    <View className="rounded-2xl bg-white p-4">
-      <View className="flex-row items-center justify-between">
-        <StatusPill
-          label={t(`referrals.status.${referral.status}`)}
-          tone={STATUS_TONE[referral.status] ?? 'neutral'}
-        />
-        {isUrgent ? (
-          <View className="flex-row items-center">
-            <AlertTriangle size={13} color={urgencyColor} />
-            <Text className="ml-1.5 text-[11px] font-bold" style={{ color: urgencyColor }}>
-              {t(`referrals.urgency.${referral.urgency}`)}
-            </Text>
+    <>
+      <Card variant="flush">
+        <View style={s.cardTop}>
+          <StatusBadge status={referral.status} tone={STATUS_TONE[referral.status] ?? 'neutral'} label={statusLabel} />
+          {isUrgent ? (
+            <StatusBadge
+              status={referral.urgency}
+              tone={URGENCY_TONE[referral.urgency] ?? 'warning'}
+              icon="alert-triangle"
+              label={urgencyLabel}
+            />
+          ) : null}
+        </View>
+
+        <View style={s.rows}>{rows}</View>
+
+        {referral.notes ? (
+          <View style={s.inset}>
+            <NoticeBanner icon="edit" tone="pending" title={t('referrals.notes')} message={referral.notes} />
           </View>
         ) : null}
-      </View>
+      </Card>
 
-      {/* ── From → to rail ──────────────────────────────────────────────────
-          Stacked rather than side-by-side: two facility names on one row both
-          truncate to uselessness on a phone. */}
-      <View className="mt-4">
-        <FacilityNode
-          label={t('referrals.from')}
-          name={referral.referring_facility}
-          isOrigin
-        />
-        <View className="flex-row items-center" style={{ height: 22 }}>
-          <View className="items-center" style={{ width: 34 }}>
-            <View
-              className="h-full"
-              style={{ width: 2, backgroundColor: colors.cream[300] }}
-            />
+      {isOpen ? (
+        <Card variant="flush">
+          <View style={s.cardHead}>
+            <Icon name="list" size={22} color={colors.blue} />
+            <Text style={s.cardTitle}>{t('opesCare.referral.nextSteps', { defaultValue: 'Next steps' })}</Text>
           </View>
-          <ArrowRightLeft
-            size={12}
-            color={colors.navy.muted}
-            style={{ marginLeft: 10, transform: [{ rotate: '90deg' }] }}
+          <ListRow
+            icon="calendar-plus"
+            tint="blue"
+            title={t('opesCare.referral.scheduleTitle', { defaultValue: 'Book an appointment' })}
+            subtitle={t('opesCare.referral.scheduleText', { defaultValue: 'Arrange your visit at the receiving facility.' })}
+            onPress={() => router.push('/appointments/book')}
+            divider
           />
-        </View>
-        <FacilityNode
-          label={t('referrals.to')}
-          name={referral.receiving_facility}
-          isOrigin={false}
-        />
-      </View>
-
-      <View
-        className="mt-4 pt-4"
-        style={{ borderTopWidth: 1, borderTopColor: colors.cream[300] }}
-      >
-        <Text className="text-[10px] font-bold uppercase text-navy-muted">
-          {t('referrals.reason')}
-        </Text>
-        <Text className="mt-1 text-sm leading-5 text-navy-text">{referral.reason}</Text>
-      </View>
-
-      {referral.notes ? (
-        <View className="mt-3 flex-row items-start rounded-xl bg-cream-100 p-3">
-          <NotebookPen size={14} color={colors.navy.muted} style={{ marginTop: 1 }} />
-          <View className="ml-2.5 flex-1">
-            <Text className="text-[10px] font-bold uppercase text-navy-muted">
-              {t('referrals.notes')}
-            </Text>
-            <Text className="mt-0.5 text-xs leading-5 text-navy-secondary">{referral.notes}</Text>
-          </View>
-        </View>
+          <ListRow
+            icon="clipboard"
+            tint="green"
+            title={t('opesCare.referral.bringTitle', { defaultValue: 'Bring your documents' })}
+            subtitle={t('opesCare.referral.bringText', { defaultValue: 'Carry this referral and any relevant results.' })}
+            onPress={() => router.push('/documents')}
+            divider
+          />
+          <ListRow
+            icon="phone"
+            tint="purple"
+            title={t('opesCare.referral.helpTitle', { defaultValue: 'Need help?' })}
+            subtitle={t('opesCare.referral.helpText', { defaultValue: 'Contact us if you need assistance.' })}
+            onPress={() => router.push('/help')}
+          />
+        </Card>
       ) : null}
+    </>
+  );
+}
 
-      {milestones.length > 0 ? (
-        <View
-          className="mt-4 flex-row flex-wrap items-center gap-3 pt-3"
-          style={{ borderTopWidth: 1, borderTopColor: colors.cream[300] }}
-        >
-          {milestones.map((milestone) => (
-            <View key={milestone.key} className="flex-row items-center">
-              <CalendarClock size={12} color={colors.navy.muted} />
-              <Text className="ml-1.5 text-[11px] text-navy-muted">
-                {t(`referrals.${milestone.key}`, { date: milestone.date })}
-              </Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
+/* ------------------------------------------------------------------ empty */
+
+/** Explain the process rather than show a void. */
+function EmptyReferrals() {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
+  const steps: { icon: IconName; title: string; body: string }[] = [
+    { icon: 'stethoscope', title: t('referrals.step1Title'), body: t('referrals.step1Body') },
+    { icon: 'building', title: t('referrals.step2Title'), body: t('referrals.step2Body') },
+    { icon: 'calendar-check', title: t('referrals.step3Title'), body: t('referrals.step3Body') },
+  ];
+  return (
+    <>
+      <Card>
+        <EmptyState icon="send" tint="purple" title={t('referrals.emptyTitle')} message={t('referrals.emptyBody')} />
+      </Card>
+      <SectionHeader title={t('referrals.howItWorksTitle')} style={s.sectionAfterCard} />
+      <Card variant="flush">
+        {steps.map((step, i) => (
+          <StepRow key={step.title} icon={step.icon} title={step.title} body={step.body} divider={i < steps.length - 1} />
+        ))}
+      </Card>
+      <NoticeBanner icon="info" tone="pending" title={t('referrals.emptyCalloutTitle')} message={t('referrals.emptyCalloutBody')} />
+    </>
+  );
+}
+
+/** A §8 row whose body is allowed to wrap — explanatory prose, not a record. */
+function StepRow({ icon, title, body, divider }: { icon: IconName; title: string; body: string; divider: boolean }) {
+  const { colors, tintMap } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
+  const tint = tintMap.purple;
+  return (
+    <View style={[s.stepRow, divider && s.rowDivider]} accessible accessibilityLabel={`${title}. ${body}`}>
+      <View style={[s.stepMark, { backgroundColor: tint.bg }]}>
+        <Icon name={icon} size={20} color={tint.fg} />
+      </View>
+      <View style={s.stepBody}>
+        <Text style={s.stepTitle}>{title}</Text>
+        <Text style={s.stepText}>{body}</Text>
+      </View>
     </View>
   );
 }
+
+/* ------------------------------------------------------------------ styles */
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.page },
+    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
+    sectionAfterCard: { marginTop: spacing.sm },
+
+    cardTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xs,
+    },
+    // InfoRow carries no horizontal inset of its own — it expects a padded card.
+    rows: { paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
+    inset: { padding: spacing.md, paddingTop: spacing.sm },
+
+    cardHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 2,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xs,
+    },
+    cardTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: colors.textPrimary,
+    },
+
+    rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+    stepRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm + 4,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 14,
+    },
+    stepMark: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepBody: { flex: 1, minWidth: 0, gap: 2 },
+    stepTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textPrimary,
+    },
+    stepText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+  });

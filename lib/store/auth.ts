@@ -22,6 +22,52 @@ type AuthStatus =
   | 'authenticated';
 
 /**
+ * Which half of the app this session may see.
+ *
+ * `patient` is the app everyone gets — the tabs under `app/(tabs)`. `doctor`
+ * is the clinician area under `app/(doctor)`: schedule, patient charts,
+ * results inbox, appointment requests.
+ *
+ * TODAY IT ALWAYS RESOLVES TO `patient`, and that is not a stub for missing
+ * code — it is the truth about the backend. Every mobile auth route
+ * (`/mobile/auth/login`, `/mobile/auth/verify-otp`, `/mobile/auth/register`)
+ * mints a PATIENT token against a PatientAccount and answers `/mobile/auth/me`
+ * with a `Patient`, which carries no field that could say "clinician". The
+ * clinician API (`/mobile/doctor/*`) is likewise not served yet, so every
+ * doctor hook 404s.
+ *
+ * When the server starts issuing provider tokens, `resolvePersona` below is
+ * the ONE function to change: read the role off the session payload there and
+ * the whole doctor area unlocks behind it.
+ */
+export type Persona = 'patient' | 'doctor';
+
+/**
+ * Dev-only override so the clinician UI is previewable before the backend can
+ * mint a clinician session. Set `EXPO_PUBLIC_DOCTOR_PERSONA=1` in `.env` (or
+ * in an EAS build profile) and the app resolves to the doctor persona.
+ *
+ * `EXPO_PUBLIC_*` values are INLINED AT BUILD TIME by Expo, so a production
+ * build made without the flag cannot have it flipped on at runtime. It unlocks
+ * a UI, never data: the server still authorises every request on the token it
+ * was actually given, and today it refuses the doctor routes outright.
+ */
+const DOCTOR_PERSONA_OVERRIDE =
+  process.env.EXPO_PUBLIC_DOCTOR_PERSONA === '1' ||
+  process.env.EXPO_PUBLIC_DOCTOR_PERSONA === 'true';
+
+/**
+ * The persona a session resolves to.
+ *
+ * The patient argument is taken and deliberately unused: it is where the role
+ * will be read from the day `/mobile/auth/me` carries one, and taking it now
+ * means that day changes this function's body, not its callers.
+ */
+export function resolvePersona(_patient: Patient | null): Persona {
+  return DOCTOR_PERSONA_OVERRIDE ? 'doctor' : 'patient';
+}
+
+/**
  * Device-local flag: has this device already been through the permissions
  * priming screen once? Permissions are OS+device scoped (not account
  * scoped), so this intentionally survives logout/login on the same device
@@ -64,6 +110,12 @@ export async function resolvePostAuthStatus(): Promise<AuthStatus> {
 interface AuthState {
   status: AuthStatus;
   patient: Patient | null;
+  /**
+   * Which half of the app this session may see. Derived — never set by a
+   * screen. Kept as state rather than computed at every read so a future
+   * role-bearing payload has somewhere to land.
+   */
+  persona: Persona;
   pendingPhone: string | null;
   error: string | null;
 
@@ -89,6 +141,7 @@ function extractErrorMessage(err: unknown): string {
 export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'booting',
   patient: null,
+  persona: resolvePersona(null),
   pendingPhone: null,
   error: null,
 
@@ -122,7 +175,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // so this fails open on connectivity and closed on actual rejection.
       if (isNetworkError(err)) {
         const cached = await getCachedDemographics();
-        set({ patient: cached ?? null, status: 'authenticated' });
+        set({
+          patient: cached ?? null,
+          persona: resolvePersona(cached ?? null),
+          status: 'authenticated',
+        });
 
         // Booting without a profile is a holding state, not a resting one:
         // with `patient` null the greeting reads "—" and the avatar "?" until
@@ -210,12 +267,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   fetchMe: async () => {
     const { data } = await apiClient.get<Patient>(endpoints.me);
-    set({ patient: data });
+    // The session profile is the only thing a persona could ever be read from,
+    // so it is re-derived on every successful read of it.
+    set({ patient: data, persona: resolvePersona(data) });
   },
 
   logout: async () => {
     await tokenStorage.clear();
-    set({ status: 'unauthenticated', patient: null, pendingPhone: null });
+    set({
+      status: 'unauthenticated',
+      patient: null,
+      persona: resolvePersona(null),
+      pendingPhone: null,
+    });
   },
 
   clearError: () => set({ error: null }),
@@ -233,5 +297,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 // Wired once, outside the component tree: if any request's token refresh fails,
 // force the store back to unauthenticated so the router redirects to login.
 setSessionExpiredHandler(() => {
-  useAuthStore.setState({ status: 'unauthenticated', patient: null });
+  useAuthStore.setState({
+    status: 'unauthenticated',
+    patient: null,
+    persona: resolvePersona(null),
+  });
 });
+
+/**
+ * True when this session may see the clinician area (`app/(doctor)`).
+ *
+ * The gate in `app/(doctor)/_layout.tsx` reads this: false renders the
+ * "wrong app" screen instead of the clinician tabs, so no clinician screen can
+ * be reached by typing a URL. It is a UI gate, not a security boundary — the
+ * server authorises every request on its own.
+ */
+export function useIsDoctor(): boolean {
+  return useAuthStore((s) => s.persona === 'doctor');
+}

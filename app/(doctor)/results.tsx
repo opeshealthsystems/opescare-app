@@ -1,0 +1,277 @@
+/**
+ * Doctor — Results Inbox (`/(doctor)/results`).
+ *
+ * Port of `UIUX/src/screens/doctor/ResultsInboxScreen.tsx` onto expo-router,
+ * the OPES UI kit and this app's doctor foundation.
+ *
+ * Results and clinical notifications awaiting this doctor's acknowledgement,
+ * in the server's own order: unacknowledged criticals pinned to the top, then
+ * newest first. Counts on the filter chips come from the server's meta —
+ * never a length of whatever page happens to be loaded.
+ *
+ * NOTHING ON THIS SCREEN ACKNOWLEDGES ANYTHING. Opening a row, scrolling
+ * past it or refreshing the list changes no state — acknowledgement is an
+ * explicit, confirmed act and lives on the detail screen alone.
+ *
+ * Deep link: `/(doctor)/results?filter=unread|abnormal|all`. "unread" means
+ * "not yet acknowledged" and "abnormal" means "flagged critical" — the
+ * server's vocabulary is the one that matters, and this maps onto it.
+ *
+ * Backend gap: the finder does not serve `/mobile/doctor/*` yet. A 404 (or any
+ * failure with nothing on screen) renders an honest EmptyState with a retry.
+ *
+ * i18n: `opesDoctor.*` is being migrated; every string carries a
+ * `defaultValue` until the keys land. Locale files are not edited here.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import axios from 'axios';
+import {
+  Card,
+  Chip,
+  EmptyState,
+  ScreenHeader,
+  StaleNotice,
+  spacing,
+  useTheme,
+  type IconName,
+  type Palette,
+} from '@/components/opes-ui';
+import { LoadingBlock, NoticeBanner, describeFailure, type Translate } from '@/components/care/shared';
+// ── Doctor foundation (owned by the foundation agent) ─────────────────────
+import { useResultsInbox, type InboxCounts, type InboxFilter } from '@/lib/api/doctorQueries';
+import { ResultRow } from '@/components/doctor/shared';
+import { doctorRoutes } from '@/components/doctor/chartRoutes';
+
+const FILTERS: readonly InboxFilter[] = ['unacknowledged', 'critical', 'acknowledged', 'all'];
+
+/** Chip per filter: `opesDoctor.inbox.*` key, its default, and a glyph. */
+const FILTER_CHIP: Record<InboxFilter, { key: string; defaultValue: string; icon: IconName }> = {
+  unacknowledged: { key: 'inbox.tabToReview', defaultValue: 'To Review', icon: 'clipboard' },
+  critical: { key: 'inbox.tabCritical', defaultValue: 'Critical', icon: 'alert-triangle' },
+  acknowledged: { key: 'inbox.tabDone', defaultValue: 'Done', icon: 'check-circle' },
+  all: { key: 'inbox.tabAll', defaultValue: 'All', icon: 'list' },
+};
+
+/**
+ * The empty state per filter. Each says what IS true of the filter rather
+ * than a generic "nothing here" — "no critical results" and "nothing
+ * acknowledged yet" are different claims and must not be collapsed.
+ */
+const EMPTY: Record<InboxFilter, { title: [string, string]; message: [string, string] }> = {
+  unacknowledged: {
+    title: ['inbox.emptyUnackTitle', 'Nothing awaiting review'],
+    message: ['inbox.emptyUnackBody', 'Every result sent to you has been acknowledged.'],
+  },
+  critical: {
+    title: ['inbox.emptyCriticalTitle', 'No critical results'],
+    message: [
+      'inbox.emptyCriticalBody',
+      'No result sent to you has been flagged critical by the laboratory or radiologist.',
+    ],
+  },
+  acknowledged: {
+    title: ['inbox.emptyAckedTitle', 'Nothing acknowledged yet'],
+    message: [
+      'inbox.emptyAckedBody',
+      'Results you acknowledge — here or on a workstation — will be listed here.',
+    ],
+  },
+  all: {
+    title: ['inbox.emptyAllTitle', 'No results yet'],
+    message: [
+      'inbox.emptyAllBody',
+      'Results from orders you placed will arrive here once the laboratory releases them.',
+    ],
+  },
+};
+
+/** The route's `filter` vocabulary, mapped onto the server's. */
+const ROUTE_FILTER: Record<string, InboxFilter> = {
+  unread: 'unacknowledged',
+  abnormal: 'critical',
+  all: 'all',
+};
+
+/** 404 / 501: this server does not serve the clinician surface yet. */
+function isNotServed(e: unknown): boolean {
+  const status = axios.isAxiosError(e) ? e.response?.status : undefined;
+  return status === 404 || status === 501;
+}
+
+export default function ResultsInboxScreen() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const params = useLocalSearchParams<{ filter?: string }>();
+
+  /** `opesDoctor.<key>` with a readable default until the catalogue lands. */
+  const tx = useCallback(
+    (key: string, defaultValue: string, p?: Record<string, unknown>) =>
+      String(t(`opesDoctor.${key}`, { defaultValue, ...p })),
+    [t]
+  );
+  const tr = useCallback<Translate>(
+    (key, p) => String(t(key, p as Record<string, unknown>)),
+    [t]
+  );
+
+  const [filter, setFilter] = useState<InboxFilter>(
+    () => (params.filter ? ROUTE_FILTER[params.filter] : undefined) ?? 'unacknowledged'
+  );
+  const inbox = useResultsInbox(filter);
+  const { refetch } = inbox;
+
+  // The last counts the server gave us, kept across a filter switch so the
+  // chips do not blank while the next page loads.
+  const [counts, setCounts] = useState<InboxCounts | null>(null);
+  useEffect(() => {
+    if (inbox.data) setCounts(inbox.data.counts);
+  }, [inbox.data]);
+
+  // Coming back from the detail screen after an acknowledgement must not
+  // leave an acknowledged row sitting in "To Review". The first focus is the
+  // mount fetch itself, so it is skipped.
+  const firstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      void refetch();
+    }, [refetch])
+  );
+
+  const rows = inbox.data?.rows ?? [];
+  const criticalPending = counts?.critical_pending ?? 0;
+
+  // A refresh that failed while rows are on screen must never pass as fresh.
+  const stale =
+    inbox.isError && inbox.data !== undefined ? (
+      <StaleNotice
+        message={describeFailure(inbox.error).message}
+        loadedAt={inbox.dataUpdatedAt ? new Date(inbox.dataUpdatedAt) : null}
+        onRetry={() => void refetch()}
+        retrying={inbox.isFetching}
+      />
+    ) : null;
+
+  let body: React.ReactNode;
+  if (inbox.isPending) {
+    body = <LoadingBlock label={tx('inbox.loading', 'Loading your inbox…')} />;
+  } else if (inbox.isError && inbox.data === undefined) {
+    const notServed = isNotServed(inbox.error);
+    body = (
+      <EmptyState
+        icon={notServed ? 'flask' : 'alert-circle'}
+        tint={notServed ? 'green' : 'red'}
+        title={
+          notServed
+            ? tx('shared.notServedTitle', 'Not available on this server yet')
+            : tr('opesCore.errors.unknownTitle')
+        }
+        message={
+          notServed
+            ? tx(
+                'shared.notServedResults',
+                'Results awaiting your acknowledgement will appear here once the clinician service is enabled for this app.'
+              )
+            : describeFailure(inbox.error).message
+        }
+        actionLabel={tr('opesCore.common.retry')}
+        onAction={() => void refetch()}
+      />
+    );
+  } else if (rows.length === 0) {
+    body = (
+      <EmptyState
+        icon="check-circle"
+        tint="green"
+        title={tx(...EMPTY[filter].title)}
+        message={tx(...EMPTY[filter].message)}
+      />
+    );
+  } else {
+    body = (
+      <>
+        {criticalPending > 0 && filter !== 'acknowledged' && (
+          <NoticeBanner
+            icon="alert-triangle"
+            tone="critical"
+            title={tx(
+              'inbox.criticalBanner',
+              criticalPending === 1
+                ? '1 critical result is not acknowledged'
+                : '{{count}} critical results are not acknowledged',
+              { count: criticalPending }
+            )}
+            message={tx(
+              'inbox.criticalBannerBody',
+              'Critical results are pinned to the top of this list and must each be acknowledged individually.'
+            )}
+          />
+        )}
+        <Card variant="flush">
+          {rows.map((r) => (
+            <ResultRow
+              key={r.id}
+              result={r}
+              onPress={() => router.push(doctorRoutes.result(r.id))}
+            />
+          ))}
+        </Card>
+      </>
+    );
+  }
+
+  return (
+    <SafeAreaView edges={['top']} style={styles.screen}>
+      <ScreenHeader
+        title={tx('inbox.title', 'Results Inbox')}
+        subtitle={tx('inbox.subtitle', 'Awaiting your acknowledgement')}
+      />
+
+      <View style={styles.chipsWrap}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          {FILTERS.map((key) => (
+            <Chip
+              key={key}
+              label={tx(FILTER_CHIP[key].key, FILTER_CHIP[key].defaultValue)}
+              icon={FILTER_CHIP[key].icon}
+              count={counts?.[key]}
+              selected={filter === key}
+              onPress={() => setFilter(key)}
+            />
+          ))}
+        </ScrollView>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={inbox.isFetching && !inbox.isPending}
+            onRefresh={() => void refetch()}
+            tintColor={colors.blue}
+          />
+        }
+      >
+        {stale}
+        {body}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.page },
+    chipsWrap: { paddingBottom: spacing.sm },
+    chips: { paddingHorizontal: spacing.md, gap: spacing.sm },
+    content: { padding: spacing.md, paddingTop: 0, paddingBottom: spacing.xxl, gap: spacing.sm },
+  });

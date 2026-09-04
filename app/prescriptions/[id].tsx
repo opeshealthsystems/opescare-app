@@ -1,65 +1,80 @@
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
-  CalendarClock,
-  ChevronLeft,
-  ChevronRight,
-  CircleAlert,
-  CircleCheck,
-  CircleDashed,
-  Hourglass,
-  NotebookPen,
-  Pill,
-  RotateCcw,
-  Search,
-  ShieldCheck,
-  Store,
-  Tablets,
-  UserRound,
-  type LucideIcon,
-} from 'lucide-react-native';
+  Card,
+  EmptyState,
+  Icon,
+  ListRow,
+  ScreenHeader,
+  StatusBadge,
+  a11yJoin,
+  radii,
+  spacing,
+  typography,
+  useDialog,
+  useTheme,
+  type IconName,
+  type Palette,
+} from '@/components/opes-ui';
 import { Screen } from '../../components/ui/Screen';
-import { colors } from '../../theme/tokens';
 import { useAuthStore } from '../../lib/store/auth';
-import { usePrescriptionDetail, type PrescriptionItemDetail } from '../../lib/api/queries';
+import {
+  usePrescriptionDetail,
+  type PrescriptionDetail,
+  type PrescriptionItemDetail,
+} from '../../lib/api/queries';
 import { useCatalogMedicineMatch } from '../../lib/api/prescriptionQueries';
+import { formatXaf } from '../../lib/api/pharmacyQueries';
 import {
   EXPIRY_WARNING_WINDOW_DAYS,
-  StatusPill,
   daysUntil,
-  formatDate,
   referenceCode,
+  statusLabelKey,
 } from '../../components/prescriptions/status';
+import {
+  ActionGrid,
+  FactCell,
+  LoadingBlock,
+  MetricRow,
+  TintCircle,
+  VerifiedBanner,
+  fmtShortDate,
+  formIcon,
+  prescriptionTone,
+  routeLabel,
+} from '../../components/meds/shared';
 
 /**
  * One prescription in full — issuing facility, dates, and every medication with
  * its dosage instructions.
  *
- * Modelled on the e-prescription reference (`Mobile app screens/
- * a_full_screen_smartphone_app_screenshot_of_a_medic.png`), which lays the
- * medications out as a numbered Medicine / Strength / Dosage & Instructions /
- * Duration table under an "Important — take medicines exactly as prescribed"
- * callout. A four-column table is unreadable at phone width, so each medication
- * becomes its own card with a full-width "How to take it" panel: same
- * information, same ordering, set at a size that can be read at arm's length.
- * Dosage is the one thing on this screen that must never be ambiguous, so it
- * gets the largest type and a missing value reads "Not specified" rather than a
- * dash that could be mistaken for a zero.
+ * MED-003 layout on the existing data layer: the issuer hero card (facility,
+ * reference, prescribed-on / ID `FactCell`s, status, expiry, patient line),
+ * a `MetricRow` card for the key dates, one flush card holding the numbered
+ * medications with their dosage grid and per-line dispense `StatusBadge`,
+ * the shared instructions block, the safety banner and the action grid.
  *
- * Two things the reference shows that this API cannot supply, and which are
- * therefore absent rather than invented: the prescriber (the mobile endpoint
- * returns the facility only — `prescribed_by` exists on the model but is not
- * serialised) and the diagnosis. There is likewise no refill action, because
- * the mobile API has no refill route.
+ * Dosage is the one thing on this screen that must never be ambiguous, so
+ * dose and frequency lead the grid and a missing value reads "Not specified"
+ * rather than a dash that could be mistaken for a zero.
+ *
+ * Two things the OPES reference shows that this API cannot supply, and which
+ * are therefore absent rather than invented: the prescriber (the mobile
+ * endpoint returns the facility only) and the diagnosis. There is likewise no
+ * refill action, because the mobile API has no refill route, and no PDF —
+ * the download action says so instead of pretending.
  */
 
 export default function PrescriptionDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
-  const locale = i18n.language;
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const dialog = useDialog();
 
   // The reference prints a patient identity line above the medications, and a
   // pharmacist checking this at the counter needs it. It is read from the auth
@@ -67,365 +82,411 @@ export default function PrescriptionDetailScreen() {
   // the signed-in patient does not already own.
   const patient = useAuthStore((s) => s.patient);
 
-  const { data: prescription, isLoading, isError, refetch } = usePrescriptionDetail(id);
+  const { data: prescription, isLoading, isError, isFetching, refetch } = usePrescriptionDetail(id);
 
-  const remaining = daysUntil(prescription?.expires_at);
-  const isOpen =
-    prescription?.status === 'active' || prescription?.status === 'partially_dispensed';
-  const expiryDays =
-    isOpen && remaining !== null && remaining >= 0 && remaining <= EXPIRY_WARNING_WINDOW_DAYS
-      ? remaining
-      : null;
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/prescriptions'));
+
+  const explainNoPdf = () =>
+    dialog.show({
+      title: t('opesMeds.prescription.noPdfTitle'),
+      tone: 'info',
+      cancelLabel: t('opesUi.components.close'),
+      message: t('opesMeds.prescription.noPdfBody'),
+    });
+
+  async function share(rx: PrescriptionDetail) {
+    const message = [
+      t('opesMeds.prescription.shareHeading', { reference: referenceCode(rx.id) }),
+      rx.facility_name ? `${t('prescriptions.issuedBy')}: ${rx.facility_name}` : '',
+      ...rx.items.map((item) => {
+        const how = [item.dose, item.frequency].filter(Boolean).join(', ');
+        return `• ${item.drug_name}${how ? ` — ${how}` : ''}`;
+      }),
+      rx.notes ?? '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+    try {
+      await Share.share({ message });
+    } catch {
+      // Share sheet dismissed, or no share target on this platform (web).
+    }
+  }
 
   return (
     <Screen className="px-0">
-      {/* Top bar */}
-      <View className="flex-row items-center px-6 pt-2">
-        <Pressable
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/prescriptions'))}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={t('prescriptions.back')}
-          className="h-10 w-10 items-center justify-center rounded-xl border border-cream-300 bg-white"
-        >
-          <ChevronLeft size={20} color={colors.navy.text} />
-        </Pressable>
-        <Text className="ml-3 flex-1 text-lg font-extrabold text-navy-text">
-          {t('prescriptions.detailTitle')}
-        </Text>
-      </View>
+      <ScreenHeader
+        title={t('prescriptions.detailTitle')}
+        subtitle={t('opesMeds.prescription.subtitle')}
+        onBack={goBack}
+        actions={[
+          {
+            icon: 'download',
+            accessibilityLabel: t('opesMeds.prescription.downloadA11y'),
+            onPress: explainNoPdf,
+          },
+        ]}
+      />
 
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={colors.brand[500]} />
-        </View>
+        <LoadingBlock label={t('opesMeds.prescription.loading')} />
       ) : isError || !prescription ? (
-        <View className="flex-1 px-6 pt-6">
-          <View className="items-center rounded-2xl border border-cream-300 bg-white px-6 py-10">
-            <View
-              className="h-14 w-14 items-center justify-center rounded-full"
-              style={{ backgroundColor: colors.semantic.dangerSurface }}
-            >
-              <CircleAlert size={22} color={colors.semantic.danger} />
-            </View>
-            <Text className="mt-4 text-center text-sm text-navy-secondary">
-              {isError ? t('prescriptions.detailLoadError') : t('prescriptions.notFound')}
-            </Text>
-            {isError ? (
-              <Pressable
-                onPress={() => refetch()}
-                accessibilityRole="button"
-                className="mt-4 flex-row items-center rounded-xl border border-brand-500 px-4 py-2"
-              >
-                <RotateCcw size={13} color={colors.brand[600]} />
-                <Text className="ml-2 text-xs font-bold text-brand-600">
-                  {t('prescriptions.retry')}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
+        <View style={styles.content}>
+          <Card>
+            <EmptyState
+              icon="alert-circle"
+              tint="red"
+              title={isError ? t('prescriptions.detailLoadError') : t('prescriptions.notFound')}
+              actionLabel={isError ? t('prescriptions.retry') : undefined}
+              onAction={isError ? () => refetch() : undefined}
+            />
+          </Card>
         </View>
       ) : (
         <ScrollView
-          className="flex-1 px-6"
-          contentContainerStyle={{ paddingBottom: 48 }}
+          contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isFetching && !isLoading}
+              onRefresh={() => refetch()}
+              tintColor={colors.blue}
+            />
+          }
         >
-          {/* Issuing facility + status. The facility is the only attribution the
-              mobile API returns — there is no prescriber name to show. */}
-          <View className="mt-4 rounded-2xl border border-cream-300 bg-white p-5">
-            <View className="flex-row items-start">
-              <View className="h-12 w-12 items-center justify-center rounded-2xl bg-brand-50">
-                <Pill size={22} color={colors.brand[600]} />
-              </View>
-              <View className="ml-3 flex-1">
-                <Text className="text-[11px] font-semibold uppercase tracking-wide text-navy-muted">
-                  {t('prescriptions.issuedBy')}
-                </Text>
-                <Text className="mt-0.5 text-lg font-extrabold leading-6 text-navy-text">
-                  {prescription.facility_name ?? t('prescriptions.unknownFacility')}
-                </Text>
-              </View>
-            </View>
-
-            <View className="mt-4 flex-row items-center justify-between">
-              <StatusPill
-                status={prescription.status}
-                statusColor={prescription.status_color}
-                large
-              />
-              <View className="flex-row items-center rounded-lg bg-cream-100 px-2.5 py-1">
-                <Text className="text-[11px] font-bold text-navy-secondary">
-                  {t('prescriptions.reference', { code: referenceCode(prescription.id) })}
-                </Text>
-              </View>
-            </View>
-
-            {expiryDays !== null ? (
-              <View
-                className="mt-3 flex-row items-center rounded-xl px-3 py-2.5"
-                style={{ backgroundColor: colors.semantic.warningSurface }}
-              >
-                <Hourglass size={15} color={colors.semantic.warning} />
-                <Text
-                  className="ml-2 flex-1 text-xs font-bold"
-                  style={{ color: colors.semantic.warning }}
-                >
-                  {expiryDays === 0
-                    ? t('prescriptions.expiresToday')
-                    : t('prescriptions.expiresInDays', { count: expiryDays })}
-                </Text>
-              </View>
-            ) : null}
-
-            {patient ? (
-              <View className="mt-4 flex-row items-center border-t border-cream-200 pt-4">
-                <UserRound size={15} color={colors.navy.muted} />
-                <Text
-                  className="ml-2 flex-1 text-xs font-bold text-navy-text"
-                  numberOfLines={1}
-                >
-                  {patient.display_name}
-                </Text>
-                <Text className="ml-2 text-[11px] text-navy-muted">{patient.health_id}</Text>
-              </View>
-            ) : null}
-          </View>
+          <IssuerCard
+            prescription={prescription}
+            patient={patient ? { name: patient.display_name, healthId: patient.health_id } : null}
+          />
 
           {/* Key dates. The facility is deliberately not repeated here — the
               card above already carries it as the prescription's attribution. */}
-          <View className="mt-4 overflow-hidden rounded-2xl border border-cream-300 bg-white px-4">
-            <InfoRow
-              icon={CalendarClock}
+          <Card>
+            <MetricRow
+              icon="calendar"
               label={t('prescriptions.prescribedAt')}
-              value={formatDate(prescription.prescribed_at, locale) ?? t('prescriptions.notRecorded')}
+              value={
+                prescription.prescribed_at
+                  ? fmtShortDate(prescription.prescribed_at)
+                  : t('prescriptions.notRecorded')
+              }
+              divider
             />
             {prescription.dispensed_at ? (
-              <InfoRow
-                icon={CircleCheck}
+              <MetricRow
+                icon="check-circle"
                 label={t('prescriptions.dispensedAt')}
-                value={formatDate(prescription.dispensed_at, locale) ?? t('prescriptions.notRecorded')}
+                value={fmtShortDate(prescription.dispensed_at)}
+                valueColor={colors.statusNormal}
+                divider
               />
             ) : null}
-            <InfoRow
-              icon={Hourglass}
+            <MetricRow
+              icon="clock"
               label={t('prescriptions.expiresAt')}
-              value={formatDate(prescription.expires_at, locale) ?? t('prescriptions.noExpiry')}
-              last
+              value={
+                prescription.expires_at
+                  ? fmtShortDate(prescription.expires_at)
+                  : t('prescriptions.noExpiry')
+              }
             />
-          </View>
+          </Card>
 
           {/* Medications */}
-          <View className="mb-3 mt-7 flex-row items-center">
-            <Tablets size={18} color={colors.brand[600]} />
-            <Text className="ml-2 flex-1 text-base font-extrabold text-navy-text">
-              {t('prescriptions.medications')}
-            </Text>
-            <View className="rounded-lg bg-cream-200 px-2 py-0.5">
-              <Text className="text-[11px] font-bold text-navy-secondary">
-                {prescription.items.length}
+          <Card variant="flush">
+            <View style={styles.medHead}>
+              <Icon name="pill" size={22} color={colors.blue} />
+              <Text style={styles.medHeadTitle} accessibilityRole="header">
+                {t('opesMeds.prescription.medicationsCount', { count: prescription.items.length })}
               </Text>
             </View>
-          </View>
 
-          {prescription.items.length === 0 ? (
-            <View className="items-center rounded-2xl border border-cream-300 bg-white px-6 py-8">
-              <Tablets size={22} color={colors.navy.muted} />
-              <Text className="mt-2 text-center text-sm text-navy-secondary">
-                {t('prescriptions.noMedications')}
-              </Text>
-            </View>
-          ) : (
-            <View style={{ gap: 12 }}>
-              {prescription.items.map((item, index) => (
-                <MedicationCard key={item.id} item={item} index={index + 1} locale={locale} />
-              ))}
-            </View>
-          )}
+            {prescription.items.length === 0 ? (
+              <EmptyState icon="pill" tint="blue" title={t('prescriptions.noMedications')} />
+            ) : (
+              prescription.items.map((item, index) => (
+                <MedicationItem
+                  key={item.id}
+                  item={item}
+                  index={index + 1}
+                  divider={index < prescription.items.length - 1}
+                />
+              ))
+            )}
 
-          {/* Notes from the care team */}
-          {prescription.notes ? (
-            <View className="mt-4 rounded-2xl border border-cream-300 bg-white p-4">
-              <View className="flex-row items-center">
-                <NotebookPen size={16} color={colors.brand[600]} />
-                <Text className="ml-2 text-sm font-bold text-navy-text">
-                  {t('prescriptions.notes')}
+            {/* Notes from the care team, or the standing instruction when the
+                prescription carries none. */}
+            <View style={styles.instructions}>
+              <Icon name="clipboard" size={22} color={colors.blue} />
+              <View style={styles.instructionsBody}>
+                <Text style={styles.instructionsTitle}>
+                  {prescription.notes
+                    ? t('prescriptions.notes')
+                    : t('opesMeds.prescription.instructions')}
+                </Text>
+                <Text style={styles.instructionsText}>
+                  {prescription.notes ?? t('opesMeds.prescription.instructionsFallback')}
                 </Text>
               </View>
-              <Text className="mt-2 text-sm leading-5 text-navy-secondary">
-                {prescription.notes}
-              </Text>
             </View>
-          ) : null}
+          </Card>
 
           {/* "Important" callout — carried over from the reference verbatim in
               intent: this is the one message that must survive any redesign. */}
-          <View className="mt-4 flex-row rounded-2xl border border-brand-100 bg-brand-50 p-4">
-            <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-white">
-              <ShieldCheck size={18} color={colors.brand[600]} />
-            </View>
-            <View className="flex-1">
-              <Text className="text-sm font-bold text-navy-text">
-                {t('prescriptions.safetyTitle')}
-              </Text>
-              <Text className="mt-1 text-xs leading-4 text-navy-secondary">
-                {t('prescriptions.safetyBody')}
-              </Text>
-            </View>
-          </View>
+          <VerifiedBanner
+            icon="shield-check"
+            title={t('prescriptions.safetyTitle')}
+            message={t('prescriptions.safetyBody')}
+          />
+
+          <ActionGrid
+            columns={3}
+            actions={[
+              {
+                icon: 'store',
+                label: t('opesMeds.prescription.actionFulfil'),
+                onPress: () => router.push('/pharmacy'),
+              },
+              {
+                icon: 'download',
+                label: t('opesMeds.prescription.actionDownload'),
+                onPress: explainNoPdf,
+              },
+              {
+                icon: 'share',
+                label: t('opesMeds.prescription.actionShare'),
+                onPress: () => share(prescription),
+              },
+            ]}
+          />
         </ScrollView>
       )}
+
+      {dialog.element}
     </Screen>
   );
 }
 
 /* -- Pieces ---------------------------------------------------------------- */
 
-function InfoRow({
-  icon: Icon,
-  label,
-  value,
-  last,
+/**
+ * Issuing facility + status. The facility is the only attribution the mobile
+ * API returns — there is no prescriber name to show.
+ */
+function IssuerCard({
+  prescription,
+  patient,
 }: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  last?: boolean;
-}) {
-  return (
-    <View
-      className={`flex-row items-center py-3.5 ${last ? '' : 'border-b border-cream-200'}`}
-    >
-      <Icon size={16} color={colors.navy.muted} />
-      <Text className="ml-2.5 flex-1 text-sm text-navy-secondary">{label}</Text>
-      <Text className="ml-2 flex-1 text-right text-sm font-bold text-navy-text" numberOfLines={2}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-function MedicationCard({
-  item,
-  index,
-  locale,
-}: {
-  item: PrescriptionItemDetail;
-  index: number;
-  locale: string;
+  prescription: PrescriptionDetail;
+  patient: { name: string; healthId: string } | null;
 }) {
   const { t } = useTranslation();
-  const dispensedOn = formatDate(item.dispensed_at, locale);
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const remaining = daysUntil(prescription.expires_at);
+  const isOpen = prescription.status === 'active' || prescription.status === 'partially_dispensed';
+  const expiryDays =
+    isOpen && remaining !== null && remaining >= 0 && remaining <= EXPIRY_WARNING_WINDOW_DAYS
+      ? remaining
+      : null;
+  const expiryLabel =
+    expiryDays === null
+      ? null
+      : expiryDays === 0
+        ? t('prescriptions.expiresToday')
+        : t('prescriptions.expiresInDays', { count: expiryDays });
+
+  const facility = prescription.facility_name ?? t('prescriptions.unknownFacility');
+  const reference = referenceCode(prescription.id);
 
   return (
-    <View className="rounded-2xl border border-cream-300 bg-white p-4">
-      {/* Name + dispense state */}
-      <View className="flex-row items-start">
-        <View className="h-7 w-7 items-center justify-center rounded-lg bg-brand-500">
-          <Text className="text-xs font-extrabold text-white">{index}</Text>
-        </View>
-        <View className="ml-3 flex-1">
-          <Text className="text-lg font-extrabold leading-6 text-navy-text">{item.drug_name}</Text>
-          {item.drug_code ? (
-            <Text className="mt-0.5 text-[11px] text-navy-muted">
-              {t('prescriptions.drugCode', { code: item.drug_code })}
-            </Text>
-          ) : null}
+    <Card>
+      <View style={styles.issuer}>
+        <TintCircle icon="building" tint="blue" size={64} />
+        <View style={styles.issuerBody}>
+          <Text style={styles.label}>{t('prescriptions.issuedBy')}</Text>
+          <Text style={styles.issuerName} numberOfLines={2}>
+            {facility}
+          </Text>
+          <Text style={styles.link}>{t('prescriptions.reference', { code: reference })}</Text>
         </View>
       </View>
 
-      <View className="mt-2.5 flex-row items-center">
-        {item.is_dispensed ? (
-          <CircleCheck size={14} color={colors.semantic.success} />
-        ) : (
-          <CircleDashed size={14} color={colors.navy.muted} />
-        )}
-        <Text
-          className="ml-1.5 text-xs font-bold"
-          style={{ color: item.is_dispensed ? colors.semantic.success : colors.navy.muted }}
-        >
-          {item.is_dispensed ? t('prescriptions.itemDispensed') : t('prescriptions.itemPending')}
-        </Text>
-        {item.is_dispensed && dispensedOn ? (
-          <Text className="ml-1.5 text-xs text-navy-muted">{`· ${dispensedOn}`}</Text>
+      <View style={styles.facts}>
+        <FactCell
+          icon="calendar"
+          label={t('opesMeds.prescription.prescribedOn')}
+          value={
+            prescription.prescribed_at
+              ? fmtShortDate(prescription.prescribed_at)
+              : t('prescriptions.notRecorded')
+          }
+        />
+        <FactCell
+          icon="document-text"
+          label={t('opesMeds.prescription.prescriptionId')}
+          value={reference}
+          divided
+        />
+      </View>
+
+      <View style={styles.statusRow}>
+        <View style={styles.statusPair}>
+          <Text style={styles.statusKey}>{t('opesMeds.prescription.status')}</Text>
+          <StatusBadge
+            status={prescription.status}
+            tone={prescriptionTone(prescription.status, prescription.status_color)}
+            label={t(statusLabelKey(prescription.status))}
+            size="sm"
+          />
+        </View>
+        {expiryLabel ? (
+          <StatusBadge status="due" tone="warning" icon="clock" label={expiryLabel} size="sm" />
         ) : null}
       </View>
 
-      {/* The safety-critical block. Deliberately the loudest thing on the card. */}
-      <View className="mt-3.5 overflow-hidden rounded-2xl border border-brand-100 bg-brand-50 px-4">
-        <Text className="pb-1 pt-3.5 text-[11px] font-bold uppercase tracking-wide text-brand-700">
-          {t('prescriptions.howToTake')}
-        </Text>
-        <DosageRow label={t('prescriptions.dose')} value={item.dose} emphasis />
-        <DosageRow label={t('prescriptions.frequency')} value={item.frequency} emphasis />
-        <DosageRow label={t('prescriptions.route')} value={item.route} />
-        <DosageRow
-          label={t('prescriptions.duration')}
-          value={
-            item.duration_days != null
-              ? t('prescriptions.durationDays', { count: item.duration_days })
-              : null
-          }
+      {patient ? (
+        <View
+          style={styles.patientRow}
+          accessible
+          accessibilityLabel={a11yJoin(t('opesMeds.prescription.patient'), patient.name, patient.healthId)}
+        >
+          <TintCircle icon="person" tint="blue" size={40} />
+          <View style={styles.patientBody}>
+            <Text style={styles.label}>{t('opesMeds.prescription.patient')}</Text>
+            <Text style={styles.patientName} numberOfLines={1}>
+              {patient.name}
+            </Text>
+          </View>
+          <Text style={styles.patientId} numberOfLines={1}>
+            {patient.healthId}
+          </Text>
+        </View>
+      ) : null}
+    </Card>
+  );
+}
+
+/** A dosage value, or null when it is blank — blank must read "Not specified". */
+function clean(value: string | null | undefined): string | null {
+  return value && value.trim().length > 0 ? value : null;
+}
+
+function MedicationItem({
+  item,
+  index,
+  divider,
+}: {
+  item: PrescriptionItemDetail;
+  index: number;
+  divider?: boolean;
+}) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  // The backend now sends a per-line `status` (pending | dispensed | cancelled)
+  // alongside the older boolean; the boolean is the fallback for a row that
+  // predates it.
+  const lineStatus = item.status || (item.is_dispensed ? 'dispensed' : 'pending');
+  const lineLabel =
+    lineStatus === 'dispensed'
+      ? t('prescriptions.itemDispensed')
+      : lineStatus === 'cancelled'
+        ? t('prescriptions.statusCancelled')
+        : t('prescriptions.itemPending');
+  const lineIcon: IconName =
+    lineStatus === 'dispensed' ? 'check-circle' : lineStatus === 'cancelled' ? 'x-circle' : 'clock';
+  const dispensedOn =
+    lineStatus === 'dispensed' && item.dispensed_at ? fmtShortDate(item.dispensed_at) : null;
+
+  const missing = t('prescriptions.notSpecified');
+  const dose = clean(item.dose);
+  const frequency = clean(item.frequency);
+  const route = clean(item.route);
+  const duration =
+    item.duration_days != null ? t('prescriptions.durationDays', { count: item.duration_days }) : null;
+  const quantity = item.quantity != null ? String(item.quantity) : null;
+
+  return (
+    <View style={[styles.item, divider && styles.itemDivider]}>
+      <View style={styles.itemHead}>
+        <View style={styles.itemIndex}>
+          <Text style={styles.itemIndexText}>{index}</Text>
+        </View>
+        <TintCircle
+          icon={formIcon({ dosage: item.dose, drug_name: item.drug_name })}
+          tint="blue"
+          size={52}
+          square
         />
-        <DosageRow
-          label={t('prescriptions.quantity')}
-          value={item.quantity != null ? String(item.quantity) : null}
-          last
-        />
+        <View style={styles.itemBody}>
+          <Text style={styles.itemName} numberOfLines={2}>
+            {item.drug_name}
+          </Text>
+          {item.drug_code ? (
+            <Text style={styles.itemCode}>{t('prescriptions.drugCode', { code: item.drug_code })}</Text>
+          ) : null}
+        </View>
+        <View style={styles.itemStatus}>
+          <StatusBadge status={lineStatus} label={lineLabel} icon={lineIcon} size="sm" />
+          {dispensedOn ? <Text style={styles.itemMeta}>{dispensedOn}</Text> : null}
+        </View>
+      </View>
+
+      {/* The safety-critical block. Deliberately the loudest thing on the card:
+          how much and how often lead, then route, duration and quantity. */}
+      <View style={styles.dosage}>
+        <Text style={styles.dosageTitle}>{t('prescriptions.howToTake')}</Text>
+        <View style={styles.itemFacts}>
+          <FactCell
+            icon="capsule"
+            label={t('prescriptions.dose')}
+            value={dose ?? missing}
+            valueColor={dose ? undefined : colors.textMuted}
+          />
+          <FactCell
+            icon="clock"
+            label={t('prescriptions.frequency')}
+            value={frequency ?? missing}
+            valueColor={frequency ? undefined : colors.textMuted}
+            divided
+          />
+        </View>
+        <View style={[styles.itemFacts, styles.itemFactsNext]}>
+          <FactCell
+            icon="arrow-up-right"
+            label={t('prescriptions.route')}
+            value={route ? routeLabel(route) : missing}
+            valueColor={route ? undefined : colors.textMuted}
+          />
+          <FactCell
+            icon="calendar"
+            label={t('prescriptions.duration')}
+            value={duration ?? missing}
+            valueColor={duration ? undefined : colors.textMuted}
+            divided
+          />
+        </View>
+        <View style={[styles.itemFacts, styles.itemFactsNext]}>
+          <FactCell
+            icon="receipt"
+            label={t('prescriptions.quantity')}
+            value={quantity ?? missing}
+            valueColor={quantity ? undefined : colors.textMuted}
+          />
+        </View>
       </View>
 
       {item.dispense_notes ? (
-        <View className="mt-3 rounded-xl bg-cream-100 px-3 py-2.5">
-          <Text className="text-[11px] font-bold uppercase tracking-wide text-navy-muted">
-            {t('prescriptions.dispenseNotes')}
-          </Text>
-          <Text className="mt-1 text-xs leading-4 text-navy-secondary">{item.dispense_notes}</Text>
+        <View style={styles.dispenseNote}>
+          <Text style={styles.dispenseNoteTitle}>{t('prescriptions.dispenseNotes')}</Text>
+          <Text style={styles.dispenseNoteText}>{item.dispense_notes}</Text>
         </View>
       ) : null}
 
       <FindNearbyRow drugName={item.drug_name} />
-    </View>
-  );
-}
-
-/**
- * One dosage instruction. `emphasis` marks the two lines that most change what
- * a patient actually does — how much, and how often — so they sit a size above
- * route/duration/quantity. A missing value says so in words: an em dash next to
- * "Dose" is too easy to read as "none".
- */
-function DosageRow({
-  label,
-  value,
-  emphasis,
-  last,
-}: {
-  label: string;
-  value: string | null;
-  emphasis?: boolean;
-  last?: boolean;
-}) {
-  const { t } = useTranslation();
-  const missing = value == null || value.trim().length === 0;
-
-  return (
-    <View
-      className={`flex-row items-center py-3 ${last ? '' : 'border-b border-brand-100'}`}
-    >
-      <Text className="w-24 text-[11px] font-semibold uppercase tracking-wide text-navy-muted">
-        {label}
-      </Text>
-      <Text
-        className={`flex-1 text-right ${
-          missing
-            ? 'text-sm text-navy-muted'
-            : emphasis
-              ? 'text-lg font-extrabold text-navy-text'
-              : 'text-base font-bold text-navy-text'
-        }`}
-      >
-        {missing ? t('prescriptions.notSpecified') : value}
-      </Text>
     </View>
   );
 }
@@ -444,6 +505,8 @@ function DosageRow({
 function FindNearbyRow({ drugName }: { drugName: string }) {
   const { t } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { data: medicine, isPending } = useCatalogMedicineMatch(drugName);
 
   const price = medicine?.availability.price_min ?? null;
@@ -451,48 +514,207 @@ function FindNearbyRow({ drugName }: { drugName: string }) {
 
   const hint = medicine
     ? price != null && pharmacyCount > 0
-      ? t('prescriptions.nearbyFrom', {
-          price: formatXaf(price),
-          count: pharmacyCount,
-        })
+      ? t('prescriptions.nearbyFrom', { price: formatXaf(price) ?? '', count: pharmacyCount })
       : t('prescriptions.nearbyInCatalog', { name: medicine.name })
     : t('prescriptions.nearbySearchInstead');
 
   return (
-    <Pressable
-      onPress={() => {
-        if (medicine) {
-          router.push({
-            pathname: '/pharmacy/[medicineId]',
-            params: { medicineId: medicine.id },
-          });
-        } else {
-          router.push('/pharmacy');
-        }
-      }}
-      accessibilityRole="button"
-      className="mt-3.5 flex-row items-center rounded-xl border border-brand-500 px-3 py-3"
-    >
-      <View className="h-8 w-8 items-center justify-center rounded-lg bg-brand-50">
-        {medicine ? (
-          <Store size={16} color={colors.brand[600]} />
-        ) : (
-          <Search size={16} color={colors.brand[600]} />
-        )}
-      </View>
-      <View className="ml-2.5 flex-1">
-        <Text className="text-xs font-bold text-brand-600">{t('prescriptions.findNearby')}</Text>
-        <Text className="mt-0.5 text-[11px] text-navy-secondary" numberOfLines={1}>
-          {isPending ? t('prescriptions.nearbyChecking') : hint}
-        </Text>
-      </View>
-      <ChevronRight size={16} color={colors.brand[600]} />
-    </Pressable>
+    <View style={styles.nearby}>
+      <ListRow
+        icon={medicine ? 'store' : 'search'}
+        tint="green"
+        title={t('prescriptions.findNearby')}
+        subtitle={isPending ? t('prescriptions.nearbyChecking') : hint}
+        onPress={() => {
+          if (medicine) {
+            router.push({ pathname: '/pharmacy/[medicineId]', params: { medicineId: medicine.id } });
+          } else {
+            router.push('/pharmacy');
+          }
+        }}
+        style={styles.nearbyRow}
+      />
+    </View>
   );
 }
 
-/** XAF is quoted in whole francs, grouped with spaces — "12 500 FCFA". */
-function formatXaf(value: number): string {
-  const grouped = String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  return `${grouped} FCFA`;
-}
+/* -- Styles ---------------------------------------------------------------- */
+
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+
+    label: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textSecondary,
+    },
+    link: { fontFamily: typography.fontFamily.medium, fontSize: typography.size.xs, color: c.link },
+
+    // -- Issuer --------------------------------------------------------------
+    issuer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    issuerBody: { flex: 1, minWidth: 0, gap: 2 },
+    issuerName: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.md,
+      lineHeight: typography.lineHeight.md,
+      color: c.textPrimary,
+    },
+    facts: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginTop: spacing.md,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: c.divider,
+      marginHorizontal: -10,
+    },
+    statusRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginTop: 12,
+    },
+    statusPair: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    statusKey: {
+      overflow: 'hidden',
+      borderRadius: radii.sm,
+      backgroundColor: c.blue,
+      color: c.textOnBrand,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    patientRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginTop: spacing.md,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: c.divider,
+    },
+    patientBody: { flex: 1, minWidth: 0, gap: 1 },
+    patientName: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: c.textPrimary,
+    },
+    patientId: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+
+    // -- Medications ---------------------------------------------------------
+    medHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: c.divider,
+    },
+    medHeadTitle: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: c.blue,
+    },
+
+    item: { paddingHorizontal: spacing.md, paddingVertical: 12, gap: 12 },
+    itemDivider: { borderBottomWidth: 1, borderBottomColor: c.divider },
+    itemHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    itemIndex: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: c.blue,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    itemIndexText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      color: c.textOnBrand,
+    },
+    itemBody: { flex: 1, minWidth: 0, gap: 2 },
+    itemName: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      lineHeight: typography.lineHeight.md,
+      color: c.textPrimary,
+    },
+    itemCode: { fontFamily: typography.fontFamily.regular, fontSize: typography.size.xs, color: c.textMuted },
+    itemStatus: { alignItems: 'flex-end', gap: 3, maxWidth: 120 },
+    itemMeta: { fontFamily: typography.fontFamily.regular, fontSize: typography.size.xs, color: c.textMuted },
+
+    dosage: {
+      borderRadius: radii.md,
+      backgroundColor: c.primarySoft,
+      paddingVertical: 12,
+      paddingHorizontal: 6,
+      gap: 10,
+    },
+    dosageTitle: {
+      paddingHorizontal: 10,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: 13,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: c.blue,
+    },
+    itemFacts: { flexDirection: 'row', alignItems: 'flex-start' },
+    itemFactsNext: { paddingTop: 10, borderTopWidth: 1, borderTopColor: c.border },
+
+    dispenseNote: {
+      borderRadius: radii.sm,
+      backgroundColor: c.surfaceMuted,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      gap: 2,
+    },
+    dispenseNoteTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      color: c.textMuted,
+    },
+    dispenseNoteText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textSecondary,
+    },
+
+    nearby: { borderTopWidth: 1, borderTopColor: c.divider },
+    nearbyRow: { paddingHorizontal: 0, paddingBottom: 2 },
+
+    instructions: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      padding: spacing.md,
+      backgroundColor: c.primarySoft,
+    },
+    instructionsBody: { flex: 1, minWidth: 0, gap: 2 },
+    instructionsTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: 13,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: c.blue,
+    },
+    instructionsText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.sm,
+      color: c.textSecondary,
+    },
+  });

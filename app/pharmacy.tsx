@@ -1,38 +1,38 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Baby,
-  Bug,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  CircleAlert,
-  CircleDot,
-  Clock,
-  Crosshair,
-  Droplet,
-  FlaskConical,
-  HeartPulse,
-  LayoutGrid,
-  MapPin,
-  Package,
-  Pill,
-  Search,
-  ShieldCheck,
-  ShieldPlus,
-  Sparkles,
-  Store,
-  Ticket,
-  Wind,
-  X,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../components/ui/Screen';
+  Card,
+  Chip,
+  EmptyState,
+  Icon,
+  ListRow,
+  PillInput,
+  ScreenHeader,
+  SectionHeader,
+  StatusBadge,
+  formatDateTime,
+  radii,
+  spacing,
+  typography,
+  useDialog,
+  useTheme,
+  type IconName,
+  type Palette,
+  type StatusTone,
+} from '@/components/opes-ui';
+import { FactCell, MedButton, TintCircle } from '@/components/meds/shared';
 import { FacilityMap } from '@/components/map/FacilityMap';
-import { colors } from '../theme/tokens';
 import {
   useCancelMedicineReservation,
   useMedicineCategories,
@@ -42,21 +42,23 @@ import {
   type MedicineCategoryValue,
   type MedicineReservation,
   type NearbyPharmacy,
-} from '../lib/api/queries';
-import { formatXaf, formatXafBare, useMedicineCatalog } from '../lib/api/pharmacyQueries';
+} from '@/lib/api/queries';
+import { formatXaf, formatXafBare, useMedicineCatalog } from '@/lib/api/pharmacyQueries';
 
 /**
  * Medicine Finder — search the national catalogue, see where a medicine is
  * stocked, and manage the holds you already have.
  *
- * Reference: `Mobile app screens/a_clean_mobile_app_ui_screenshot_of_a_medicine_fi.png`
- * (search field → filter row → category tiles → medicine card → nearby pharmacy
- * list → safety banner). The reference is drawn in a green/white palette; per
- * the design spec that palette is superseded by the gold/cream brand, so the
- * layout and interaction model are matched while every colour comes from
- * theme/tokens. The reference's two-column desktop split (list on the left,
- * "Selected Medicine" panel on the right) becomes a drill-in on a phone:
+ * Presentation: the OPES kit (`ScreenHeader` → `PillInput` search → filter and
+ * category `Chip`s → results as `Card variant="flush"` + `ListRow`s → nearby
+ * pharmacies with the embedded `FacilityMap` → safety strip), in the app's own
+ * palette via `useTheme()`. Layout reference: `UIUX/src/screens/meds/
+ * OrderFromPharmacyScreen.tsx`. The reference's two-column desktop split (list
+ * on the left, "Selected Medicine" on the right) is a drill-in on a phone:
  * tapping a medicine opens app/pharmacy/[medicineId].tsx.
+ *
+ * Data layer is untouched: `useMedicineCatalog`, `useMedicineCategories`,
+ * `useNearbyPharmacies`, `useMedicineReservations`, `useCancelMedicineReservation`.
  *
  * Location is a city picker, not a device GPS fix: the app ships no native
  * location dependency, and GET /mobile/pharmacy/nearby takes a plain lat/lng,
@@ -94,38 +96,37 @@ const RADIUS_OPTIONS = [2, 5, 10, 25, 50];
 /** Nearby pharmacies shown before the "show all" toggle (the API returns 25). */
 const NEARBY_PREVIEW = 6;
 
-/** Maps the `category_icon` key MedicineCategory::iconKey() returns onto a
- *  Lucide icon. Every value the enum can emit is covered; `Package` is the
- *  defensive fallback if the enum gains a case before this map does. */
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  pill: Pill,
-  'shield-plus': ShieldPlus,
-  droplet: Droplet,
-  'heart-pulse': HeartPulse,
-  'flask-conical': FlaskConical,
-  wind: Wind,
-  sparkles: Sparkles,
-  'circle-dot': CircleDot,
-  bug: Bug,
-  baby: Baby,
-  package: Package,
+/**
+ * Maps the `category_icon` key MedicineCategory::iconKey() returns onto a kit
+ * glyph. Every value the enum can emit is covered; `first-aid` is the
+ * defensive fallback if the enum gains a case before this map does.
+ */
+const CATEGORY_ICONS: Record<string, IconName> = {
+  pill: 'pill',
+  'shield-plus': 'shield',
+  droplet: 'droplet',
+  'heart-pulse': 'heart-pulse',
+  'flask-conical': 'flask',
+  wind: 'lungs',
+  sparkles: 'sun',
+  'circle-dot': 'target',
+  bug: 'microscope',
+  baby: 'baby',
+  package: 'first-aid',
 };
 
-const CARD_SHADOW = {
-  shadowColor: colors.navy.text,
-  shadowOpacity: 0.05,
-  shadowRadius: 10,
-  shadowOffset: { width: 0, height: 3 },
-  elevation: 2,
-};
+const FALLBACK_CATEGORY_ICON: IconName = 'first-aid';
 
 type SheetKey = 'city' | 'radius' | null;
 /** null = both kinds, true = prescription-only, false = over-the-counter. */
 type RxFilter = boolean | null;
 
 export default function PharmacyScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const dialog = useDialog();
 
   const [term, setTerm] = useState('');
   const [debouncedTerm, setDebouncedTerm] = useState('');
@@ -139,7 +140,7 @@ export default function PharmacyScreen() {
   const [sheet, setSheet] = useState<SheetKey>(null);
   const [reservationsOpen, setReservationsOpen] = useState(false);
   const [showAllPharmacies, setShowAllPharmacies] = useState(false);
-  const [cancelError, setCancelError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedTerm(term.trim()), 300);
@@ -177,12 +178,13 @@ export default function PharmacyScreen() {
     ? allPharmacyRows.filter((p) => p.is_open !== false)
     : allPharmacyRows;
   const filtersActive = !!debouncedTerm || category !== null || rxFilter !== null;
+  const hasMappable = pharmacyRows.some((p) => p.latitude != null && p.longitude != null);
 
-  const openMedicine = (medicine: Medicine) =>
+  const openMedicine = (medicineId: string) =>
     router.push({
       pathname: '/pharmacy/[medicineId]',
       params: {
-        medicineId: medicine.id,
+        medicineId,
         lat: String(city.lat),
         lng: String(city.lng),
         radiusKm: String(radiusKm),
@@ -196,107 +198,117 @@ export default function PharmacyScreen() {
     setRxFilter(null);
   };
 
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'));
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        catalog.refetch(),
+        pharmacies.refetch(),
+        reservations.refetch(),
+        categories.refetch(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [catalog, pharmacies, reservations, categories]);
+
+  /** Cancelling a hold is destructive and unrecoverable — confirm first. */
+  const confirmCancel = (hold: MedicineReservation) =>
+    dialog.confirm({
+      title: t('pharmacy.reservationCancel'),
+      message: [
+        hold.medicine?.name,
+        hold.pharmacy?.name,
+        t('pharmacy.reservationRef', { reference: hold.reference }),
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      confirmLabel: t('pharmacy.reservationCancel'),
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await cancelReservation.mutateAsync({ id: hold.id });
+        } catch {
+          dialog.alert(t('pharmacy.loadFailed'), t('pharmacy.reservationCancelFailed'), 'critical');
+        }
+      },
+    });
+
+  const headerActions =
+    openHolds.length > 0
+      ? [
+          {
+            icon: 'receipt' as IconName,
+            badge: openHolds.length,
+            onPress: () => setReservationsOpen((open) => !open),
+            accessibilityLabel: t('pharmacy.reservationsTitle'),
+          },
+        ]
+      : undefined;
+
   return (
-    <Screen className="px-0">
+    <SafeAreaView edges={['top']} style={styles.screen}>
+      <ScreenHeader
+        title={t('pharmacy.title')}
+        subtitle={t('pharmacy.subtitle')}
+        onBack={goBack}
+        actions={headerActions}
+      />
+
       <ScrollView
-        className="flex-1 px-6"
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.blue} />
+        }
       >
-        {/* Header */}
-        <View className="mt-2 flex-row items-center justify-between">
-          <Pressable
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'))}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={t('pharmacy.back')}
-            className="h-10 w-10 items-center justify-center rounded-xl border border-cream-300 bg-white"
-          >
-            <ChevronLeft size={20} color={colors.navy.text} />
-          </Pressable>
-
-          <View className="flex-row items-center">
-            <Text className="text-base font-extrabold text-navy-text">Opes</Text>
-            <Text className="text-base font-extrabold text-brand-500">Care</Text>
-          </View>
-
-          {openHolds.length > 0 ? (
-            <Pressable
-              onPress={() => setReservationsOpen((open) => !open)}
-              className="h-10 flex-row items-center rounded-xl border border-brand-500 bg-brand-50 px-3"
-              accessibilityRole="button"
-              accessibilityLabel={t('pharmacy.reservationsTitle')}
-            >
-              <Ticket size={15} color={colors.brand[600]} />
-              <Text className="ml-1.5 text-xs font-extrabold text-brand-700">
-                {openHolds.length}
-              </Text>
-            </Pressable>
-          ) : (
-            <View className="h-10 w-10" />
-          )}
-        </View>
-
-        {/* Hero */}
-        <LinearGradient
-          colors={[colors.brand[600], colors.brand[500], colors.brand[300]]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ borderRadius: 24, marginTop: 20, padding: 20 }}
-        >
-          <View className="flex-row items-start justify-between">
-            <View className="flex-1 pr-3">
-              <Text className="text-2xl font-extrabold text-white">{t('pharmacy.title')}</Text>
-              <Text className="mt-1.5 text-xs leading-4 text-white/85">
-                {t('pharmacy.subtitle')}
-              </Text>
-            </View>
-            <View className="h-14 w-14 items-center justify-center rounded-2xl bg-white/20">
-              <Pill color={colors.white} size={26} />
-            </View>
-          </View>
-
-          <View className="mt-5 flex-row">
-            <HeroStat
+        {/* At-a-glance counts */}
+        <Card>
+          <View style={styles.factRow}>
+            <FactCell
+              icon="pill"
               label={t('pharmacy.resultsTitle')}
               value={catalog.isPending ? '—' : String(total)}
+              valueColor={colors.link}
+              align="center"
             />
-            <View className="mx-4 w-px bg-white/25" />
-            <HeroStat
+            <FactCell
+              icon="store"
               label={t('pharmacy.nearbyTitle')}
               value={pharmacies.isPending ? '—' : String(pharmacyRows.length)}
+              valueColor={colors.link}
+              align="center"
+              divided
             />
           </View>
-        </LinearGradient>
+        </Card>
 
         {/* Search */}
-        <View
-          className="mt-4 h-14 flex-row items-center rounded-2xl border border-cream-300 bg-white px-4"
-          style={CARD_SHADOW}
-        >
-          <Search size={18} color={colors.brand[600]} />
-          <TextInput
+        <View style={styles.searchWrap}>
+          <PillInput
+            icon={<Icon name="search" size={18} color={colors.blue} />}
             value={term}
             onChangeText={setTerm}
             placeholder={t('pharmacy.searchPlaceholder')}
-            placeholderTextColor={colors.navy.muted}
-            className="ml-3 flex-1 text-base text-navy-text"
             autoCorrect={false}
             autoCapitalize="none"
             returnKeyType="search"
             accessibilityLabel={t('pharmacy.searchPlaceholder')}
           />
           {term.length > 0 ? (
-            <Pressable
+            <TouchableOpacity
               onPress={() => setTerm('')}
-              hitSlop={8}
+              hitSlop={10}
+              activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel={t('pharmacy.close')}
+              style={styles.searchClear}
             >
-              <View className="h-6 w-6 items-center justify-center rounded-full bg-cream-200">
-                <X size={13} color={colors.navy.secondary} />
-              </View>
-            </Pressable>
+              <Icon name="x-circle" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
           ) : null}
         </View>
 
@@ -304,86 +316,96 @@ export default function PharmacyScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          className="-mx-6 mt-3 px-6"
-          contentContainerStyle={{ gap: 8, paddingRight: 24 }}
+          style={styles.chipRail}
+          contentContainerStyle={styles.chipRailContent}
         >
-          <FilterChip
-            icon={MapPin}
+          <Chip
+            icon="location"
             label={city.name}
-            caret
-            active={sheet === 'city'}
+            selected={sheet === 'city'}
             onPress={() => setSheet((s) => (s === 'city' ? null : 'city'))}
+            accessibilityLabel={t('pharmacy.cityPickerTitle')}
           />
-          <FilterChip
-            icon={Crosshair}
+          <Chip
+            icon="target"
             label={t('pharmacy.radius', { km: radiusKm })}
-            caret
-            active={sheet === 'radius'}
+            selected={sheet === 'radius'}
             onPress={() => setSheet((s) => (s === 'radius' ? null : 'radius'))}
+            accessibilityLabel={t('pharmacy.radiusPickerTitle')}
           />
-          <FilterChip
-            icon={openNowOnly ? Clock : Store}
+          <Chip
+            icon={openNowOnly ? 'clock' : 'store'}
             label={openNowOnly ? t('pharmacy.openNow') : t('pharmacy.allPharmacies')}
-            active={openNowOnly}
+            selected={openNowOnly}
             onPress={() => setOpenNowOnly((only) => !only)}
           />
-          <FilterChip
-            icon={ShieldPlus}
+          <Chip
+            icon="document-text"
             label={t('pharmacy.filterRx')}
-            active={rxFilter === true}
+            selected={rxFilter === true}
             onPress={() => setRxFilter((v) => (v === true ? null : true))}
           />
-          <FilterChip
-            icon={Sparkles}
+          <Chip
+            icon="check-circle"
             label={t('pharmacy.filterOtc')}
-            active={rxFilter === false}
+            selected={rxFilter === false}
             onPress={() => setRxFilter((v) => (v === false ? null : false))}
           />
         </ScrollView>
 
         {sheet === 'city' ? (
-          <OptionPanel title={t('pharmacy.cityPickerTitle')}>
+          <OptionCard title={t('pharmacy.cityPickerTitle')}>
             {CITIES.map((option, index) => (
-              <OptionRow
+              <ListRow
                 key={option.key}
-                label={option.name}
-                selected={option.key === city.key}
-                last={index === CITIES.length - 1}
+                title={option.name}
+                trailing={
+                  option.key === city.key ? (
+                    <Icon name="check" size={18} color={colors.blue} />
+                  ) : undefined
+                }
+                chevron={false}
+                divider={index < CITIES.length - 1}
                 onPress={() => {
                   setCity(option);
                   setSheet(null);
                 }}
               />
             ))}
-          </OptionPanel>
+          </OptionCard>
         ) : null}
 
         {sheet === 'radius' ? (
-          <OptionPanel title={t('pharmacy.radiusPickerTitle')}>
+          <OptionCard title={t('pharmacy.radiusPickerTitle')}>
             {RADIUS_OPTIONS.map((option, index) => (
-              <OptionRow
+              <ListRow
                 key={option}
-                label={t('pharmacy.radius', { km: option })}
-                selected={option === radiusKm}
-                last={index === RADIUS_OPTIONS.length - 1}
+                title={t('pharmacy.radius', { km: option })}
+                trailing={
+                  option === radiusKm ? (
+                    <Icon name="check" size={18} color={colors.blue} />
+                  ) : undefined
+                }
+                chevron={false}
+                divider={index < RADIUS_OPTIONS.length - 1}
                 onPress={() => {
                   setRadiusKm(option);
                   setSheet(null);
                 }}
               />
             ))}
-          </OptionPanel>
+          </OptionCard>
         ) : null}
 
-        {/* Category tiles */}
+        {/* Category chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          className="-mx-6 mt-4 px-6"
-          contentContainerStyle={{ gap: 8, paddingRight: 24 }}
+          style={styles.chipRail}
+          contentContainerStyle={styles.chipRailContent}
         >
-          <CategoryChip
-            icon={LayoutGrid}
+          <Chip
+            icon="grid"
             label={t('pharmacy.categoryAll')}
             selected={category === null}
             onPress={() => setCategory(null)}
@@ -391,9 +413,9 @@ export default function PharmacyScreen() {
           {(categories.data?.categories ?? [])
             .filter((c) => c.medicine_count > 0)
             .map((c) => (
-              <CategoryChip
+              <Chip
                 key={c.value}
-                icon={CATEGORY_ICONS[c.icon] ?? Package}
+                icon={CATEGORY_ICONS[c.icon] ?? FALLBACK_CATEGORY_ICON}
                 label={t(`pharmacy.categories.${c.value}`, { defaultValue: c.label })}
                 count={c.medicine_count}
                 selected={category === c.value}
@@ -404,266 +426,235 @@ export default function PharmacyScreen() {
 
         {/* Open holds */}
         {openHolds.length > 0 ? (
-          <View className="mt-6 rounded-2xl border border-brand-100 bg-cream-200 p-4">
-            <Pressable
-              onPress={() => setReservationsOpen((open) => !open)}
-              className="flex-row items-center"
-              accessibilityRole="button"
-            >
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-white">
-                <Ticket size={18} color={colors.brand[600]} />
-              </View>
-              <View className="ml-3 flex-1">
-                <Text className="text-sm font-bold text-navy-text">
-                  {t('pharmacy.reservationsTitle')}
-                </Text>
-                <Text className="mt-0.5 text-[11px] text-navy-secondary">
-                  {t('pharmacy.reservationsSubtitle', { count: openHolds.length })}
-                </Text>
-              </View>
-              <Text className="text-[11px] font-bold text-brand-600">
-                {reservationsOpen ? t('pharmacy.reservationsHide') : t('pharmacy.reservationsShow')}
-              </Text>
-              <ChevronDown
-                size={14}
-                color={colors.brand[600]}
-                style={{
-                  marginLeft: 4,
-                  transform: [{ rotate: reservationsOpen ? '180deg' : '0deg' }],
-                }}
-              />
-            </Pressable>
-
+          <View>
+            <SectionHeader
+              title={t('pharmacy.reservationsSubtitle', { count: openHolds.length })}
+              actionLabel={
+                reservationsOpen ? t('pharmacy.reservationsHide') : t('pharmacy.reservationsShow')
+              }
+              actionChevron
+              onAction={() => setReservationsOpen((open) => !open)}
+            />
             {reservationsOpen ? (
-              <View className="mt-3" style={{ gap: 8 }}>
+              <View style={styles.stack}>
                 {openHolds.map((hold) => (
-                  <ReservationRow
+                  <HoldCard
                     key={hold.id}
                     reservation={hold}
-                    language={i18n.language}
                     cancelling={
                       cancelReservation.isPending && cancelReservation.variables?.id === hold.id
                     }
                     onOpenMedicine={
-                      hold.medicine
-                        ? () =>
-                            router.push({
-                              pathname: '/pharmacy/[medicineId]',
-                              params: {
-                                medicineId: hold.medicine!.id,
-                                lat: String(city.lat),
-                                lng: String(city.lng),
-                                radiusKm: String(radiusKm),
-                              },
-                            })
-                        : null
+                      hold.medicine ? () => openMedicine(hold.medicine!.id) : null
                     }
-                    onCancel={() => {
-                      setCancelError(false);
-                      cancelReservation.mutate(
-                        { id: hold.id },
-                        { onError: () => setCancelError(true) },
-                      );
-                    }}
+                    onCancel={() => confirmCancel(hold)}
                   />
                 ))}
-                {cancelError ? (
-                  <Text
-                    className="mt-1 text-[11px]"
-                    style={{ color: colors.semantic.danger }}
-                  >
-                    {t('pharmacy.reservationCancelFailed')}
-                  </Text>
-                ) : null}
               </View>
             ) : null}
           </View>
         ) : null}
 
         {/* Catalogue results */}
-        <View className="mt-6 flex-row items-center justify-between">
-          <Text className="text-base font-bold text-navy-text">{t('pharmacy.resultsTitle')}</Text>
+        <View>
+          <SectionHeader
+            title={
+              catalog.isPending
+                ? t('pharmacy.resultsTitle')
+                : t('pharmacy.resultsCount', { count: total })
+            }
+            actionLabel={t('pharmacy.clearFilters')}
+            onAction={filtersActive ? clearFilters : undefined}
+          />
+
           {catalog.isPending ? (
-            <Text className="text-[11px] text-navy-muted">{t('pharmacy.searching')}</Text>
+            <LoadingBlock label={t('pharmacy.searching')} />
+          ) : catalog.isError ? (
+            <Card variant="flush">
+              <EmptyState
+                icon="alert-circle"
+                tint="red"
+                title={t('pharmacy.loadFailed')}
+                actionLabel={t('pharmacy.retry')}
+                onAction={() => catalog.refetch()}
+              />
+            </Card>
+          ) : results.length === 0 ? (
+            <Card variant="flush">
+              <EmptyState
+                icon="search"
+                tint="blue"
+                title={t('pharmacy.noMedicines')}
+                message={t('pharmacy.noResultsHint')}
+                actionLabel={filtersActive ? t('pharmacy.clearFilters') : undefined}
+                onAction={filtersActive ? clearFilters : undefined}
+              />
+            </Card>
           ) : (
-            <View className="flex-row items-center">
-              <Text className="text-[11px] font-semibold text-navy-secondary">
-                {t('pharmacy.resultsCount', { count: total })}
-              </Text>
-              {filtersActive ? (
-                <Pressable onPress={clearFilters} hitSlop={8} className="ml-3">
-                  <Text className="text-[11px] font-bold text-brand-600">
-                    {t('pharmacy.clearFilters')}
-                  </Text>
-                </Pressable>
+            <Card variant="flush">
+              {results.map((medicine, index) => (
+                <MedicineRow
+                  key={medicine.id}
+                  medicine={medicine}
+                  divider={index < results.length - 1}
+                  onPress={() => openMedicine(medicine.id)}
+                />
+              ))}
+            </Card>
+          )}
+        </View>
+
+        {/* Pharmacies near the chosen origin */}
+        <View>
+          <SectionHeader
+            title={
+              pharmacies.isSuccess
+                ? t('pharmacy.nearbyPharmacies', { count: pharmacyRows.length })
+                : t('pharmacy.nearbyTitle')
+            }
+            actionLabel={showAllPharmacies ? t('pharmacy.showLess') : t('pharmacy.showAll')}
+            actionChevron
+            onAction={
+              pharmacyRows.length > NEARBY_PREVIEW
+                ? () => setShowAllPharmacies((open) => !open)
+                : undefined
+            }
+          />
+          <Text style={styles.sectionHint}>
+            {t('pharmacy.nearbySubtitle')}
+            {'  ·  '}
+            {t('pharmacy.sortByDistance')}
+          </Text>
+
+          {pharmacies.isPending ? (
+            <LoadingBlock label={t('pharmacy.loadingPharmacies')} />
+          ) : pharmacies.isError ? (
+            <Card variant="flush">
+              <EmptyState
+                icon="alert-circle"
+                tint="red"
+                title={t('pharmacy.loadFailed')}
+                actionLabel={t('pharmacy.retry')}
+                onAction={() => pharmacies.refetch()}
+              />
+            </Card>
+          ) : pharmacyRows.length === 0 ? (
+            // Two different empty causes, two different escapes: nothing in the
+            // radius at all, or the "open now" narrowing hid everything.
+            openNowOnly && allPharmacyRows.length > 0 ? (
+              <Card variant="flush">
+                <EmptyState
+                  icon="clock"
+                  tint="amber"
+                  title={t('pharmacy.closed')}
+                  message={t('pharmacy.nearbySubtitle')}
+                  actionLabel={t('pharmacy.allPharmacies')}
+                  onAction={() => setOpenNowOnly(false)}
+                />
+              </Card>
+            ) : (
+              <Card variant="flush">
+                <EmptyState
+                  icon="store"
+                  tint="blue"
+                  title={t('pharmacy.noPharmacies', { km: radiusKm })}
+                  message={t('pharmacy.nearbySubtitle')}
+                  actionLabel={t('pharmacy.radiusPickerTitle')}
+                  onAction={() => setSheet('radius')}
+                />
+              </Card>
+            )
+          ) : (
+            <View style={styles.stack}>
+              {/* Real embedded OpenStreetMap of the nearby pharmacies — the in-app
+                  answer to "where are these". FacilityMap skips coordinate-less
+                  rows, so only render it when at least one row has coordinates. */}
+              {hasMappable ? (
+                <Card variant="flush">
+                  <FacilityMap facilities={pharmacyRows} height={240} />
+                </Card>
+              ) : null}
+
+              <Card variant="flush">
+                {(showAllPharmacies ? pharmacyRows : pharmacyRows.slice(0, NEARBY_PREVIEW)).map(
+                  (pharmacy, index, shown) => (
+                    <PharmacyRow
+                      key={pharmacy.id}
+                      pharmacy={pharmacy}
+                      divider={index < shown.length - 1}
+                      onPress={() =>
+                        router.push({ pathname: '/facility/[id]', params: { id: pharmacy.id } })
+                      }
+                    />
+                  ),
+                )}
+              </Card>
+
+              {pharmacyRows.length > NEARBY_PREVIEW ? (
+                <MedButton
+                  label={showAllPharmacies ? t('pharmacy.showLess') : t('pharmacy.showAll')}
+                  iconRight={showAllPharmacies ? 'chevron-up' : 'chevron-down'}
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => setShowAllPharmacies((open) => !open)}
+                />
               ) : null}
             </View>
           )}
         </View>
 
-        {catalog.isPending ? (
-          <View className="mt-3" style={{ gap: 12 }}>
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </View>
-        ) : catalog.isError ? (
-          <ErrorPanel
-            message={t('pharmacy.loadFailed')}
-            actionLabel={t('pharmacy.retry')}
-            onRetry={() => catalog.refetch()}
-          />
-        ) : results.length === 0 ? (
-          <EmptyPanel
-            icon={Search}
-            title={t('pharmacy.noMedicines')}
-            body={t('pharmacy.noResultsHint')}
-            actionLabel={filtersActive ? t('pharmacy.clearFilters') : null}
-            onAction={filtersActive ? clearFilters : null}
-          />
-        ) : (
-          <View className="mt-3" style={{ gap: 12 }}>
-            {results.map((medicine) => (
-              <MedicineCard
-                key={medicine.id}
-                medicine={medicine}
-                onPress={() => openMedicine(medicine)}
-              />
-            ))}
-          </View>
-        )}
-
-        {/* Pharmacies near the chosen origin */}
-        <View className="mt-8 flex-row items-end justify-between">
-          <View className="flex-1 pr-3">
-            <Text className="text-base font-bold text-navy-text">
-              {pharmacies.isSuccess
-                ? t('pharmacy.nearbyPharmacies', { count: pharmacyRows.length })
-                : t('pharmacy.nearbyTitle')}
-            </Text>
-            <Text className="mt-0.5 text-[11px] text-navy-secondary">
-              {t('pharmacy.nearbySubtitle')}
-            </Text>
-          </View>
-          <View className="rounded-xl border border-cream-300 bg-white px-3 py-1.5">
-            <Text className="text-[10px] font-semibold text-navy-secondary">
-              {t('pharmacy.sortByDistance')}
-            </Text>
-          </View>
-        </View>
-
-        {pharmacies.isPending ? (
-          <View className="mt-4 items-center">
-            <ActivityIndicator color={colors.brand[500]} />
-            <Text className="mt-2 text-[11px] text-navy-muted">
-              {t('pharmacy.loadingPharmacies')}
-            </Text>
-          </View>
-        ) : pharmacies.isError ? (
-          <ErrorPanel
-            message={t('pharmacy.loadFailed')}
-            actionLabel={t('pharmacy.retry')}
-            onRetry={() => pharmacies.refetch()}
-          />
-        ) : pharmacyRows.length === 0 ? (
-          // Two different empty causes, two different escapes: nothing in the
-          // radius at all, or the "open now" narrowing hid everything.
-          openNowOnly && allPharmacyRows.length > 0 ? (
-            <EmptyPanel
-              icon={Clock}
-              title={t('pharmacy.closed')}
-              body={t('pharmacy.nearbySubtitle')}
-              actionLabel={t('pharmacy.allPharmacies')}
-              onAction={() => setOpenNowOnly(false)}
-            />
-          ) : (
-            <EmptyPanel
-              icon={Store}
-              title={t('pharmacy.noPharmacies', { km: radiusKm })}
-              body={t('pharmacy.nearbySubtitle')}
-              actionLabel={t('pharmacy.radiusPickerTitle')}
-              onAction={() => setSheet('radius')}
-            />
-          )
-        ) : (
-          <View className="mt-3" style={{ gap: 12 }}>
-            {/* Real embedded OpenStreetMap of the nearby pharmacies — the in-app
-                answer to "where are these". FacilityMap skips coordinate-less
-                rows, so only render it when at least one row has coordinates. */}
-            {pharmacyRows.some((p) => p.latitude != null && p.longitude != null) ? (
-              <FacilityMap facilities={pharmacyRows} height={240} />
-            ) : null}
-
-            {(showAllPharmacies ? pharmacyRows : pharmacyRows.slice(0, NEARBY_PREVIEW)).map(
-              (pharmacy) => (
-                <PharmacyCard
-                  key={pharmacy.id}
-                  pharmacy={pharmacy}
-                  onPress={() =>
-                    router.push({ pathname: '/facility/[id]', params: { id: pharmacy.id } })
-                  }
-                />
-              ),
-            )}
-
-            {pharmacyRows.length > NEARBY_PREVIEW ? (
-              <Pressable
-                onPress={() => setShowAllPharmacies((open) => !open)}
-                className="h-11 flex-row items-center justify-center rounded-2xl border border-cream-300 bg-white"
-                accessibilityRole="button"
-                accessibilityState={{ expanded: showAllPharmacies }}
-              >
-                <Text className="text-xs font-bold text-brand-600">
-                  {showAllPharmacies ? t('pharmacy.showLess') : t('pharmacy.showAll')}
-                </Text>
-                <ChevronDown
-                  size={14}
-                  color={colors.brand[600]}
-                  style={{
-                    marginLeft: 4,
-                    transform: [{ rotate: showAllPharmacies ? '180deg' : '0deg' }],
-                  }}
-                />
-              </Pressable>
-            ) : null}
-          </View>
-        )}
-
         {/* Safety notice */}
-        <View className="mt-6 flex-row rounded-2xl border border-brand-100 bg-brand-50 p-4">
-          <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-white">
-            <ShieldCheck size={18} color={colors.brand[600]} />
-          </View>
-          <View className="flex-1">
-            <Text className="text-sm font-bold text-navy-text">{t('pharmacy.safetyTitle')}</Text>
-            <Text className="mt-1 text-xs leading-4 text-navy-secondary">
-              {t('pharmacy.safetyBody')}
-            </Text>
+        <View style={styles.notice} accessibilityRole="summary">
+          <Icon name="shield-check" size={20} color={colors.blue} />
+          <View style={styles.noticeBody}>
+            <Text style={styles.noticeTitle}>{t('pharmacy.safetyTitle')}</Text>
+            <Text style={styles.noticeText}>{t('pharmacy.safetyBody')}</Text>
           </View>
         </View>
-
-        <View className="h-10" />
       </ScrollView>
-    </Screen>
+
+      {dialog.element}
+    </SafeAreaView>
   );
 }
 
 /* ── Pieces ───────────────────────────────────────────────────────────────── */
 
-function HeroStat({ label, value }: { label: string; value: string }) {
+/** Bordered picker used by the city / radius sheets. */
+function OptionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <View className="flex-1">
-      <Text className="text-xl font-extrabold text-white">{value}</Text>
-      <Text className="mt-0.5 text-[10px] font-medium text-white/80" numberOfLines={1}>
-        {label}
-      </Text>
+    <Card variant="flush">
+      <Text style={styles.optionTitle}>{title}</Text>
+      {children}
+    </Card>
+  );
+}
+
+function LoadingBlock({ label }: { label: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <View style={styles.loading} accessibilityLiveRegion="polite">
+      <ActivityIndicator color={colors.blue} />
+      <Text style={styles.loadingText}>{label}</Text>
     </View>
   );
 }
 
-function MedicineCard({ medicine, onPress }: { medicine: Medicine; onPress: () => void }) {
+function MedicineRow({
+  medicine,
+  divider,
+  onPress,
+}: {
+  medicine: Medicine;
+  divider: boolean;
+  onPress: () => void;
+}) {
   const { t } = useTranslation();
-  const CategoryIcon = CATEGORY_ICONS[medicine.category_icon] ?? Pill;
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const { price_min: min, price_max: max, pharmacy_count: count, is_available } =
     medicine.availability;
@@ -673,113 +664,61 @@ function MedicineCard({ medicine, onPress }: { medicine: Medicine; onPress: () =
       ? t('pharmacy.priceRangeValue', { min: formatXafBare(min), max: formatXaf(max) })
       : (formatXaf(min ?? max) ?? t('pharmacy.priceUnavailable'));
 
-  const subtitle = [
-    t('pharmacy.generic', { name: medicine.generic_name }),
+  const strengthForm =
     medicine.strength && medicine.form
       ? t('pharmacy.strengthForm', { strength: medicine.strength, form: medicine.form })
-      : (medicine.strength ?? medicine.form ?? null),
-  ]
-    .filter(Boolean)
-    .join('  ·  ');
+      : (medicine.strength ?? medicine.form ?? null);
 
   return (
-    <Pressable
-      onPress={onPress}
-      className="rounded-2xl border border-cream-300 bg-white p-4"
-      style={CARD_SHADOW}
-      accessibilityRole="button"
-      accessibilityLabel={medicine.name}
-    >
-      <View className="flex-row">
-        <View className="h-14 w-14 items-center justify-center rounded-2xl bg-brand-50">
-          <CategoryIcon size={24} color={colors.brand[600]} />
-        </View>
-
-        <View className="ml-3 flex-1">
-          <View className="flex-row items-start">
-            <Text className="flex-1 pr-2 text-sm font-extrabold text-navy-text" numberOfLines={2}>
-              {medicine.name}
-            </Text>
-            {medicine.prescription_required ? (
-              <View
-                className="rounded-lg px-2 py-0.5"
-                style={{ backgroundColor: colors.semantic.infoSurface }}
-              >
-                <Text
-                  className="text-[10px] font-extrabold"
-                  style={{ color: colors.semantic.info }}
-                >
-                  {t('pharmacy.rxBadge')}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-
-          <Text className="mt-1 text-[11px] text-navy-secondary" numberOfLines={1}>
-            {subtitle}
+    <ListRow
+      icon={CATEGORY_ICONS[medicine.category_icon] ?? 'pill'}
+      tint={is_available ? 'green' : 'blue'}
+      title={medicine.name}
+      meta={[
+        t('pharmacy.generic', { name: medicine.generic_name }),
+        strengthForm,
+        medicine.prescription_required ? t('pharmacy.rxBadge') : null,
+        is_available ? t('pharmacy.pharmacyCount', { count }) : null,
+      ]}
+      trailing={
+        <View style={styles.rowAside}>
+          <Text style={styles.rowPrice} numberOfLines={1}>
+            {priceLabel}
           </Text>
-
-          {medicine.indications.length > 0 ? (
-            <View className="mt-2 flex-row flex-wrap" style={{ gap: 6 }}>
-              {medicine.indications.slice(0, 3).map((tag) => (
-                <View key={tag} className="rounded-lg bg-cream-200 px-2 py-0.5">
-                  <Text className="text-[10px] font-medium text-navy-secondary">{tag}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
+          <StatusBadge
+            status={is_available ? 'available' : 'unavailable'}
+            tone={is_available ? 'normal' : 'neutral'}
+            label={is_available ? t('pharmacy.available') : t('pharmacy.availabilityNone')}
+            size="sm"
+          />
         </View>
-
-        <ChevronRight
-          size={16}
-          color={colors.navy.muted}
-          style={{ alignSelf: 'center', marginLeft: 4 }}
-        />
-      </View>
-
-      <View className="mt-3 flex-row items-end justify-between border-t border-cream-200 pt-3">
-        <View className="flex-1 pr-3">
-          <View className="flex-row items-center">
-            <View
-              className="mr-1.5 h-2 w-2 rounded-full"
-              style={{
-                backgroundColor: is_available ? colors.semantic.success : colors.navy.muted,
-              }}
-            />
-            <Text
-              className="text-[11px] font-semibold"
-              style={{ color: is_available ? colors.semantic.success : colors.navy.muted }}
-              numberOfLines={1}
-            >
-              {is_available
-                ? t('pharmacy.pharmacyCount', { count })
-                : t('pharmacy.availabilityNone')}
-            </Text>
-          </View>
-          {medicine.default_pack_size ? (
-            <Text className="mt-1 text-[10px] text-navy-muted" numberOfLines={1}>
-              {t('pharmacy.packSize', { size: medicine.default_pack_size })}
-            </Text>
-          ) : null}
-        </View>
-
-        <View className="items-end">
-          <Text className="text-[10px] text-navy-muted">{t('pharmacy.priceRange')}</Text>
-          <Text className="mt-0.5 text-sm font-extrabold text-brand-600">{priceLabel}</Text>
-        </View>
-      </View>
-    </Pressable>
+      }
+      divider={divider}
+      onPress={onPress}
+      accessibilityLabel={[medicine.name, strengthForm, priceLabel].filter(Boolean).join(', ')}
+      accessibilityHint={t('pharmacy.viewDetails')}
+    />
   );
 }
 
 /**
- * Directory card. This list is fetched without a `medicine_id`, and
+ * Directory row. This list is fetched without a `medicine_id`, and
  * MedicineFinderService only loads stock rows when a medicine is supplied, so
  * `stock` is always null here by construction — per-medicine stock, price and
  * the reserve action all live on the detail screen instead.
  */
-function PharmacyCard({ pharmacy, onPress }: { pharmacy: NearbyPharmacy; onPress: () => void }) {
+function PharmacyRow({
+  pharmacy,
+  divider,
+  onPress,
+}: {
+  pharmacy: NearbyPharmacy;
+  divider: boolean;
+  onPress: () => void;
+}) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const openLabel = pharmacy.is_24_hours
     ? t('pharmacy.open24')
@@ -788,6 +727,14 @@ function PharmacyCard({ pharmacy, onPress }: { pharmacy: NearbyPharmacy; onPress
       : pharmacy.is_open
         ? t('pharmacy.open')
         : t('pharmacy.closed');
+
+  const openTone: StatusTone = pharmacy.is_24_hours
+    ? 'normal'
+    : pharmacy.is_open === null
+      ? 'neutral'
+      : pharmacy.is_open
+        ? 'normal'
+        : 'critical';
 
   const hoursLine = pharmacy.is_24_hours
     ? null
@@ -798,369 +745,205 @@ function PharmacyCard({ pharmacy, onPress }: { pharmacy: NearbyPharmacy; onPress
         : null;
 
   return (
-    <Pressable
-      onPress={onPress}
-      className="flex-row rounded-2xl border border-cream-300 bg-white p-3"
-      style={CARD_SHADOW}
-      accessibilityRole="button"
-      accessibilityLabel={pharmacy.name}
-    >
-      <View className="h-16 w-16 items-center justify-center rounded-2xl bg-brand-50">
-        <Store size={22} color={colors.brand[600]} />
-      </View>
-
-      <View className="ml-3 flex-1">
-        <View className="flex-row items-start justify-between">
-          <Text className="flex-1 pr-2 text-sm font-bold text-navy-text" numberOfLines={1}>
-            {pharmacy.name}
-          </Text>
-          <View
-            className="rounded-lg px-2 py-0.5"
-            style={{
-              backgroundColor:
-                pharmacy.is_open === false
-                  ? colors.semantic.dangerSurface
-                  : pharmacy.is_open === null
-                    ? colors.cream[200]
-                    : colors.semantic.successSurface,
-            }}
-          >
-            <Text
-              className="text-[10px] font-bold"
-              style={{
-                color:
-                  pharmacy.is_open === false
-                    ? colors.semantic.danger
-                    : pharmacy.is_open === null
-                      ? colors.navy.muted
-                      : colors.semantic.success,
-              }}
-            >
-              {openLabel}
-            </Text>
-          </View>
-        </View>
-
-        <View className="mt-1 flex-row items-center">
-          <MapPin size={11} color={colors.navy.muted} />
-          <Text className="ml-1 flex-1 text-[11px] text-navy-secondary" numberOfLines={1}>
+    <ListRow
+      icon="store"
+      tint="blue"
+      title={pharmacy.name}
+      meta={[hoursLine, pharmacy.city, pharmacy.address]}
+      trailing={
+        <View style={styles.rowAside}>
+          <Text style={styles.rowValue} numberOfLines={1}>
             {t('pharmacy.distanceKm', { km: pharmacy.distance_km })}
-            {pharmacy.city ? `  ·  ${pharmacy.city}` : ''}
           </Text>
+          <StatusBadge status={openLabel} tone={openTone} label={openLabel} size="sm" />
         </View>
-
-        {hoursLine ? (
-          <View className="mt-0.5 flex-row items-center">
-            <Clock size={11} color={colors.navy.muted} />
-            <Text className="ml-1 text-[11px] text-navy-secondary" numberOfLines={1}>
-              {hoursLine}
-            </Text>
-          </View>
-        ) : null}
-
-        <View className="mt-2 flex-row items-center justify-between">
-          <Text className="flex-1 pr-2 text-[10px] text-navy-muted" numberOfLines={1}>
-            {[pharmacy.address, pharmacy.region].filter(Boolean).join(', ')}
-          </Text>
-          <View className="flex-row items-center">
-            <Text className="text-[11px] font-bold text-brand-600">
-              {t('pharmacy.viewPharmacy')}
-            </Text>
-            <ChevronRight size={12} color={colors.brand[600]} />
-          </View>
-        </View>
-      </View>
-    </Pressable>
+      }
+      divider={divider}
+      onPress={onPress}
+      accessibilityHint={t('pharmacy.viewPharmacy')}
+    />
   );
 }
 
-function ReservationRow({
+function HoldCard({
   reservation,
-  language,
   cancelling,
   onCancel,
   onOpenMedicine,
 }: {
   reservation: MedicineReservation;
-  language: string;
   cancelling: boolean;
   onCancel: () => void;
   onOpenMedicine: (() => void) | null;
 }) {
   const { t } = useTranslation();
-  const expiry = formatDateTime(reservation.expires_at, language);
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const expiry = formatDateTime(reservation.expires_at);
 
   return (
-    <View className="rounded-xl border border-cream-300 bg-white p-3">
-      <View className="flex-row items-start">
-        <View className="flex-1 pr-2">
-          <Text className="text-xs font-bold text-navy-text" numberOfLines={1}>
+    <Card>
+      <View style={styles.holdHead}>
+        <TintCircle icon="receipt" tint="amber" />
+        <View style={styles.holdBody}>
+          <Text style={styles.holdTitle} numberOfLines={1}>
             {reservation.medicine?.name ?? t('pharmacy.selectedMedicine')}
           </Text>
-          <Text className="mt-0.5 text-[11px] text-navy-secondary" numberOfLines={1}>
-            {reservation.pharmacy?.name ?? ''}
+          <Text style={styles.holdMeta} numberOfLines={1}>
+            {[
+              reservation.pharmacy?.name,
+              t('pharmacy.reservationQuantity', { count: reservation.quantity }),
+              reservation.total_price !== null ? formatXaf(reservation.total_price) : null,
+            ]
+              .filter(Boolean)
+              .join('  •  ')}
+          </Text>
+          <Text style={styles.holdMeta} numberOfLines={1}>
+            {expiry ? t('pharmacy.reservationExpires', { when: expiry }) : reservation.status_label}
           </Text>
         </View>
-        <View className="rounded-lg bg-cream-200 px-2 py-1">
-          <Text className="text-[10px] font-bold text-navy-secondary">
-            {t('pharmacy.reservationRef', { reference: reservation.reference })}
-          </Text>
-        </View>
+        <StatusBadge
+          status={reservation.status}
+          tone="pending"
+          label={t('pharmacy.reservationRef', { reference: reservation.reference })}
+          size="sm"
+        />
       </View>
 
-      <View className="mt-2 flex-row items-center">
-        <Text className="text-[10px] text-navy-muted">
-          {t('pharmacy.reservationQuantity', { count: reservation.quantity })}
-          {reservation.total_price !== null ? `  ·  ${formatXaf(reservation.total_price)}` : ''}
-        </Text>
+      <View style={styles.holdActions}>
+        {onOpenMedicine ? (
+          <MedButton
+            label={t('pharmacy.viewDetails')}
+            icon="pill"
+            variant="secondary"
+            size="sm"
+            onPress={onOpenMedicine}
+            style={styles.holdAction}
+          />
+        ) : null}
+        {reservation.is_cancellable ? (
+          <MedButton
+            label={t('pharmacy.reservationCancel')}
+            icon="close"
+            variant="ghost"
+            size="sm"
+            disabled={cancelling}
+            onPress={onCancel}
+            style={styles.holdAction}
+          />
+        ) : null}
       </View>
-
-      <View className="mt-2 flex-row items-center justify-between border-t border-cream-200 pt-2">
-        <Text className="flex-1 pr-2 text-[10px] text-navy-muted" numberOfLines={1}>
-          {expiry ? t('pharmacy.reservationExpires', { when: expiry }) : reservation.status_label}
-        </Text>
-
-        <View className="flex-row items-center">
-          {onOpenMedicine ? (
-            <Pressable onPress={onOpenMedicine} hitSlop={6} className="mr-3">
-              <Text className="text-[11px] font-bold text-brand-600">
-                {t('pharmacy.viewDetails')}
-              </Text>
-            </Pressable>
-          ) : null}
-
-          {reservation.is_cancellable ? (
-            <Pressable
-              onPress={onCancel}
-              disabled={cancelling}
-              hitSlop={6}
-              accessibilityRole="button"
-              className="rounded-lg px-2 py-1"
-              style={{ backgroundColor: colors.semantic.dangerSurface, opacity: cancelling ? 0.6 : 1 }}
-            >
-              {cancelling ? (
-                <ActivityIndicator size="small" color={colors.semantic.danger} />
-              ) : (
-                <Text className="text-[10px] font-bold" style={{ color: colors.semantic.danger }}>
-                  {t('pharmacy.reservationCancel')}
-                </Text>
-              )}
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
-    </View>
+    </Card>
   );
 }
 
-function FilterChip({
-  icon: Icon,
-  label,
-  onPress,
-  active,
-  caret,
-}: {
-  icon: LucideIcon;
-  label: string;
-  onPress: () => void;
-  active?: boolean;
-  caret?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: !!active }}
-      className={`h-10 flex-row items-center rounded-xl border px-3 ${
-        active ? 'border-brand-500 bg-brand-50' : 'border-cream-300 bg-white'
-      }`}
-    >
-      <Icon size={14} color={active ? colors.brand[600] : colors.navy.secondary} />
-      <Text
-        className={`ml-1.5 text-xs font-semibold ${active ? 'text-brand-700' : 'text-navy-text'}`}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
-      {caret ? <ChevronDown size={13} color={colors.navy.muted} style={{ marginLeft: 4 }} /> : null}
-    </Pressable>
-  );
-}
+/* ── Styles ───────────────────────────────────────────────────────────────── */
 
-function CategoryChip({
-  icon: Icon,
-  label,
-  count,
-  selected,
-  onPress,
-}: {
-  icon: LucideIcon;
-  label: string;
-  count?: number;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      className={`items-center justify-start rounded-2xl border px-2 py-3 ${
-        selected ? 'border-brand-500 bg-brand-50' : 'border-cream-300 bg-white'
-      }`}
-      style={{ width: 86 }}
-    >
-      <View
-        className="h-9 w-9 items-center justify-center rounded-full"
-        style={{ backgroundColor: selected ? colors.white : colors.cream[100] }}
-      >
-        <Icon size={18} color={selected ? colors.brand[600] : colors.navy.secondary} />
-      </View>
-      <Text
-        className={`mt-1.5 text-center text-[10px] font-semibold ${
-          selected ? 'text-brand-700' : 'text-navy-secondary'
-        }`}
-        numberOfLines={2}
-      >
-        {label}
-      </Text>
-      {count !== undefined ? (
-        <Text className="mt-0.5 text-[9px] text-navy-muted">{count}</Text>
-      ) : null}
-    </Pressable>
-  );
-}
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: c.page },
+    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    stack: { gap: spacing.md },
 
-function OptionPanel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View
-      className="mt-3 overflow-hidden rounded-2xl border border-cream-300 bg-white"
-      style={CARD_SHADOW}
-    >
-      <Text className="px-4 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wide text-navy-muted">
-        {title}
-      </Text>
-      {children}
-    </View>
-  );
-}
+    factRow: { flexDirection: 'row', alignItems: 'flex-start' },
 
-function OptionRow({
-  label,
-  selected,
-  last,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  last?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      className={`flex-row items-center justify-between px-4 py-3 ${
-        last ? '' : 'border-b border-cream-200'
-      }`}
-    >
-      <Text className={`text-sm ${selected ? 'font-bold text-brand-700' : 'text-navy-text'}`}>
-        {label}
-      </Text>
-      {selected ? <View className="h-2 w-2 rounded-full bg-brand-500" /> : null}
-    </Pressable>
-  );
-}
+    // PillInput carries its own bottom margin; the scroll container already
+    // spaces siblings, so cancel the double gap.
+    searchWrap: { position: 'relative', marginBottom: -spacing.md },
+    searchClear: {
+      position: 'absolute',
+      right: spacing.md,
+      top: 0,
+      bottom: spacing.md,
+      justifyContent: 'center',
+    },
 
-/** Content-shaped placeholder so the first paint is not an empty page. */
-function SkeletonCard() {
-  return (
-    <View className="rounded-2xl border border-cream-300 bg-white p-4">
-      <View className="flex-row">
-        <View className="h-14 w-14 rounded-2xl bg-cream-200" />
-        <View className="ml-3 flex-1 justify-center">
-          <View className="h-3 w-2/3 rounded-full bg-cream-200" />
-          <View className="mt-2 h-2.5 w-1/2 rounded-full bg-cream-200" />
-        </View>
-      </View>
-      <View className="mt-3 h-2.5 w-1/3 rounded-full bg-cream-200" />
-    </View>
-  );
-}
+    chipRail: { marginHorizontal: -spacing.md },
+    chipRailContent: {
+      paddingHorizontal: spacing.md,
+      gap: spacing.sm,
+      alignItems: 'center',
+    },
 
-function EmptyPanel({
-  icon: Icon,
-  title,
-  body,
-  actionLabel,
-  onAction,
-}: {
-  icon: LucideIcon;
-  title: string;
-  body?: string;
-  actionLabel?: string | null;
-  onAction?: (() => void) | null;
-}) {
-  return (
-    <View className="mt-4 items-center rounded-2xl border border-cream-300 bg-white px-6 py-8">
-      <View className="h-12 w-12 items-center justify-center rounded-full bg-cream-200">
-        <Icon size={20} color={colors.navy.muted} />
-      </View>
-      <Text className="mt-3 text-center text-sm font-bold text-navy-text">{title}</Text>
-      {body ? (
-        <Text className="mt-1 text-center text-xs leading-4 text-navy-secondary">{body}</Text>
-      ) : null}
-      {actionLabel && onAction ? (
-        <Pressable
-          onPress={onAction}
-          className="mt-4 rounded-xl border border-brand-500 px-4 py-2"
-          accessibilityRole="button"
-        >
-          <Text className="text-xs font-bold text-brand-600">{actionLabel}</Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
+    optionTitle: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xs,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: 13,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: c.textPrimary,
+    },
 
-function ErrorPanel({
-  message,
-  actionLabel,
-  onRetry,
-}: {
-  message: string;
-  actionLabel: string;
-  onRetry: () => void;
-}) {
-  return (
-    <View className="mt-4 items-center rounded-2xl border border-cream-300 bg-white px-6 py-8">
-      <View
-        className="h-12 w-12 items-center justify-center rounded-full"
-        style={{ backgroundColor: colors.semantic.dangerSurface }}
-      >
-        <CircleAlert size={20} color={colors.semantic.danger} />
-      </View>
-      <Text className="mt-3 text-center text-sm text-navy-secondary">{message}</Text>
-      <Pressable
-        onPress={onRetry}
-        className="mt-4 rounded-xl border border-brand-500 px-4 py-2"
-        accessibilityRole="button"
-      >
-        <Text className="text-xs font-bold text-brand-600">{actionLabel}</Text>
-      </Pressable>
-    </View>
-  );
-}
+    sectionHint: {
+      marginTop: -spacing.xs,
+      marginBottom: spacing.sm + 2,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
 
-function formatDateTime(value: string | null | undefined, language: string): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat(language?.startsWith('fr') ? 'fr-FR' : 'en-US', {
-    day: 'numeric',
-    month: 'short',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date);
-}
+    loading: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm },
+    loadingText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+
+    rowAside: { alignItems: 'flex-end', gap: 4 },
+    rowPrice: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: c.link,
+    },
+    rowValue: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: c.textPrimary,
+    },
+
+    holdHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 4 },
+    holdBody: { flex: 1, minWidth: 0, gap: 2 },
+    holdTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: c.textPrimary,
+    },
+    holdMeta: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+    holdActions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginTop: spacing.md,
+      paddingTop: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: c.divider,
+    },
+    holdAction: { flexGrow: 1 },
+
+    notice: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm + 2,
+      padding: spacing.md - 2,
+      borderRadius: radii.md,
+      backgroundColor: c.primarySoft,
+    },
+    noticeBody: { flex: 1, minWidth: 0, gap: 2 },
+    noticeTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: c.textPrimary,
+    },
+    noticeText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textSecondary,
+    },
+  });

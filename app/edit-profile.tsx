@@ -1,47 +1,38 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
-  AlertTriangle,
-  ArrowLeft,
-  CheckCircle2,
-  Droplet,
-  Lock,
-  Mail,
-  MapPin,
-  Phone,
-  PhoneCall,
-  Trash2,
-  User,
-  UserRound,
-  Users,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../components/ui/Screen';
-import { Button } from '../components/ui/Button';
-import { TextField } from '../components/ui/TextField';
+  Card,
+  Chip,
+  GradientButton,
+  Icon,
+  ListRow,
+  PillInput,
+  ScreenHeader,
+  SectionHeader,
+  SegmentedTabs,
+  StatusBadge,
+  formatDateLong,
+  radii,
+  spacing,
+  typography,
+  useTheme,
+  type IconName,
+  type Palette,
+  type StatusTone,
+} from '@/components/opes-ui';
 import { useAuthStore } from '../lib/store/auth';
 import { useUpdateMyProfile } from '../lib/api/profileQueries';
-import { colors } from '../theme/tokens';
 
 const SEX_OPTIONS = ['male', 'female'] as const;
+type SexOption = (typeof SEX_OPTIONS)[number];
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
 
 function extractErrorMessage(err: unknown, fallback: string): string {
   const anyErr = err as any;
   return anyErr?.response?.data?.message ?? fallback;
-}
-
-function formatDate(value: string | null | undefined, locale: string, fallback: string): string {
-  if (!value) return fallback;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
 }
 
 /** Edit Profile — PATCH /mobile/me. The only place a patient can correct
@@ -51,10 +42,17 @@ function formatDate(value: string | null | undefined, locale: string, fallback: 
  * MobilePatientController::updateMe accepts exactly first_name, last_name,
  * sex, blood_group, address and emergency_contact — date of birth, phone and
  * email are pinned to the Health ID and are rendered here as locked rows so
- * the boundary is visible instead of being discovered as a silent no-op. */
+ * the boundary is visible instead of being discovered as a silent no-op.
+ *
+ * Presentation is the OPES kit (ScreenHeader, SectionHeader + Card sections,
+ * PillInput fields, pill chips for the pickers, GradientButton to save); the
+ * form state, validation and the three-state emergency-contact rule are
+ * unchanged. */
 export default function EditProfileScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
+  const { colors, statusMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const patient = useAuthStore((s) => s.patient);
   const updateProfile = useUpdateMyProfile();
 
@@ -62,9 +60,7 @@ export default function EditProfileScreen() {
 
   const [firstName, setFirstName] = useState(patient?.first_name ?? '');
   const [lastName, setLastName] = useState(patient?.last_name ?? '');
-  const [sex, setSex] = useState<(typeof SEX_OPTIONS)[number] | null>(
-    (patient?.sex as (typeof SEX_OPTIONS)[number] | null) ?? null,
-  );
+  const [sex, setSex] = useState<SexOption | null>((patient?.sex as SexOption | null) ?? null);
   const [bloodGroup, setBloodGroup] = useState<string | null>(patient?.blood_group ?? null);
   const [address, setAddress] = useState(patient?.address ?? '');
   const [emergencyName, setEmergencyName] = useState(savedEmergency?.name ?? '');
@@ -85,7 +81,7 @@ export default function EditProfileScreen() {
     hasHydrated.current = true;
     setFirstName(patient.first_name ?? '');
     setLastName(patient.last_name ?? '');
-    setSex((patient.sex as (typeof SEX_OPTIONS)[number] | null) ?? null);
+    setSex((patient.sex as SexOption | null) ?? null);
     setBloodGroup(patient.blood_group ?? null);
     setAddress(patient.address ?? '');
     setEmergencyName(patient.emergency_contact?.name ?? '');
@@ -96,7 +92,7 @@ export default function EditProfileScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   // Per-field red borders only appear once the patient has actually tried to
-  // save — the always-visible status chip is what teaches the rule.
+  // save — the always-visible status badge is what teaches the rule.
   const [showFieldErrors, setShowFieldErrors] = useState(false);
 
   const emergencyValues = [emergencyName, emergencyRelationship, emergencyPhone];
@@ -135,16 +131,16 @@ export default function EditProfileScreen() {
   // patient starts editing again it is stale, so it hides itself.
   const showSuccess = !!successMessage && !isDirty;
 
-  const emergencyStatus = emergencyComplete
-    ? { label: t('editProfile.emergencyStatusComplete'), tone: 'success' as const }
+  const emergencyStatus: { label: string; tone: StatusTone } = emergencyComplete
+    ? { label: t('editProfile.emergencyStatusComplete'), tone: 'normal' }
     : emergencyPartial
       ? {
           label: t('editProfile.emergencyStatusIncomplete', { filled: emergencyFilled }),
-          tone: 'warning' as const,
+          tone: 'warning',
         }
       : emergencyWillRemove
-        ? { label: t('editProfile.emergencyStatusWillRemove'), tone: 'danger' as const }
-        : { label: t('editProfile.emergencyStatusEmpty'), tone: 'muted' as const };
+        ? { label: t('editProfile.emergencyStatusWillRemove'), tone: 'critical' }
+        : { label: t('editProfile.emergencyStatusEmpty'), tone: 'neutral' };
 
   const handleSave = async () => {
     setFormError(null);
@@ -192,383 +188,406 @@ export default function EditProfileScreen() {
     }
   };
 
+  const clearEmergencyContact = () => {
+    setEmergencyName('');
+    setEmergencyRelationship('');
+    setEmergencyPhone('');
+    setShowFieldErrors(false);
+    setFormError(null);
+  };
+
   const initials =
     `${patient?.first_name?.[0] ?? ''}${patient?.last_name?.[0] ?? ''}`.toUpperCase() || '?';
+  const displayName = [patient?.first_name, patient?.last_name].filter(Boolean).join(' ');
+
+  const fieldIcon = (name: IconName) => <Icon name={name} size={18} color={colors.blue} />;
+  const requiredError = (missing: boolean) =>
+    showFieldErrors && missing ? t('editProfile.required') : undefined;
 
   return (
-    <Screen className="px-0">
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      <ScreenHeader
+        title={t('editProfile.title')}
+        subtitle={t('editProfile.subtitle')}
+        onBack={() => router.back()}
+      />
+
       <ScrollView
-        className="flex-1 px-6"
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 48 }}
+        showsVerticalScrollIndicator={false}
       >
-        <View className="flex-row items-center pt-2">
-          <Pressable
-            onPress={() => router.back()}
-            accessibilityRole="button"
-            accessibilityLabel={t('editProfile.back')}
-            hitSlop={8}
-            className="h-11 w-11 items-center justify-center rounded-full border border-brand-300 bg-white"
-          >
-            <ArrowLeft size={18} color={colors.brand[600]} />
-          </Pressable>
-          <Text className="ml-4 text-xl font-extrabold text-navy-text">
-            {t('editProfile.title')}
-          </Text>
-        </View>
-        <Text className="mt-2 text-sm text-navy-secondary">{t('editProfile.subtitle')}</Text>
-
         {/* Identity anchor — who this form is editing */}
-        <View className="mt-5 flex-row items-center rounded-2xl border border-cream-300 bg-white p-4">
-          <View className="h-12 w-12 items-center justify-center rounded-full bg-brand-100">
-            <Text className="text-base font-extrabold text-brand-600">{initials}</Text>
-          </View>
-          <View className="ml-3 flex-1">
-            <Text className="text-sm font-bold text-navy-text" numberOfLines={1}>
-              {[patient?.first_name, patient?.last_name].filter(Boolean).join(' ') || '—'}
-            </Text>
-            <Text className="mt-0.5 text-xs text-navy-muted">
-              {t('editProfile.healthIdLabel')} · {patient?.health_id ?? '—'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Personal details */}
-        <SectionCard
-          icon={UserRound}
-          title={t('editProfile.personalTitle')}
-          description={t('editProfile.personalDesc')}
-        >
-          <TextField
-            label={t('editProfile.firstName')}
-            placeholder={t('editProfile.firstNamePlaceholder')}
-            icon={User}
-            value={firstName}
-            onChangeText={setFirstName}
-            error={showFieldErrors && !firstName.trim() ? t('editProfile.required') : undefined}
-          />
-          <TextField
-            label={t('editProfile.lastName')}
-            placeholder={t('editProfile.lastNamePlaceholder')}
-            icon={User}
-            value={lastName}
-            onChangeText={setLastName}
-            error={showFieldErrors && !lastName.trim() ? t('editProfile.required') : undefined}
-          />
-
-          <Text className="mb-2 text-sm font-semibold text-navy-text">{t('editProfile.sex')}</Text>
-          <View className="mb-4 flex-row" style={{ gap: 8 }}>
-            {SEX_OPTIONS.map((option) => {
-              const active = sex === option;
-              return (
-                <Pressable
-                  key={option}
-                  onPress={() => setSex(option)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  className="flex-1 items-center rounded-full border px-3 py-2.5"
-                  style={{
-                    borderColor: active ? colors.brand[500] : colors.cream[300],
-                    backgroundColor: active ? colors.brand[50] : colors.white,
-                  }}
-                >
-                  <Text
-                    className="text-xs font-semibold"
-                    style={{ color: active ? colors.brand[600] : colors.navy.secondary }}
-                  >
-                    {t(`editProfile.sex${option.charAt(0).toUpperCase()}${option.slice(1)}`)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <View className="mb-2 flex-row items-center">
-            <Droplet size={14} color={colors.navy.muted} />
-            <Text className="ml-1.5 text-sm font-semibold text-navy-text">
-              {t('editProfile.bloodGroup')}
-            </Text>
-          </View>
-          <Text className="mb-2 text-xs text-navy-muted">{t('editProfile.bloodGroupHint')}</Text>
-          <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-            {BLOOD_GROUPS.map((option) => {
-              const active = bloodGroup === option;
-              return (
-                <Pressable
-                  key={option}
-                  onPress={() => setBloodGroup(active ? null : option)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  className="rounded-full border px-4 py-2"
-                  style={{
-                    borderColor: active ? colors.brand[500] : colors.cream[300],
-                    backgroundColor: active ? colors.brand[50] : colors.white,
-                  }}
-                >
-                  <Text
-                    className="text-xs font-bold"
-                    style={{ color: active ? colors.brand[600] : colors.navy.secondary }}
-                  >
-                    {option}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </SectionCard>
-
-        {/* Address */}
-        <SectionCard
-          icon={MapPin}
-          title={t('editProfile.addressTitle')}
-          description={t('editProfile.addressDesc')}
-        >
-          <TextField
-            label={t('editProfile.address')}
-            placeholder={t('editProfile.addressPlaceholder')}
-            icon={MapPin}
-            value={address}
-            onChangeText={setAddress}
-          />
-        </SectionCard>
-
-        {/* Emergency contact — the all-or-nothing rule is stated up front and
-            mirrored live by the status chip, so it is never a surprise 422. */}
-        <SectionCard
-          icon={PhoneCall}
-          title={t('editProfile.emergencyContactTitle')}
-          description={t('editProfile.emergencyContactDesc')}
-          trailing={<StatusChip label={emergencyStatus.label} tone={emergencyStatus.tone} />}
-        >
-          <TextField
-            label={t('editProfile.emergencyName')}
-            placeholder={t('editProfile.emergencyNamePlaceholder')}
-            icon={UserRound}
-            value={emergencyName}
-            onChangeText={setEmergencyName}
-            error={
-              showFieldErrors && emergencyPartial && !emergencyName.trim()
-                ? t('editProfile.required')
-                : undefined
-            }
-          />
-          <TextField
-            label={t('editProfile.emergencyRelationship')}
-            placeholder={t('editProfile.emergencyRelationshipPlaceholder')}
-            icon={Users}
-            value={emergencyRelationship}
-            onChangeText={setEmergencyRelationship}
-            error={
-              showFieldErrors && emergencyPartial && !emergencyRelationship.trim()
-                ? t('editProfile.required')
-                : undefined
-            }
-          />
-          <TextField
-            label={t('editProfile.emergencyPhone')}
-            placeholder={t('editProfile.emergencyPhonePlaceholder')}
-            icon={Phone}
-            keyboardType="phone-pad"
-            value={emergencyPhone}
-            onChangeText={setEmergencyPhone}
-            error={
-              showFieldErrors && emergencyPartial && !emergencyPhone.trim()
-                ? t('editProfile.required')
-                : undefined
-            }
-          />
-
-          {savedEmergency?.name && emergencyFilled > 0 ? (
-            <Pressable
-              onPress={() => {
-                setEmergencyName('');
-                setEmergencyRelationship('');
-                setEmergencyPhone('');
-                setShowFieldErrors(false);
-                setFormError(null);
-              }}
-              accessibilityRole="button"
-              className="flex-row items-center self-start rounded-full px-3 py-2"
-              style={{ backgroundColor: colors.semantic.dangerSurface }}
-            >
-              <Trash2 size={14} color={colors.semantic.danger} />
-              <Text className="ml-1.5 text-xs font-bold" style={{ color: colors.semantic.danger }}>
-                {t('editProfile.emergencyRemove')}
+        <Card>
+          <View style={styles.identity}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+            <View style={styles.identityBody}>
+              <Text style={styles.identityName} numberOfLines={1}>
+                {displayName || '—'}
               </Text>
-            </Pressable>
-          ) : null}
-
-          {emergencyWillRemove ? (
-            <View
-              className="mt-1 flex-row items-start rounded-2xl p-3"
-              style={{ backgroundColor: colors.semantic.dangerSurface }}
-            >
-              <AlertTriangle size={15} color={colors.semantic.danger} />
-              <Text
-                className="ml-2 flex-1 text-xs font-semibold"
-                style={{ color: colors.semantic.danger }}
-              >
-                {t('editProfile.emergencyRemoveNotice')}
+              <Text style={styles.identityId} numberOfLines={1}>
+                {t('editProfile.healthIdLabel')} · {patient?.health_id ?? '—'}
               </Text>
             </View>
-          ) : null}
-        </SectionCard>
-
-        {/* Locked — the API pins these to the Health ID */}
-        <SectionCard
-          icon={Lock}
-          title={t('editProfile.lockedTitle')}
-          description={t('editProfile.lockedDesc')}
-        >
-          <LockedRow
-            icon={Mail}
-            label={t('editProfile.email')}
-            value={patient?.email ?? t('editProfile.notProvided')}
-          />
-          <LockedRow
-            icon={Phone}
-            label={t('editProfile.phone')}
-            value={patient?.phone ?? t('editProfile.notProvided')}
-          />
-          <LockedRow
-            icon={UserRound}
-            label={t('editProfile.dateOfBirth')}
-            value={formatDate(patient?.dob, i18n.language, t('editProfile.notProvided'))}
-            last
-          />
-        </SectionCard>
-
-        {formError ? (
-          <View
-            className="mb-3 mt-5 flex-row items-start rounded-2xl p-3"
-            style={{ backgroundColor: colors.semantic.dangerSurface }}
-          >
-            <AlertTriangle size={16} color={colors.semantic.danger} />
-            <Text
-              className="ml-2 flex-1 text-sm font-semibold"
-              style={{ color: colors.semantic.danger }}
-            >
-              {formError}
-            </Text>
           </View>
+        </Card>
+
+        {/* ── Personal details ─────────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('editProfile.personalTitle')} />
+          <Card>
+            <Text style={styles.sectionDesc}>{t('editProfile.personalDesc')}</Text>
+
+            <Text style={styles.fieldLabel}>{t('editProfile.firstName')}</Text>
+            <PillInput
+              icon={fieldIcon('person')}
+              placeholder={t('editProfile.firstNamePlaceholder')}
+              value={firstName}
+              onChangeText={setFirstName}
+              autoCapitalize="words"
+              autoComplete="given-name"
+              textContentType="givenName"
+              accessibilityLabel={t('editProfile.firstName')}
+              error={requiredError(!firstName.trim())}
+            />
+
+            <Text style={styles.fieldLabel}>{t('editProfile.lastName')}</Text>
+            <PillInput
+              icon={fieldIcon('person')}
+              placeholder={t('editProfile.lastNamePlaceholder')}
+              value={lastName}
+              onChangeText={setLastName}
+              autoCapitalize="words"
+              autoComplete="family-name"
+              textContentType="familyName"
+              accessibilityLabel={t('editProfile.lastName')}
+              error={requiredError(!lastName.trim())}
+            />
+
+            <Text style={styles.fieldLabel}>{t('editProfile.sex')}</Text>
+            <SegmentedTabs
+              variant="pill"
+              value={sex ?? ''}
+              onChange={(key) => setSex(key === 'female' ? 'female' : 'male')}
+              options={SEX_OPTIONS.map((option) => ({
+                key: option,
+                label: t(`editProfile.sex${option.charAt(0).toUpperCase()}${option.slice(1)}`),
+              }))}
+              style={styles.pickerRow}
+            />
+
+            <View style={styles.fieldLabelRow}>
+              <Icon name="droplet" size={14} color={colors.textMuted} />
+              <Text style={styles.fieldLabelInline}>{t('editProfile.bloodGroup')}</Text>
+            </View>
+            <Text style={styles.fieldHint}>{t('editProfile.bloodGroupHint')}</Text>
+            <View style={styles.chipWrap}>
+              {BLOOD_GROUPS.map((option) => {
+                const active = bloodGroup === option;
+                return (
+                  <Chip
+                    key={option}
+                    label={option}
+                    selected={active}
+                    onPress={() => setBloodGroup(active ? null : option)}
+                    accessibilityLabel={`${t('editProfile.bloodGroup')} ${option}`}
+                  />
+                );
+              })}
+            </View>
+          </Card>
+        </View>
+
+        {/* ── Address ──────────────────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('editProfile.addressTitle')} />
+          <Card>
+            <Text style={styles.sectionDesc}>{t('editProfile.addressDesc')}</Text>
+            <Text style={styles.fieldLabel}>{t('editProfile.address')}</Text>
+            <PillInput
+              icon={fieldIcon('location')}
+              placeholder={t('editProfile.addressPlaceholder')}
+              value={address}
+              onChangeText={setAddress}
+              autoCapitalize="sentences"
+              autoComplete="street-address"
+              textContentType="fullStreetAddress"
+              accessibilityLabel={t('editProfile.address')}
+            />
+          </Card>
+        </View>
+
+        {/* ── Emergency contact — the all-or-nothing rule is stated up front
+            and mirrored live by the status badge, so it is never a surprise
+            422. ─────────────────────────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('editProfile.emergencyContactTitle')} />
+          <Card>
+            <View style={styles.sectionDescRow}>
+              <Text style={[styles.sectionDesc, styles.sectionDescGrow]}>
+                {t('editProfile.emergencyContactDesc')}
+              </Text>
+              <StatusBadge
+                status="emergency_contact"
+                tone={emergencyStatus.tone}
+                label={emergencyStatus.label}
+                size="sm"
+              />
+            </View>
+
+            <Text style={styles.fieldLabel}>{t('editProfile.emergencyName')}</Text>
+            <PillInput
+              icon={fieldIcon('person')}
+              placeholder={t('editProfile.emergencyNamePlaceholder')}
+              value={emergencyName}
+              onChangeText={setEmergencyName}
+              autoCapitalize="words"
+              autoComplete="name"
+              textContentType="name"
+              accessibilityLabel={t('editProfile.emergencyName')}
+              error={requiredError(emergencyPartial && !emergencyName.trim())}
+            />
+
+            <Text style={styles.fieldLabel}>{t('editProfile.emergencyRelationship')}</Text>
+            <PillInput
+              icon={fieldIcon('users')}
+              placeholder={t('editProfile.emergencyRelationshipPlaceholder')}
+              value={emergencyRelationship}
+              onChangeText={setEmergencyRelationship}
+              autoCapitalize="sentences"
+              autoComplete="off"
+              textContentType="none"
+              accessibilityLabel={t('editProfile.emergencyRelationship')}
+              error={requiredError(emergencyPartial && !emergencyRelationship.trim())}
+            />
+
+            <Text style={styles.fieldLabel}>{t('editProfile.emergencyPhone')}</Text>
+            <PillInput
+              icon={fieldIcon('phone')}
+              placeholder={t('editProfile.emergencyPhonePlaceholder')}
+              keyboardType="phone-pad"
+              value={emergencyPhone}
+              onChangeText={setEmergencyPhone}
+              autoComplete="tel"
+              textContentType="telephoneNumber"
+              accessibilityLabel={t('editProfile.emergencyPhone')}
+              error={requiredError(emergencyPartial && !emergencyPhone.trim())}
+            />
+
+            {savedEmergency?.name && emergencyFilled > 0 ? (
+              <TouchableOpacity
+                onPress={clearEmergencyContact}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={t('editProfile.emergencyRemove')}
+                style={[styles.clearButton, { backgroundColor: statusMap.critical.bg }]}
+              >
+                <Icon name="trash" size={14} color={statusMap.critical.fg} />
+                <Text style={[styles.clearText, { color: statusMap.critical.fg }]}>
+                  {t('editProfile.emergencyRemove')}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {emergencyWillRemove ? (
+              <Notice tone="critical" icon="alert-triangle" text={t('editProfile.emergencyRemoveNotice')} />
+            ) : null}
+          </Card>
+        </View>
+
+        {/* ── Locked — the API pins these to the Health ID ─────────────── */}
+        <View>
+          <SectionHeader title={t('editProfile.lockedTitle')} />
+          <Card variant="flush">
+            <Text style={[styles.sectionDesc, styles.sectionDescFlush]}>
+              {t('editProfile.lockedDesc')}
+            </Text>
+            <LockedRow
+              icon="mail"
+              label={t('editProfile.email')}
+              value={patient?.email ?? t('editProfile.notProvided')}
+              divider
+            />
+            <LockedRow
+              icon="phone"
+              label={t('editProfile.phone')}
+              value={patient?.phone ?? t('editProfile.notProvided')}
+              divider
+            />
+            <LockedRow
+              icon="calendar"
+              label={t('editProfile.dateOfBirth')}
+              value={formatDateLong(patient?.dob, t('editProfile.notProvided'))}
+            />
+          </Card>
+        </View>
+
+        {formError ? <Notice tone="critical" icon="alert-triangle" text={formError} /> : null}
+        {showSuccess && successMessage ? (
+          <Notice tone="normal" icon="check-circle" text={successMessage} />
         ) : null}
 
-        {showSuccess ? (
-          <View
-            className="mb-3 mt-5 flex-row items-center justify-center rounded-2xl p-3"
-            style={{ backgroundColor: colors.semantic.successSurface }}
-          >
-            <CheckCircle2 size={16} color={colors.semantic.success} />
-            <Text
-              className="ml-2 text-sm font-semibold"
-              style={{ color: colors.semantic.success }}
-            >
-              {successMessage}
-            </Text>
-          </View>
-        ) : null}
-
-        <View className={formError || showSuccess ? '' : 'mt-6'}>
-          <Button
+        <View style={styles.footer}>
+          <GradientButton
             label={t('editProfile.save')}
-            onPress={handleSave}
+            onPress={() => void handleSave()}
             loading={updateProfile.isPending}
             disabled={!isDirty}
-            showChevron={false}
+            icon="none"
           />
-          {!isDirty ? (
-            <Text className="mt-2 text-center text-xs text-navy-muted">
-              {t('editProfile.noChanges')}
-            </Text>
-          ) : null}
+          {!isDirty ? <Text style={styles.noChanges}>{t('editProfile.noChanges')}</Text> : null}
         </View>
       </ScrollView>
-    </Screen>
+    </SafeAreaView>
   );
 }
 
-function SectionCard({
-  icon: Icon,
-  title,
-  description,
-  trailing,
-  children,
-}: {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  trailing?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <View className="mt-4 rounded-3xl border border-cream-300 bg-white p-4">
-      <View className="mb-4 flex-row items-start">
-        <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
-          <Icon size={18} color={colors.brand[600]} />
-        </View>
-        <View className="ml-3 flex-1">
-          <View className="flex-row items-center justify-between">
-            <Text className="flex-1 pr-2 text-base font-bold text-navy-text">{title}</Text>
-            {trailing}
-          </View>
-          <Text className="mt-1 text-xs text-navy-secondary">{description}</Text>
-        </View>
-      </View>
-      {children}
-    </View>
-  );
-}
-
-function StatusChip({
-  label,
-  tone,
-}: {
-  label: string;
-  tone: 'success' | 'warning' | 'danger' | 'muted';
-}) {
-  const palette = {
-    success: { bg: colors.semantic.successSurface, fg: colors.semantic.success },
-    warning: { bg: colors.semantic.warningSurface, fg: colors.semantic.warning },
-    danger: { bg: colors.semantic.dangerSurface, fg: colors.semantic.danger },
-    muted: { bg: colors.cream[200], fg: colors.navy.secondary },
-  }[tone];
-
-  return (
-    <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: palette.bg }}>
-      <Text className="text-[10px] font-bold" style={{ color: palette.fg }}>
-        {label}
-      </Text>
-    </View>
-  );
-}
+// ── Pieces ──────────────────────────────────────────────────────────────────
 
 function LockedRow({
-  icon: Icon,
+  icon,
   label,
   value,
-  last = false,
+  divider,
 }: {
-  icon: LucideIcon;
+  icon: IconName;
   label: string;
   value: string;
-  last?: boolean;
+  divider?: boolean;
 }) {
+  const { colors } = useTheme();
+  return (
+    <ListRow
+      icon={icon}
+      tint="blue"
+      title={label}
+      subtitle={value}
+      trailing={<Icon name="lock" size={16} color={colors.textMuted} />}
+      divider={divider}
+    />
+  );
+}
+
+function Notice({ tone, icon, text }: { tone: StatusTone; icon: IconName; text: string }) {
+  const { colors, statusMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const skin = statusMap[tone];
   return (
     <View
-      className={`flex-row items-center py-3 ${last ? '' : 'border-b border-cream-200'}`}
-      accessibilityRole="text"
+      style={[styles.notice, { backgroundColor: skin.bg }]}
+      accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
     >
-      <Icon size={15} color={colors.navy.muted} />
-      <Text className="ml-2 flex-1 text-sm text-navy-secondary">{label}</Text>
-      <Text
-        className="text-sm font-semibold text-navy-text"
-        style={{ maxWidth: '55%' }}
-        numberOfLines={1}
-      >
-        {value}
-      </Text>
-      <Lock size={13} color={colors.navy.muted} style={{ marginLeft: 8 }} />
+      <Icon name={icon} size={16} color={skin.fg} />
+      <Text style={[styles.noticeText, { color: skin.fg }]}>{text}</Text>
     </View>
   );
 }
+
+// ── Styles (colour-dependent, built per palette) ───────────────────────────
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.page },
+    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+
+    // Identity anchor
+    identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
+    avatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.md,
+      color: colors.blue,
+    },
+    identityBody: { flex: 1, minWidth: 0, gap: 2 },
+    identityName: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    identityId: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+    },
+
+    // Sections
+    sectionDesc: {
+      marginBottom: spacing.md,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+    sectionDescFlush: { marginBottom: 0, paddingHorizontal: spacing.md, paddingTop: spacing.md },
+    sectionDescRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+    sectionDescGrow: { flex: 1, minWidth: 0 },
+
+    // Fields
+    fieldLabel: {
+      marginBottom: 6,
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    fieldLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+    fieldLabelInline: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    fieldHint: {
+      marginBottom: spacing.sm,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+    },
+    pickerRow: { marginBottom: spacing.md },
+    chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+
+    clearButton: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      borderRadius: radii.pill,
+      paddingHorizontal: spacing.sm + 4,
+      paddingVertical: spacing.sm,
+    },
+    clearText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.xs },
+
+    // Notices
+    notice: {
+      marginTop: spacing.sm,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      padding: spacing.sm + 4,
+      borderRadius: radii.md,
+    },
+    noticeText: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+    },
+
+    // Footer
+    footer: { gap: spacing.sm },
+    noChanges: {
+      textAlign: 'center',
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+    },
+  });

@@ -1,50 +1,48 @@
-import { Fragment, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
-  ArrowLeft,
-  CalendarDays,
-  Check,
-  ChevronLeft,
-  Circle,
-  CircleCheck,
-  CircleHelp,
-  CircleUserRound,
-  ContactRound,
-  Lock,
-  LockKeyhole,
-  Mail,
-  Mars,
-  Phone,
-  ShieldCheck,
-  TriangleAlert,
-  User,
-  UserRound,
-  Users,
-  Venus,
-  WifiOff,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../../components/ui/Screen';
-import { Button } from '../../components/ui/Button';
-import { TextField } from '../../components/ui/TextField';
-import { Logo } from '../../components/ui/Logo';
-import { resolvePostAuthStatus, useAuthStore } from '../../lib/store/auth';
-import { tokenStorage } from '../../lib/api/tokenStorage';
-import { useRegisterPatient } from '../../lib/api/queries';
-import { isNetworkError } from '../../lib/offline/cache';
-import type { ApiValidationErrorBody, RegisterPatientPayload } from '../../lib/api/types';
-import { colors } from '../../theme/tokens';
+  Card,
+  Chip,
+  GradientButton,
+  Icon,
+  PillInput,
+  ScreenHeader,
+  StatusBadge,
+  StepProgress,
+  radii,
+  spacing,
+  typography,
+  useTheme,
+  type IconName,
+  type Palette,
+} from '@/components/opes-ui';
+import { FieldLabel, FormError, Note, SecondaryButton } from '@/components/enrol/shared';
+import { Screen } from '@/components/ui/Screen';
+import { resolvePostAuthStatus, useAuthStore } from '@/lib/store/auth';
+import { tokenStorage } from '@/lib/api/tokenStorage';
+import { useRegisterPatient } from '@/lib/api/queries';
+import { isNetworkError } from '@/lib/offline/cache';
+import type { ApiValidationErrorBody, RegisterPatientPayload } from '@/lib/api/types';
 
 type Sex = 'male' | 'female';
 type StepNumber = 1 | 2 | 3;
 const TOTAL_STEPS = 3;
+const STEPS: StepNumber[] = [1, 2, 3];
 
-const STEP_ICONS: Record<StepNumber, LucideIcon> = {
-  1: UserRound,
-  2: LockKeyhole,
-  3: ContactRound,
+const STEP_ICONS: Record<StepNumber, IconName> = {
+  1: 'person',
+  2: 'lock',
+  3: 'users',
 };
 
 /** Maps a server validation field name back to the step that collects it, so a
@@ -165,11 +163,14 @@ function classifySubmitError(err: unknown): SubmitFailure {
 
 /** Sign Up / Create Account — native registration flow (POST /mobile/auth/register).
  * Split into three short steps (personal / contact+security / emergency contact)
- * rather than one long form, matching the "Your Health Details" onboarding
- * reference's numbered step rail. Reached from login.tsx's "Create account" link. */
+ * rather than one long form. Presentation is the OPES enrolment layout
+ * (ScreenHeader + StepProgress + FieldLabel/PillInput + GradientButton);
+ * the data flow is unchanged. Reached from login.tsx's "Create account" link. */
 export default function SignupScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const registerPatient = useRegisterPatient();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -320,134 +321,114 @@ export default function SignupScreen() {
     }
   };
 
-  const StepIcon = STEP_ICONS[step];
+  const stepTitle = t(`signup.step${step}Title` as const);
+  const stepIndicator = t('signup.stepIndicator', { current: step, total: TOTAL_STEPS });
 
   return (
     <Screen className="px-0">
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.screen}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        <ScreenHeader
+          title={t('signup.title')}
+          subtitle={t('signup.subtitle')}
+          onBack={goBack}
+          right={
+            <StatusBadge
+              status="verified"
+              tone="normal"
+              icon="shield-check"
+              label={t('signup.secureBadge')}
+              size="sm"
+            />
+          }
+        />
+
         <ScrollView
           ref={scrollRef}
-          className="flex-1 px-6"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: 32 }}
+          contentContainerStyle={styles.content}
         >
-          {/* Header: back affordance + the reference's "100% Secure" trust badge. */}
-          <View className="mt-2 flex-row items-center justify-between">
-            <Pressable
-              onPress={goBack}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={step === 1 ? t('signup.back') : t('signup.backToStep')}
-              className="h-11 w-11 items-center justify-center rounded-full border border-brand-300 bg-white"
-            >
-              <ArrowLeft size={18} color={colors.brand[600]} />
-            </Pressable>
-
-            <View className="flex-row items-center rounded-full border border-brand-300 bg-brand-50 px-3 py-2">
-              <ShieldCheck size={14} color={colors.brand[600]} />
-              <Text className="ml-1.5 text-[11px] font-bold text-brand-600">
-                {t('signup.secureBadge')}
-              </Text>
-            </View>
-          </View>
-
-          <View className="items-center pb-2 pt-3">
-            <Logo size={68} />
-          </View>
-
-          <Text className="mt-4 text-center text-2xl font-extrabold text-navy-text">
-            {t('signup.title')}
-          </Text>
-          <Text className="mt-2 text-center text-sm leading-5 text-navy-secondary">
-            {t('signup.subtitle')}
-          </Text>
-
-          <StepRail step={step} onSelectStep={goToStep} />
+          <StepProgress
+            steps={STEPS.map((value) => ({
+              key: String(value),
+              label: t(`signup.railStep${value}` as const),
+            }))}
+            currentIndex={step - 1}
+            accessibilityLabel={`${stepIndicator}: ${stepTitle}`}
+          />
+          <Text style={styles.stepIndicator}>{stepIndicator}</Text>
 
           {conflictMessage ? (
-            <View className="mt-6 rounded-2xl border border-warning bg-brand-50 p-4">
-              <View className="flex-row items-start">
-                <TriangleAlert size={18} color={colors.semantic.warning} />
-                <View className="ml-3 flex-1">
-                  <Text className="text-sm font-bold text-navy-text">
-                    {t('signup.conflictTitle')}
-                  </Text>
+            <Card style={styles.conflict}>
+              <View style={styles.conflictRow}>
+                <Icon name="alert-triangle" size={18} color={colors.statusWarning} />
+                <View style={styles.conflictBody}>
+                  <Text style={styles.conflictTitle}>{t('signup.conflictTitle')}</Text>
                   {/* The API's own 409 message, verbatim — never replaced. */}
-                  <Text className="mt-1 text-xs leading-4 text-navy-secondary">
-                    {conflictMessage}
-                  </Text>
+                  <Text style={styles.conflictText}>{conflictMessage}</Text>
                 </View>
               </View>
-              <Pressable
+              <SecondaryButton
+                label={t('signup.signInInstead')}
                 onPress={() => router.replace('/(auth)/login')}
-                className="mt-3 h-11 items-center justify-center rounded-xl border border-brand-500 bg-white"
-              >
-                <Text className="text-sm font-bold text-brand-600">
-                  {t('signup.signInInstead')}
-                </Text>
-              </Pressable>
-            </View>
+              />
+            </Card>
           ) : null}
 
-          {offline ? (
-            <View className="mt-6 flex-row items-start rounded-2xl border border-cream-300 bg-white p-4">
-              <WifiOff size={18} color={colors.navy.secondary} />
-              <Text className="ml-3 flex-1 text-xs leading-4 text-navy-secondary">
-                {t('signup.networkError')}
-              </Text>
-            </View>
-          ) : null}
+          {offline ? <Note icon="alert-triangle" text={t('signup.networkError')} /> : null}
 
           {/* One card per step: icon chip + title + subtitle header, then the
-              fields it owns — the "Medical Information" card rhythm from the
-              onboarding reference. */}
-          <View className="mt-6 rounded-3xl border border-cream-300 bg-white p-5">
-            <View className="mb-5 flex-row items-start">
-              <View className="h-11 w-11 items-center justify-center rounded-full bg-brand-50">
-                <StepIcon size={20} color={colors.brand[600]} />
+              fields it owns. */}
+          <Card>
+            <View style={styles.stepHeader}>
+              <View style={styles.tintCircle}>
+                <Icon name={STEP_ICONS[step]} size={20} color={colors.tintBlue} />
               </View>
-              <View className="ml-3 flex-1">
-                <Text className="text-base font-bold text-navy-text">
-                  {t(`signup.step${step}Title` as const)}
-                </Text>
-                <Text className="mt-1 text-xs leading-4 text-navy-secondary">
-                  {t(`signup.step${step}Subtitle` as const)}
-                </Text>
+              <View style={styles.stepHeaderBody}>
+                <Text style={styles.stepTitle}>{stepTitle}</Text>
+                <Text style={styles.stepSubtitle}>{t(`signup.step${step}Subtitle` as const)}</Text>
               </View>
             </View>
 
             {step === 1 ? (
               <>
-                <TextField
-                  label={t('signup.firstName')}
-                  placeholder={t('signup.firstNamePlaceholder')}
-                  icon={User}
-                  autoCapitalize="words"
-                  textContentType="givenName"
-                  value={firstName}
-                  onChangeText={(v) => {
-                    setFirstName(v);
-                    clearFieldError('first_name');
-                  }}
-                  error={fieldErrors.first_name}
-                />
-                <TextField
-                  label={t('signup.lastName')}
-                  placeholder={t('signup.lastNamePlaceholder')}
-                  icon={User}
-                  autoCapitalize="words"
-                  textContentType="familyName"
-                  value={lastName}
-                  onChangeText={(v) => {
-                    setLastName(v);
-                    clearFieldError('last_name');
-                  }}
-                  error={fieldErrors.last_name}
-                />
+                <View>
+                  <FieldLabel text={t('signup.firstName')} />
+                  <PillInput
+                    icon={<Icon name="person" size={18} color={colors.blue} />}
+                    placeholder={t('signup.firstNamePlaceholder')}
+                    autoCapitalize="words"
+                    autoComplete="given-name"
+                    textContentType="givenName"
+                    value={firstName}
+                    onChangeText={(v) => {
+                      setFirstName(v);
+                      clearFieldError('first_name');
+                    }}
+                    error={fieldErrors.first_name}
+                    accessibilityLabel={t('signup.firstName')}
+                  />
+                </View>
+                <View>
+                  <FieldLabel text={t('signup.lastName')} />
+                  <PillInput
+                    icon={<Icon name="person" size={18} color={colors.blue} />}
+                    placeholder={t('signup.lastNamePlaceholder')}
+                    autoCapitalize="words"
+                    autoComplete="family-name"
+                    textContentType="familyName"
+                    value={lastName}
+                    onChangeText={(v) => {
+                      setLastName(v);
+                      clearFieldError('last_name');
+                    }}
+                    error={fieldErrors.last_name}
+                    accessibilityLabel={t('signup.lastName')}
+                  />
+                </View>
 
                 <DobField
                   value={dob}
@@ -471,75 +452,87 @@ export default function SignupScreen() {
 
             {step === 2 ? (
               <>
-                <TextField
-                  label={t('auth.phoneNumber')}
-                  placeholder={t('auth.phoneNumberPlaceholder')}
-                  icon={Phone}
-                  keyboardType="phone-pad"
-                  textContentType="telephoneNumber"
-                  value={phone}
-                  onChangeText={(v) => {
-                    setPhone(v);
-                    clearFieldError('phone');
-                  }}
-                  error={fieldErrors.phone}
-                />
-                <TextField
-                  label={t('signup.email')}
-                  placeholder={t('signup.emailPlaceholder')}
-                  icon={Mail}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="email-address"
-                  textContentType="emailAddress"
-                  value={email}
-                  onChangeText={(v) => {
-                    setEmail(v);
-                    clearFieldError('email');
-                  }}
-                  error={fieldErrors.email}
-                />
-                <TextField
-                  label={t('auth.password')}
-                  placeholder={t('auth.passwordPlaceholder')}
-                  icon={Lock}
-                  secureToggle
-                  secureTextEntry
-                  autoCapitalize="none"
-                  textContentType="newPassword"
-                  value={password}
-                  onChangeText={(v) => {
-                    setPassword(v);
-                    clearFieldError('password');
-                    clearFieldError('password_confirmation');
-                  }}
-                  error={fieldErrors.password}
-                />
+                <View>
+                  <FieldLabel text={t('auth.phoneNumber')} />
+                  <PillInput
+                    icon={<Icon name="phone" size={18} color={colors.blue} />}
+                    placeholder={t('auth.phoneNumberPlaceholder')}
+                    keyboardType="phone-pad"
+                    autoComplete="tel"
+                    textContentType="telephoneNumber"
+                    value={phone}
+                    onChangeText={(v) => {
+                      setPhone(v);
+                      clearFieldError('phone');
+                    }}
+                    error={fieldErrors.phone}
+                    accessibilityLabel={t('auth.phoneNumber')}
+                  />
+                </View>
+                <View>
+                  <FieldLabel text={t('signup.email')} />
+                  <PillInput
+                    icon={<Icon name="mail" size={18} color={colors.blue} />}
+                    placeholder={t('signup.emailPlaceholder')}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    autoComplete="email"
+                    textContentType="emailAddress"
+                    value={email}
+                    onChangeText={(v) => {
+                      setEmail(v);
+                      clearFieldError('email');
+                    }}
+                    error={fieldErrors.email}
+                    accessibilityLabel={t('signup.email')}
+                  />
+                </View>
+                <View>
+                  <FieldLabel text={t('auth.password')} />
+                  <PillInput
+                    icon={<Icon name="lock" size={18} color={colors.blue} />}
+                    placeholder={t('auth.passwordPlaceholder')}
+                    isPassword
+                    autoCapitalize="none"
+                    autoComplete="new-password"
+                    textContentType="newPassword"
+                    value={password}
+                    onChangeText={(v) => {
+                      setPassword(v);
+                      clearFieldError('password');
+                      clearFieldError('password_confirmation');
+                    }}
+                    error={fieldErrors.password}
+                    accessibilityLabel={t('auth.password')}
+                  />
+                </View>
 
                 <PasswordStrengthCard checks={checks} touched={password.length > 0} />
 
-                <TextField
-                  label={t('signup.confirmPassword')}
-                  placeholder={t('signup.confirmPasswordPlaceholder')}
-                  icon={Lock}
-                  secureToggle
-                  secureTextEntry
-                  autoCapitalize="none"
-                  textContentType="newPassword"
-                  value={confirmPassword}
-                  onChangeText={(v) => {
-                    setConfirmPassword(v);
-                    clearFieldError('password_confirmation');
-                  }}
-                  error={fieldErrors.password_confirmation}
-                />
+                <View>
+                  <FieldLabel text={t('signup.confirmPassword')} />
+                  <PillInput
+                    icon={<Icon name="lock" size={18} color={colors.blue} />}
+                    placeholder={t('signup.confirmPasswordPlaceholder')}
+                    isPassword
+                    autoCapitalize="none"
+                    autoComplete="new-password"
+                    textContentType="newPassword"
+                    value={confirmPassword}
+                    onChangeText={(v) => {
+                      setConfirmPassword(v);
+                      clearFieldError('password_confirmation');
+                    }}
+                    error={fieldErrors.password_confirmation}
+                    accessibilityLabel={t('signup.confirmPassword')}
+                  />
+                </View>
 
                 {passwordsMatch && !fieldErrors.password_confirmation ? (
-                  <View className="-mt-2 mb-2 flex-row items-center">
-                    <CircleCheck size={14} color={colors.semantic.success} />
-                    <Text className="ml-2 text-xs font-semibold text-success">
-                      {t('signup.passwordsMatch')}
-                    </Text>
+                  <View style={styles.matchRow} accessibilityLiveRegion="polite">
+                    <Icon name="check-circle" size={14} color={colors.statusNormal} />
+                    <Text style={styles.matchText}>{t('signup.passwordsMatch')}</Text>
                   </View>
                 ) : null}
               </>
@@ -547,18 +540,21 @@ export default function SignupScreen() {
 
             {step === 3 ? (
               <>
-                <TextField
-                  label={t('signup.emergencyName')}
-                  placeholder={t('signup.emergencyNamePlaceholder')}
-                  icon={UserRound}
-                  autoCapitalize="words"
-                  value={emergencyName}
-                  onChangeText={(v) => {
-                    setEmergencyName(v);
-                    clearFieldError('emergency_name');
-                  }}
-                  error={fieldErrors.emergency_name}
-                />
+                <View>
+                  <FieldLabel text={t('signup.emergencyName')} />
+                  <PillInput
+                    icon={<Icon name="person" size={18} color={colors.blue} />}
+                    placeholder={t('signup.emergencyNamePlaceholder')}
+                    autoCapitalize="words"
+                    value={emergencyName}
+                    onChangeText={(v) => {
+                      setEmergencyName(v);
+                      clearFieldError('emergency_name');
+                    }}
+                    error={fieldErrors.emergency_name}
+                    accessibilityLabel={t('signup.emergencyName')}
+                  />
+                </View>
 
                 <RelationshipField
                   value={emergencyRelationship}
@@ -569,166 +565,74 @@ export default function SignupScreen() {
                   }}
                 />
 
-                <TextField
-                  label={t('signup.emergencyPhone')}
-                  placeholder={t('signup.emergencyPhonePlaceholder')}
-                  icon={Phone}
-                  keyboardType="phone-pad"
-                  textContentType="telephoneNumber"
-                  value={emergencyPhone}
-                  onChangeText={(v) => {
-                    setEmergencyPhone(v);
-                    clearFieldError('emergency_phone');
-                  }}
-                  error={fieldErrors.emergency_phone}
-                />
+                <View>
+                  <FieldLabel text={t('signup.emergencyPhone')} />
+                  <PillInput
+                    icon={<Icon name="phone" size={18} color={colors.blue} />}
+                    placeholder={t('signup.emergencyPhonePlaceholder')}
+                    keyboardType="phone-pad"
+                    textContentType="telephoneNumber"
+                    value={emergencyPhone}
+                    onChangeText={(v) => {
+                      setEmergencyPhone(v);
+                      clearFieldError('emergency_phone');
+                    }}
+                    error={fieldErrors.emergency_phone}
+                    accessibilityLabel={t('signup.emergencyPhone')}
+                  />
+                </View>
               </>
             ) : null}
-          </View>
+          </Card>
 
-          {bannerError ? (
-            <View className="mt-4 flex-row items-start rounded-2xl border border-danger bg-white p-4">
-              <TriangleAlert size={18} color={colors.semantic.danger} />
-              <Text className="ml-3 flex-1 text-xs leading-4 text-danger">{bannerError}</Text>
-            </View>
-          ) : null}
+          <FormError message={bannerError} />
 
-          <View className="mt-6">
-            {step < TOTAL_STEPS ? (
-              <>
-                <Button label={t('signup.continue')} onPress={goNext} showChevron={false} />
-                <Text className="mt-3 text-center text-xs font-semibold text-navy-muted">
-                  {t('signup.nextUp', { step: t(`signup.step${step + 1}Title` as const) })}
-                </Text>
-              </>
-            ) : (
-              <Button
-                label={t('signup.createAccount')}
-                onPress={handleSubmit}
-                loading={submitting}
-                showChevron={false}
-              />
-            )}
-          </View>
+          {step < TOTAL_STEPS ? (
+            <>
+              <GradientButton label={t('signup.continue')} onPress={goNext} />
+              <Text style={styles.nextUp}>
+                {t('signup.nextUp', { step: t(`signup.step${step + 1}Title` as const) })}
+              </Text>
+            </>
+          ) : (
+            <GradientButton
+              label={t('signup.createAccount')}
+              onPress={handleSubmit}
+              loading={submitting}
+            />
+          )}
 
           {step > 1 ? (
-            <Pressable
+            <TouchableOpacity
               onPress={goBack}
               disabled={submitting}
               hitSlop={8}
-              className="mt-4 h-11 flex-row items-center justify-center"
-              style={{ opacity: submitting ? 0.5 : 1 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('signup.backToStep')}
+              style={[styles.textButton, submitting && styles.textButtonDisabled]}
             >
-              <ChevronLeft size={16} color={colors.navy.secondary} />
-              <Text className="ml-1 text-sm font-semibold text-navy-secondary">
-                {t('signup.back')}
-              </Text>
-            </Pressable>
+              <Icon name="chevron-left" size={16} color={colors.textSecondary} />
+              <Text style={styles.textButtonLabel}>{t('signup.back')}</Text>
+            </TouchableOpacity>
           ) : null}
 
           {step === 1 ? (
-            <View className="mt-6 flex-row items-center justify-center">
-              <Text className="text-sm text-navy-secondary">{t('signup.alreadyHaveAccount')} </Text>
-              <Pressable onPress={() => router.replace('/(auth)/login')} hitSlop={8}>
-                <Text className="text-sm font-bold text-brand-500">{t('auth.signIn')}</Text>
-              </Pressable>
+            <View style={styles.textButton}>
+              <Text style={styles.footerText}>{t('signup.alreadyHaveAccount')} </Text>
+              <TouchableOpacity
+                onPress={() => router.replace('/(auth)/login')}
+                hitSlop={8}
+                accessibilityRole="link"
+              >
+                <Text style={styles.link}>{t('auth.signIn')}</Text>
+              </TouchableOpacity>
             </View>
           ) : null}
 
-          <View className="mt-6 flex-row items-start rounded-2xl bg-brand-50 p-4">
-            <ShieldCheck size={16} color={colors.brand[600]} />
-            <Text className="ml-3 flex-1 text-xs leading-4 text-navy-secondary">
-              {t('auth.securityNote')}
-            </Text>
-          </View>
+          <Note icon="shield-check" text={t('auth.securityNote')} />
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
-  );
-}
-
-/** Numbered step rail — filled/checked circles joined by connectors, mirroring
- * the onboarding reference's "Account Verified → Verify Email → …" progress
- * strip. Completed circles are tappable so a patient can go back and edit
- * without losing the steps ahead. */
-function StepRail({
-  step,
-  onSelectStep,
-}: {
-  step: StepNumber;
-  onSelectStep: (next: StepNumber) => void;
-}) {
-  const { t } = useTranslation();
-  const steps: StepNumber[] = [1, 2, 3];
-
-  return (
-    <View className="mt-6">
-      <View className="flex-row items-start">
-        {steps.map((value, index) => {
-          const done = value < step;
-          const active = value === step;
-          const Icon = STEP_ICONS[value];
-          const circleBg = done || active ? colors.brand[500] : colors.cream[200];
-          const labelColor = active
-            ? colors.brand[600]
-            : done
-              ? colors.navy.secondary
-              : colors.navy.muted;
-
-          return (
-            <Fragment key={value}>
-              {index > 0 ? (
-                <View
-                  style={{
-                    flex: 1,
-                    height: 2,
-                    marginTop: 21,
-                    borderRadius: 1,
-                    backgroundColor: done || active ? colors.brand[300] : colors.cream[300],
-                  }}
-                />
-              ) : null}
-              <Pressable
-                disabled={!done}
-                onPress={() => onSelectStep(value)}
-                accessibilityRole={done ? 'button' : undefined}
-                accessibilityLabel={t('signup.stepIndicator', {
-                  current: value,
-                  total: TOTAL_STEPS,
-                })}
-                style={{ width: 84, alignItems: 'center' }}
-              >
-                <View
-                  className="h-11 w-11 items-center justify-center rounded-full"
-                  style={{
-                    backgroundColor: circleBg,
-                    borderWidth: active ? 3 : 1,
-                    borderColor: active ? colors.brand[100] : colors.cream[300],
-                  }}
-                >
-                  {done ? (
-                    <Check size={18} color={colors.white} />
-                  ) : (
-                    <Icon size={18} color={active ? colors.white : colors.navy.muted} />
-                  )}
-                </View>
-                <Text
-                  numberOfLines={2}
-                  className="mt-2 text-center text-[11px] font-semibold"
-                  style={{ color: labelColor }}
-                >
-                  {t(`signup.railStep${value}` as const)}
-                </Text>
-              </Pressable>
-            </Fragment>
-          );
-        })}
-      </View>
-
-      <Text className="mt-3 text-center text-[11px] font-semibold uppercase tracking-widest text-navy-muted">
-        {t('signup.stepIndicator', { current: step, total: TOTAL_STEPS })}
-      </Text>
-    </View>
   );
 }
 
@@ -745,33 +649,41 @@ function DobField({
   onChange: (v: string) => void;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const age = ageFromDob(value);
 
   return (
     <View>
-      <TextField
-        label={t('signup.dateOfBirth')}
+      <FieldLabel text={t('signup.dateOfBirth')} />
+      <PillInput
+        icon={<Icon name="calendar" size={18} color={colors.blue} />}
         placeholder={t('signup.dateOfBirthPlaceholder')}
-        icon={CalendarDays}
         keyboardType="number-pad"
         inputMode="numeric"
+        autoCorrect={false}
+        autoComplete="birthdate-full"
+        // iOS has no `textContentType` for a whole date of birth; the nearest
+        // values are all wrong, and a wrong one makes the keychain offer a
+        // postcode. `none` is the correct answer, not a gap.
+        textContentType="none"
         value={value}
         onChangeText={onChange}
         error={error}
+        accessibilityLabel={t('signup.dateOfBirth')}
+        accessibilityHint={t('signup.dobFormatHint')}
       />
       {error ? null : (
-        <View className="-mt-3 mb-4 flex-row items-center">
+        <View style={styles.helperRow}>
           {age === null ? (
             <>
-              <Circle size={12} color={colors.navy.muted} />
-              <Text className="ml-2 text-xs text-navy-muted">{t('signup.dobFormatHint')}</Text>
+              <Icon name="info" size={12} color={colors.textMuted} />
+              <Text style={styles.helper}>{t('signup.dobFormatHint')}</Text>
             </>
           ) : (
             <>
-              <CircleCheck size={12} color={colors.brand[600]} />
-              <Text className="ml-2 text-xs font-semibold text-brand-600">
-                {t('signup.dobAge', { age })}
-              </Text>
+              <Icon name="check-circle" size={12} color={colors.blue} />
+              <Text style={[styles.helper, styles.helperOn]}>{t('signup.dobAge', { age })}</Text>
             </>
           )}
         </View>
@@ -780,13 +692,13 @@ function DobField({
   );
 }
 
-const SEX_OPTIONS: { value: Sex; icon: LucideIcon; labelKey: string }[] = [
-  { value: 'male', icon: Mars, labelKey: 'signup.sexMale' },
-  { value: 'female', icon: Venus, labelKey: 'signup.sexFemale' },
+const SEX_OPTIONS: { value: Sex; labelKey: string }[] = [
+  { value: 'male', labelKey: 'signup.sexMale' },
+  { value: 'female', labelKey: 'signup.sexFemale' },
 ];
 
-/** Two-up chip grid — the same selection language as the reference's medical
- * history chips, rather than a dropdown the API doesn't need. */
+/** Chip pair — the kit's selection language, rather than a dropdown the API
+ * doesn't need. */
 function SexPicker({
   value,
   onChange,
@@ -797,45 +709,27 @@ function SexPicker({
   error?: string;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
-    <View className="mb-2">
-      <Text className="mb-2 text-sm font-semibold text-navy-text">{t('signup.sex')}</Text>
-      <View className="flex-row flex-wrap" style={{ gap: 10 }}>
-        {SEX_OPTIONS.map((opt) => {
-          const selected = value === opt.value;
-          const OptionIcon = opt.icon;
-          return (
-            <Pressable
-              key={opt.value}
-              onPress={() => onChange(opt.value)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected }}
-              className="flex-row items-center rounded-2xl border px-3 py-3"
-              style={{
-                width: '47%',
-                borderColor: selected
-                  ? colors.brand[500]
-                  : error
-                    ? colors.semantic.danger
-                    : colors.cream[300],
-                backgroundColor: selected ? colors.brand[50] : colors.white,
-              }}
-            >
-              <OptionIcon size={16} color={selected ? colors.brand[600] : colors.navy.muted} />
-              <Text
-                numberOfLines={1}
-                className="ml-2 flex-1 text-xs font-semibold"
-                style={{ color: selected ? colors.brand[600] : colors.navy.text }}
-              >
-                {t(opt.labelKey)}
-              </Text>
-              {selected ? <Check size={14} color={colors.brand[600]} /> : null}
-            </Pressable>
-          );
-        })}
+    <View>
+      <FieldLabel text={t('signup.sex')} />
+      <View style={styles.chipRow}>
+        {SEX_OPTIONS.map((opt) => (
+          <Chip
+            key={opt.value}
+            label={t(opt.labelKey)}
+            selected={value === opt.value}
+            onPress={() => onChange(opt.value)}
+          />
+        ))}
       </View>
-      {error ? <Text className="mt-2 text-xs text-danger">{error}</Text> : null}
+      {error ? (
+        <Text style={styles.fieldError} accessibilityRole="alert" accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -845,69 +739,57 @@ function SexPicker({
  * as strength hints so a valid-but-simple password is never blocked here. */
 function PasswordStrengthCard({ checks, touched }: { checks: PasswordChecks; touched: boolean }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const score = Object.values(checks).filter(Boolean).length;
 
   const meter =
     score <= 1
-      ? { color: colors.semantic.danger, labelKey: 'signup.strengthWeak' }
+      ? { color: colors.statusCritical, labelKey: 'signup.strengthWeak' }
       : score === 2
-        ? { color: colors.semantic.warning, labelKey: 'signup.strengthFair' }
+        ? { color: colors.statusWarning, labelKey: 'signup.strengthFair' }
         : score === 3
-          ? { color: colors.brand[500], labelKey: 'signup.strengthGood' }
-          : { color: colors.semantic.success, labelKey: 'signup.strengthStrong' };
+          ? { color: colors.blue, labelKey: 'signup.strengthGood' }
+          : { color: colors.statusNormal, labelKey: 'signup.strengthStrong' };
 
-  const rows: { key: keyof PasswordChecks; labelKey: string; required: boolean }[] = [
-    { key: 'length', labelKey: 'signup.pwLength', required: true },
-    { key: 'upper', labelKey: 'signup.pwUpper', required: false },
-    { key: 'number', labelKey: 'signup.pwNumber', required: false },
-    { key: 'symbol', labelKey: 'signup.pwSymbol', required: false },
+  const rows: { key: keyof PasswordChecks; labelKey: string }[] = [
+    { key: 'length', labelKey: 'signup.pwLength' },
+    { key: 'upper', labelKey: 'signup.pwUpper' },
+    { key: 'number', labelKey: 'signup.pwNumber' },
+    { key: 'symbol', labelKey: 'signup.pwSymbol' },
   ];
 
   return (
-    <View className="mb-4 rounded-2xl border border-cream-300 bg-cream-50 p-4">
-      <View className="flex-row items-center justify-between">
-        <Text className="text-xs font-bold text-navy-text">{t('signup.passwordRules')}</Text>
+    <View style={styles.strength}>
+      <View style={styles.strengthHeader}>
+        <Text style={styles.strengthTitle}>{t('signup.passwordRules')}</Text>
         {touched ? (
-          <Text className="text-[11px] font-bold" style={{ color: meter.color }}>
-            {t(meter.labelKey)}
-          </Text>
+          <Text style={[styles.strengthLabel, { color: meter.color }]}>{t(meter.labelKey)}</Text>
         ) : null}
       </View>
 
-      <View className="mt-3 flex-row" style={{ gap: 4 }}>
+      <View style={styles.meterRow}>
         {[0, 1, 2, 3].map((i) => (
           <View
             key={i}
-            className="h-1.5 flex-1 rounded-full"
-            style={{ backgroundColor: touched && i < score ? meter.color : colors.cream[300] }}
+            style={[styles.meterSegment, touched && i < score && { backgroundColor: meter.color }]}
           />
         ))}
       </View>
 
-      <View className="mt-3" style={{ gap: 6 }}>
+      <View style={styles.ruleList}>
         {rows.map((row) => {
           const met = checks[row.key];
           return (
-            <View key={row.key} className="flex-row items-center">
-              {met ? (
-                <CircleCheck size={14} color={colors.brand[600]} />
-              ) : (
-                <Circle size={14} color={colors.navy.muted} />
-              )}
-              <Text
-                className="ml-2 text-xs"
-                style={{ color: met ? colors.navy.text : colors.navy.secondary }}
-              >
-                {t(row.labelKey)}
-              </Text>
+            <View key={row.key} style={styles.ruleRow}>
+              <Icon name="check-circle" size={14} color={met ? colors.blue : colors.border} />
+              <Text style={[styles.ruleText, met && styles.ruleTextMet]}>{t(row.labelKey)}</Text>
             </View>
           );
         })}
       </View>
 
-      <Text className="mt-3 text-[11px] leading-4 text-navy-muted">
-        {t('signup.pwRequiredNote')}
-      </Text>
+      <Text style={styles.strengthNote}>{t('signup.pwRequiredNote')}</Text>
     </View>
   );
 }
@@ -924,47 +806,197 @@ function RelationshipField({
   onChange: (v: string) => void;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <View>
-      <TextField
-        label={t('signup.emergencyRelationship')}
+      <FieldLabel text={t('signup.emergencyRelationship')} />
+      <PillInput
+        icon={<Icon name="users" size={18} color={colors.blue} />}
         placeholder={t('signup.emergencyRelationshipPlaceholder')}
-        icon={Users}
         autoCapitalize="words"
         value={value}
         onChangeText={onChange}
         error={error}
+        accessibilityLabel={t('signup.emergencyRelationship')}
       />
-      <View className={error ? 'mb-4' : '-mt-2 mb-4'}>
-        <Text className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-navy-muted">
-          {t('signup.relationshipQuickPick')}
-        </Text>
-        <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-          {RELATIONSHIP_KEYS.map((key) => {
-            const label = t(`signup.${key}` as const);
-            const selected = value.trim().toLowerCase() === label.toLowerCase();
-            return (
-              <Pressable
-                key={key}
-                onPress={() => onChange(label)}
-                className="rounded-full border px-3 py-2"
-                style={{
-                  borderColor: selected ? colors.brand[500] : colors.cream[300],
-                  backgroundColor: selected ? colors.brand[50] : colors.white,
-                }}
-              >
-                <Text
-                  className="text-xs font-semibold"
-                  style={{ color: selected ? colors.brand[600] : colors.navy.secondary }}
-                >
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+      <Text style={styles.quickPick}>{t('signup.relationshipQuickPick')}</Text>
+      <View style={styles.chipRow}>
+        {RELATIONSHIP_KEYS.map((key) => {
+          const label = t(`signup.${key}` as const);
+          const selected = value.trim().toLowerCase() === label.toLowerCase();
+          return <Chip key={key} label={label} selected={selected} onPress={() => onChange(label)} />;
+        })}
       </View>
     </View>
   );
 }
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1 },
+    content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm },
+
+    stepIndicator: {
+      marginTop: spacing.xs,
+      marginBottom: spacing.xs,
+      textAlign: 'center',
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: 11,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      color: colors.textMuted,
+    },
+
+    conflict: { gap: spacing.md, borderColor: colors.statusWarning },
+    conflictRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 4 },
+    conflictBody: { flex: 1, minWidth: 0, gap: 4 },
+    conflictTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    conflictText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+
+    stepHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm + 4,
+      marginBottom: spacing.md,
+    },
+    stepHeaderBody: { flex: 1, minWidth: 0, gap: 2 },
+    tintCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.pill,
+      backgroundColor: colors.tintBlueBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: colors.textPrimary,
+    },
+    stepSubtitle: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+
+    helperRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: -spacing.sm,
+      marginBottom: spacing.md,
+      marginLeft: spacing.sm,
+    },
+    helper: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+    },
+    helperOn: { fontFamily: typography.fontFamily.semiBold, color: colors.blue },
+
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+    fieldError: {
+      marginTop: -spacing.sm,
+      marginBottom: spacing.sm,
+      marginLeft: spacing.md,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.danger,
+    },
+
+    matchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: -spacing.sm,
+      marginLeft: spacing.sm,
+    },
+    matchText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      color: colors.statusNormal,
+    },
+
+    strength: {
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: radii.md,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+      gap: spacing.sm + 4,
+    },
+    strengthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    strengthTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      color: colors.textPrimary,
+    },
+    strengthLabel: { fontFamily: typography.fontFamily.semiBold, fontSize: 11 },
+    meterRow: { flexDirection: 'row', gap: 4 },
+    meterSegment: { flex: 1, height: 6, borderRadius: radii.pill, backgroundColor: colors.border },
+    ruleList: { gap: 6 },
+    ruleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    ruleText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textSecondary,
+    },
+    ruleTextMet: { color: colors.textPrimary },
+    strengthNote: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: 11,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textMuted,
+    },
+
+    quickPick: {
+      marginTop: -spacing.sm,
+      marginBottom: spacing.sm,
+      marginLeft: spacing.sm,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: 11,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: colors.textMuted,
+    },
+
+    nextUp: {
+      textAlign: 'center',
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+    },
+    textButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.sm,
+    },
+    textButtonDisabled: { opacity: 0.5 },
+    textButtonLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
+    footerText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
+    link: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.link,
+    },
+  });

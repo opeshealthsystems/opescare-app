@@ -1,56 +1,59 @@
-import { Fragment, useMemo } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useMemo } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Activity,
-  AlertTriangle,
-  BadgeCheck,
-  Calendar,
-  ChevronRight,
-  CloudOff,
-  Download,
-  Droplet,
-  FileText,
-  FolderOpen,
-  HelpCircle,
-  LogOut,
-  Mail,
-  MapPin,
-  MessageCircle,
-  Pencil,
-  Phone,
-  PhoneCall,
-  QrCode,
-  Settings as SettingsIcon,
-  ShieldCheck,
-  Sparkles,
-  UserRound,
-  Users,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../../components/ui/Screen';
+  Card,
+  Icon,
+  ListRow,
+  ScreenHeader,
+  SectionHeader,
+  formatDate,
+  radii,
+  spacing,
+  typography,
+  useDialog,
+  useTheme,
+  type IconName,
+  type Palette,
+  type Tint,
+} from '@/components/opes-ui';
 import { useAuthStore } from '../../lib/store/auth';
 import { useFamilyMembers } from '../../lib/api/queries';
-import { colors } from '../../theme/tokens';
 
-/** Formats an ISO date string ("1985-03-14") into a locale-aware short date,
- * falling back to the not-provided copy when missing/unparsable. */
-function formatDate(value: string | null, locale: string, fallback: string): string {
-  if (!value) return fallback;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
+/**
+ * Profile tab — the OPES CORE-008 layout (navy identity hero, quick-overview
+ * tiles, overline section headers over flush list cards, privacy banner,
+ * confirmed sign-out) on top of the app's existing data: the auth store's
+ * `patient`, `useFamilyMembers()` for the dependents tile and the store's
+ * `logout()`. Presentation only — every row and link the previous version had
+ * is still here, re-skinned with the kit.
+ */
+
+type QuickLink = {
+  icon: IconName;
+  tint: Tint;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+};
+
+type Tile = {
+  icon: IconName;
+  tint: Tint;
+  label: string;
+  value: string;
+  hint: string;
+  onPress: () => void;
+};
 
 export default function ProfileScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
+  const { colors, statusMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const dialog = useDialog();
   const patient = useAuthStore((s) => s.patient);
   const logout = useAuthStore((s) => s.logout);
 
@@ -80,6 +83,7 @@ export default function ProfileScreen() {
     : rawStatus
       ? rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1)
       : t('profile.pending');
+  const statusSkin = statusMap[isVerified ? 'normal' : 'warning'];
 
   const genderLabel = (() => {
     switch (patient?.sex?.toLowerCase()) {
@@ -114,495 +118,609 @@ export default function ProfileScreen() {
     return { filled, total: fields.length, percent: Math.round((filled / fields.length) * 100) };
   }, [patient]);
 
-  const confirmSignOut = () => {
-    Alert.alert(t('profile.signOutConfirmTitle'), t('profile.signOutConfirmBody'), [
-      { text: t('profile.signOutConfirmCancel'), style: 'cancel' },
-      { text: t('profile.signOut'), style: 'destructive', onPress: () => void logout() },
-    ]);
-  };
+  // Sign out is confirmed through the kit Dialog rather than `Alert.alert`,
+  // which is a no-op on react-native-web. `logout()` clears the token and the
+  // session; the root layout then routes to the welcome screen.
+  const confirmSignOut = useCallback(() => {
+    dialog.confirm({
+      title: t('profile.signOutConfirmTitle'),
+      message: t('profile.signOutConfirmBody'),
+      confirmLabel: t('profile.signOut'),
+      cancelLabel: t('profile.signOutConfirmCancel'),
+      destructive: true,
+      onConfirm: () => logout(),
+    });
+  }, [dialog, t, logout]);
 
-  const recordLinks: MenuItem[] = [
+  const goEditProfile = useCallback(() => router.push('/edit-profile'), [router]);
+
+  if (!patient) {
+    return (
+      <SafeAreaView style={styles.screen} edges={['top']}>
+        <ScreenHeader title={t('profile.title')} subtitle={t('profile.subtitle')} showBack={false} />
+        <View style={styles.centered}>
+          <ActivityIndicator color={colors.blue} />
+          <Text style={styles.loadingText}>{t('profile.loading')}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const tiles: Tile[] = [
     {
-      icon: QrCode,
-      label: t('profile.healthIdCard'),
-      description: t('profile.healthIdCardDesc'),
-      onPress: () => router.push('/(tabs)/health-id'),
-    },
-    {
-      icon: FileText,
-      label: t('profile.recordsTimeline'),
-      description: t('profile.recordsTimelineDesc'),
+      icon: 'alert-triangle',
+      tint: 'amber',
+      label: t('profile.allergies'),
+      value: String(patient.allergies_count ?? 0),
+      hint: t('profile.allergiesHint'),
       onPress: () => router.push('/(tabs)/records'),
     },
     {
-      icon: FolderOpen,
-      label: t('profile.documents'),
-      description: t('profile.documentsDesc'),
+      icon: 'activity',
+      tint: 'purple',
+      label: t('profile.conditions'),
+      value: String(patient.conditions_count ?? 0),
+      hint: t('profile.conditionsHint'),
+      onPress: () => router.push('/(tabs)/records'),
+    },
+    {
+      icon: 'users',
+      tint: 'blue',
+      label: t('profile.dependents'),
+      value: familyQuery.isLoading && !familyQuery.data ? '…' : String(dependentCount),
+      hint: familyQuery.isError ? t('profile.dependentsUnavailable') : t('profile.dependentsHint'),
+      onPress: () => router.push('/family'),
+    },
+    {
+      icon: 'check-circle',
+      tint: 'green',
+      label: t('profile.profileStrength'),
+      value: `${completeness.percent}%`,
+      hint:
+        completeness.filled === completeness.total
+          ? t('profile.profileStrengthComplete')
+          : t('profile.profileStrengthHint', { missing: completeness.total - completeness.filled }),
+      onPress: goEditProfile,
+    },
+  ];
+  const tileRows: Tile[][] = [tiles.slice(0, 2), tiles.slice(2, 4)];
+
+  const recordLinks: QuickLink[] = [
+    {
+      icon: 'qr',
+      tint: 'blue',
+      title: t('profile.healthIdCard'),
+      subtitle: t('profile.healthIdCardDesc'),
+      onPress: () => router.push('/(tabs)/health-id'),
+    },
+    {
+      icon: 'document-text',
+      tint: 'blue',
+      title: t('profile.recordsTimeline'),
+      subtitle: t('profile.recordsTimelineDesc'),
+      onPress: () => router.push('/(tabs)/records'),
+    },
+    {
+      icon: 'folder',
+      tint: 'purple',
+      title: t('profile.documents'),
+      subtitle: t('profile.documentsDesc'),
       onPress: () => router.push('/documents'),
     },
     {
-      icon: Download,
-      label: t('profile.downloadRecords'),
-      description: t('profile.downloadRecordsDesc'),
+      icon: 'download',
+      tint: 'green',
+      title: t('profile.downloadRecords'),
+      subtitle: t('profile.downloadRecordsDesc'),
       onPress: () => router.push('/export-records'),
     },
   ];
 
-  const accountLinks: MenuItem[] = [
+  const accountLinks: QuickLink[] = [
     {
-      icon: Users,
-      label: t('profile.family'),
-      description: t('profile.familyDesc'),
+      icon: 'users',
+      tint: 'purple',
+      title: t('profile.family'),
+      subtitle: t('profile.familyDesc'),
       onPress: () => router.push('/family'),
     },
     {
-      icon: MessageCircle,
-      label: t('profile.messages'),
-      description: t('profile.messagesDesc'),
+      icon: 'chat',
+      tint: 'blue',
+      title: t('profile.messages'),
+      subtitle: t('profile.messagesDesc'),
       onPress: () => router.push('/(tabs)/messages'),
     },
     {
-      icon: CloudOff,
-      label: t('profile.offlineAccess'),
-      description: t('profile.offlineAccessDesc'),
+      // The kit has no "cloud-off" glyph; the lock reads as "an encrypted copy
+      // on this device", which is what the row is.
+      icon: 'lock',
+      tint: 'amber',
+      title: t('profile.offlineAccess'),
+      subtitle: t('profile.offlineAccessDesc'),
       onPress: () => router.push('/offline-access'),
     },
     {
-      icon: SettingsIcon,
-      label: t('profile.settings'),
-      description: t('profile.settingsDesc'),
+      icon: 'settings',
+      tint: 'blue',
+      title: t('profile.settings'),
+      subtitle: t('profile.settingsDesc'),
       onPress: () => router.push('/settings'),
     },
     {
-      icon: HelpCircle,
-      label: t('profile.helpSupport'),
-      description: t('profile.helpSupportDesc'),
+      icon: 'help-circle',
+      tint: 'green',
+      title: t('profile.helpSupport'),
+      subtitle: t('profile.helpSupportDesc'),
       onPress: () => router.push('/help'),
     },
   ];
 
-  if (!patient) {
-    return (
-      <Screen>
-        <View className="mt-2">
-          <Text className="text-2xl font-extrabold text-navy-text">{t('profile.title')}</Text>
-        </View>
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={colors.brand[500]} />
-          <Text className="mt-3 text-sm text-navy-secondary">{t('profile.loading')}</Text>
-        </View>
-      </Screen>
-    );
-  }
-
   return (
-    <Screen className="px-0">
-      <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
-        {/* Header — title left, labelled edit action right (reference anatomy) */}
-        <View className="mt-2 flex-row items-start justify-between">
-          <View className="flex-1 pr-3">
-            <Text className="text-2xl font-extrabold text-navy-text">{t('profile.title')}</Text>
-            <Text className="mt-1 text-sm text-navy-secondary">{t('profile.subtitle')}</Text>
-          </View>
-          <Pressable
-            onPress={() => router.push('/edit-profile')}
-            accessibilityRole="button"
-            accessibilityLabel={t('profile.editProfileAction')}
-            hitSlop={6}
-            className="flex-row items-center rounded-full border border-brand-300 bg-white px-3 py-2"
-          >
-            <Pencil size={14} color={colors.brand[600]} />
-            <Text className="ml-1.5 text-xs font-bold text-brand-600">
-              {t('profile.editProfileAction')}
-            </Text>
-          </Pressable>
-        </View>
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <ScreenHeader
+        title={t('profile.title')}
+        subtitle={t('profile.subtitle')}
+        showBack={false}
+        actions={[
+          { icon: 'edit', onPress: goEditProfile, accessibilityLabel: t('profile.editProfileAction') },
+          {
+            icon: 'settings',
+            onPress: () => router.push('/settings'),
+            accessibilityLabel: t('profile.settings'),
+          },
+        ]}
+      />
 
-        {/* Identity card */}
-        <View className="mt-5 rounded-3xl border border-cream-300 bg-white p-5">
-          <View className="flex-row items-center">
-            <View>
-              <LinearGradient
-                colors={[colors.brand[300], colors.brand[500], colors.brand[700]]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={{
-                  width: 84,
-                  height: 84,
-                  borderRadius: 42,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <View
-                  className="items-center justify-center rounded-full bg-cream-50"
-                  style={{ width: 74, height: 74 }}
-                >
-                  <Text className="text-2xl font-extrabold text-brand-600">{initials}</Text>
-                </View>
-              </LinearGradient>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* ── Identity hero (navy inverse card, CORE-008) ─────────────── */}
+        <View style={styles.hero}>
+          <View style={styles.heroTop}>
+            <View style={styles.avatarWrap}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
               {isVerified ? (
-                <View
-                  className="absolute h-7 w-7 items-center justify-center rounded-full"
-                  style={{
-                    right: -2,
-                    bottom: -2,
-                    backgroundColor: colors.semantic.success,
-                    borderWidth: 2,
-                    borderColor: colors.white,
-                  }}
-                >
-                  <BadgeCheck size={13} color={colors.white} />
+                <View style={styles.avatarBadge}>
+                  <Icon name="check" size={12} color={colors.textOnBrand} strokeWidth={2.4} />
                 </View>
               ) : null}
             </View>
 
-            <View className="ml-4 flex-1">
-              <Text className="text-xl font-extrabold text-navy-text" numberOfLines={2}>
+            <View style={styles.heroIdentity}>
+              <Text style={styles.heroName} numberOfLines={2}>
                 {fullName || '—'}
               </Text>
-              <View
-                className="mt-2 flex-row items-center self-start rounded-full px-2.5 py-1"
-                style={{
-                  backgroundColor: isVerified
-                    ? colors.semantic.successSurface
-                    : colors.semantic.warningSurface,
-                }}
-              >
-                <BadgeCheck
-                  size={12}
-                  color={isVerified ? colors.semantic.success : colors.semantic.warning}
-                />
-                <Text
-                  className="ml-1 text-xs font-semibold"
-                  style={{
-                    color: isVerified ? colors.semantic.success : colors.semantic.warning,
-                  }}
-                >
-                  {statusLabel}
-                </Text>
+              <View style={styles.heroChips}>
+                <View style={[styles.heroChip, { backgroundColor: statusSkin.bg }]}>
+                  <Icon
+                    name={isVerified ? 'check-circle' : 'alert-circle'}
+                    size={14}
+                    color={statusSkin.fg}
+                  />
+                  <Text style={[styles.heroChipText, { color: statusSkin.fg }]}>{statusLabel}</Text>
+                </View>
               </View>
             </View>
           </View>
 
-          {/* Contact lines */}
-          <View className="mt-4 border-t border-cream-300 pt-4">
-            <ContactLine
-              icon={Mail}
-              value={patient.email}
-              fallback={t('profile.notProvided')}
-            />
-            <View className="h-2" />
-            <ContactLine
-              icon={Phone}
-              value={patient.phone}
-              fallback={t('profile.notProvided')}
-            />
-          </View>
-
-          {/* Health ID → the QR card, the reference's "Tap to view" panel */}
-          <Pressable
+          {/* Health ID → the QR card ("Tap to view") */}
+          <TouchableOpacity
+            style={styles.heroIdRow}
+            activeOpacity={0.7}
             onPress={() => router.push('/(tabs)/health-id')}
             accessibilityRole="button"
             accessibilityLabel={t('profile.healthIdCard')}
-            className="mt-4 flex-row items-center rounded-2xl bg-cream-100 p-3"
+            accessibilityHint={t('profile.tapToView')}
           >
-            <View className="h-12 w-12 items-center justify-center rounded-2xl bg-white">
-              <QrCode size={21} color={colors.brand[600]} />
+            <View style={styles.heroIdIcon}>
+              <Icon name="qr" size={20} color={colors.textOnBrand} />
             </View>
-            <View className="ml-3 flex-1">
-              <Text className="text-[10px] font-bold uppercase tracking-wide text-navy-muted">
-                {t('profile.healthId')}
-              </Text>
-              <Text className="mt-0.5 text-base font-extrabold text-brand-600" numberOfLines={1}>
+            <View style={styles.heroIdText}>
+              <Text style={styles.heroIdLabel}>{t('profile.healthId')}</Text>
+              <Text style={styles.heroIdValue} numberOfLines={1}>
                 {patient.health_id || '—'}
               </Text>
-              <Text className="mt-0.5 text-[11px] text-navy-secondary">
-                {t('profile.tapToView')}
-              </Text>
+              <Text style={styles.heroIdHint}>{t('profile.tapToView')}</Text>
             </View>
-            <ChevronRight size={18} color={colors.navy.muted} />
-          </Pressable>
+            <Icon name="chevron-right" size={18} color={colors.textOnBrand} />
+          </TouchableOpacity>
 
-          {/* Info grid */}
-          <View className="mt-4 flex-row flex-wrap">
-            <InfoItem
-              icon={Calendar}
-              label={t('profile.dateOfBirth')}
-              value={formatDate(patient.dob, i18n.language, t('profile.notProvided'))}
-            />
-            <InfoItem icon={UserRound} label={t('profile.gender')} value={genderLabel} />
-            <InfoItem
-              icon={Droplet}
-              label={t('profile.bloodGroup')}
-              value={patient.blood_group ?? t('profile.notProvided')}
-            />
-            <InfoItem
-              icon={MapPin}
-              label={t('profile.location')}
-              value={patient.address ?? t('profile.notProvided')}
-            />
+          <View style={styles.heroRule} />
+
+          <View style={styles.heroFacts}>
+            <HeroFact icon="phone" value={patient.phone || t('profile.notProvided')} />
+            <View style={styles.heroFactRule} />
+            <HeroFact icon="mail" value={patient.email || t('profile.notProvided')} />
+            <View style={styles.heroFactRule} />
+            <HeroFact icon="calendar" value={formatDate(patient.dob, t('profile.notProvided'))} />
           </View>
-
-          {/* Emergency contact — present, or an explicit invitation to add one */}
-          {emergency?.name ? (
-            <View className="mt-1 flex-row items-center rounded-2xl border border-cream-300 p-3">
-              <View
-                className="h-10 w-10 items-center justify-center rounded-xl"
-                style={{ backgroundColor: colors.semantic.dangerSurface }}
-              >
-                <PhoneCall size={17} color={colors.semantic.danger} />
-              </View>
-              <View className="ml-3 flex-1">
-                <Text className="text-[10px] font-bold uppercase tracking-wide text-navy-muted">
-                  {t('profile.emergencyContact')}
-                </Text>
-                <Text className="mt-0.5 text-sm font-bold text-navy-text" numberOfLines={1}>
-                  {emergency.name}
-                  {emergency.relationship ? ` · ${emergency.relationship}` : ''}
-                </Text>
-                {emergency.phone ? (
-                  <Text className="text-xs text-navy-secondary">{emergency.phone}</Text>
-                ) : null}
-              </View>
-              <Pressable
-                onPress={() => router.push('/edit-profile')}
-                accessibilityRole="button"
-                accessibilityLabel={t('profile.editProfileAction')}
-                hitSlop={8}
-                className="h-9 w-9 items-center justify-center rounded-full bg-brand-50"
-              >
-                <Pencil size={15} color={colors.brand[600]} />
-              </Pressable>
-            </View>
-          ) : (
-            <Pressable
-              onPress={() => router.push('/edit-profile')}
-              accessibilityRole="button"
-              accessibilityLabel={t('profile.addEmergencyContact')}
-              className="mt-1 flex-row items-center rounded-2xl border border-dashed border-brand-300 bg-brand-50 p-3"
-            >
-              <PhoneCall size={17} color={colors.brand[600]} />
-              <View className="ml-3 flex-1">
-                <Text className="text-sm font-bold text-navy-text">
-                  {t('profile.addEmergencyContact')}
-                </Text>
-                <Text className="mt-0.5 text-xs text-navy-secondary">
-                  {t('profile.addEmergencyContactHint')}
-                </Text>
-              </View>
-              <ChevronRight size={18} color={colors.brand[600]} />
-            </Pressable>
-          )}
         </View>
 
-        {/* Stat tiles — every tile goes somewhere real */}
-        <View className="mt-4 flex-row" style={{ gap: 12 }}>
-          <StatTile
-            icon={AlertTriangle}
-            label={t('profile.allergies')}
-            value={String(patient.allergies_count ?? 0)}
-            hint={t('profile.allergiesHint')}
-            onPress={() => router.push('/(tabs)/records')}
-          />
-          <StatTile
-            icon={Activity}
-            label={t('profile.conditions')}
-            value={String(patient.conditions_count ?? 0)}
-            hint={t('profile.conditionsHint')}
-            onPress={() => router.push('/(tabs)/records')}
-          />
-        </View>
-        <View className="mt-3 flex-row" style={{ gap: 12 }}>
-          <StatTile
-            icon={Users}
-            label={t('profile.dependents')}
-            value={familyQuery.isLoading && !familyQuery.data ? '…' : String(dependentCount)}
-            hint={
-              familyQuery.isError ? t('profile.dependentsUnavailable') : t('profile.dependentsHint')
-            }
-            onPress={() => router.push('/family')}
-          />
-          <StatTile
-            icon={Sparkles}
-            label={t('profile.profileStrength')}
-            value={`${completeness.percent}%`}
-            hint={
-              completeness.filled === completeness.total
-                ? t('profile.profileStrengthComplete')
-                : t('profile.profileStrengthHint', {
-                    missing: completeness.total - completeness.filled,
-                  })
-            }
-            onPress={() => router.push('/edit-profile')}
-          />
+        {/* ── Quick overview — every tile goes somewhere real ──────────── */}
+        <View>
+          <SectionHeader title={t('opesCore.profile.quickOverview')} variant="overline" />
+          <View style={styles.tileGrid}>
+            {tileRows.map((row, r) => (
+              <View key={r} style={styles.tileRow}>
+                {row.map((tile) => (
+                  <StatTile key={tile.label} tile={tile} />
+                ))}
+              </View>
+            ))}
+          </View>
         </View>
 
-        {/* Quick links — grouped, each row carries a description like the reference */}
-        <SectionHeading label={t('profile.sectionRecord')} />
-        <MenuCard items={recordLinks} />
+        {/* ── Personal information (gender, blood group, location, emergency contact) ── */}
+        <View>
+          <SectionHeader
+            title={t('opesCore.profile.personalInformation')}
+            variant="overline"
+            actionLabel={t('opesCore.common.edit')}
+            onAction={goEditProfile}
+          />
+          <Card variant="flush">
+            <ListRow icon="person" tint="blue" title={t('profile.gender')} subtitle={genderLabel} divider />
+            <ListRow
+              icon="droplet"
+              tint="red"
+              title={t('profile.bloodGroup')}
+              subtitle={patient.blood_group ?? t('profile.notProvided')}
+              divider
+            />
+            <ListRow
+              icon="location"
+              tint="green"
+              title={t('profile.location')}
+              subtitle={patient.address ?? t('profile.notProvided')}
+              divider
+            />
+            {emergency?.name ? (
+              <ListRow
+                icon="phone"
+                tint="red"
+                title={t('profile.emergencyContact')}
+                meta={[emergency.name, emergency.relationship, emergency.phone]}
+                onPress={goEditProfile}
+                accessibilityHint={t('profile.editProfileAction')}
+                chevron={false}
+                trailing={<Icon name="edit" size={18} color={colors.link} />}
+              />
+            ) : (
+              <ListRow
+                icon="phone"
+                tint="amber"
+                title={t('profile.addEmergencyContact')}
+                subtitle={t('profile.addEmergencyContactHint')}
+                onPress={goEditProfile}
+              />
+            )}
+          </Card>
+        </View>
 
-        <SectionHeading label={t('profile.sectionAccount')} />
-        <MenuCard items={accountLinks} />
+        {/* ── Your health record ───────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('profile.sectionRecord')} variant="overline" />
+          <Card variant="flush">
+            {recordLinks.map((link, i) => (
+              <ListRow
+                key={link.title}
+                icon={link.icon}
+                tint={link.tint}
+                title={link.title}
+                subtitle={link.subtitle}
+                onPress={link.onPress}
+                divider={i < recordLinks.length - 1}
+              />
+            ))}
+          </Card>
+        </View>
 
-        {/* Privacy note */}
-        <Pressable
+        {/* ── Family & account ─────────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('profile.sectionAccount')} variant="overline" />
+          <Card variant="flush">
+            {accountLinks.map((link, i) => (
+              <ListRow
+                key={link.title}
+                icon={link.icon}
+                tint={link.tint}
+                title={link.title}
+                subtitle={link.subtitle}
+                onPress={link.onPress}
+                divider={i < accountLinks.length - 1}
+              />
+            ))}
+          </Card>
+        </View>
+
+        {/* ── Privacy banner → /privacy ────────────────────────────────── */}
+        <Card
           onPress={() => router.push('/privacy')}
-          accessibilityRole="button"
           accessibilityLabel={t('profile.privacyTitle')}
-          className="mt-5 flex-row items-start rounded-2xl bg-brand-50 p-4"
+          accessibilityHint={t('profile.privacyLearnMore')}
         >
-          <ShieldCheck size={17} color={colors.brand[600]} />
-          <View className="ml-3 flex-1">
-            <Text className="text-sm font-semibold text-navy-text">
-              {t('profile.privacyTitle')}
-            </Text>
-            <Text className="mt-1 text-xs text-navy-secondary">{t('profile.privacyBody')}</Text>
-            <View className="mt-2 flex-row items-center">
-              <Text className="text-xs font-bold text-brand-600">
-                {t('profile.privacyLearnMore')}
-              </Text>
-              <ChevronRight size={14} color={colors.brand[600]} />
+          <View style={styles.privacy}>
+            <View style={[styles.privacyIcon, { backgroundColor: statusMap.normal.bg }]}>
+              <Icon name="shield-check" size={22} color={statusMap.normal.fg} />
+            </View>
+            <View style={styles.privacyBody}>
+              <Text style={styles.privacyTitle}>{t('profile.privacyTitle')}</Text>
+              <Text style={styles.privacyText}>{t('profile.privacyBody')}</Text>
+              <View style={styles.privacyLink}>
+                <Text style={styles.privacyLinkText}>{t('profile.privacyLearnMore')}</Text>
+                <Icon name="chevron-right" size={14} color={colors.link} />
+              </View>
             </View>
           </View>
-        </Pressable>
+        </Card>
 
-        {/* Sign out — destructive, and confirmed */}
-        <Pressable
-          onPress={confirmSignOut}
-          accessibilityRole="button"
-          accessibilityLabel={t('profile.signOut')}
-          className="mt-6 h-14 flex-row items-center justify-center rounded-2xl border"
-          style={{
-            borderColor: colors.semantic.danger,
-            backgroundColor: colors.semantic.dangerSurface,
-          }}
-        >
-          <LogOut size={17} color={colors.semantic.danger} />
-          <Text className="ml-2 font-bold" style={{ color: colors.semantic.danger }}>
-            {t('profile.signOut')}
-          </Text>
-        </Pressable>
-
-        <View className="h-10" />
-      </ScrollView>
-    </Screen>
-  );
-}
-
-interface MenuItem {
-  icon: LucideIcon;
-  label: string;
-  description: string;
-  onPress: () => void;
-}
-
-function SectionHeading({ label }: { label: string }) {
-  return (
-    <Text className="mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-navy-muted">
-      {label}
-    </Text>
-  );
-}
-
-function MenuCard({ items }: { items: MenuItem[] }) {
-  return (
-    <View className="overflow-hidden rounded-2xl border border-cream-300 bg-white">
-      {items.map((item, index) => (
-        <Fragment key={item.label}>
-          <Pressable
-            onPress={item.onPress}
+        {/* ── Sign out — destructive, and confirmed ────────────────────── */}
+        <View>
+          <SectionHeader title={t('opesCore.profile.signOutSection')} variant="overline" />
+          <TouchableOpacity
+            style={styles.signOut}
+            activeOpacity={0.8}
+            onPress={confirmSignOut}
+            disabled={dialog.busy}
             accessibilityRole="button"
-            accessibilityLabel={item.label}
-            className="flex-row items-center px-4 py-3.5"
+            accessibilityLabel={t('profile.signOut')}
+            accessibilityState={{ disabled: dialog.busy }}
           >
-            <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
-              <item.icon size={18} color={colors.brand[600]} />
-            </View>
-            <View className="ml-3 flex-1">
-              <Text className="text-sm font-bold text-navy-text">{item.label}</Text>
-              <Text className="mt-0.5 text-xs text-navy-secondary" numberOfLines={2}>
-                {item.description}
-              </Text>
-            </View>
-            <ChevronRight size={18} color={colors.navy.muted} />
-          </Pressable>
-          {index < items.length - 1 ? (
-            <View className="h-px bg-cream-200" style={{ marginLeft: 64 }} />
-          ) : null}
-        </Fragment>
-      ))}
-    </View>
+            <Icon name="logout" size={18} color={colors.statusCritical} />
+            <Text style={styles.signOutText}>{t('profile.signOut')}</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      {dialog.element}
+    </SafeAreaView>
   );
 }
 
-function ContactLine({
-  icon: Icon,
-  value,
-  fallback,
-}: {
-  icon: LucideIcon;
-  value: string | null;
-  fallback: string;
-}) {
-  return (
-    <View className="flex-row items-center">
-      <Icon size={15} color={colors.navy.muted} />
-      <Text
-        className={`ml-2 text-sm ${value ? 'text-navy-secondary' : 'text-navy-muted'}`}
-        numberOfLines={1}
-      >
-        {value || fallback}
-      </Text>
-    </View>
-  );
-}
+// ── Pieces ──────────────────────────────────────────────────────────────────
 
-function InfoItem({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+function HeroFact({ icon, value }: { icon: IconName; value: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <View className="mb-4" style={{ width: '50%' }}>
-      <View className="flex-row items-center">
-        <Icon size={13} color={colors.navy.muted} />
-        <Text className="ml-1.5 text-xs text-navy-muted">{label}</Text>
-      </View>
-      <Text className="mt-1 pr-2 text-sm font-semibold text-navy-text" numberOfLines={2}>
+    <View style={styles.heroFact}>
+      <Icon name={icon} size={16} color={colors.textOnBrand} />
+      <Text style={styles.heroFactText} numberOfLines={1}>
         {value}
       </Text>
     </View>
   );
 }
 
-function StatTile({
-  icon: Icon,
-  label,
-  value,
-  hint,
-  onPress,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  hint: string;
-  onPress: () => void;
-}) {
+function StatTile({ tile }: { tile: Tile }) {
+  const { colors, tintMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const skin = tintMap[tile.tint];
   return (
-    <Pressable
-      onPress={onPress}
+    <TouchableOpacity
+      style={styles.tileWrap}
+      activeOpacity={0.75}
+      onPress={tile.onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${label}: ${value}`}
-      className="flex-1 rounded-2xl border border-cream-300 bg-white p-4"
+      accessibilityLabel={`${tile.label}: ${tile.value}`}
+      accessibilityHint={tile.hint}
     >
-      <View className="flex-row items-center justify-between">
-        <View className="h-9 w-9 items-center justify-center rounded-xl bg-brand-50">
-          <Icon size={16} color={colors.brand[600]} />
+      <Card style={styles.tile}>
+        <View style={styles.tileTop}>
+          <View style={[styles.tileCircle, { backgroundColor: skin.bg }]}>
+            <Icon name={tile.icon} size={20} color={skin.fg} />
+          </View>
+          <Icon name="chevron-right" size={16} color={colors.textMuted} />
         </View>
-        <ChevronRight size={16} color={colors.navy.muted} />
-      </View>
-      <Text className="mt-3 text-2xl font-extrabold text-navy-text">{value}</Text>
-      <Text className="text-xs font-semibold text-navy-text">{label}</Text>
-      <Text className="mt-0.5 text-[11px] text-navy-muted" numberOfLines={2}>
-        {hint}
-      </Text>
-    </Pressable>
+        <Text style={styles.tileValue} numberOfLines={1}>
+          {tile.value}
+        </Text>
+        <Text style={styles.tileLabel} numberOfLines={1}>
+          {tile.label}
+        </Text>
+        <Text style={styles.tileHint} numberOfLines={2}>
+          {tile.hint}
+        </Text>
+      </Card>
+    </TouchableOpacity>
   );
 }
+
+// ── Styles (colour-dependent, built per palette) ───────────────────────────
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.page },
+    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+    loadingText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
+
+    // Hero
+    hero: { backgroundColor: colors.navy, borderRadius: radii.lg, padding: spacing.md },
+    heroTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+    avatarWrap: { width: 74, height: 74 },
+    avatar: {
+      width: 74,
+      height: 74,
+      borderRadius: 37,
+      backgroundColor: colors.navyLight,
+      borderWidth: 3,
+      borderColor: colors.blue,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+      color: colors.textOnBrand,
+    },
+    avatarBadge: {
+      position: 'absolute',
+      right: -2,
+      bottom: -2,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.statusNormal,
+      borderWidth: 2,
+      borderColor: colors.navy,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroIdentity: { flex: 1, minWidth: 0, gap: spacing.xs },
+    heroName: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+      lineHeight: typography.lineHeight.lg,
+      color: colors.textOnBrand,
+    },
+    heroChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    heroChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      borderRadius: radii.pill,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    heroChipText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.xs },
+    heroIdRow: {
+      marginTop: spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+      backgroundColor: colors.navyLight,
+      borderRadius: radii.md,
+      padding: spacing.sm + 4,
+    },
+    heroIdIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: radii.sm + 4,
+      backgroundColor: colors.navy,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroIdText: { flex: 1, minWidth: 0 },
+    heroIdLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: 10,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: colors.textOnBrand,
+      opacity: 0.7,
+    },
+    heroIdValue: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.md,
+      color: colors.textOnBrand,
+    },
+    heroIdHint: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: 11,
+      color: colors.textOnBrand,
+      opacity: 0.75,
+    },
+    heroRule: { height: 1, backgroundColor: colors.navyLight, marginVertical: spacing.md },
+    heroFacts: { flexDirection: 'row', alignItems: 'center' },
+    heroFact: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
+    heroFactRule: {
+      width: 1,
+      height: 20,
+      backgroundColor: colors.navyLight,
+      marginHorizontal: spacing.sm,
+    },
+    heroFactText: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textOnBrand,
+    },
+
+    // Quick overview tiles (2 × 2)
+    tileGrid: { gap: spacing.sm + 4 },
+    tileRow: { flexDirection: 'row', gap: spacing.sm + 4 },
+    tileWrap: { flex: 1 },
+    tile: { gap: 2 },
+    tileTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+    },
+    tileCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tileValue: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xl,
+      lineHeight: typography.lineHeight.xl,
+      color: colors.textPrimary,
+    },
+    tileLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    tileHint: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textMuted,
+    },
+
+    // Privacy banner
+    privacy: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+    privacyIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    privacyBody: { flex: 1, minWidth: 0, gap: 2 },
+    privacyTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    privacyText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+    privacyLink: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: spacing.xs },
+    privacyLinkText: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.xs,
+      color: colors.link,
+    },
+
+    // Sign out
+    signOut: {
+      minHeight: 52,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: colors.statusCritical,
+      backgroundColor: colors.statusCriticalBg,
+    },
+    signOutText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: colors.statusCritical,
+    },
+  });

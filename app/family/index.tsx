@@ -1,37 +1,38 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  Pressable,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
-  AlertTriangle,
-  ArrowLeft,
-  Baby,
-  Calendar,
-  ChevronRight,
-  Clock,
-  Mail,
-  MailCheck,
-  Phone,
-  RotateCw,
-  Send,
-  UserPlus,
-  Users,
-  X,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../../components/ui/Screen';
-import { Button } from '../../components/ui/Button';
-import { TextField } from '../../components/ui/TextField';
-import { colors } from '../../theme/tokens';
+  Card,
+  Chip,
+  EmptyState,
+  GradientButton,
+  Icon,
+  ListRow,
+  PillInput,
+  ScreenHeader,
+  SectionHeader,
+  SegmentedTabs,
+  StatusBadge,
+  formatDate,
+  radii,
+  spacing,
+  typography,
+  useDialog,
+  useTheme,
+  type IconName,
+  type Palette,
+  type StatusTone,
+} from '@/components/opes-ui';
 import {
   useCancelFamilyInvitation,
   useFamilyInvitations,
@@ -40,6 +41,30 @@ import {
   useSendFamilyInvitation,
   type FamilyInvitation,
 } from '../../lib/api/queries';
+
+/**
+ * Family & Caregivers — linked members + invitations, in the OPES layout.
+ *
+ * GET /mobile/family (active + pending links), GET/POST
+ * /mobile/family/invitations, DELETE /mobile/family/invitations/{id}.
+ * Backend: App\Http\Controllers\Api\Mobile\MobileFamilyController.
+ *
+ * Presentation only in this pass: `ScreenHeader`, a care-circle summary
+ * `Card`, overline `SectionHeader`s over `Card variant="flush"` lists of
+ * `ListRow`s, `StatusBadge` for the invitation and access-level state,
+ * `GradientButton` to submit, kit `EmptyState`s and the kit `Dialog` for the
+ * cancel-invitation confirm. Every query, mutation, validation rule and error
+ * string the previous version had is still here.
+ *
+ * Two genuinely different actions share this screen, so they stay a deliberate
+ * choice rather than a segmented control over one blob of fields: inviting an
+ * *existing* OpesCare patient by contact, and registering a brand-new
+ * dependent (which mints a real Patient + Health ID).
+ *
+ * The cancel confirmation moved from `Alert.alert` to the kit `Dialog`:
+ * `Alert.alert` is a no-op on react-native-web, so on the web build the
+ * confirmation — and therefore the cancellation — never happened at all.
+ */
 
 const RELATIONSHIP_OPTIONS = [
   'parent',
@@ -52,10 +77,21 @@ const RELATIONSHIP_OPTIONS = [
   'other',
 ] as const;
 
+type Relationship = (typeof RELATIONSHIP_OPTIONS)[number];
+
 const SEX_OPTIONS = ['male', 'female'] as const;
-const SEX_LABEL_KEYS: Record<(typeof SEX_OPTIONS)[number], string> = {
+type SexOption = (typeof SEX_OPTIONS)[number];
+const SEX_LABEL_KEYS: Record<SexOption, string> = {
   male: 'family.sexMale',
   female: 'family.sexFemale',
+};
+
+/** Access level → badge tone. `full` is the strongest grant, so it reads as
+ * the "active/complete" tone; `view_only` is the weakest and stays neutral. */
+const ACCESS_TONE: Record<string, StatusTone> = {
+  full: 'normal',
+  guardian: 'pending',
+  view_only: 'neutral',
 };
 
 function extractErrorMessage(err: unknown, fallback: string): string {
@@ -95,19 +131,12 @@ function initialsOf(name: string): string {
 
 type Mode = 'invite' | 'register';
 
-/**
- * Family: linked members + invitations. GET /mobile/family (active + pending
- * links), GET/POST /mobile/family/invitations, DELETE /mobile/family/invitations/{id}.
- * Backend: App\Http\Controllers\Api\Mobile\MobileFamilyController (already wired).
- *
- * Two genuinely different actions share this screen, so they are presented as a
- * deliberate choice rather than a segmented control over one blob of fields:
- * inviting an *existing* OpesCare patient by contact, and registering a brand
- * new dependent (which mints a real Patient + Health ID).
- */
 export default function FamilyScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const dialog = useDialog();
 
   const membersQuery = useFamilyMembers();
   const invitationsQuery = useFamilyInvitations();
@@ -117,7 +146,7 @@ export default function FamilyScreen() {
 
   const [mode, setMode] = useState<Mode | null>(null);
   const [contact, setContact] = useState('');
-  const [relationship, setRelationship] = useState<(typeof RELATIONSHIP_OPTIONS)[number]>('parent');
+  const [relationship, setRelationship] = useState<Relationship>('parent');
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -127,9 +156,8 @@ export default function FamilyScreen() {
   // form which links an *existing* OpesCare patient.
   const [depFullName, setDepFullName] = useState('');
   const [depDob, setDepDob] = useState('');
-  const [depSex, setDepSex] = useState<(typeof SEX_OPTIONS)[number] | null>(null);
-  const [depRelationship, setDepRelationship] =
-    useState<(typeof RELATIONSHIP_OPTIONS)[number]>('child');
+  const [depSex, setDepSex] = useState<SexOption | null>(null);
+  const [depRelationship, setDepRelationship] = useState<Relationship>('child');
   const [depBloodGroup, setDepBloodGroup] = useState('');
   const [depPhone, setDepPhone] = useState('');
 
@@ -145,21 +173,21 @@ export default function FamilyScreen() {
     (invitationsQuery.isLoading && !invitationsQuery.data);
   const hasLoadError = membersQuery.isError || invitationsQuery.isError;
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     membersQuery.refetch();
     invitationsQuery.refetch();
-  };
+  }, [membersQuery, invitationsQuery]);
 
-  const closeForm = () => {
+  const closeForm = useCallback(() => {
     setMode(null);
     setFormError(null);
-  };
+  }, []);
 
-  const openForm = (next: Mode) => {
+  const openForm = useCallback((next: Mode) => {
     setMode(next);
     setFormError(null);
     setSuccessMessage(null);
-  };
+  }, []);
 
   const handleSendInvitation = async () => {
     setFormError(null);
@@ -216,573 +244,671 @@ export default function FamilyScreen() {
     }
   };
 
-  const handleCancelInvitation = (invitation: FamilyInvitation) => {
-    Alert.alert(
-      t('family.cancelInviteTitle'),
-      t('family.cancelInviteBody', { contact: invitation.contact }),
-      [
-        { text: t('family.dismiss'), style: 'cancel' },
-        {
-          text: t('family.cancelInviteConfirm'),
-          style: 'destructive',
-          onPress: async () => {
-            setCancellingId(invitation.id);
-            try {
-              await cancelInvitation.mutateAsync(invitation.id);
-            } catch (err) {
-              Alert.alert(
-                t('family.error'),
-                extractErrorMessage(err, t('family.cancelInviteFailed')),
-              );
-            } finally {
-              setCancellingId(null);
-            }
-          },
+  const handleCancelInvitation = useCallback(
+    (invitation: FamilyInvitation) => {
+      dialog.confirm({
+        title: t('family.cancelInviteTitle'),
+        message: t('family.cancelInviteBody', { contact: invitation.contact }),
+        confirmLabel: t('family.cancelInviteConfirm'),
+        cancelLabel: t('family.dismiss'),
+        destructive: true,
+        onConfirm: async () => {
+          setCancellingId(invitation.id);
+          try {
+            await cancelInvitation.mutateAsync(invitation.id);
+          } catch (err) {
+            // Never rethrow into the sheet: the dialog runner has no catch, so
+            // a rejected confirm would surface as an unhandled rejection
+            // instead of a message the patient can read.
+            dialog.alert(
+              t('family.error'),
+              extractErrorMessage(err, t('family.cancelInviteFailed')),
+              'critical',
+            );
+          } finally {
+            setCancellingId(null);
+          }
         },
-      ],
-    );
-  };
+      });
+    },
+    [cancelInvitation, dialog, t],
+  );
+
+  const fieldIcon = (name: IconName) => <Icon name={name} size={18} color={colors.blue} />;
 
   return (
-    <Screen className="px-0">
-      <View className="flex-row items-center px-6 pt-2">
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel={t('family.back')}
-          hitSlop={8}
-          className="h-11 w-11 items-center justify-center rounded-full border border-brand-300 bg-white"
-        >
-          <ArrowLeft size={18} color={colors.brand[600]} />
-        </Pressable>
-        <Text className="ml-4 text-xl font-extrabold text-navy-text">{t('family.title')}</Text>
-      </View>
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      <ScreenHeader
+        title={t('family.title')}
+        subtitle={t('family.subtitle')}
+        onBack={() => router.back()}
+      />
 
       <ScrollView
-        className="flex-1 px-6"
-        contentContainerStyle={{ paddingBottom: 48 }}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.brand[500]}
+            tintColor={colors.blue}
+            colors={[colors.blue]}
           />
         }
       >
-        <Text className="mt-2 text-sm text-navy-secondary">{t('family.subtitle')}</Text>
-
-        {/* Care-circle summary */}
-        <LinearGradient
-          colors={[colors.brand[600], colors.brand[500], colors.brand[300]]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ borderRadius: 24, marginTop: 20, padding: 20 }}
-        >
-          <View className="flex-row items-center">
-            <View className="h-11 w-11 items-center justify-center rounded-2xl bg-white/25">
-              <Users size={20} color={colors.white} />
+        {/* ── Care-circle summary ───────────────────────────────────────── */}
+        <Card>
+          <View style={styles.summaryHead}>
+            <View style={styles.summaryCircle}>
+              <Icon name="users" size={20} color={colors.blue} />
             </View>
-            <View className="ml-3 flex-1">
-              <Text className="text-base font-extrabold text-white">
-                {t('family.summaryTitle')}
-              </Text>
-              <Text className="mt-0.5 text-xs text-white/90">{t('family.summaryDesc')}</Text>
+            <View style={styles.summaryText}>
+              <Text style={styles.summaryTitle}>{t('family.summaryTitle')}</Text>
+              <Text style={styles.summaryDesc}>{t('family.summaryDesc')}</Text>
             </View>
           </View>
-          <View className="mt-5 flex-row">
+
+          <View style={styles.stats}>
             <SummaryStat
               label={t('family.summaryLinked')}
               value={initialLoading ? '…' : String(members.length)}
             />
-            <View className="mx-4 w-px bg-white/30" />
+            <View style={styles.statDivider} />
             <SummaryStat
               label={t('family.summaryPending')}
               value={initialLoading ? '…' : String(invitations.length)}
             />
           </View>
-        </LinearGradient>
+        </Card>
 
         {hasLoadError ? (
-          <View
-            className="mt-4 flex-row items-center rounded-2xl p-4"
-            style={{ backgroundColor: colors.semantic.dangerSurface }}
-          >
-            <AlertTriangle size={17} color={colors.semantic.danger} />
-            <Text
-              className="ml-2 flex-1 text-sm font-semibold"
-              style={{ color: colors.semantic.danger }}
-            >
-              {t('family.loadFailed')}
-            </Text>
-            <Pressable
-              onPress={onRefresh}
-              accessibilityRole="button"
-              hitSlop={8}
-              className="ml-2 flex-row items-center rounded-full bg-white px-3 py-1.5"
-            >
-              <RotateCw size={13} color={colors.semantic.danger} />
-              <Text
-                className="ml-1 text-xs font-bold"
-                style={{ color: colors.semantic.danger }}
-              >
-                {t('family.retry')}
-              </Text>
-            </Pressable>
-          </View>
+          <Notice
+            tone="critical"
+            icon="alert-triangle"
+            text={t('family.loadFailed')}
+            actionLabel={t('family.retry')}
+            onAction={onRefresh}
+          />
         ) : null}
 
-        {/* Add someone — an explicit choice between two different actions */}
-        {mode === null ? (
-          <View className="mt-4 rounded-3xl border border-cream-300 bg-white p-4">
-            <Text className="text-base font-bold text-navy-text">{t('family.addTitle')}</Text>
-            <Text className="mt-1 text-xs text-navy-secondary">{t('family.addDesc')}</Text>
+        {/* ── Add someone to the circle ─────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('family.addTitle')} variant="overline" />
 
-            <View className="mt-4">
-              <ChoiceRow
-                icon={UserPlus}
+          {mode === null ? (
+            <Card variant="flush">
+              <Text style={styles.cardIntro}>{t('family.addDesc')}</Text>
+              <ListRow
+                icon="person-search"
+                tint="blue"
                 title={t('family.optionInviteTitle')}
-                description={t('family.optionInviteDesc')}
+                subtitle={t('family.optionInviteDesc')}
                 onPress={() => openForm('invite')}
+                divider
               />
-              <View className="h-px bg-cream-200" style={{ marginVertical: 4 }} />
-              <ChoiceRow
-                icon={Baby}
+              <ListRow
+                icon="baby"
+                tint="purple"
                 title={t('family.optionRegisterTitle')}
-                description={t('family.optionRegisterDesc')}
+                subtitle={t('family.optionRegisterDesc')}
                 onPress={() => openForm('register')}
               />
-            </View>
-          </View>
-        ) : (
-          <View className="mt-4 rounded-3xl border border-cream-300 bg-white p-4">
-            <View className="flex-row items-start">
-              <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
-                {mode === 'invite' ? (
-                  <UserPlus size={18} color={colors.brand[600]} />
-                ) : (
-                  <Baby size={18} color={colors.brand[600]} />
-                )}
+            </Card>
+          ) : (
+            <Card>
+              <View style={styles.formHead}>
+                <View
+                  style={[
+                    styles.formCircle,
+                    mode === 'register' && { backgroundColor: colors.tintPurpleBg },
+                  ]}
+                >
+                  <Icon
+                    name={mode === 'invite' ? 'person-search' : 'baby'}
+                    size={20}
+                    color={mode === 'invite' ? colors.tintBlue : colors.tintPurple}
+                  />
+                </View>
+                <View style={styles.formHeadText}>
+                  <Text style={styles.formTitle}>
+                    {mode === 'invite'
+                      ? t('family.optionInviteTitle')
+                      : t('family.optionRegisterTitle')}
+                  </Text>
+                  <Text style={styles.formBody}>
+                    {mode === 'invite' ? t('family.tabInviteHint') : t('family.tabRegisterHint')}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={closeForm}
+                  hitSlop={10}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('family.cancel')}
+                  style={styles.formClose}
+                >
+                  <Icon name="close" size={18} color={colors.textSecondary} />
+                </TouchableOpacity>
               </View>
-              <View className="ml-3 flex-1">
-                <Text className="text-base font-bold text-navy-text">
-                  {mode === 'invite'
-                    ? t('family.optionInviteTitle')
-                    : t('family.optionRegisterTitle')}
-                </Text>
-                <Text className="mt-1 text-xs text-navy-secondary">
-                  {mode === 'invite' ? t('family.tabInviteHint') : t('family.tabRegisterHint')}
-                </Text>
-              </View>
-              <Pressable
-                onPress={closeForm}
-                accessibilityRole="button"
-                accessibilityLabel={t('family.cancel')}
-                hitSlop={8}
-                className="h-9 w-9 items-center justify-center rounded-full bg-cream-200"
-              >
-                <X size={16} color={colors.navy.secondary} />
-              </Pressable>
-            </View>
 
-            <View className="mt-5">
               {mode === 'invite' ? (
-                <>
-                  <TextField
-                    label={t('family.contactLabel')}
+                <View style={styles.formBodyWrap}>
+                  <Text style={styles.fieldLabel}>{t('family.contactLabel')}</Text>
+                  <PillInput
+                    icon={fieldIcon(contact.includes('@') ? 'mail' : 'phone')}
                     placeholder={t('family.contactPlaceholder')}
-                    icon={contact.includes('@') ? Mail : Phone}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
                     value={contact}
                     onChangeText={setContact}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    accessibilityLabel={t('family.contactLabel')}
                   />
 
-                  <ChipGroup
-                    label={t('family.relationshipLabel')}
-                    options={RELATIONSHIP_OPTIONS}
-                    value={relationship}
-                    onSelect={setRelationship}
-                    labelFor={(option) => t(`family.relationships.${option}`)}
-                  />
-
-                  {formError ? <FormError message={formError} /> : null}
-
-                  <Button
-                    label={t('family.sendInvite')}
-                    onPress={handleSendInvitation}
-                    loading={sendInvitation.isPending}
-                    leftIcon={Send}
-                    showChevron={false}
-                  />
-                </>
-              ) : (
-                <>
-                  <TextField
-                    label={t('family.fullNameLabel')}
-                    placeholder={t('family.fullNamePlaceholder')}
-                    icon={UserPlus}
-                    value={depFullName}
-                    onChangeText={setDepFullName}
-                  />
-                  <TextField
-                    label={t('family.dateOfBirth')}
-                    placeholder={t('family.dateOfBirthPlaceholder')}
-                    icon={Calendar}
-                    keyboardType="number-pad"
-                    maxLength={10}
-                    value={depDob}
-                    onChangeText={(v) => setDepDob(formatDobInput(v))}
-                  />
-
-                  <Text className="mb-2 text-sm font-semibold text-navy-text">
-                    {t('family.sexLabel')}
-                  </Text>
-                  <View className="mb-4 flex-row" style={{ gap: 8 }}>
-                    {SEX_OPTIONS.map((option) => {
-                      const active = depSex === option;
-                      return (
-                        <Pressable
-                          key={option}
-                          onPress={() => setDepSex(option)}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: active }}
-                          className="flex-1 items-center rounded-full border px-3 py-2.5"
-                          style={{
-                            borderColor: active ? colors.brand[500] : colors.cream[300],
-                            backgroundColor: active ? colors.brand[50] : colors.white,
-                          }}
-                        >
-                          <Text
-                            className="text-xs font-semibold"
-                            style={{ color: active ? colors.brand[600] : colors.navy.secondary }}
-                          >
-                            {t(SEX_LABEL_KEYS[option])}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
+                  <Text style={styles.fieldLabel}>{t('family.relationshipLabel')}</Text>
+                  <View style={styles.chipWrap}>
+                    {RELATIONSHIP_OPTIONS.map((option) => (
+                      <Chip
+                        key={option}
+                        label={t(`family.relationships.${option}`)}
+                        selected={relationship === option}
+                        onPress={() => setRelationship(option)}
+                        accessibilityLabel={`${t('family.relationshipLabel')} ${t(
+                          `family.relationships.${option}`,
+                        )}`}
+                      />
+                    ))}
                   </View>
 
-                  <ChipGroup
-                    label={t('family.relationshipLabel')}
-                    options={RELATIONSHIP_OPTIONS}
-                    value={depRelationship}
-                    onSelect={setDepRelationship}
-                    labelFor={(option) => t(`family.relationships.${option}`)}
+                  {formError ? (
+                    <Notice tone="critical" icon="alert-triangle" text={formError} spaced />
+                  ) : null}
+
+                  <GradientButton
+                    label={t('family.sendInvite')}
+                    onPress={() => void handleSendInvitation()}
+                    loading={sendInvitation.isPending}
+                    icon="none"
+                    style={styles.submit}
+                  />
+                </View>
+              ) : (
+                <View style={styles.formBodyWrap}>
+                  <Text style={styles.fieldLabel}>{t('family.fullNameLabel')}</Text>
+                  <PillInput
+                    icon={fieldIcon('person')}
+                    placeholder={t('family.fullNamePlaceholder')}
+                    value={depFullName}
+                    onChangeText={setDepFullName}
+                    autoCapitalize="words"
+                    accessibilityLabel={t('family.fullNameLabel')}
                   />
 
-                  <TextField
-                    label={t('family.bloodGroupLabel')}
+                  <Text style={styles.fieldLabel}>{t('family.dateOfBirth')}</Text>
+                  <PillInput
+                    icon={fieldIcon('calendar')}
+                    placeholder={t('family.dateOfBirthPlaceholder')}
+                    value={depDob}
+                    onChangeText={(v) => setDepDob(formatDobInput(v))}
+                    keyboardType="number-pad"
+                    maxLength={10}
+                    accessibilityLabel={t('family.dateOfBirth')}
+                  />
+
+                  <Text style={styles.fieldLabel}>{t('family.sexLabel')}</Text>
+                  <SegmentedTabs
+                    variant="pill"
+                    value={depSex ?? ''}
+                    onChange={(key) => setDepSex(key === 'female' ? 'female' : 'male')}
+                    options={SEX_OPTIONS.map((option) => ({
+                      key: option,
+                      label: t(SEX_LABEL_KEYS[option]),
+                    }))}
+                    style={styles.picker}
+                  />
+
+                  <Text style={styles.fieldLabel}>{t('family.relationshipLabel')}</Text>
+                  <View style={styles.chipWrap}>
+                    {RELATIONSHIP_OPTIONS.map((option) => (
+                      <Chip
+                        key={option}
+                        label={t(`family.relationships.${option}`)}
+                        selected={depRelationship === option}
+                        onPress={() => setDepRelationship(option)}
+                        accessibilityLabel={`${t('family.relationshipLabel')} ${t(
+                          `family.relationships.${option}`,
+                        )}`}
+                      />
+                    ))}
+                  </View>
+
+                  <Text style={styles.fieldLabel}>{t('family.bloodGroupLabel')}</Text>
+                  <PillInput
+                    icon={fieldIcon('droplet')}
                     placeholder={t('family.bloodGroupPlaceholder')}
                     value={depBloodGroup}
                     onChangeText={setDepBloodGroup}
+                    autoCapitalize="characters"
+                    accessibilityLabel={t('family.bloodGroupLabel')}
                   />
-                  <TextField
-                    label={t('family.phoneLabel')}
+
+                  <Text style={styles.fieldLabel}>{t('family.phoneLabel')}</Text>
+                  <PillInput
+                    icon={fieldIcon('phone')}
                     placeholder={t('family.phonePlaceholder')}
-                    icon={Phone}
-                    keyboardType="phone-pad"
                     value={depPhone}
                     onChangeText={setDepPhone}
+                    keyboardType="phone-pad"
+                    accessibilityLabel={t('family.phoneLabel')}
                   />
 
-                  <View
-                    className="mb-4 flex-row items-start rounded-2xl p-3"
-                    style={{ backgroundColor: colors.brand[50] }}
-                  >
-                    <Baby size={15} color={colors.brand[600]} />
-                    <Text className="ml-2 flex-1 text-xs text-navy-secondary">
-                      {t('family.registerNotice')}
-                    </Text>
-                  </View>
+                  {/* This creates a real patient record — the warning stays. */}
+                  <Notice tone="warning" icon="baby" text={t('family.registerNotice')} spaced />
 
-                  {formError ? <FormError message={formError} /> : null}
+                  {formError ? (
+                    <Notice tone="critical" icon="alert-triangle" text={formError} spaced />
+                  ) : null}
 
-                  <Button
+                  <GradientButton
                     label={t('family.registerDependent')}
-                    onPress={handleRegisterDependent}
+                    onPress={() => void handleRegisterDependent()}
                     loading={registerDependent.isPending}
-                    leftIcon={Baby}
-                    showChevron={false}
+                    icon="none"
+                    style={styles.submit}
                   />
-                </>
+                </View>
               )}
-            </View>
-          </View>
-        )}
+            </Card>
+          )}
+        </View>
 
         {successMessage ? (
-          <View
-            className="mt-4 flex-row items-center justify-center rounded-2xl p-3"
-            style={{ backgroundColor: colors.semantic.successSurface }}
-          >
-            <MailCheck size={16} color={colors.semantic.success} />
-            <Text
-              className="ml-2 text-sm font-semibold"
-              style={{ color: colors.semantic.success }}
-            >
-              {successMessage}
-            </Text>
-          </View>
+          <Notice tone="normal" icon="check-circle" text={successMessage} />
         ) : null}
 
-        {/* Pending invitations */}
-        <SectionHeader
-          title={t('family.pendingInvitations')}
-          count={initialLoading ? null : invitations.length}
-        />
+        {/* ── Linked members ────────────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('family.linkedMembers')} variant="overline" />
+          {initialLoading ? (
+            <LoadingCard label={t('opesCore.common.loading')} />
+          ) : members.length === 0 ? (
+            <Card variant="flush">
+              <EmptyState
+                icon="users"
+                tint="blue"
+                title={t('family.linkedMembers')}
+                message={t('family.noMembers')}
+                actionLabel={t('family.optionInviteTitle')}
+                onAction={() => openForm('invite')}
+              />
+            </Card>
+          ) : (
+            <Card variant="flush">
+              {members.map((member, index) => {
+                const name = member.patient?.full_name ?? '—';
+                const relationshipLabel = t(`family.relationships.${member.relationship}`, {
+                  defaultValue: member.relationship,
+                });
+                const ageLabel =
+                  member.patient?.age != null
+                    ? t('family.age', { age: member.patient.age })
+                    : undefined;
+                const healthId = member.patient?.health_id
+                  ? `${t('family.healthIdLabel')} ${member.patient.health_id}`
+                  : undefined;
+                const accessLabel = t(`family.accessLevels.${member.access_level}`, {
+                  defaultValue: member.access_level,
+                });
+                return (
+                  <ListRow
+                    key={member.id}
+                    leading={<Avatar initials={initialsOf(name)} />}
+                    title={name}
+                    meta={[relationshipLabel, ageLabel, healthId]}
+                    divider={index < members.length - 1}
+                    chevron={false}
+                    trailing={
+                      <StatusBadge
+                        status={member.access_level}
+                        tone={ACCESS_TONE[member.access_level] ?? 'neutral'}
+                        label={accessLabel}
+                        size="sm"
+                      />
+                    }
+                  />
+                );
+              })}
+            </Card>
+          )}
+        </View>
 
-        {initialLoading ? (
-          <SkeletonRow />
-        ) : invitations.length === 0 ? (
-          <EmptyState icon={MailCheck} message={t('family.noPendingInvitations')} />
-        ) : (
-          invitations.map((invitation) => (
-            <View
-              key={invitation.id}
-              className="mb-3 flex-row items-center rounded-2xl border border-cream-300 bg-white p-4"
-            >
-              <View
-                className="h-11 w-11 items-center justify-center rounded-2xl"
-                style={{ backgroundColor: colors.semantic.warningSurface }}
-              >
-                <Clock size={17} color={colors.semantic.warning} />
-              </View>
-              <View className="ml-3 flex-1">
-                <Text className="text-sm font-bold text-navy-text" numberOfLines={1}>
-                  {invitation.contact}
-                </Text>
-                <Text className="mt-0.5 text-xs text-navy-secondary">
-                  {t(`family.relationships.${invitation.relationship}`, {
-                    defaultValue: invitation.relationship,
-                  })}
-                </Text>
-                <Text className="mt-0.5 text-[11px] text-navy-muted">
-                  {t('family.expiresOn', { date: invitation.expires_at ?? '—' })}
-                </Text>
-              </View>
-              <Pressable
-                onPress={() => handleCancelInvitation(invitation)}
-                accessibilityRole="button"
-                accessibilityLabel={t('family.cancelInviteConfirm')}
-                hitSlop={8}
-                disabled={cancellingId === invitation.id}
-                className="h-9 w-9 items-center justify-center rounded-full"
-                style={{
-                  backgroundColor: colors.semantic.dangerSurface,
-                  opacity: cancellingId === invitation.id ? 0.5 : 1,
-                }}
-              >
-                {cancellingId === invitation.id ? (
-                  <ActivityIndicator size="small" color={colors.semantic.danger} />
-                ) : (
-                  <X size={16} color={colors.semantic.danger} />
-                )}
-              </Pressable>
-            </View>
-          ))
-        )}
-
-        {/* Linked members */}
-        <SectionHeader
-          title={t('family.linkedMembers')}
-          count={initialLoading ? null : members.length}
-        />
-
-        {initialLoading ? (
-          <SkeletonRow />
-        ) : members.length === 0 ? (
-          <EmptyState icon={Users} message={t('family.noMembers')} />
-        ) : (
-          members.map((member) => (
-            <View
-              key={member.id}
-              className="mb-3 rounded-2xl border border-cream-300 bg-white p-4"
-            >
-              <View className="flex-row items-center">
-                <View className="h-12 w-12 items-center justify-center rounded-full bg-brand-100">
-                  <Text className="text-sm font-extrabold text-brand-600">
-                    {initialsOf(member.patient?.full_name ?? '?')}
-                  </Text>
-                </View>
-                <View className="ml-3 flex-1">
-                  <Text className="text-sm font-bold text-navy-text" numberOfLines={1}>
-                    {member.patient?.full_name}
-                  </Text>
-                  <Text className="mt-0.5 text-xs text-navy-secondary">
-                    {t(`family.relationships.${member.relationship}`, {
-                      defaultValue: member.relationship,
-                    })}
-                    {member.patient?.age != null
-                      ? ` · ${t('family.age', { age: member.patient.age })}`
-                      : ''}
-                  </Text>
-                </View>
-                <View className="rounded-full bg-cream-200 px-3 py-1">
-                  <Text className="text-[10px] font-bold text-navy-secondary">
-                    {t(`family.accessLevels.${member.access_level}`, {
-                      defaultValue: member.access_level,
-                    })}
-                  </Text>
-                </View>
-              </View>
-
-              {member.patient?.health_id ? (
-                <View className="mt-3 flex-row items-center border-t border-cream-200 pt-3">
-                  <Text className="text-[10px] font-bold uppercase tracking-wide text-navy-muted">
-                    {t('family.healthIdLabel')}
-                  </Text>
-                  <Text className="ml-2 flex-1 text-xs font-bold text-brand-600" numberOfLines={1}>
-                    {member.patient.health_id}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          ))
-        )}
+        {/* ── Pending invitations ───────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('family.pendingInvitations')} variant="overline" />
+          {initialLoading ? (
+            <LoadingCard label={t('opesCore.common.loading')} />
+          ) : invitations.length === 0 ? (
+            <Card variant="flush">
+              <EmptyState
+                icon="mail"
+                tint="green"
+                title={t('family.pendingInvitations')}
+                message={t('family.noPendingInvitations')}
+              />
+            </Card>
+          ) : (
+            <Card variant="flush">
+              {invitations.map((invitation, index) => {
+                const busy = cancellingId === invitation.id;
+                const relationshipLabel = t(`family.relationships.${invitation.relationship}`, {
+                  defaultValue: invitation.relationship,
+                });
+                const expires = t('family.expiresOn', {
+                  date: formatDate(invitation.expires_at, t('opesCore.common.none')),
+                });
+                return (
+                  <ListRow
+                    key={invitation.id}
+                    icon="clock"
+                    tint="amber"
+                    title={invitation.contact}
+                    meta={[relationshipLabel, expires]}
+                    divider={index < invitations.length - 1}
+                    chevron={false}
+                    trailing={
+                      <View style={styles.inviteTrailing}>
+                        <StatusBadge
+                          status="pending"
+                          tone="pending"
+                          label={t('opesCore.home.statusPending')}
+                          size="sm"
+                        />
+                        <TouchableOpacity
+                          onPress={() => handleCancelInvitation(invitation)}
+                          disabled={busy}
+                          hitSlop={8}
+                          activeOpacity={0.7}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('family.cancelInviteConfirm')}
+                          accessibilityState={{ disabled: busy, busy }}
+                          style={[styles.cancelButton, busy && styles.cancelButtonBusy]}
+                        >
+                          {busy ? (
+                            <ActivityIndicator size="small" color={colors.statusCritical} />
+                          ) : (
+                            <Icon name="close" size={16} color={colors.statusCritical} />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    }
+                  />
+                );
+              })}
+            </Card>
+          )}
+        </View>
       </ScrollView>
-    </Screen>
+
+      {dialog.element}
+    </SafeAreaView>
   );
 }
+
+// ── Pieces ──────────────────────────────────────────────────────────────────
 
 function SummaryStat({ label, value }: { label: string; value: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <View className="flex-1">
-      <Text className="text-2xl font-extrabold text-white">{value}</Text>
-      <Text className="mt-0.5 text-xs text-white/90">{label}</Text>
+    <View style={styles.stat}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
 
-function ChoiceRow({
-  icon: Icon,
-  title,
-  description,
-  onPress,
-}: {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  onPress: () => void;
-}) {
+/** Initials disc, used as the `leading` slot of a member row. */
+function Avatar({ initials }: { initials: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={title}
-      className="flex-row items-center py-3"
-    >
-      <View className="h-11 w-11 items-center justify-center rounded-2xl bg-brand-50">
-        <Icon size={19} color={colors.brand[600]} />
-      </View>
-      <View className="ml-3 flex-1">
-        <Text className="text-sm font-bold text-navy-text">{title}</Text>
-        <Text className="mt-0.5 text-xs text-navy-secondary">{description}</Text>
-      </View>
-      <ChevronRight size={18} color={colors.navy.muted} />
-    </Pressable>
+    <View style={styles.avatar}>
+      <Text style={styles.avatarText}>{initials}</Text>
+    </View>
   );
 }
 
-function ChipGroup<T extends string>({
-  label,
-  options,
-  value,
-  onSelect,
-  labelFor,
+/** Tinted inline notice, optionally with a retry affordance. */
+function Notice({
+  tone,
+  icon,
+  text,
+  actionLabel,
+  onAction,
+  spaced,
 }: {
-  label: string;
-  options: readonly T[];
-  value: T;
-  onSelect: (option: T) => void;
-  labelFor: (option: T) => string;
+  tone: StatusTone;
+  icon: IconName;
+  text: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  /** Adds the bottom gap needed when the notice sits inside a form card. */
+  spaced?: boolean;
 }) {
-  return (
-    <>
-      <Text className="mb-2 text-sm font-semibold text-navy-text">{label}</Text>
-      <View className="mb-4 flex-row flex-wrap" style={{ gap: 8 }}>
-        {options.map((option) => {
-          const active = value === option;
-          return (
-            <Pressable
-              key={option}
-              onPress={() => onSelect(option)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              className="rounded-full border px-3 py-2"
-              style={{
-                borderColor: active ? colors.brand[500] : colors.cream[300],
-                backgroundColor: active ? colors.brand[50] : colors.white,
-              }}
-            >
-              <Text
-                className="text-xs font-semibold"
-                style={{ color: active ? colors.brand[600] : colors.navy.secondary }}
-              >
-                {labelFor(option)}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </>
-  );
-}
-
-function FormError({ message }: { message: string }) {
+  const { colors, statusMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const skin = statusMap[tone];
   return (
     <View
-      className="mb-3 flex-row items-start rounded-2xl p-3"
-      style={{ backgroundColor: colors.semantic.dangerSurface }}
+      style={[styles.notice, spaced && styles.noticeSpaced, { backgroundColor: skin.bg }]}
+      accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
     >
-      <AlertTriangle size={15} color={colors.semantic.danger} />
-      <Text
-        className="ml-2 flex-1 text-xs font-semibold"
-        style={{ color: colors.semantic.danger }}
-      >
-        {message}
-      </Text>
-    </View>
-  );
-}
-
-function SectionHeader({ title, count }: { title: string; count: number | null }) {
-  return (
-    <View className="mb-3 mt-7 flex-row items-center">
-      <Text className="text-base font-bold text-navy-text">{title}</Text>
-      {count !== null ? (
-        <View className="ml-2 rounded-full bg-cream-200 px-2 py-0.5">
-          <Text className="text-[11px] font-bold text-navy-secondary">{count}</Text>
-        </View>
+      <Icon name={icon} size={16} color={skin.fg} />
+      <Text style={[styles.noticeText, { color: skin.fg }]}>{text}</Text>
+      {actionLabel && onAction ? (
+        <TouchableOpacity
+          onPress={onAction}
+          hitSlop={8}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
+          style={styles.noticeAction}
+        >
+          <Text style={[styles.noticeActionText, { color: skin.fg }]}>{actionLabel}</Text>
+        </TouchableOpacity>
       ) : null}
     </View>
   );
 }
 
-function EmptyState({ icon: Icon, message }: { icon: LucideIcon; message: string }) {
+/** Placeholder while the two family queries resolve. */
+function LoadingCard({ label }: { label: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <View className="items-center rounded-2xl border border-dashed border-cream-300 px-6 py-8">
-      <View className="h-12 w-12 items-center justify-center rounded-full bg-cream-200">
-        <Icon size={20} color={colors.navy.muted} />
+    <Card>
+      <View style={styles.loading} accessibilityLiveRegion="polite">
+        <ActivityIndicator color={colors.blue} />
+        <Text style={styles.loadingText}>{label}</Text>
       </View>
-      <Text className="mt-3 text-center text-sm text-navy-secondary">{message}</Text>
-    </View>
+    </Card>
   );
 }
 
-/** Placeholder card matching the real row's geometry, so the list doesn't jump
- * when the two family queries resolve. */
-function SkeletonRow() {
-  return (
-    <View className="mb-3 flex-row items-center rounded-2xl border border-cream-300 bg-white p-4">
-      <View className="h-12 w-12 rounded-full bg-cream-200" />
-      <View className="ml-3 flex-1">
-        <View className="h-3 rounded-full bg-cream-200" style={{ width: '55%' }} />
-        <View className="mt-2 h-2.5 rounded-full bg-cream-200" style={{ width: '35%' }} />
-      </View>
-      <ActivityIndicator size="small" color={colors.brand[500]} />
-    </View>
-  );
-}
+// ── Styles (colour-dependent, built per palette) ───────────────────────────
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.page },
+    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+
+    // Summary card
+    summaryHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
+    summaryCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.tintBlueBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    summaryText: { flex: 1, minWidth: 0 },
+    summaryTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: colors.textPrimary,
+    },
+    summaryDesc: {
+      marginTop: 2,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+    stats: {
+      marginTop: spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderTopWidth: 1,
+      borderTopColor: colors.divider,
+      paddingTop: spacing.md,
+    },
+    stat: { flex: 1, minWidth: 0 },
+    statDivider: { width: 1, alignSelf: 'stretch', backgroundColor: colors.divider },
+    statValue: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xl,
+      color: colors.textPrimary,
+    },
+    statLabel: {
+      marginTop: 2,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textSecondary,
+    },
+
+    // Add-someone card
+    cardIntro: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+    formHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 4 },
+    formCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.tintBlueBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    formHeadText: { flex: 1, minWidth: 0 },
+    formTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: colors.textPrimary,
+    },
+    formBody: {
+      marginTop: 2,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+    formClose: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    formBodyWrap: { marginTop: spacing.md },
+
+    // Fields
+    fieldLabel: {
+      marginBottom: 6,
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    chipWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    picker: { marginBottom: spacing.md },
+    submit: { marginTop: spacing.sm },
+
+    // Rows
+    avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.sm,
+      color: colors.blue,
+    },
+    inviteTrailing: { alignItems: 'flex-end', gap: spacing.sm },
+    cancelButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.statusCriticalBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelButtonBusy: { opacity: 0.5 },
+
+    // Notices
+    notice: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      padding: spacing.sm + 4,
+      borderRadius: radii.md,
+    },
+    /** Inside a form card the notice needs its own gap; the screen's
+     *  ScrollView already supplies one between top-level blocks. */
+    noticeSpaced: { marginBottom: spacing.md },
+    noticeText: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+    },
+    noticeAction: {
+      borderRadius: radii.pill,
+      paddingHorizontal: spacing.sm + 4,
+      paddingVertical: spacing.xs,
+      backgroundColor: colors.surface,
+    },
+    noticeActionText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+    },
+
+    // Loading
+    loading: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.md,
+    },
+    loadingText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
+  });

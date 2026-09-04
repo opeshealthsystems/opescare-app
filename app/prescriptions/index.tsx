@@ -1,57 +1,55 @@
-import { useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useMemo, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
-  ChevronLeft,
-  ChevronRight,
-  CircleAlert,
-  Hourglass,
-  Pill,
-  RotateCcw,
-  ScrollText,
-  Search,
-  Stethoscope,
-  Store,
-  Tablets,
-  type LucideIcon,
-} from 'lucide-react-native';
+  Card,
+  EmptyState,
+  Icon,
+  ScreenHeader,
+  SectionHeader,
+  SegmentedTabs,
+  StatusBadge,
+  a11yJoin,
+  radii,
+  spacing,
+  typography,
+  useTheme,
+  type IconName,
+  type Palette,
+  type Tint,
+} from '@/components/opes-ui';
 import { Screen } from '../../components/ui/Screen';
-import { colors } from '../../theme/tokens';
 import { usePrescriptions, type PrescriptionSummary } from '../../lib/api/queries';
 import { useActivePrescriptionSummary } from '../../lib/api/prescriptionQueries';
 import {
   EXPIRY_WARNING_WINDOW_DAYS,
-  StatusPill,
   daysUntil,
-  formatDate,
   referenceCode,
   statusLabelKey,
 } from '../../components/prescriptions/status';
+import {
+  LoadingBlock,
+  MedButton,
+  ROW_TINTS,
+  TintCircle,
+  fmtShortDate,
+  prescriptionTone,
+} from '../../components/meds/shared';
 
 /**
  * Prescriptions — the medications a care team has issued to this patient.
+ *
+ * MED-001 layout on the existing data layer: `ScreenHeader` with the Medicine
+ * Finder shortcut, the navy summary hero, a scrollable status filter, the
+ * "MY PRESCRIPTIONS" overline and one accent-barred `Card` per prescription.
+ * Every colour is a palette token and every glyph is the kit `<Icon />`.
  *
  * Read-only by design: the mobile API exposes only GET index + GET show
  * (routes/api.php:269-270), so this screen surfaces no refill or renewal
  * action. The one refill route in the codebase is a session-authenticated web
  * portal route (`POST /portals/patient/prescriptions/{id}/refill`) and is not
  * reachable from a bearer-token client.
- *
- * Structure follows the reference set: the page-title / filter-row / grouped-row
- * rhythm of the Access History reference, and the Rx + dosage vocabulary of the
- * e-prescription reference. Both references are green-branded; per the design
- * spec that palette is superseded by gold/cream, so the layout is matched and
- * every colour comes from theme/tokens.
  *
  * The demo patient has no prescriptions, so the empty state is the state most
  * users meet first: it explains how a prescription reaches this screen rather
@@ -69,9 +67,10 @@ const STATUS_FILTERS = [
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 export default function PrescriptionsListScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
-  const locale = i18n.language;
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [filter, setFilter] = useState<StatusFilter>('all');
 
   const { data, isLoading, isError, isFetching, refetch } = usePrescriptions(
@@ -82,14 +81,39 @@ export default function PrescriptionsListScreen() {
   const prescriptions = data?.data ?? [];
   const total = data?.pagination?.total ?? prescriptions.length;
   const hasAnyActive = (summary.data?.prescriptionCount ?? 0) > 0;
+  const showCount = !isLoading && !isError && prescriptions.length > 0;
+
+  const filterOptions = useMemo(
+    () =>
+      STATUS_FILTERS.map((option) => ({
+        key: option,
+        label: option === 'all' ? t('prescriptions.filterAll') : t(statusLabelKey(option)),
+      })),
+    [t],
+  );
 
   return (
     <Screen className="px-0">
+      <ScreenHeader
+        title={t('prescriptions.title')}
+        subtitle={t('prescriptions.subtitle')}
+        onBack={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'))}
+        right={
+          <MedButton
+            label={t('prescriptions.findMedicine')}
+            icon="search"
+            variant="navy"
+            size="sm"
+            onPress={() => router.push('/pharmacy')}
+          />
+        }
+      />
+
       <FlatList
         data={prescriptions}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
             refreshing={isFetching && !isLoading}
@@ -97,133 +121,52 @@ export default function PrescriptionsListScreen() {
               refetch();
               summary.refetch();
             }}
-            tintColor={colors.brand[500]}
+            tintColor={colors.blue}
           />
         }
-        ItemSeparatorComponent={() => <View className="h-3" />}
         ListHeaderComponent={
-          <View>
-            {/* Top bar — back chip, wordmark, Medicine Finder shortcut. */}
-            <View className="flex-row items-center justify-between px-6 pt-2">
-              <Pressable
-                onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'))}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t('prescriptions.back')}
-                className="h-10 w-10 items-center justify-center rounded-xl border border-cream-300 bg-white"
-              >
-                <ChevronLeft size={20} color={colors.navy.text} />
-              </Pressable>
-
-              <View className="flex-row items-center">
-                <Text className="text-lg font-extrabold text-navy-text">Opes</Text>
-                <Text className="text-lg font-extrabold text-brand-500">Care</Text>
-              </View>
-
-              <Pressable
-                onPress={() => router.push('/pharmacy')}
-                accessibilityRole="button"
-                accessibilityLabel={t('prescriptions.findMedicine')}
-                className="h-10 flex-row items-center rounded-xl border border-cream-300 bg-white px-3"
-              >
-                <Search size={15} color={colors.brand[600]} />
-                <Text className="ml-1.5 text-xs font-semibold text-navy-text">
-                  {t('prescriptions.findMedicine')}
-                </Text>
-              </Pressable>
-            </View>
-
-            {/* Title */}
-            <View className="px-6">
-              <Text className="mt-6 text-3xl font-extrabold text-navy-text">
-                {t('prescriptions.title')}
-              </Text>
-              <Text className="mt-1 text-sm text-navy-secondary">
-                {t('prescriptions.subtitle')}
-              </Text>
-            </View>
-
+          <View style={styles.header}>
             {/* Active-medication summary. Rendered only once there is something
                 to count — an all-zero strip would be noise above an empty list. */}
             {hasAnyActive ? (
-              <View className="mt-5 px-6">
-                <LinearGradient
-                  colors={[colors.brand[600], colors.brand[500], colors.brand[300]]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  // NativeWind's className→style transform is not registered for
-                  // expo-linear-gradient, so styling here has to stay inline.
-                  style={{
-                    borderRadius: 20,
-                    paddingVertical: 18,
-                    paddingHorizontal: 20,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                  }}
-                >
-                  <SummaryStat
-                    value={summary.data?.prescriptionCount ?? 0}
-                    label={t('prescriptions.summaryActive')}
-                  />
-                  <View className="mx-4 h-10 w-px bg-white/30" />
-                  <SummaryStat
-                    value={summary.data?.medicationCount ?? 0}
-                    label={t('prescriptions.summaryMedications')}
-                  />
-                  <View className="h-11 w-11 items-center justify-center rounded-full bg-white/20">
-                    <Tablets size={20} color={colors.white} />
-                  </View>
-                </LinearGradient>
-              </View>
+              <SummaryHero
+                prescriptions={summary.data?.prescriptionCount ?? 0}
+                medications={summary.data?.medicationCount ?? 0}
+              />
             ) : null}
 
-            {/* Status filters */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              className="mt-5"
-              contentContainerStyle={{ gap: 8, paddingHorizontal: 24 }}
-            >
-              {STATUS_FILTERS.map((option) => {
-                const active = option === filter;
-                return (
-                  <Pressable
-                    key={option}
-                    onPress={() => setFilter(option)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                    className={`h-10 items-center justify-center rounded-xl border px-4 ${
-                      active ? 'border-brand-500 bg-brand-500' : 'border-cream-300 bg-white'
-                    }`}
-                  >
-                    <Text
-                      className={`text-xs font-bold ${
-                        active ? 'text-white' : 'text-navy-secondary'
-                      }`}
-                    >
-                      {option === 'all' ? t('prescriptions.filterAll') : t(statusLabelKey(option))}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            <SegmentedTabs
+              scrollable
+              options={filterOptions}
+              value={filter}
+              onChange={(key) => setFilter(key as StatusFilter)}
+            />
 
-            {!isLoading && !isError && prescriptions.length > 0 ? (
-              <Text className="mb-3 mt-5 px-6 text-xs font-semibold uppercase tracking-wide text-navy-muted">
-                {t('prescriptions.resultCount', { count: total })}
-              </Text>
-            ) : (
-              <View className="h-5" />
-            )}
+            {showCount ? (
+              <View style={styles.sectionRow}>
+                <SectionHeader
+                  variant="overline"
+                  title={t('opesMeds.list.prescriptionsTitle')}
+                  style={styles.sectionHeader}
+                />
+                <Text style={styles.count}>{t('prescriptions.resultCount', { count: total })}</Text>
+              </View>
+            ) : null}
           </View>
         }
         ListEmptyComponent={
           isLoading ? (
-            <View className="items-center py-24">
-              <ActivityIndicator color={colors.brand[500]} />
-            </View>
+            <LoadingBlock label={t('opesMeds.list.loading')} />
           ) : isError ? (
-            <ErrorState onRetry={() => refetch()} />
+            <Card>
+              <EmptyState
+                icon="alert-circle"
+                tint="red"
+                title={t('prescriptions.loadError')}
+                actionLabel={t('prescriptions.retry')}
+                onAction={() => refetch()}
+              />
+            </Card>
           ) : filter === 'all' ? (
             <FirstRunEmptyState />
           ) : (
@@ -233,14 +176,12 @@ export default function PrescriptionsListScreen() {
             />
           )
         }
-        renderItem={({ item }) => (
-          <View className="px-6">
-            <PrescriptionCard
-              prescription={item}
-              locale={locale}
-              onPress={() => router.push(`/prescriptions/${item.id}`)}
-            />
-          </View>
+        renderItem={({ item, index }) => (
+          <PrescriptionRow
+            prescription={item}
+            index={index}
+            onPress={() => router.push(`/prescriptions/${item.id}`)}
+          />
         )}
       />
     </Screen>
@@ -249,26 +190,53 @@ export default function PrescriptionsListScreen() {
 
 /* -- Pieces ---------------------------------------------------------------- */
 
-function SummaryStat({ value, label }: { value: number; label: string }) {
+/** The MED-001 navy hero: two numerals and the pill mark. */
+function SummaryHero({ prescriptions, medications }: { prescriptions: number; medications: number }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const pad = (n: number) => String(n).padStart(2, '0');
+
   return (
-    <View className="flex-1">
-      <Text className="text-3xl font-extrabold text-white">{value}</Text>
-      <Text className="mt-0.5 text-[11px] font-semibold text-white/90">{label}</Text>
+    <View
+      style={styles.hero}
+      accessible
+      accessibilityLabel={a11yJoin(
+        `${prescriptions} ${t('prescriptions.summaryActive')}`,
+        `${medications} ${t('prescriptions.summaryMedications')}`,
+      )}
+    >
+      <View style={styles.heroCol}>
+        <Text style={styles.heroLabel}>{t('prescriptions.summaryActive')}</Text>
+        <Text style={styles.heroNumber}>{pad(prescriptions)}</Text>
+      </View>
+      <View style={styles.heroDivider} />
+      <View style={styles.heroCol}>
+        <Text style={styles.heroLabel}>{t('prescriptions.summaryMedications')}</Text>
+        <Text style={[styles.heroNumber, styles.heroNumberGreen]}>{pad(medications)}</Text>
+      </View>
+      <View style={styles.heroMark}>
+        <Icon name="pill" size={28} color={colors.textOnBrand} />
+      </View>
     </View>
   );
 }
 
-function PrescriptionCard({
+function PrescriptionRow({
   prescription,
-  locale,
+  index,
   onPress,
 }: {
   prescription: PrescriptionSummary;
-  locale: string;
+  index: number;
   onPress: () => void;
 }) {
   const { t } = useTranslation();
-  const prescribedOn = formatDate(prescription.prescribed_at, locale);
+  const { colors, tintMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const tint: Tint = ROW_TINTS[index % ROW_TINTS.length];
+
+  const prescribedOn = prescription.prescribed_at ? fmtShortDate(prescription.prescribed_at) : null;
   const remaining = daysUntil(prescription.expires_at);
   const isOpen = prescription.status === 'active' || prescription.status === 'partially_dispensed';
 
@@ -278,64 +246,60 @@ function PrescriptionCard({
     isOpen && remaining !== null && remaining >= 0 && remaining <= EXPIRY_WARNING_WINDOW_DAYS
       ? remaining
       : null;
+  const expiryLabel =
+    expiryDays === null
+      ? null
+      : expiryDays === 0
+        ? t('prescriptions.expiresToday')
+        : t('prescriptions.expiresInDays', { count: expiryDays });
+
+  const title = prescription.facility_name ?? t('prescriptions.unknownFacility');
+  const statusLabel = t(statusLabelKey(prescription.status));
+  // The list endpoint returns a count but never the drug names, so the count
+  // is what carries the weight here. Names live on the detail screen.
+  const countLine = t('prescriptions.medicationCount', { count: prescription.item_count });
+  const dateLine = prescribedOn
+    ? t('prescriptions.prescribedOn', { date: prescribedOn })
+    : t('prescriptions.dateUnknown');
+  const reference = t('prescriptions.reference', { code: referenceCode(prescription.id) });
 
   return (
-    <Pressable
+    <Card
+      variant="flush"
+      accentColor={tintMap[tint].fg}
       onPress={onPress}
-      accessibilityRole="button"
-      className="rounded-2xl border border-cream-300 bg-white p-4"
+      accessibilityLabel={a11yJoin(title, countLine, dateLine, reference, statusLabel, expiryLabel)}
     >
-      <View className="flex-row items-start">
-        <View className="h-11 w-11 items-center justify-center rounded-xl bg-brand-50">
-          <Pill size={20} color={colors.brand[600]} />
-        </View>
-
-        <View className="ml-3 flex-1">
-          <Text className="text-base font-bold text-navy-text" numberOfLines={2}>
-            {prescription.facility_name ?? t('prescriptions.unknownFacility')}
+      <View style={styles.rxRow}>
+        <TintCircle icon="pill" tint={tint} size={48} />
+        <View style={styles.rxBody}>
+          <Text style={styles.rxTitle} numberOfLines={2}>
+            {title}
           </Text>
-          <Text className="mt-0.5 text-[11px] text-navy-muted">
-            {t('prescriptions.reference', { code: referenceCode(prescription.id) })}
-          </Text>
-        </View>
-
-        <View className="ml-2">
-          <StatusPill status={prescription.status} statusColor={prescription.status_color} />
-        </View>
-      </View>
-
-      {/* The list endpoint returns a count but never the drug names, so the
-          count is what carries the weight here. Names live on the detail screen. */}
-      <View className="mt-3 flex-row items-center rounded-xl bg-cream-100 px-3 py-2.5">
-        <Tablets size={16} color={colors.brand[600]} />
-        <Text className="ml-2 flex-1 text-sm font-bold text-navy-text">
-          {t('prescriptions.medicationCount', { count: prescription.item_count })}
-        </Text>
-        <ChevronRight size={16} color={colors.navy.muted} />
-      </View>
-
-      <View className="mt-3 flex-row items-center justify-between border-t border-cream-200 pt-3">
-        <Text className="flex-1 pr-2 text-[11px] text-navy-secondary" numberOfLines={1}>
-          {prescribedOn
-            ? t('prescriptions.prescribedOn', { date: prescribedOn })
-            : t('prescriptions.dateUnknown')}
-        </Text>
-
-        {expiryDays !== null ? (
-          <View
-            className="flex-row items-center rounded-lg px-2 py-1"
-            style={{ backgroundColor: colors.semantic.warningSurface }}
-          >
-            <Hourglass size={11} color={colors.semantic.warning} />
-            <Text className="ml-1 text-[10px] font-bold" style={{ color: colors.semantic.warning }}>
-              {expiryDays === 0
-                ? t('prescriptions.expiresToday')
-                : t('prescriptions.expiresInDays', { count: expiryDays })}
+          <Text style={styles.rxPurpose}>{countLine}</Text>
+          <View style={styles.rxMetaRow}>
+            <Icon name="calendar" size={14} color={colors.textMuted} />
+            <Text style={styles.rxMeta} numberOfLines={1}>
+              {dateLine}
+              {'  •  '}
+              {reference}
             </Text>
           </View>
-        ) : null}
+        </View>
+        <View style={styles.rxRight}>
+          <StatusBadge
+            status={prescription.status}
+            tone={prescriptionTone(prescription.status, prescription.status_color)}
+            label={statusLabel}
+            size="sm"
+          />
+          {expiryLabel ? (
+            <StatusBadge status="due" tone="warning" icon="clock" label={expiryLabel} size="sm" />
+          ) : null}
+        </View>
+        <Icon name="chevron-right" size={18} color={colors.textMuted} />
       </View>
-    </Pressable>
+    </Card>
   );
 }
 
@@ -347,95 +311,87 @@ function PrescriptionCard({
 function FirstRunEmptyState() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
-    <View className="px-6 pt-4">
-      <View className="items-center rounded-2xl border border-cream-300 bg-white px-6 py-8">
-        <View className="h-20 w-20 items-center justify-center rounded-full bg-brand-50">
-          <Pill size={30} color={colors.brand[600]} />
-        </View>
-        <Text className="mt-5 text-center text-lg font-extrabold text-navy-text">
-          {t('prescriptions.emptyTitle')}
-        </Text>
-        <Text className="mt-2 text-center text-sm leading-5 text-navy-secondary">
-          {t('prescriptions.emptyBody')}
-        </Text>
+    <View style={styles.stack}>
+      <Card>
+        <EmptyState
+          icon="pill"
+          tint="blue"
+          title={t('prescriptions.emptyTitle')}
+          message={t('prescriptions.emptyBody')}
+          actionLabel={t('prescriptions.emptyBookAppointment')}
+          onAction={() => router.push('/appointments/book')}
+        />
+      </Card>
+
+      <View>
+        <SectionHeader variant="overline" title={t('prescriptions.emptyHowTitle')} />
+        <Card variant="flush">
+          <StepRow
+            index={1}
+            icon="stethoscope"
+            tint="blue"
+            title={t('prescriptions.emptyStep1Title')}
+            body={t('prescriptions.emptyStep1Body')}
+            divider
+          />
+          <StepRow
+            index={2}
+            icon="document-text"
+            tint="green"
+            title={t('prescriptions.emptyStep2Title')}
+            body={t('prescriptions.emptyStep2Body')}
+            divider
+          />
+          <StepRow
+            index={3}
+            icon="store"
+            tint="purple"
+            title={t('prescriptions.emptyStep3Title')}
+            body={t('prescriptions.emptyStep3Body')}
+          />
+        </Card>
       </View>
 
-      <Text className="mb-3 mt-6 text-xs font-semibold uppercase tracking-wide text-navy-muted">
-        {t('prescriptions.emptyHowTitle')}
-      </Text>
-
-      <View className="overflow-hidden rounded-2xl border border-cream-300 bg-white">
-        <EmptyStep
-          index={1}
-          icon={Stethoscope}
-          title={t('prescriptions.emptyStep1Title')}
-          body={t('prescriptions.emptyStep1Body')}
-        />
-        <EmptyStep
-          index={2}
-          icon={ScrollText}
-          title={t('prescriptions.emptyStep2Title')}
-          body={t('prescriptions.emptyStep2Body')}
-        />
-        <EmptyStep
-          index={3}
-          icon={Store}
-          title={t('prescriptions.emptyStep3Title')}
-          body={t('prescriptions.emptyStep3Body')}
-          last
-        />
-      </View>
-
-      <Pressable
-        onPress={() => router.push('/appointments/book')}
-        accessibilityRole="button"
-        className="mt-5 flex-row items-center justify-center rounded-2xl bg-brand-500 px-4 py-4"
-      >
-        <Stethoscope size={17} color={colors.white} />
-        <Text className="ml-2 text-sm font-bold text-white">
-          {t('prescriptions.emptyBookAppointment')}
-        </Text>
-      </Pressable>
-
-      <Pressable
+      <MedButton
+        label={t('prescriptions.emptyFindMedicine')}
+        icon="search"
+        variant="secondary"
         onPress={() => router.push('/pharmacy')}
-        accessibilityRole="button"
-        className="mt-3 flex-row items-center justify-center rounded-2xl border border-brand-500 px-4 py-4"
-      >
-        <Search size={17} color={colors.brand[600]} />
-        <Text className="ml-2 text-sm font-bold text-brand-600">
-          {t('prescriptions.emptyFindMedicine')}
-        </Text>
-      </Pressable>
+      />
     </View>
   );
 }
 
-function EmptyStep({
+/** One numbered step of the "how a prescription gets here" explainer. */
+function StepRow({
   index,
-  icon: Icon,
+  icon,
+  tint,
   title,
   body,
-  last,
+  divider,
 }: {
   index: number;
-  icon: LucideIcon;
+  icon: IconName;
+  tint: Tint;
   title: string;
   body: string;
-  last?: boolean;
+  divider?: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <View className={`flex-row items-start px-4 py-4 ${last ? '' : 'border-b border-cream-200'}`}>
-      <View className="h-9 w-9 items-center justify-center rounded-xl bg-cream-200">
-        <Icon size={17} color={colors.brand[600]} />
-      </View>
-      <View className="ml-3 flex-1">
-        <Text className="text-sm font-bold text-navy-text">
+    <View style={[styles.step, divider && styles.stepDivider]} accessible accessibilityLabel={a11yJoin(`${index}. ${title}`, body)}>
+      <TintCircle icon={icon} tint={tint} size={40} />
+      <View style={styles.stepBody}>
+        <Text style={styles.stepTitle}>
           {index}. {title}
         </Text>
-        <Text className="mt-1 text-xs leading-4 text-navy-secondary">{body}</Text>
+        <Text style={styles.stepText}>{body}</Text>
       </View>
     </View>
   );
@@ -452,53 +408,119 @@ function FilteredEmptyState({
   const { t } = useTranslation();
 
   return (
-    <View className="px-6 pt-2">
-      <View className="items-center rounded-2xl border border-cream-300 bg-white px-6 py-10">
-        <View className="h-14 w-14 items-center justify-center rounded-full bg-cream-200">
-          <Pill size={22} color={colors.navy.muted} />
-        </View>
-        <Text className="mt-4 text-center text-base font-bold text-navy-text">
-          {t('prescriptions.emptyFilterTitle', { status: statusLabel })}
-        </Text>
-        <Text className="mt-1.5 text-center text-sm text-navy-secondary">
-          {t('prescriptions.emptyFilterBody')}
-        </Text>
-        <Pressable
-          onPress={onShowAll}
-          accessibilityRole="button"
-          className="mt-4 rounded-xl border border-brand-500 px-4 py-2"
-        >
-          <Text className="text-xs font-bold text-brand-600">{t('prescriptions.showAll')}</Text>
-        </Pressable>
-      </View>
-    </View>
+    <Card>
+      <EmptyState
+        icon="pill"
+        tint="amber"
+        title={t('prescriptions.emptyFilterTitle', { status: statusLabel })}
+        message={t('prescriptions.emptyFilterBody')}
+        actionLabel={t('prescriptions.showAll')}
+        onAction={onShowAll}
+      />
+    </Card>
   );
 }
 
-function ErrorState({ onRetry }: { onRetry: () => void }) {
-  const { t } = useTranslation();
+/* -- Styles ---------------------------------------------------------------- */
 
-  return (
-    <View className="px-6 pt-2">
-      <View className="items-center rounded-2xl border border-cream-300 bg-white px-6 py-10">
-        <View
-          className="h-14 w-14 items-center justify-center rounded-full"
-          style={{ backgroundColor: colors.semantic.dangerSurface }}
-        >
-          <CircleAlert size={22} color={colors.semantic.danger} />
-        </View>
-        <Text className="mt-4 text-center text-sm text-navy-secondary">
-          {t('prescriptions.loadError')}
-        </Text>
-        <Pressable
-          onPress={onRetry}
-          accessibilityRole="button"
-          className="mt-4 flex-row items-center rounded-xl border border-brand-500 px-4 py-2"
-        >
-          <RotateCcw size={13} color={colors.brand[600]} />
-          <Text className="ml-2 text-xs font-bold text-brand-600">{t('prescriptions.retry')}</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    content: {
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.xxl,
+      gap: spacing.md,
+    },
+    header: { gap: spacing.md },
+    stack: { gap: spacing.md },
+
+    sectionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
+    sectionHeader: { flex: 1, marginBottom: 0 },
+    count: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+
+    // -- Hero ----------------------------------------------------------------
+    hero: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+      padding: spacing.md,
+      borderRadius: radii.md,
+      backgroundColor: c.navy,
+    },
+    heroCol: { flex: 1, minWidth: 0 },
+    heroDivider: { width: 1, alignSelf: 'stretch', backgroundColor: c.navyLight },
+    heroLabel: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textOnBrand,
+    },
+    heroNumber: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xxl,
+      lineHeight: typography.lineHeight.xxl,
+      color: c.textOnBrand,
+    },
+    heroNumberGreen: { color: c.statusNormal },
+    heroMark: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: c.navyLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    // -- Prescription rows ---------------------------------------------------
+    rxRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
+    rxBody: { flex: 1, minWidth: 0, gap: 2 },
+    rxTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      lineHeight: typography.lineHeight.md,
+      color: c.textPrimary,
+    },
+    rxPurpose: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: c.textSecondary,
+    },
+    rxMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+    rxMeta: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+    rxRight: { alignItems: 'flex-end', gap: 4, maxWidth: 120 },
+
+    // -- Explainer steps -----------------------------------------------------
+    step: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+      paddingVertical: 14,
+      paddingHorizontal: spacing.md,
+    },
+    stepDivider: { borderBottomWidth: 1, borderBottomColor: c.divider },
+    stepBody: { flex: 1, minWidth: 0, gap: 2 },
+    stepTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: c.textPrimary,
+    },
+    stepText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textSecondary,
+    },
+  });

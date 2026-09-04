@@ -1,10 +1,20 @@
 import '../global.css';
 import '../lib/i18n';
-import { useEffect } from 'react';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Stack, router, useRouter, useSegments } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from '@expo-google-fonts/poppins';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ThemeProvider, AppBackground, setDefaultBackHandler, type PaletteName } from '../components/opes-ui';
+import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../lib/store/auth';
 import { AppUpdateGate } from '../components/AppUpdateGate';
@@ -13,7 +23,40 @@ import { OfflineBanner } from '../components/offline/OfflineBanner';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+// The OPES ScreenHeader is navigation-agnostic; give it one app-wide back
+// action so headers without an explicit onBack still show a working chevron.
+setDefaultBackHandler(() => {
+  if (router.canGoBack()) router.back();
+  else router.replace('/(tabs)/home');
+});
+
 const queryClient = new QueryClient();
+
+/**
+ * The user's chosen palette ('opescare' default | 'opes'). Persisted here — in
+ * ONE place — so the Settings toggle only has to call togglePalette().
+ * SecureStore is unavailable on the web build, so fall back to localStorage.
+ */
+export const PALETTE_STORAGE_KEY = 'opescare.palette';
+const isPalette = (v: unknown): v is PaletteName => v === 'opescare' || v === 'opes';
+async function readPalette(): Promise<PaletteName> {
+  try {
+    const raw = Platform.OS === 'web'
+      ? globalThis.localStorage?.getItem(PALETTE_STORAGE_KEY)
+      : await SecureStore.getItemAsync(PALETTE_STORAGE_KEY);
+    return isPalette(raw) ? raw : 'opescare';
+  } catch {
+    return 'opescare';
+  }
+}
+function writePalette(p: PaletteName): void {
+  try {
+    if (Platform.OS === 'web') globalThis.localStorage?.setItem(PALETTE_STORAGE_KEY, p);
+    else void SecureStore.setItemAsync(PALETTE_STORAGE_KEY, p);
+  } catch {
+    /* persistence is best-effort */
+  }
+}
 
 export default function RootLayout() {
   const status = useAuthStore((s) => s.status);
@@ -31,9 +74,38 @@ export default function RootLayout() {
     bootstrap();
   }, [bootstrap]);
 
+  // OPES UI kit typography (ui-kit/theme.ts) addresses the four Poppins
+  // weights by their @expo-google-fonts names. They must be registered before
+  // the first styled screen paints, otherwise every kit component silently
+  // falls back to the system font.
+  const [fontsLoaded, fontError] = useFonts({
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  });
+  // "Settled" — loaded OR failed. A font failure must never hold the splash
+  // screen up: we fall through and the app renders with the system font.
+  const fontsSettled = fontsLoaded || fontError !== null;
+  const [palette, setPalette] = useState<PaletteName | null>(null);
+  useEffect(() => {
+    readPalette().then(setPalette);
+  }, []);
+
+  // The splash stays up until BOTH the session is resolved AND the fonts
+  // have settled. Routing (below) is intentionally not gated on fonts, so
+  // the redirect still happens as soon as auth resolves — it just lands
+  // behind the splash until the fonts are in.
+  useEffect(() => {
+    if (status === 'booting' || !fontsSettled || palette === null) return;
+    if (fontError && __DEV__) {
+      console.warn('[fonts] Poppins failed to load; using system font.', fontError);
+    }
+    SplashScreen.hideAsync().catch(() => {});
+  }, [status, fontsSettled, fontError, palette]);
+
   useEffect(() => {
     if (status === 'booting') return;
-    SplashScreen.hideAsync().catch(() => {});
 
     const inAuthGroup = segments[0] === '(auth)';
     // `/` is app/index.tsx — a bare spinner that exists only to be redirected
@@ -54,6 +126,10 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      <ThemeProvider initialPalette={palette ?? 'opescare'} onPaletteChange={writePalette}>
+      {/* The kit's app-wide ground: opaque page colour + the faint brand seal, wrapped
+          once around every screen — kit screens have a transparent root by design. */}
+      <AppBackground>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false }} />
@@ -64,6 +140,8 @@ export default function RootLayout() {
             see lib/api/appConfigQueries.ts. */}
         <AppUpdateGate />
       </QueryClientProvider>
+      </AppBackground>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

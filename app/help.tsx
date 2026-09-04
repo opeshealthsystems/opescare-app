@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -8,43 +8,37 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
-  AlertTriangle,
-  Calendar,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
-  CircleAlert,
-  CloudOff,
-  FileText,
-  Headset,
-  Mail,
-  MessageSquare,
-  Phone,
-  QrCode,
-  Send,
-  ShieldCheck,
-  Ticket,
-  Users,
-  X,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../components/ui/Screen';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
-import { Chip } from '../components/ui/Chip';
-import { EmptyState } from '../components/ui/EmptyState';
-import { ListRow } from '../components/ui/ListRow';
-import { SkeletonCard } from '../components/ui/Skeleton';
-import { InlineNotice, ScreenHeader } from '../components/settings/SettingsUi';
-import { toneOf, type Tone } from '../components/ui/tone';
-import { colors, radii, sizing, spacing, typography } from '../theme/tokens';
+  Card,
+  Chip,
+  EmptyState,
+  GradientButton,
+  Icon,
+  ListRow,
+  PillInput,
+  ScreenHeader,
+  SectionHeader,
+  StatusBadge,
+  a11yJoin,
+  formatDate,
+  radii,
+  spacing,
+  typography,
+  useTheme,
+  type IconName,
+  type Palette,
+  type StatusTone,
+  type Tint,
+} from '@/components/opes-ui';
 import {
   useCreateSupportTicket,
   useSendSupportTicketMessage,
@@ -52,25 +46,25 @@ import {
   useSupportTicket,
   useSupportTickets,
   type SupportTicketCategory,
-  type SupportTicketSummary,
 } from '../lib/api/queries';
 
 /**
- * Help & Support — a real helpdesk, not a contact form.
- *
- * Reference: `Mobile app screens/a_full_screen_mobile_app_ui_screenshot_help_sup.png`
- * — "How can we help you today?" contact channels, popular help topics, a
- * "Submit a Request" block, then "My Support Requests" with a status per row,
- * closing on a medical-emergency notice.
+ * Help & Support — a real helpdesk, not a contact form, in the OPES layout.
  *
  * Backed end-to-end by MobileSupportController (`routes/mobile_support.php`):
  * GET /support/contact, GET|POST /support/tickets, GET /support/tickets/{id},
- * POST /support/tickets/{id}/messages. A ticket the patient opens here is the
- * same record the staff helpdesk works, so it gets a real status, a thread and
- * a resolution note.
+ * POST /support/tickets/{id}/messages. Those routes were only recently
+ * restored, so every one of them is still rendered defensively: a missing
+ * contact channel is never invented, a failed ticket list gets its own
+ * `EmptyState` with a retry, and a failed submit leaves the form filled.
  *
- * Departures from the reference, each because the platform cannot honestly
- * support what it draws:
+ * Presentation in this pass: `ScreenHeader`, overline `SectionHeader`s,
+ * `Card variant="flush"` lists of `ListRow`s for the contact channels, the
+ * help topics and the ticket list, `StatusBadge` for ticket state,
+ * `PillInput` + `GradientButton` for the request form, and kit `EmptyState`s.
+ *
+ * Departures from the OPES reference, each because the platform cannot
+ * honestly support what it draws:
  *  - **No Live Chat channel.** There is no chat transport for support; the
  *    ticket thread is the real-time channel and is presented as such.
  *  - **No article search or "Support Center" link.** There is no help-article
@@ -82,6 +76,12 @@ import {
  *    id rather than a fabricated ticket number.
  *  - **No system-status panel and no satisfaction rating.** Neither has an
  *    endpoint.
+ *
+ * One deliberate departure from the kit's `ListRow`: the FAQ rows are built
+ * here rather than composed from `ListRow`, because `ListRow` clamps its title
+ * to a single line and every FAQ question is a full sentence. The geometry
+ * (14/16 padding, 40px tint circle, 18px chevron) is the DESIGN_SPEC §8 row
+ * recipe, so the two read as the same component.
  */
 
 /** Fallback order if GET /support/contact does not return the category list. */
@@ -96,39 +96,39 @@ const FALLBACK_CATEGORIES: SupportTicketCategory[] = [
 ];
 
 /** Help topics — each navigates to the screen that actually does the thing. */
-const HELP_TOPICS: { icon: LucideIcon; tone: Tone; titleKey: string; bodyKey: string; route: string }[] =
+const HELP_TOPICS: { icon: IconName; tint: Tint; titleKey: string; bodyKey: string; route: string }[] =
   [
     {
-      icon: QrCode,
-      tone: 'gold',
+      icon: 'qr',
+      tint: 'blue',
       titleKey: 'help.topic.healthId',
       bodyKey: 'help.topic.healthIdBody',
       route: '/(tabs)/health-id',
     },
     {
-      icon: Calendar,
-      tone: 'info',
+      icon: 'calendar',
+      tint: 'blue',
       titleKey: 'help.topic.appointments',
       bodyKey: 'help.topic.appointmentsBody',
       route: '/appointments',
     },
     {
-      icon: FileText,
-      tone: 'success',
+      icon: 'document-text',
+      tint: 'green',
       titleKey: 'help.topic.records',
       bodyKey: 'help.topic.recordsBody',
       route: '/(tabs)/records',
     },
     {
-      icon: ShieldCheck,
-      tone: 'warning',
+      icon: 'shield-check',
+      tint: 'amber',
       titleKey: 'help.topic.privacy',
       bodyKey: 'help.topic.privacyBody',
       route: '/privacy',
     },
     {
-      icon: Users,
-      tone: 'neutral',
+      icon: 'users',
+      tint: 'purple',
       titleKey: 'help.topic.family',
       bodyKey: 'help.topic.familyBody',
       route: '/family',
@@ -150,16 +150,16 @@ const FAQS: { id: string; route: string; routeLabelKey: string }[] = [
 ];
 
 /** open | assigned | escalated | resolved — the four SupportService writes. */
-function statusTone(status: string): Tone {
+function statusTone(status: string): StatusTone {
   switch (status) {
     case 'resolved':
-      return 'success';
+      return 'normal';
     case 'escalated':
-      return 'danger';
+      return 'critical';
     case 'assigned':
       return 'warning';
     default:
-      return 'info';
+      return 'pending';
   }
 }
 
@@ -169,17 +169,11 @@ function shortRef(id: string): string {
   return id.replace(/-/g, '').slice(0, 8).toUpperCase();
 }
 
-function formatDate(iso: string | null, locale: string): string {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
 export default function HelpScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
-  const locale = i18n.language?.startsWith('fr') ? 'fr-FR' : 'en-US';
+  const { colors, tintMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const contactQuery = useSupportContact();
   const ticketsQuery = useSupportTickets();
@@ -222,324 +216,292 @@ export default function HelpScreen() {
     }
   };
 
+  const onRefresh = useCallback(() => {
+    ticketsQuery.refetch();
+    contactQuery.refetch();
+  }, [ticketsQuery, contactQuery]);
+
+  const ticketMeta = useCallback(
+    (id: string, ticketCategory: string, updatedAt: string | null) =>
+      t('help.myRequests.meta', {
+        ref: shortRef(id),
+        category: t(`help.category.${ticketCategory}`, { defaultValue: ticketCategory }),
+        updated: formatDate(updatedAt, t('opesCore.common.none')),
+      }),
+    [t],
+  );
+
   return (
-    <Screen className="px-0">
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      <ScreenHeader
+        title={t('help.title')}
+        subtitle={t('help.subtitle')}
+        onBack={() => router.back()}
+      />
+
       <ScrollView
-        className="flex-1"
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: spacing['2xl'], paddingBottom: spacing['4xl'] }}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={ticketsQuery.isRefetching || contactQuery.isRefetching}
-            onRefresh={() => {
-              ticketsQuery.refetch();
-              contactQuery.refetch();
-            }}
-            tintColor={colors.brand[500]}
+            onRefresh={onRefresh}
+            tintColor={colors.blue}
+            colors={[colors.blue]}
           />
         }
       >
-        <ScreenHeader
-          title={t('help.title')}
-          subtitle={t('help.subtitle')}
-          onBack={() => router.back()}
-        />
-
-        {/* ── How can we help? — the real channels ────────────────────── */}
-        <Card className="mt-6" padding="lg">
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View
-              style={{
-                width: sizing.tile.md,
-                height: sizing.tile.md,
-                borderRadius: radii.tile,
-                backgroundColor: colors.brand[50],
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Headset color={colors.brand[600]} size={sizing.icon.lg} />
+        {/* ── How can we help? — the real channels ──────────────────────── */}
+        <Card>
+          <View style={styles.head}>
+            <View style={[styles.circle, { backgroundColor: tintMap.blue.bg }]}>
+              <Icon name="headset" size={20} color={tintMap.blue.fg} />
             </View>
-            <View style={{ flex: 1, marginLeft: spacing.md }}>
-              <Text
-                style={{
-                  fontSize: typography.size.lg,
-                  lineHeight: typography.lineHeight.lg,
-                  fontWeight: typography.weight.bold,
-                  color: colors.navy.text,
-                }}
-              >
-                {t('help.contact.title')}
-              </Text>
-              <Text
-                style={{
-                  marginTop: 2,
-                  fontSize: typography.size.sm,
-                  lineHeight: typography.lineHeight.sm,
-                  color: colors.navy.secondary,
-                }}
-              >
-                {t('help.contact.body')}
-              </Text>
+            <View style={styles.headText}>
+              <Text style={styles.headTitle}>{t('help.contact.title')}</Text>
+              <Text style={styles.headBody}>{t('help.contact.body')}</Text>
             </View>
-          </View>
-
-          <View style={{ marginTop: spacing.lg, gap: spacing.md }}>
-            {contactQuery.isLoading ? (
-              <ActivityIndicator color={colors.brand[500]} />
-            ) : (
-              <>
-                {email ? (
-                  <ChannelRow
-                    icon={Mail}
-                    tone="info"
-                    title={t('help.contact.email')}
-                    body={t('help.contact.emailBody')}
-                    value={email}
-                    onPress={() => {
-                      Linking.openURL(`mailto:${email}`).catch(() => undefined);
-                    }}
-                  />
-                ) : null}
-
-                {phone ? (
-                  <ChannelRow
-                    icon={Phone}
-                    tone="success"
-                    title={t('help.contact.phone')}
-                    body={t('help.contact.phoneBody')}
-                    value={phone}
-                    onPress={() => {
-                      Linking.openURL(`tel:${phone.replace(/[^+\d]/g, '')}`).catch(() => undefined);
-                    }}
-                  />
-                ) : null}
-
-                {!email && !phone ? (
-                  <InlineNotice tone="warning" icon={CircleAlert} body={t('help.contact.unavailable')} />
-                ) : null}
-
-                <ChannelRow
-                  icon={MessageSquare}
-                  tone="gold"
-                  title={t('help.contact.ticket')}
-                  body={t('help.contact.ticketBody')}
-                  value={
-                    openTickets > 0
-                      ? t('help.contact.ticketOpen', { count: openTickets })
-                      : t('help.contact.ticketNone')
-                  }
-                />
-              </>
-            )}
           </View>
         </Card>
 
-        {/* ── Popular help topics ─────────────────────────────────────── */}
-        <SectionLabel text={t('help.topicsTitle')} />
-        <Card padding="none" style={{ paddingHorizontal: spacing.lg }}>
-          {HELP_TOPICS.map((topic, index) => (
-            <ListRow
-              key={topic.titleKey}
-              icon={topic.icon}
-              tone={topic.tone}
-              title={t(topic.titleKey)}
-              subtitle={t(topic.bodyKey)}
-              onPress={() => router.push(topic.route)}
-              divider={index < HELP_TOPICS.length - 1}
-            />
-          ))}
-        </Card>
-
-        {/* ── FAQ ─────────────────────────────────────────────────────── */}
-        <SectionLabel text={t('help.faqTitle')} />
-        <Card padding="none" style={{ paddingHorizontal: spacing.lg }}>
-          {FAQS.map((faq, index) => (
-            <FaqRow
-              key={faq.id}
-              question={t(`help.faq.${faq.id}Q`)}
-              answer={t(`help.faq.${faq.id}A`)}
-              linkLabel={t(faq.routeLabelKey)}
-              open={openFaq === faq.id}
-              onToggle={() => setOpenFaq((current) => (current === faq.id ? null : faq.id))}
-              onFollowLink={() => router.push(faq.route)}
-              divider={index < FAQS.length - 1}
-            />
-          ))}
-        </Card>
-
-        {/* ── Submit a request ────────────────────────────────────────── */}
-        <SectionLabel text={t('help.requestForm.title')} />
-        <Card padding="lg">
-          <Text
-            style={{
-              fontSize: typography.size.sm,
-              lineHeight: typography.lineHeight.sm,
-              color: colors.navy.secondary,
-            }}
-          >
-            {t('help.requestForm.body')}
-          </Text>
-
-          <FieldLabel text={t('help.requestForm.category')} />
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-            {categories.map((value) => (
-              <Chip
-                key={value}
-                label={t(`help.category.${value}`)}
-                size="md"
-                variant="outline"
-                tone="gold"
-                selected={category === value}
-                onPress={() => setCategory(value)}
-              />
-            ))}
-          </View>
-
-          <FieldLabel text={t('help.requestForm.subject')} />
-          <TextInput
-            style={{
-              height: sizing.control.lg,
-              borderRadius: radii.lg,
-              borderWidth: 1,
-              borderColor: colors.line.default,
-              backgroundColor: colors.surface.card,
-              paddingHorizontal: spacing.lg,
-              fontSize: typography.size.md,
-              color: colors.navy.text,
-            }}
-            placeholder={t('help.requestForm.subjectPlaceholder')}
-            placeholderTextColor={colors.navy.muted}
-            value={subject}
-            onChangeText={setSubject}
-            maxLength={255}
-          />
-
-          <FieldLabel text={t('help.requestForm.description')} />
-          <TextInput
-            style={{
-              minHeight: 110,
-              borderRadius: radii.lg,
-              borderWidth: 1,
-              borderColor: colors.line.default,
-              backgroundColor: colors.surface.card,
-              paddingHorizontal: spacing.lg,
-              paddingVertical: spacing.md,
-              fontSize: typography.size.md,
-              lineHeight: typography.lineHeight.md,
-              color: colors.navy.text,
-            }}
-            placeholder={t('help.requestForm.descriptionPlaceholder')}
-            placeholderTextColor={colors.navy.muted}
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            textAlignVertical="top"
-            maxLength={5000}
-          />
-          <Text
-            style={{
-              marginTop: spacing.sm,
-              fontSize: typography.size.xs,
-              color: colors.navy.muted,
-            }}
-          >
-            {t('help.requestForm.privacyHint')}
-          </Text>
-
-          {createTicket.isError ? (
-            <View style={{ marginTop: spacing.md }}>
-              <InlineNotice tone="danger" icon={CircleAlert} body={t('help.requestForm.submitError')} />
-            </View>
-          ) : null}
-
-          {submittedRef ? (
-            <View style={{ marginTop: spacing.md }}>
-              <InlineNotice
-                tone="success"
-                icon={Ticket}
-                title={t('help.requestForm.submitted')}
-                body={t('help.requestForm.submittedBody', { ref: submittedRef })}
-              />
-            </View>
-          ) : null}
-
-          <View style={{ marginTop: spacing.lg }}>
-            <Button
-              label={t('help.requestForm.submit')}
-              onPress={submitRequest}
-              loading={createTicket.isPending}
-              disabled={!canSubmit}
-              showChevron={false}
-              leftIcon={Send}
-            />
-          </View>
-        </Card>
-
-        {/* ── My support requests ─────────────────────────────────────── */}
-        <SectionLabel text={t('help.myRequests.title')} />
-        {ticketsQuery.isLoading ? (
-          <SkeletonCard rows={3} />
-        ) : ticketsQuery.isError ? (
-          <Card padding="none">
-            <EmptyState
-              compact
-              tone="danger"
-              icon={CircleAlert}
-              title={t('help.myRequests.loadError')}
-              description={t('help.myRequests.loadErrorBody')}
-              actionLabel={t('help.myRequests.retry')}
-              onAction={() => ticketsQuery.refetch()}
-            />
-          </Card>
-        ) : tickets.length === 0 ? (
-          <Card padding="none">
-            <EmptyState
-              compact
-              icon={Ticket}
-              title={t('help.myRequests.emptyTitle')}
-              description={t('help.myRequests.empty')}
-            />
-          </Card>
+        {contactQuery.isLoading ? (
+          <LoadingCard label={t('opesCore.common.loading')} />
         ) : (
-          <Card padding="none" style={{ paddingHorizontal: spacing.lg }}>
-            {tickets.map((ticket, index) => (
+          <Card variant="flush">
+            {email ? (
               <ListRow
-                key={ticket.id}
-                icon={Ticket}
-                tone={statusTone(ticket.status)}
-                title={ticket.subject}
-                subtitle={t('help.myRequests.meta', {
-                  ref: shortRef(ticket.id),
-                  category: t(`help.category.${ticket.category}`),
-                  updated: formatDate(ticket.updated_at, locale),
-                })}
-                trailing={
-                  <Chip
-                    label={t(`help.status.${ticket.status}`, { defaultValue: ticket.status })}
-                    tone={statusTone(ticket.status)}
-                  />
-                }
-                onPress={() => setActiveTicketId(ticket.id)}
-                divider={index < tickets.length - 1}
+                icon="mail"
+                tint="blue"
+                title={t('help.contact.email')}
+                subtitle={t('help.contact.emailBody')}
+                value={email}
+                valueColor={colors.link}
+                onPress={() => {
+                  Linking.openURL(`mailto:${email}`).catch(() => undefined);
+                }}
+                accessibilityLabel={a11yJoin(t('help.contact.email'), email)}
+                divider
               />
-            ))}
+            ) : null}
+
+            {phone ? (
+              <ListRow
+                icon="phone"
+                tint="green"
+                title={t('help.contact.phone')}
+                subtitle={t('help.contact.phoneBody')}
+                value={phone}
+                valueColor={colors.link}
+                onPress={() => {
+                  Linking.openURL(`tel:${phone.replace(/[^+\d]/g, '')}`).catch(() => undefined);
+                }}
+                accessibilityLabel={a11yJoin(t('help.contact.phone'), phone)}
+                divider
+              />
+            ) : null}
+
+            {!email && !phone ? (
+              <View style={styles.flushNotice}>
+                <Notice tone="warning" icon="alert-circle" text={t('help.contact.unavailable')} />
+              </View>
+            ) : null}
+
+            <ListRow
+              icon="chat"
+              tint="purple"
+              title={t('help.contact.ticket')}
+              subtitle={t('help.contact.ticketBody')}
+              value={
+                openTickets > 0
+                  ? t('help.contact.ticketOpen', { count: openTickets })
+                  : t('help.contact.ticketNone')
+              }
+              valueColor={colors.textSecondary}
+              chevron={false}
+            />
           </Card>
         )}
 
-        {/* ── Emergency ───────────────────────────────────────────────── */}
-        <View style={{ marginTop: spacing.xl }}>
-          <InlineNotice
-            tone="danger"
-            icon={AlertTriangle}
-            title={t('help.emergency.title')}
-            body={t('help.emergency.body')}
-          />
+        {/* ── Popular help topics ───────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('help.topicsTitle')} variant="overline" />
+          <Card variant="flush">
+            {HELP_TOPICS.map((topic, index) => (
+              <ListRow
+                key={topic.titleKey}
+                icon={topic.icon}
+                tint={topic.tint}
+                title={t(topic.titleKey)}
+                subtitle={t(topic.bodyKey)}
+                onPress={() => router.push(topic.route)}
+                divider={index < HELP_TOPICS.length - 1}
+              />
+            ))}
+          </Card>
         </View>
 
-        <Card className="mt-4" padding="none" style={{ paddingHorizontal: spacing.lg }}>
+        {/* ── FAQ ───────────────────────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('help.faqTitle')} variant="overline" />
+          <Card variant="flush">
+            {FAQS.map((faq, index) => (
+              <FaqRow
+                key={faq.id}
+                question={t(`help.faq.${faq.id}Q`)}
+                answer={t(`help.faq.${faq.id}A`)}
+                linkLabel={t(faq.routeLabelKey)}
+                open={openFaq === faq.id}
+                onToggle={() => setOpenFaq((current) => (current === faq.id ? null : faq.id))}
+                onFollowLink={() => router.push(faq.route)}
+                divider={index < FAQS.length - 1}
+              />
+            ))}
+          </Card>
+        </View>
+
+        {/* ── Submit a request ──────────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('help.requestForm.title')} variant="overline" />
+          <Card>
+            <Text style={styles.formIntro}>{t('help.requestForm.body')}</Text>
+
+            <Text style={styles.fieldLabel}>{t('help.requestForm.category')}</Text>
+            <View style={styles.chipWrap}>
+              {categories.map((value) => (
+                <Chip
+                  key={value}
+                  label={t(`help.category.${value}`, { defaultValue: value })}
+                  selected={category === value}
+                  onPress={() => setCategory(value)}
+                  accessibilityLabel={`${t('help.requestForm.category')} ${t(
+                    `help.category.${value}`,
+                    { defaultValue: value },
+                  )}`}
+                />
+              ))}
+            </View>
+
+            <Text style={styles.fieldLabel}>{t('help.requestForm.subject')}</Text>
+            <PillInput
+              icon={<Icon name="edit" size={18} color={colors.blue} />}
+              placeholder={t('help.requestForm.subjectPlaceholder')}
+              value={subject}
+              onChangeText={setSubject}
+              maxLength={255}
+              accessibilityLabel={t('help.requestForm.subject')}
+            />
+
+            <Text style={styles.fieldLabel}>{t('help.requestForm.description')}</Text>
+            <TextInput
+              style={styles.textArea}
+              placeholder={t('help.requestForm.descriptionPlaceholder')}
+              placeholderTextColor={colors.textMuted}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              textAlignVertical="top"
+              maxLength={5000}
+              accessibilityLabel={t('help.requestForm.description')}
+            />
+
+            {/* Redaction promise — a consent statement, kept verbatim. */}
+            <Text style={styles.privacyHint}>{t('help.requestForm.privacyHint')}</Text>
+
+            {createTicket.isError ? (
+              <Notice
+                tone="critical"
+                icon="alert-circle"
+                text={t('help.requestForm.submitError')}
+                spaced
+              />
+            ) : null}
+
+            {submittedRef ? (
+              <Notice
+                tone="normal"
+                icon="check-circle"
+                title={t('help.requestForm.submitted')}
+                text={t('help.requestForm.submittedBody', { ref: submittedRef })}
+                spaced
+              />
+            ) : null}
+
+            <GradientButton
+              label={t('help.requestForm.submit')}
+              onPress={() => void submitRequest()}
+              loading={createTicket.isPending}
+              disabled={!canSubmit}
+              icon="none"
+              style={styles.submit}
+            />
+          </Card>
+        </View>
+
+        {/* ── My support requests ───────────────────────────────────────── */}
+        <View>
+          <SectionHeader title={t('help.myRequests.title')} variant="overline" />
+          {ticketsQuery.isLoading ? (
+            <LoadingCard label={t('opesCore.common.loading')} />
+          ) : ticketsQuery.isError ? (
+            <Card variant="flush">
+              <EmptyState
+                icon="alert-circle"
+                tint="red"
+                title={t('help.myRequests.loadError')}
+                message={t('help.myRequests.loadErrorBody')}
+                actionLabel={t('help.myRequests.retry')}
+                onAction={() => ticketsQuery.refetch()}
+              />
+            </Card>
+          ) : tickets.length === 0 ? (
+            <Card variant="flush">
+              <EmptyState
+                icon="clipboard"
+                tint="blue"
+                title={t('help.myRequests.emptyTitle')}
+                message={t('help.myRequests.empty')}
+              />
+            </Card>
+          ) : (
+            <Card variant="flush">
+              {tickets.map((ticket, index) => (
+                <ListRow
+                  key={ticket.id}
+                  icon="clipboard"
+                  tint={statusTone(ticket.status) === 'critical' ? 'red' : 'blue'}
+                  title={ticket.subject}
+                  subtitle={ticketMeta(ticket.id, ticket.category, ticket.updated_at)}
+                  onPress={() => setActiveTicketId(ticket.id)}
+                  divider={index < tickets.length - 1}
+                  trailing={
+                    <StatusBadge
+                      status={ticket.status}
+                      tone={statusTone(ticket.status)}
+                      label={t(`help.status.${ticket.status}`, { defaultValue: ticket.status })}
+                      size="sm"
+                    />
+                  }
+                />
+              ))}
+            </Card>
+          )}
+        </View>
+
+        {/* ── Emergency — never soften this. ────────────────────────────── */}
+        <Notice
+          tone="critical"
+          icon="alert-triangle"
+          title={t('help.emergency.title')}
+          text={t('help.emergency.body')}
+        />
+
+        <Card variant="flush">
           <ListRow
-            icon={CloudOff}
+            // The kit has no "cloud-off" glyph; the lock reads as "an
+            // encrypted copy on this device", which is what the row is.
+            icon="lock"
+            tint="amber"
             title={t('help.offlineTitle')}
             subtitle={t('help.offlineBody')}
             onPress={() => router.push('/offline-access')}
@@ -551,141 +513,18 @@ export default function HelpScreen() {
         ticketId={activeTicketId}
         visible={activeTicketId !== null}
         onClose={() => setActiveTicketId(null)}
-        locale={locale}
       />
-    </Screen>
+    </SafeAreaView>
   );
 }
 
-// ---------------------------------------------------------------------------
+// ── Pieces ──────────────────────────────────────────────────────────────────
 
-function SectionLabel({ text }: { text: string }) {
-  return (
-    <Text
-      style={{
-        marginTop: spacing['3xl'],
-        marginBottom: spacing.md,
-        fontSize: typography.size.xs,
-        lineHeight: typography.lineHeight.xs,
-        fontWeight: typography.weight.bold,
-        letterSpacing: typography.tracking.overline,
-        textTransform: 'uppercase',
-        color: colors.brand[600],
-      }}
-    >
-      {text}
-    </Text>
-  );
-}
-
-function FieldLabel({ text }: { text: string }) {
-  return (
-    <Text
-      style={{
-        marginTop: spacing.lg,
-        marginBottom: spacing.sm,
-        fontSize: typography.size.xs,
-        fontWeight: typography.weight.semibold,
-        color: colors.navy.secondary,
-      }}
-    >
-      {text}
-    </Text>
-  );
-}
-
-/** One contact channel: icon tile, what it is, and the real value. */
-function ChannelRow({
-  icon: Icon,
-  tone,
-  title,
-  body,
-  value,
-  onPress,
-}: {
-  icon: LucideIcon;
-  tone: Tone;
-  title: string;
-  body: string;
-  value: string;
-  onPress?: () => void;
-}) {
-  const palette = toneOf(tone);
-
-  const content = (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: spacing.md,
-        borderRadius: radii.lg,
-        backgroundColor: colors.surface.sunken,
-      }}
-    >
-      <View
-        style={{
-          width: sizing.tile.sm,
-          height: sizing.tile.sm,
-          borderRadius: radii.tile,
-          backgroundColor: colors.surface.card,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Icon color={palette.fg} size={sizing.icon.md} />
-      </View>
-      <View style={{ flex: 1, marginLeft: spacing.md }}>
-        <Text
-          style={{
-            fontSize: typography.size.sm,
-            lineHeight: typography.lineHeight.sm,
-            fontWeight: typography.weight.semibold,
-            color: colors.navy.text,
-          }}
-        >
-          {title}
-        </Text>
-        <Text
-          numberOfLines={1}
-          style={{
-            marginTop: 1,
-            fontSize: typography.size.xs,
-            lineHeight: typography.lineHeight.xs,
-            color: colors.navy.secondary,
-          }}
-        >
-          {body}
-        </Text>
-        <Text
-          numberOfLines={1}
-          style={{
-            marginTop: 2,
-            fontSize: typography.size.sm,
-            fontWeight: typography.weight.semibold,
-            color: palette.fg,
-          }}
-        >
-          {value}
-        </Text>
-      </View>
-      {onPress ? <ChevronRight color={colors.navy.muted} size={sizing.icon.lg} /> : null}
-    </View>
-  );
-
-  if (!onPress) return content;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${title} — ${value}`}
-      style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}
-    >
-      {content}
-    </Pressable>
-  );
-}
-
+/**
+ * An expandable FAQ row. Geometry follows DESIGN_SPEC §8 so it stacks with the
+ * `ListRow`s above it, but the question is allowed to wrap — `ListRow` clamps
+ * its title to one line, which truncated every question here.
+ */
 function FaqRow({
   question,
   answer,
@@ -703,77 +542,42 @@ function FaqRow({
   onFollowLink: () => void;
   divider: boolean;
 }) {
+  const { colors, tintMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <View
-      style={{
-        borderBottomWidth: divider ? sizing.hairline : 0,
-        borderBottomColor: colors.line.subtle,
-      }}
-    >
-      <Pressable
+    <View style={[styles.faqWrap, divider && styles.faqDivider]}>
+      <TouchableOpacity
         onPress={onToggle}
+        activeOpacity={0.7}
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         accessibilityLabel={question}
-        style={({ pressed }) => ({
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingVertical: spacing.lg,
-          opacity: pressed ? 0.7 : 1,
-        })}
+        style={styles.faqRow}
       >
-        <Text
-          style={{
-            flex: 1,
-            paddingRight: spacing.md,
-            fontSize: typography.size.md,
-            lineHeight: typography.lineHeight.md,
-            fontWeight: typography.weight.semibold,
-            color: colors.navy.text,
-          }}
-        >
-          {question}
-        </Text>
-        {open ? (
-          <ChevronUp color={colors.brand[600]} size={sizing.icon.lg} />
-        ) : (
-          <ChevronDown color={colors.navy.muted} size={sizing.icon.lg} />
-        )}
-      </Pressable>
+        <View style={[styles.circle, { backgroundColor: tintMap.blue.bg }]}>
+          <Icon name="help-circle" size={20} color={tintMap.blue.fg} />
+        </View>
+        <Text style={styles.faqQuestion}>{question}</Text>
+        <Icon
+          name={open ? 'chevron-up' : 'chevron-down'}
+          size={18}
+          color={open ? colors.link : colors.textMuted}
+        />
+      </TouchableOpacity>
 
       {open ? (
-        <View style={{ paddingBottom: spacing.lg }}>
-          <Text
-            style={{
-              fontSize: typography.size.sm,
-              lineHeight: typography.lineHeight.sm,
-              color: colors.navy.secondary,
-            }}
-          >
-            {answer}
-          </Text>
-          <Pressable
+        <View style={styles.faqAnswerWrap}>
+          <Text style={styles.faqAnswer}>{answer}</Text>
+          <TouchableOpacity
             onPress={onFollowLink}
+            activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={linkLabel}
-            style={({ pressed }) => ({
-              marginTop: spacing.md,
-              flexDirection: 'row',
-              alignItems: 'center',
-              opacity: pressed ? 0.6 : 1,
-            })}
+            style={styles.faqLink}
           >
-            <Text
-              style={{
-                fontSize: typography.size.sm,
-                fontWeight: typography.weight.semibold,
-                color: colors.brand[600],
-              }}
-            >
-              {linkLabel}
-            </Text>
-            <ChevronRight color={colors.brand[600]} size={sizing.icon.sm} />
-          </Pressable>
+            <Text style={styles.faqLinkText}>{linkLabel}</Text>
+            <Icon name="chevron-right" size={16} color={colors.link} />
+          </TouchableOpacity>
         </View>
       ) : null}
     </View>
@@ -785,20 +589,20 @@ function TicketDetailModal({
   ticketId,
   visible,
   onClose,
-  locale,
 }: {
   ticketId: string | null;
   visible: boolean;
   onClose: () => void;
-  locale: string;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const ticketQuery = useSupportTicket(ticketId);
   const sendMessage = useSendSupportTicketMessage(ticketId);
   const [reply, setReply] = useState('');
 
   const ticket = ticketQuery.data;
-  const tone = statusTone(ticket?.status ?? 'open');
 
   const submitReply = async () => {
     const body = reply.trim();
@@ -807,250 +611,493 @@ function TicketDetailModal({
     try {
       await sendMessage.mutateAsync(body);
     } catch {
+      // Put the text back so a failed send never loses what was typed.
       setReply(body);
     }
   };
 
+  const canSend = !!reply.trim() && !sendMessage.isPending;
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.surface.overlay }}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View
-            style={{
-              maxHeight: '88%',
-              borderTopLeftRadius: radii.card + 4,
-              borderTopRightRadius: radii.card + 4,
-              backgroundColor: colors.surface.app,
-              paddingHorizontal: spacing['2xl'],
-              paddingTop: spacing.xl,
-              paddingBottom: spacing['2xl'],
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-              <View style={{ flex: 1, paddingRight: spacing.md }}>
-                <Text
-                  numberOfLines={2}
-                  style={{
-                    fontSize: typography.size.lg,
-                    lineHeight: typography.lineHeight.lg,
-                    fontWeight: typography.weight.bold,
-                    color: colors.navy.text,
-                  }}
-                >
-                  {ticket?.subject ?? t('help.detail.loading')}
+      <Pressable
+        style={styles.backdrop}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel={t('opesCore.common.close')}
+      />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.sheetWrap}
+      >
+        <View
+          style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}
+          accessibilityViewIsModal
+        >
+          <View style={styles.grab} />
+
+          <View style={styles.sheetHead}>
+            <View style={styles.sheetHeadText}>
+              <Text style={styles.sheetTitle} numberOfLines={2}>
+                {ticket?.subject ?? t('help.detail.loading')}
+              </Text>
+              {ticket ? (
+                <Text style={styles.sheetMeta}>
+                  {t('help.myRequests.meta', {
+                    ref: shortRef(ticket.id),
+                    category: t(`help.category.${ticket.category}`, {
+                      defaultValue: ticket.category,
+                    }),
+                    updated: formatDate(ticket.updated_at, t('opesCore.common.none')),
+                  })}
                 </Text>
-                {ticket ? (
-                  <Text
-                    style={{
-                      marginTop: 3,
-                      fontSize: typography.size.xs,
-                      color: colors.navy.muted,
-                    }}
-                  >
-                    {t('help.myRequests.meta', {
-                      ref: shortRef(ticket.id),
-                      category: t(`help.category.${ticket.category}`),
-                      updated: formatDate(ticket.updated_at, locale),
+              ) : null}
+            </View>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={10}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={t('opesCore.common.close')}
+              style={styles.sheetClose}
+            >
+              <Icon name="close" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {ticketQuery.isLoading ? (
+            <View style={styles.loading} accessibilityLiveRegion="polite">
+              <ActivityIndicator color={colors.blue} />
+              <Text style={styles.loadingText}>{t('opesCore.common.loading')}</Text>
+            </View>
+          ) : !ticket ? (
+            <EmptyState
+              icon="alert-circle"
+              tint="red"
+              title={t('help.myRequests.loadError')}
+              message={t('help.myRequests.loadErrorBody')}
+              actionLabel={t('help.myRequests.retry')}
+              onAction={() => ticketQuery.refetch()}
+            />
+          ) : (
+            <>
+              <View style={styles.sheetStatus}>
+                <StatusBadge
+                  status={ticket.status}
+                  tone={statusTone(ticket.status)}
+                  label={t(`help.status.${ticket.status}`, { defaultValue: ticket.status })}
+                  size="sm"
+                />
+                {ticket.sla_due_at && !ticket.resolved_at ? (
+                  <Text style={styles.sheetSla}>
+                    {t('help.detail.slaDue', {
+                      date: formatDate(ticket.sla_due_at, t('opesCore.common.none')),
                     })}
                   </Text>
                 ) : null}
               </View>
-              <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button">
-                <X color={colors.navy.muted} size={sizing.icon.xl} />
-              </Pressable>
-            </View>
 
-            {ticketQuery.isLoading ? (
-              <View style={{ paddingVertical: spacing['3xl'], alignItems: 'center' }}>
-                <ActivityIndicator color={colors.brand[500]} />
-              </View>
-            ) : !ticket ? (
-              <EmptyState
-                compact
-                tone="danger"
-                icon={CircleAlert}
-                title={t('help.myRequests.loadError')}
-                description={t('help.myRequests.loadErrorBody')}
-                actionLabel={t('help.myRequests.retry')}
-                onAction={() => ticketQuery.refetch()}
-              />
-            ) : (
-              <>
-                <View
-                  style={{
-                    marginTop: spacing.md,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: spacing.sm,
-                  }}
-                >
-                  <Chip
-                    label={t(`help.status.${ticket.status}`, { defaultValue: ticket.status })}
-                    tone={tone}
-                  />
-                  {ticket.sla_due_at && !ticket.resolved_at ? (
-                    <Text style={{ fontSize: typography.size.xs, color: colors.navy.muted }}>
-                      {t('help.detail.slaDue', { date: formatDate(ticket.sla_due_at, locale) })}
-                    </Text>
-                  ) : null}
-                </View>
+              <ScrollView style={styles.thread} showsVerticalScrollIndicator={false}>
+                <Card>
+                  <Text style={styles.threadLabel}>{t('help.detail.description')}</Text>
+                  <Text style={styles.threadBody}>{ticket.description}</Text>
+                </Card>
 
-                <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
-                  <Card className="mt-4" padding="md">
-                    <Text
-                      style={{
-                        fontSize: typography.size.xs,
-                        fontWeight: typography.weight.semibold,
-                        color: colors.navy.secondary,
-                      }}
-                    >
-                      {t('help.detail.description')}
-                    </Text>
-                    <Text
-                      style={{
-                        marginTop: spacing.sm,
-                        fontSize: typography.size.sm,
-                        lineHeight: typography.lineHeight.sm,
-                        color: colors.navy.text,
-                      }}
-                    >
-                      {ticket.description}
-                    </Text>
-                  </Card>
-
-                  {ticket.resolution_note ? (
-                    <View style={{ marginTop: spacing.md }}>
-                      <InlineNotice
-                        tone="success"
-                        icon={ShieldCheck}
-                        title={t('help.detail.resolutionNote')}
-                        body={ticket.resolution_note}
-                      />
-                    </View>
-                  ) : null}
-
-                  <Text
-                    style={{
-                      marginTop: spacing.xl,
-                      marginBottom: spacing.sm,
-                      fontSize: typography.size.xs,
-                      fontWeight: typography.weight.semibold,
-                      color: colors.navy.secondary,
-                    }}
-                  >
-                    {t('help.detail.conversation')}
-                  </Text>
-
-                  {ticket.messages.length === 0 ? (
-                    <Text
-                      style={{
-                        fontSize: typography.size.sm,
-                        lineHeight: typography.lineHeight.sm,
-                        color: colors.navy.muted,
-                      }}
-                    >
-                      {t('help.detail.empty')}
-                    </Text>
-                  ) : (
-                    ticket.messages.map((message) => (
-                      <View
-                        key={message.id}
-                        style={{
-                          marginBottom: spacing.sm,
-                          maxWidth: '86%',
-                          alignSelf: message.is_mine ? 'flex-end' : 'flex-start',
-                          paddingHorizontal: spacing.md,
-                          paddingVertical: spacing.sm,
-                          borderRadius: radii.lg,
-                          borderBottomRightRadius: message.is_mine ? radii.xs : radii.lg,
-                          borderBottomLeftRadius: message.is_mine ? radii.lg : radii.xs,
-                          backgroundColor: message.is_mine ? colors.brand[500] : colors.surface.card,
-                          borderWidth: message.is_mine ? 0 : 1,
-                          borderColor: colors.line.subtle,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: typography.size.sm,
-                            lineHeight: typography.lineHeight.sm,
-                            color: message.is_mine ? colors.white : colors.navy.text,
-                          }}
-                        >
-                          {message.body}
-                        </Text>
-                        <Text
-                          style={{
-                            marginTop: 2,
-                            fontSize: 11,
-                            color: message.is_mine ? colors.brand[50] : colors.navy.muted,
-                          }}
-                        >
-                          {formatDate(message.created_at, locale)}
-                        </Text>
-                      </View>
-                    ))
-                  )}
-                </ScrollView>
-
-                {sendMessage.isError ? (
-                  <View style={{ marginTop: spacing.md }}>
-                    <InlineNotice tone="danger" icon={CircleAlert} body={t('help.detail.replyError')} />
+                {ticket.resolution_note ? (
+                  <View style={styles.threadBlock}>
+                    <Notice
+                      tone="normal"
+                      icon="shield-check"
+                      title={t('help.detail.resolutionNote')}
+                      text={ticket.resolution_note}
+                    />
                   </View>
                 ) : null}
 
-                <View
-                  style={{
-                    marginTop: spacing.lg,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: spacing.sm,
-                  }}
-                >
-                  <TextInput
-                    style={{
-                      flex: 1,
-                      height: sizing.control.md,
-                      borderRadius: radii.pill,
-                      borderWidth: 1,
-                      borderColor: colors.line.default,
-                      backgroundColor: colors.surface.card,
-                      paddingHorizontal: spacing.lg,
-                      fontSize: typography.size.sm,
-                      color: colors.navy.text,
-                    }}
+                <Text style={styles.threadHeading}>{t('help.detail.conversation')}</Text>
+
+                {ticket.messages.length === 0 ? (
+                  <Text style={styles.threadEmpty}>{t('help.detail.empty')}</Text>
+                ) : (
+                  ticket.messages.map((message) => (
+                    <View
+                      key={message.id}
+                      style={[
+                        styles.bubble,
+                        message.is_mine ? styles.bubbleMine : styles.bubbleTheirs,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.bubbleText,
+                          message.is_mine && styles.bubbleTextMine,
+                        ]}
+                      >
+                        {message.body}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.bubbleStamp,
+                          message.is_mine && styles.bubbleStampMine,
+                        ]}
+                      >
+                        {formatDate(message.created_at)}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+
+              {sendMessage.isError ? (
+                <Notice tone="critical" icon="alert-circle" text={t('help.detail.replyError')} />
+              ) : null}
+
+              <View style={styles.composer}>
+                <View style={styles.composerInput}>
+                  <PillInput
                     placeholder={t('help.detail.replyPlaceholder')}
-                    placeholderTextColor={colors.navy.muted}
                     value={reply}
                     onChangeText={setReply}
                     maxLength={5000}
+                    accessibilityLabel={t('help.detail.replyPlaceholder')}
                   />
-                  <Pressable
-                    onPress={submitReply}
-                    disabled={!reply.trim() || sendMessage.isPending}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('help.detail.send')}
-                    style={{
-                      width: sizing.control.md,
-                      height: sizing.control.md,
-                      borderRadius: radii.pill,
-                      backgroundColor: colors.brand[500],
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      opacity: !reply.trim() || sendMessage.isPending ? 0.5 : 1,
-                    }}
-                  >
-                    {sendMessage.isPending ? (
-                      <ActivityIndicator color={colors.white} size="small" />
-                    ) : (
-                      <Send color={colors.white} size={sizing.icon.md} />
-                    )}
-                  </Pressable>
                 </View>
-              </>
-            )}
-          </View>
-        </KeyboardAvoidingView>
-      </View>
+                <TouchableOpacity
+                  onPress={() => void submitReply()}
+                  disabled={!canSend}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('help.detail.send')}
+                  accessibilityState={{ disabled: !canSend, busy: sendMessage.isPending }}
+                  style={[styles.sendButton, !canSend && styles.sendButtonOff]}
+                >
+                  {sendMessage.isPending ? (
+                    <ActivityIndicator size="small" color={colors.textOnBrand} />
+                  ) : (
+                    <Icon name="send" size={20} color={colors.textOnBrand} />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
+
+/** Tinted inline notice: icon, optional title, body. */
+function Notice({
+  tone,
+  icon,
+  title,
+  text,
+  spaced,
+}: {
+  tone: StatusTone;
+  icon: IconName;
+  title?: string;
+  text: string;
+  spaced?: boolean;
+}) {
+  const { colors, statusMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const skin = statusMap[tone];
+  return (
+    <View
+      style={[styles.notice, spaced && styles.noticeSpaced, { backgroundColor: skin.bg }]}
+      accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
+    >
+      <Icon name={icon} size={18} color={skin.fg} />
+      <View style={styles.noticeBody}>
+        {title ? <Text style={[styles.noticeTitle, { color: skin.fg }]}>{title}</Text> : null}
+        <Text style={styles.noticeText}>{text}</Text>
+      </View>
+    </View>
+  );
+}
+
+function LoadingCard({ label }: { label: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <Card>
+      <View style={styles.loading} accessibilityLiveRegion="polite">
+        <ActivityIndicator color={colors.blue} />
+        <Text style={styles.loadingText}>{label}</Text>
+      </View>
+    </Card>
+  );
+}
+
+// ── Styles (colour-dependent, built per palette) ───────────────────────────
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.page },
+    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+
+    // Intro card
+    head: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
+    circle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headText: { flex: 1, minWidth: 0 },
+    headTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: colors.textPrimary,
+    },
+    headBody: {
+      marginTop: 2,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+    flushNotice: { padding: spacing.md },
+
+    // FAQ
+    faqWrap: { paddingHorizontal: spacing.md },
+    faqDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+    faqRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
+    faqQuestion: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      lineHeight: typography.lineHeight.md,
+      color: colors.textPrimary,
+    },
+    faqAnswerWrap: { paddingBottom: 14, paddingLeft: 52 },
+    faqAnswer: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textSecondary,
+    },
+    faqLink: { marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 2 },
+    faqLinkText: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.link,
+    },
+
+    // Request form
+    formIntro: {
+      marginBottom: spacing.md,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textSecondary,
+    },
+    fieldLabel: {
+      marginBottom: 6,
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    chipWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    textArea: {
+      minHeight: 110,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 4,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textPrimary,
+    },
+    privacyHint: {
+      marginTop: spacing.sm,
+      marginBottom: spacing.md,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textMuted,
+    },
+    submit: { marginTop: spacing.xs },
+
+    // Notices
+    notice: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm + 4,
+      padding: spacing.md - 2,
+      borderRadius: radii.md,
+    },
+    noticeSpaced: { marginBottom: spacing.md },
+    noticeBody: { flex: 1, minWidth: 0, gap: 2 },
+    noticeTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
+    noticeText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+
+    // Loading
+    loading: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.md,
+    },
+    loadingText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
+
+    // Ticket sheet
+    // Scrim painted from the palette's own navy — no literal colour. Opacity
+    // sits on the Pressable itself, which has no children to fade.
+    backdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.navy,
+      opacity: 0.45,
+    },
+    sheetWrap: { flex: 1, justifyContent: 'flex-end' },
+    sheet: {
+      maxHeight: '88%',
+      backgroundColor: colors.page,
+      borderTopLeftRadius: radii.lg,
+      borderTopRightRadius: radii.lg,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+    },
+    grab: {
+      alignSelf: 'center',
+      width: 44,
+      height: 4,
+      borderRadius: radii.pill,
+      backgroundColor: colors.border,
+      marginBottom: spacing.md,
+    },
+    sheetHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+    sheetHeadText: { flex: 1, minWidth: 0 },
+    sheetTitle: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+      lineHeight: typography.lineHeight.lg,
+      color: colors.textPrimary,
+    },
+    sheetMeta: {
+      marginTop: 3,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+    },
+    sheetClose: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sheetStatus: {
+      marginTop: spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    sheetSla: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+    },
+
+    thread: { maxHeight: 360, marginTop: spacing.md },
+    threadBlock: { marginTop: spacing.md },
+    threadLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      color: colors.textSecondary,
+    },
+    threadBody: {
+      marginTop: spacing.sm,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textPrimary,
+    },
+    threadHeading: {
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      color: colors.textSecondary,
+    },
+    threadEmpty: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textMuted,
+    },
+
+    bubble: {
+      marginBottom: spacing.sm,
+      maxWidth: '86%',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radii.md,
+    },
+    bubbleMine: {
+      alignSelf: 'flex-end',
+      backgroundColor: colors.blue,
+      borderBottomRightRadius: radii.sm / 2,
+    },
+    bubbleTheirs: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderBottomLeftRadius: radii.sm / 2,
+    },
+    bubbleText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textPrimary,
+    },
+    bubbleTextMine: { color: colors.textOnBrand },
+    bubbleStamp: {
+      marginTop: 2,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+    },
+    bubbleStampMine: { color: colors.primarySoft },
+
+    composer: { marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    // `PillInput` carries a 16px bottom margin for stacked form fields; the
+    // composer is a single row, so it is cancelled here.
+    composerInput: { flex: 1, minWidth: 0, marginBottom: -spacing.md },
+    sendButton: {
+      width: 48,
+      height: 48,
+      borderRadius: radii.pill,
+      backgroundColor: colors.blue,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sendButtonOff: { opacity: 0.5 },
+  });

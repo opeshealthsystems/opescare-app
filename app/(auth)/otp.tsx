@@ -1,34 +1,31 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Animated,
-  Pressable,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
+  StyleSheet,
   Text,
-  TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
-  ArrowLeft,
-  ChevronRight,
-  CircleAlert,
-  CircleCheck,
-  CircleQuestionMark,
-  KeyRound,
-  LogIn,
-  Phone,
-  RefreshCw,
-  ShieldCheck,
-  Smartphone,
-} from 'lucide-react-native';
-import { Screen } from '../../components/ui/Screen';
-import { Button } from '../../components/ui/Button';
-import { TextField } from '../../components/ui/TextField';
-import { Logo } from '../../components/ui/Logo';
-import { useAuthStore } from '../../lib/store/auth';
-import { colors } from '../../theme/tokens';
+  Card,
+  GradientButton,
+  Icon,
+  ListRow,
+  PillInput,
+  ScreenHeader,
+  radii,
+  spacing,
+  typography,
+  useTheme,
+  type Palette,
+} from '@/components/opes-ui';
+import { FieldLabel, FormError, Note, SecondaryButton } from '@/components/enrol/shared';
+import { Screen } from '@/components/ui/Screen';
+import { useAuthStore } from '@/lib/store/auth';
 
 const OTP_LENGTH = 6;
 const CODE_VALIDITY_SECONDS = 5 * 60;
@@ -68,13 +65,16 @@ function formatCountdown(totalSeconds: number, padMinutes: boolean): string {
 
 /** Legacy phone + PIN -> OTP flow, reached via "Sign in with Health ID" on the
  * login screen. Two steps in one screen, gated on auth store status — mirrors
- * apps/mobile-patient's login_screen.dart + otp_screen.dart split. The OTP
- * step matches the "verification screen" reference: boxed 6-digit input with a
- * blinking caret, expiry + resend countdowns, change-number row, and a
- * secure/private note. */
+ * apps/mobile-patient's login_screen.dart + otp_screen.dart split. Presentation
+ * is the OPES kit's phone-verification layout: ScreenHeader, FieldLabel +
+ * PillInput (the code field carries `sms-otp` / `oneTimeCode` so the OS offers
+ * the arriving SMS above the keyboard), expiry + resend countdowns, a
+ * change-number row and the secure/private card. */
 export default function OtpScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const status = useAuthStore((s) => s.status);
   const storeError = useAuthStore((s) => s.error);
   const loginWithPhone = useAuthStore((s) => s.loginWithPhone);
@@ -90,7 +90,6 @@ export default function OtpScreen() {
   const [resending, setResending] = useState(false);
   const [resendError, setResendError] = useState<string | null>(null);
   const [resendSent, setResendSent] = useState(false);
-  const [otpFocused, setOtpFocused] = useState(false);
   // Overrides the store-driven step so "back" / "change phone number" can
   // return to the phone form without discarding the store's otp_pending
   // status (there's no store action to un-pend an OTP request). It is also
@@ -102,21 +101,20 @@ export default function OtpScreen() {
   const [deadlines, setDeadlines] = useState<Deadlines | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  const otpInputRef = useRef<TextInput>(null);
   // State updates are async; a second submit (button press racing the
   // auto-submit on the 6th digit) has to be blocked synchronously.
   const verifyingRef = useRef(false);
-  const caretOpacity = useRef(new Animated.Value(1)).current;
 
   const step: 'phone' | 'otp' = manualStep ?? (status === 'otp_pending' ? 'otp' : 'phone');
   const expirySeconds = deadlines ? secondsUntil(deadlines.expiresAt, now) : CODE_VALIDITY_SECONDS;
   const resendCooldown = deadlines ? secondsUntil(deadlines.resendAt, now) : 0;
   const isExpired = deadlines !== null && expirySeconds === 0;
   const canResend = resendCooldown === 0 && !resending;
-  const showCodeError = !!storeError && otp.length === 0;
 
   // Landing on the OTP step (arriving, or coming back from "change number")
   // starts a fresh validity window and a fresh cooldown, and drives the 1s tick.
+  // The code field itself focuses on mount (`autoFocus`), since it is
+  // re-mounted with the step.
   useEffect(() => {
     if (step !== 'otp') {
       setDeadlines(null);
@@ -126,36 +124,9 @@ export default function OtpScreen() {
     setNow(Date.now());
     setResendError(null);
     setResendSent(false);
-    otpInputRef.current?.focus();
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [step]);
-
-  // Blinking caret in the active box.
-  useEffect(() => {
-    if (step !== 'otp' || !otpFocused) {
-      caretOpacity.setValue(1);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(caretOpacity, {
-          toValue: 0,
-          duration: 300,
-          delay: 350,
-          useNativeDriver: true,
-        }),
-        Animated.timing(caretOpacity, {
-          toValue: 1,
-          duration: 300,
-          delay: 150,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [step, otpFocused, caretOpacity]);
 
   const submitPhone = async () => {
     if (!phoneNumber.trim() || !pin.trim() || submitting) return;
@@ -180,10 +151,9 @@ export default function OtpScreen() {
     try {
       await verifyOtp(code);
     } catch {
-      // storeError carries the server's message. Clear the boxes so the next
+      // storeError carries the server's message. Clear the field so the next
       // attempt starts from an empty field rather than needing six deletes.
       setOtp('');
-      otpInputRef.current?.focus();
     } finally {
       verifyingRef.current = false;
       setSubmitting(false);
@@ -213,7 +183,6 @@ export default function OtpScreen() {
       setDeadlines(freshDeadlines());
       setNow(Date.now());
       setResendSent(true);
-      otpInputRef.current?.focus();
     } catch {
       setResendError(t('auth.resendFailed'));
     } finally {
@@ -238,293 +207,166 @@ export default function OtpScreen() {
 
   return (
     <Screen className="px-0">
-      <ScrollView
-        className="flex-1 px-6"
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 32 }}
+      <KeyboardAvoidingView
+        style={styles.screen}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Pressable
-          onPress={handleBack}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={
-            step === 'otp' ? t('auth.changePhoneNumber') : t('auth.otpBackToSignIn')
+        <ScreenHeader
+          title={step === 'phone' ? t('auth.welcomeBack') : t('auth.otpTitle')}
+          subtitle={
+            step === 'phone'
+              ? t('auth.signInSubtitle')
+              : pendingPhone
+                ? `${t('auth.otpSubtitle')} ${pendingPhone}`
+                : t('auth.otpSubtitle')
           }
-          className="mt-2 h-11 w-11 items-center justify-center rounded-full border border-brand-300 bg-white"
+          onBack={handleBack}
+        />
+
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.content}
         >
-          <ArrowLeft size={18} color={colors.brand[600]} />
-        </Pressable>
+          {step === 'phone' ? (
+            <>
+              <View>
+                <FieldLabel text={t('auth.phoneNumber')} />
+                <PillInput
+                  icon={<Icon name="phone" size={18} color={colors.blue} />}
+                  placeholder={t('auth.phoneNumberPlaceholder')}
+                  keyboardType="phone-pad"
+                  autoComplete="tel"
+                  textContentType="telephoneNumber"
+                  returnKeyType="next"
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
+                  accessibilityLabel={t('auth.phoneNumber')}
+                />
+              </View>
+              <View>
+                <FieldLabel text={t('auth.pin')} />
+                <PillInput
+                  icon={<Icon name="key" size={18} color={colors.blue} />}
+                  placeholder={t('auth.pinPlaceholder')}
+                  isPassword
+                  keyboardType="number-pad"
+                  returnKeyType="go"
+                  value={pin}
+                  onChangeText={setPin}
+                  onSubmitEditing={submitPhone}
+                  accessibilityLabel={t('auth.pin')}
+                />
+              </View>
 
-        <View className="items-center pb-2 pt-3">
-          <Logo size={72} />
-        </View>
+              <FormError message={storeError ?? null} />
 
-        {step === 'phone' ? (
-          <>
-            <Text className="mt-4 text-center text-2xl font-extrabold text-navy-text">
-              {t('auth.welcomeBack')}
-            </Text>
-            <Text className="mt-2 text-center text-sm leading-5 text-navy-secondary">
-              {t('auth.signInSubtitle')}
-            </Text>
-
-            <View className="mt-6 rounded-3xl border border-cream-300 bg-white p-5">
-              <TextField
-                label={t('auth.phoneNumber')}
-                placeholder={t('auth.phoneNumberPlaceholder')}
-                icon={Phone}
-                keyboardType="phone-pad"
-                textContentType="telephoneNumber"
-                value={phoneNumber}
-                onChangeText={setPhoneNumber}
-              />
-              <TextField
-                label={t('auth.pin')}
-                placeholder={t('auth.pinPlaceholder')}
-                icon={KeyRound}
-                secureToggle
-                secureTextEntry
-                keyboardType="number-pad"
-                value={pin}
-                onChangeText={setPin}
-              />
-              {storeError ? (
-                <View className="mb-4 flex-row items-start rounded-2xl border border-danger bg-white p-3">
-                  <CircleAlert size={16} color={colors.semantic.danger} />
-                  <Text className="ml-2 flex-1 text-xs leading-4 text-danger">{storeError}</Text>
-                </View>
-              ) : null}
-              <Button
+              <GradientButton
                 label={t('auth.signIn')}
                 onPress={submitPhone}
                 loading={submitting}
                 // Guarded rather than silently no-op'ing on an empty form.
                 disabled={!phoneNumber.trim() || !pin.trim()}
-                showChevron={false}
               />
-            </View>
-          </>
-        ) : (
-          <>
-            <Text className="mt-4 text-center text-2xl font-extrabold text-navy-text">
-              {t('auth.otpTitle')}
-            </Text>
-            <Text className="mt-2 text-center text-sm leading-5 text-navy-secondary">
-              {t('auth.otpSubtitle')}
-            </Text>
-            {pendingPhone ? (
-              <Text className="mt-1 text-center text-base font-bold text-brand-600">
-                {pendingPhone}
-              </Text>
-            ) : null}
-
-            {/* The 6-digit field. A transparent TextInput covers the whole box
-                row: tapping anywhere focuses it, and long-pressing raises the
-                platform's own Paste menu — neither works with the 1x1
-                off-screen input trick. */}
-            <View className="mt-8">
-              <View className="relative">
-                <View className="flex-row" style={{ gap: 10 }}>
-                  {Array.from({ length: OTP_LENGTH }).map((_, index) => {
-                    const digit = otp[index];
-                    const isActive = otpFocused && !isExpired && index === otp.length;
-                    const borderColor = showCodeError
-                      ? colors.semantic.danger
-                      : isExpired
-                        ? colors.cream[300]
-                        : isActive
-                          ? colors.brand[500]
-                          : digit
-                            ? colors.brand[300]
-                            : colors.cream[300];
-
-                    return (
-                      <View
-                        key={index}
-                        className="items-center justify-center rounded-2xl"
-                        style={{
-                          flex: 1,
-                          height: 62,
-                          borderWidth: isActive || digit ? 2 : 1.5,
-                          borderColor,
-                          backgroundColor: isExpired ? colors.cream[200] : colors.white,
-                          shadowColor: colors.brand[500],
-                          shadowOpacity: isActive ? 0.28 : 0,
-                          shadowRadius: 8,
-                          shadowOffset: { width: 0, height: 0 },
-                          elevation: isActive ? 3 : 0,
-                        }}
-                      >
-                        {digit ? (
-                          <Text className="text-2xl font-extrabold text-navy-text">{digit}</Text>
-                        ) : isActive ? (
-                          <Animated.View
-                            style={{
-                              width: 2,
-                              height: 24,
-                              borderRadius: 1,
-                              backgroundColor: colors.brand[500],
-                              opacity: caretOpacity,
-                            }}
-                          />
-                        ) : null}
-                      </View>
-                    );
-                  })}
-                </View>
-
-                <TextInput
-                  ref={otpInputRef}
+            </>
+          ) : (
+            <>
+              <View>
+                <FieldLabel text={t('auth.otpInputLabel')} />
+                <PillInput
+                  icon={<Icon name="lock" size={18} color={colors.blue} />}
                   value={otp}
                   onChangeText={handleOtpChange}
-                  onFocus={() => setOtpFocused(true)}
-                  onBlur={() => setOtpFocused(false)}
                   editable={!isExpired && !submitting}
+                  placeholder="000000"
                   keyboardType="number-pad"
                   inputMode="numeric"
-                  textContentType="oneTimeCode"
+                  autoCorrect={false}
+                  // With `sms-otp` / `oneTimeCode` the OS reads the code out of
+                  // the arriving SMS itself and offers it above the keyboard.
                   autoComplete="sms-otp"
+                  textContentType="oneTimeCode"
                   autoFocus
-                  caretHidden
                   accessibilityLabel={t('auth.otpInputLabel')}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 62,
-                    opacity: 0,
-                    // Keeps the (invisible) glyphs from nudging layout on web.
-                    fontSize: 24,
-                    textAlign: 'center',
-                  }}
+                  accessibilityHint={t('auth.otpEnterHint')}
+                  style={styles.codeInput}
                 />
               </View>
 
               {otp.length === 0 && !isExpired ? (
-                <Text className="mt-3 text-center text-[11px] text-navy-muted">
-                  {t('auth.otpEnterHint')}
-                </Text>
+                <Text style={styles.meta}>{t('auth.otpEnterHint')}</Text>
               ) : null}
 
-              <View className="mt-4 flex-row items-center justify-center">
-                <ShieldCheck
+              {/* Deliberately not a live region: it re-renders once a second. */}
+              <View style={styles.expiryRow}>
+                <Icon
+                  name="shield-check"
                   size={14}
-                  color={isExpired ? colors.semantic.danger : colors.brand[600]}
+                  color={isExpired ? colors.statusCritical : colors.blue}
                 />
                 {isExpired ? (
-                  <Text className="ml-2 text-xs font-semibold text-danger">
-                    {t('auth.codeExpired')}
-                  </Text>
+                  <Text style={[styles.meta, styles.metaCritical]}>{t('auth.codeExpired')}</Text>
                 ) : (
-                  <Text className="ml-2 text-xs text-navy-secondary">
+                  <Text style={styles.meta}>
                     {t('auth.codeExpiresIn')}{' '}
-                    <Text className="font-bold text-brand-600">
-                      {formatCountdown(expirySeconds, true)}
-                    </Text>
+                    <Text style={styles.metaStrong}>{formatCountdown(expirySeconds, true)}</Text>
                   </Text>
                 )}
               </View>
 
-              {storeError ? (
-                <View className="mt-4 flex-row items-start rounded-2xl border border-danger bg-white p-3">
-                  <CircleAlert size={16} color={colors.semantic.danger} />
-                  <Text className="ml-2 flex-1 text-xs leading-4 text-danger">{storeError}</Text>
-                </View>
-              ) : null}
-              {resendError ? (
-                <View className="mt-4 flex-row items-start rounded-2xl border border-danger bg-white p-3">
-                  <CircleAlert size={16} color={colors.semantic.danger} />
-                  <Text className="ml-2 flex-1 text-xs leading-4 text-danger">{resendError}</Text>
-                </View>
-              ) : null}
+              <FormError message={storeError ?? null} />
+              <FormError message={resendError} />
               {resendSent && !storeError ? (
-                <View className="mt-4 flex-row items-start rounded-2xl bg-brand-50 p-3">
-                  <CircleCheck size={16} color={colors.brand[600]} />
-                  <Text className="ml-2 flex-1 text-xs leading-4 text-navy-secondary">
-                    {t('auth.otpResendSent')}
-                  </Text>
-                </View>
+                <Note icon="check-circle" text={t('auth.otpResendSent')} />
               ) : null}
 
-              <View className="mt-5">
-                <Button
-                  label={t('auth.verifyAndContinue')}
-                  onPress={() => void runVerify(otp)}
-                  loading={submitting}
-                  disabled={otp.length !== OTP_LENGTH || isExpired}
-                  showChevron={false}
-                />
-              </View>
+              <GradientButton
+                label={t('auth.verifyAndContinue')}
+                onPress={() => void runVerify(otp)}
+                loading={submitting}
+                disabled={otp.length !== OTP_LENGTH || isExpired}
+              />
 
-              <Pressable
+              <SecondaryButton
+                label={t('auth.resendCode')}
+                icon="refresh"
                 onPress={handleResend}
+                loading={resending}
                 disabled={!canResend}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !canResend }}
-                className="mt-3 h-14 flex-row items-center rounded-2xl border border-brand-500 bg-transparent px-4"
-                style={{ opacity: canResend ? 1 : 0.55 }}
-              >
-                {resending ? (
-                  <View className="flex-1 items-center">
-                    <ActivityIndicator color={colors.brand[600]} size="small" />
-                  </View>
-                ) : (
-                  <>
-                    <RefreshCw size={16} color={colors.brand[600]} />
-                    <Text className="flex-1 text-center text-base font-bold text-brand-600">
-                      {t('auth.resendCode')}
-                    </Text>
-                    <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
-                      {resendCooldown > 0 ? (
-                        <Text className="text-sm font-bold text-brand-600">
-                          ({formatCountdown(resendCooldown, false)})
-                        </Text>
-                      ) : null}
-                    </View>
-                  </>
-                )}
-              </Pressable>
+                trailing={resendCooldown > 0 ? `(${formatCountdown(resendCooldown, false)})` : undefined}
+              />
 
-              <View className="my-6 flex-row items-center">
-                <View className="h-px flex-1 bg-cream-300" />
-                <Text className="mx-3 text-xs font-bold tracking-widest text-brand-500">
-                  {t('auth.or')}
-                </Text>
-                <View className="h-px flex-1 bg-cream-300" />
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>{t('auth.or')}</Text>
+                <View style={styles.dividerLine} />
               </View>
 
-              <Pressable
-                onPress={goToPhoneStep}
-                accessibilityRole="button"
-                className="h-14 flex-row items-center rounded-2xl border border-cream-300 bg-white px-4"
-              >
-                <Smartphone size={18} color={colors.navy.text} />
-                <Text className="ml-3 flex-1 text-sm font-semibold text-navy-text">
-                  {t('auth.changePhoneNumber')}
-                </Text>
-                <ChevronRight size={18} color={colors.navy.muted} />
-              </Pressable>
+              <Card variant="flush">
+                <ListRow
+                  icon="phone"
+                  tint="blue"
+                  title={t('auth.changePhoneNumber')}
+                  onPress={goToPhoneStep}
+                />
+              </Card>
 
-              <View className="mt-5 flex-row items-start rounded-2xl bg-brand-50 p-4">
-                <ShieldCheck size={16} color={colors.brand[600]} />
-                <View className="ml-3 flex-1">
-                  <Text className="text-sm font-bold text-navy-text">
-                    {t('auth.securePrivateTitle')}
-                  </Text>
-                  <Text className="mt-1 text-xs leading-4 text-navy-secondary">
-                    {t('auth.securePrivateBody')}
-                  </Text>
+              <Card style={styles.reassure}>
+                <View style={styles.tintCircle}>
+                  <Icon name="shield-check" size={20} color={colors.tintBlue} />
                 </View>
-              </View>
+                <View style={styles.reassureBody}>
+                  <Text style={styles.reassureTitle}>{t('auth.securePrivateTitle')}</Text>
+                  <Text style={styles.reassureText}>{t('auth.securePrivateBody')}</Text>
+                </View>
+              </Card>
 
-              <View className="mt-6 items-center">
-                <View className="flex-row items-center">
-                  <CircleQuestionMark size={14} color={colors.brand[600]} />
-                  <Text className="ml-2 text-xs text-navy-secondary">
+              <View style={styles.help}>
+                <View style={styles.helpRow}>
+                  <Icon name="help-circle" size={14} color={colors.blue} />
+                  <Text style={styles.meta}>
                     {t('auth.otpHelpPrompt')}{' '}
-                    <Text className="font-semibold text-brand-600">{t('auth.otpHelpTip')}</Text>
+                    <Text style={styles.metaStrong}>{t('auth.otpHelpTip')}</Text>
                   </Text>
                 </View>
 
@@ -533,23 +375,87 @@ export default function OtpScreen() {
                     auth.mobile, so there is no real number to dial here. The
                     genuine escape hatch is the other sign-in route, which is
                     reachable and does exist. */}
-                <Pressable
+                <TouchableOpacity
                   onPress={() => router.replace('/(auth)/login')}
                   hitSlop={8}
                   accessibilityRole="button"
-                  className="mt-3 flex-row items-center"
+                  style={styles.helpRow}
                 >
-                  <LogIn size={14} color={colors.brand[600]} />
-                  <Text className="ml-2 text-xs text-navy-secondary">
+                  <Icon name="key" size={14} color={colors.blue} />
+                  <Text style={styles.meta}>
                     {t('auth.otpStillTrouble')}{' '}
-                    <Text className="font-bold text-brand-600">{t('auth.otpTryAnotherWay')}</Text>
+                    <Text style={styles.metaStrong}>{t('auth.otpTryAnotherWay')}</Text>
                   </Text>
-                </Pressable>
+                </TouchableOpacity>
               </View>
-            </View>
-          </>
-        )}
-      </ScrollView>
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1 },
+    content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm },
+
+    codeInput: { letterSpacing: 6, fontFamily: typography.fontFamily.semiBold },
+
+    meta: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textMuted,
+      marginLeft: spacing.sm,
+    },
+    metaStrong: { fontFamily: typography.fontFamily.semiBold, color: colors.link },
+    metaCritical: { fontFamily: typography.fontFamily.semiBold, color: colors.statusCritical },
+    expiryRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 2,
+      marginBottom: spacing.xs,
+    },
+
+    dividerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+      marginVertical: spacing.sm,
+    },
+    dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+    dividerText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      letterSpacing: 1.5,
+      color: colors.link,
+    },
+
+    reassure: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 4 },
+    reassureBody: { flex: 1, minWidth: 0, gap: 2 },
+    reassureTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    reassureText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+    tintCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.pill,
+      backgroundColor: colors.tintBlueBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    help: { alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+    helpRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 2 },
+  });

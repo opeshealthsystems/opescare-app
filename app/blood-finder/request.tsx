@@ -1,41 +1,40 @@
 import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Linking,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import {
-  BadgeCheck,
-  Building2,
-  ChevronLeft,
-  CircleAlert,
-  CircleCheck,
-  Clock,
-  Droplets,
-  Hospital,
-  Info,
-  MapPin,
-  Minus,
-  Phone,
-  Plus,
-  Send,
-  ShieldCheck,
-  Siren,
-  Timer,
-  type LucideIcon,
-} from 'lucide-react-native';
-import { Screen } from '../../components/ui/Screen';
-import { Button } from '../../components/ui/Button';
+import { Screen } from '@/components/ui/Screen';
 import { FacilityMap } from '@/components/map/FacilityMap';
-import { colors } from '../../theme/tokens';
-import { useNationwideBloodSearch } from '../../lib/api/bloodQueries';
+import {
+  Card,
+  EmptyState,
+  GradientButton,
+  Icon,
+  ListRow,
+  PillInput,
+  ScreenHeader,
+  SectionHeader,
+  StatusBadge,
+  StepProgress,
+  formatLabel,
+  radii,
+  spacing,
+  typography,
+  useDialog,
+  useTheme,
+  type IconName,
+  type Palette,
+  type StatusTone,
+  type Step,
+  type Tint,
+} from '@/components/opes-ui';
+import {
+  CareButton,
+  InfoRow,
+  LoadingBlock,
+  NoticeBanner,
+  SummaryLine,
+} from '@/components/care/shared';
+import { useNationwideBloodSearch } from '@/lib/api/bloodQueries';
 import {
   useBloodOptions,
   useBloodSearch,
@@ -45,10 +44,21 @@ import {
   type BloodGroupValue,
   type BloodRequest,
   type BloodUrgencyValue,
-} from '../../lib/api/queries';
+} from '@/lib/api/queries';
 
 /**
  * Request Blood Units — the action panel of the Blood Finder.
+ *
+ * Presentation: the OPES kit (`ScreenHeader` → facility `Card variant="flush"`
+ * + `ListRow` with the spec's RED tint circle → embedded `FacilityMap` →
+ * `InfoRow` facts → a units stepper → urgency as selectable `ListRow`s →
+ * `PillInput` contact phone → summary `Card` → `GradientButton` submit →
+ * `Dialog` for failures → a confirmed state built like
+ * `app/appointments/book.tsx`'s success step), in the app's own `opescare`
+ * palette read from `useTheme()`.
+ *
+ * The data layer is untouched: `useBloodOptions`, `useBloodSearch`,
+ * `useNationwideBloodSearch`, `useCreateBloodRequest`.
  *
  * The chosen facility is re-resolved from the same search the list ran (origin
  * and radius are carried in the params) rather than passed through as loose
@@ -61,65 +71,86 @@ import {
  * issued, and nothing here is a cross-match or a clinical approval — the
  * facility performs its own checks before releasing anything.
  *
+ * ── Why no wizard ───────────────────────────────────────────────────────────
+ * The form is deliberately ONE page rather than a `StepProgress` wizard: units,
+ * urgency and a phone number are three fields, and this screen is reached by
+ * someone in a hurry. `StepProgress` appears on the confirmed state instead,
+ * where it maps a real thing — the request's lifecycle through
+ * App\Enums\BloodRequestStatus (pending → confirmed → ready → fulfilled).
+ *
  * ── On the 409 ──────────────────────────────────────────────────────────────
  * `blood_availability` is self-reported and frequently empty, so
  * `BLOOD_NOT_AVAILABLE` is a routine outcome rather than a rare failure. It is
  * therefore rendered as a recovery panel with working actions (phone the
- * facility, get directions, go back and try a compatible group), not as a red
- * line of text at the bottom of a form.
+ * facility, go back and try a compatible group), not as a red line of text at
+ * the bottom of a form.
  */
 
 const URGENCIES: BloodUrgencyValue[] = ['routine', 'urgent', 'emergency'];
 
-const URGENCY_ICONS: Record<BloodUrgencyValue, LucideIcon> = {
-  routine: Clock,
-  urgent: Timer,
-  emergency: Siren,
+/** The kit has no `timer` or `siren`; `clock` / `refresh` / `alert-triangle` carry it. */
+const URGENCY_ICON: Record<BloodUrgencyValue, IconName> = {
+  routine: 'clock',
+  urgent: 'refresh',
+  emergency: 'alert-triangle',
 };
 
-interface UrgencyTone {
-  accent: string;
-  surface: string;
-  /** Selected urgency cards fill; emergency fills solid so it cannot be missed. */
-  solid: boolean;
-}
+const URGENCY_TINT: Record<BloodUrgencyValue, Tint> = {
+  routine: 'blue',
+  urgent: 'amber',
+  emergency: 'red',
+};
 
-function urgencyTone(value: BloodUrgencyValue): UrgencyTone {
-  switch (value) {
-    case 'emergency':
-      return { accent: colors.semantic.danger, surface: colors.semantic.dangerSurface, solid: true };
-    case 'urgent':
-      return {
-        accent: colors.semantic.warning,
-        surface: colors.semantic.warningSurface,
-        solid: false,
-      };
-    default:
-      return { accent: colors.brand[500], surface: colors.brand[50], solid: false };
-  }
-}
+const URGENCY_TONE: Record<BloodUrgencyValue, StatusTone> = {
+  routine: 'neutral',
+  urgent: 'warning',
+  emergency: 'critical',
+};
 
-function iconForFacility(type: string | undefined): LucideIcon {
-  switch (type) {
-    case 'blood_bank':
-      return Droplets;
-    case 'hospital':
-      return Hospital;
-    default:
-      return Building2;
-  }
-}
+/** DESIGN_SPEC §1: red is the critical tint, and every row on this screen is blood. */
+const BLOOD_TINT: Tint = 'red';
 
-function freshnessTone(freshness: string | undefined): string {
-  switch (freshness) {
-    case 'fresh':
-      return colors.semantic.success;
-    case 'recent':
-      return colors.semantic.warning;
-    case 'stale':
-      return colors.semantic.danger;
+const NOTE_MAX_LENGTH = 500;
+
+/** Kit glyph per `care_facilities.facility_type` (same map as the finder list). */
+const FACILITY_TYPE_ICON: Record<string, IconName> = {
+  hospital: 'building',
+  clinic: 'stethoscope',
+  health_center: 'first-aid',
+  blood_bank: 'droplet',
+  laboratory: 'flask',
+};
+
+const facilityIcon = (type: string | undefined): IconName =>
+  FACILITY_TYPE_ICON[type ?? ''] ?? 'building';
+
+/** English fallbacks for the stock-status badge (see the i18n note in the report). */
+const STOCK_FALLBACK: Record<string, string> = {
+  available: 'Available',
+  in_stock: 'Available',
+  low: 'Low stock',
+  limited: 'Low stock',
+  none: 'None reported',
+  out_of_stock: 'None reported',
+  unavailable: 'Not reported',
+  unknown: 'Not reported',
+};
+
+/** available → success · low → warning · none → critical. */
+function stockTone(status: string | null | undefined): StatusTone {
+  switch ((status ?? '').toLowerCase()) {
+    case 'available':
+    case 'in_stock':
+      return 'normal';
+    case 'low':
+    case 'limited':
+      return 'warning';
+    case 'none':
+    case 'out_of_stock':
+    case 'unavailable':
+      return 'critical';
     default:
-      return colors.navy.muted;
+      return 'neutral';
   }
 }
 
@@ -139,9 +170,19 @@ function errorCodeOf(error: unknown): string | null {
   return body?.error_code ?? null;
 }
 
+/**
+ * App\Enums\BloodRequestStatus, in the order a request travels. `rejected`,
+ * `cancelled` and `expired` are terminal and never reach this strip.
+ */
+const LIFECYCLE: string[] = ['pending', 'confirmed', 'ready', 'fulfilled'];
+
 export default function BloodRequestScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const dialog = useDialog();
+
   const params = useLocalSearchParams<{
     facilityId?: string;
     bloodGroup?: string;
@@ -192,38 +233,23 @@ export default function BloodRequestScreen() {
     [search.data, facilityId],
   );
 
-  const FacilityIcon = iconForFacility(facility?.facility_type);
   const phone = facility?.emergency_contact ?? facility?.phone ?? null;
   const hasCoords = facility?.latitude != null && facility?.longitude != null;
+  const availability = facility?.availability ?? null;
+  // `status` is the facility's own stock word; `unknown` keeps the badge from
+  // rendering an empty pill if a row ever arrives without one.
+  const stockKey = (availability?.status ?? '').toLowerCase() || 'unknown';
+  const stockLabel = availability
+    ? t(`bloodFinder.stock.${stockKey}`, {
+        defaultValue: STOCK_FALLBACK[stockKey] ?? formatLabel(availability.status),
+      })
+    : t('bloodFinder.unitsUnknown');
 
   const backToSearch = () =>
     router.canGoBack() ? router.back() : router.replace('/blood-finder');
 
-  if (!facilityId || !bloodGroup) {
-    return (
-      <Screen>
-        <View className="flex-1 items-center justify-center px-6">
-          <View className="h-14 w-14 items-center justify-center rounded-full bg-cream-200">
-            <CircleAlert size={24} color={colors.navy.muted} />
-          </View>
-          <Text className="mt-3 text-center text-sm text-navy-secondary">
-            {t('bloodFinder.request.noFacility')}
-          </Text>
-          <Pressable
-            onPress={() => router.replace('/blood-finder')}
-            accessibilityRole="button"
-            className="mt-4 rounded-xl border border-brand-500 px-4 py-2"
-          >
-            <Text className="text-xs font-bold text-brand-600">
-              {t('bloodFinder.request.backToSearch')}
-            </Text>
-          </Pressable>
-        </View>
-      </Screen>
-    );
-  }
-
   const onSubmit = () => {
+    if (!facilityId || !bloodGroup) return;
     setErrorCode(null);
     createRequest.mutate(
       {
@@ -237,58 +263,241 @@ export default function BloodRequestScreen() {
       },
       {
         onSuccess: (request) => setConfirmed(request),
-        onError: (error) => setErrorCode(errorCodeOf(error) ?? 'generic'),
+        onError: (error) => {
+          const code = errorCodeOf(error) ?? 'generic';
+          setErrorCode(code);
+          // The routine outcomes get their own on-screen recovery panels below;
+          // everything else is a one-off failure and belongs in a dialog, where
+          // it cannot be quietly scrolled past.
+          if (
+            code !== 'BLOOD_NOT_AVAILABLE' &&
+            code !== 'FACILITY_NOT_FOUND' &&
+            code !== 'TOO_MANY_OPEN_REQUESTS' &&
+            code !== 'REQUEST_ALREADY_OPEN'
+          ) {
+            dialog.alert(
+              t('bloodFinder.request.title'),
+              t(`bloodFinder.errors.${code}`, { defaultValue: t('bloodFinder.errors.generic') }),
+              'critical',
+            );
+          }
+        },
       },
     );
   };
 
+  /* ── Nothing to request against ───────────────────────────────────────── */
+
+  if (!facilityId || !bloodGroup) {
+    return (
+      <Screen className="px-0">
+        <ScreenHeader title={t('bloodFinder.request.title')} onBack={backToSearch} />
+        <View style={styles.gutter}>
+          <Card variant="flush">
+            <EmptyState
+              icon="alert-circle"
+              tint="red"
+              title={t('bloodFinder.request.noFacility')}
+              message={t('bloodFinder.request.subtitle')}
+              actionLabel={t('bloodFinder.request.backToSearch')}
+              onAction={() => router.replace('/blood-finder')}
+            />
+          </Card>
+        </View>
+        {dialog.element}
+      </Screen>
+    );
+  }
+
+  /* ── Confirmed ────────────────────────────────────────────────────────── */
+
+  if (confirmed) {
+    const lifecycleSteps: Step[] = LIFECYCLE.map((key) => ({
+      key,
+      label: t(`bloodFinder.statuses.${key}`, { defaultValue: formatLabel(key) }),
+    }));
+    const lifecycleIndex = Math.max(0, LIFECYCLE.indexOf(confirmed.status));
+    const facilityName = confirmed.facility?.name ?? facility?.name ?? '';
+    const confirmedPhone = confirmed.facility?.phone ?? phone;
+
+    return (
+      <Screen className="px-0">
+        <ScreenHeader
+          title={t('bloodFinder.request.successTitle')}
+          align="center"
+          showBack={false}
+        />
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.hero} accessibilityLiveRegion="polite">
+            <View style={styles.heroMark}>
+              <Icon name="check" size={38} color={colors.textOnBrand} />
+            </View>
+            <Text style={styles.heroTitle} accessibilityRole="header">
+              {t('bloodFinder.request.successTitle')}
+            </Text>
+            <Text style={styles.heroText}>
+              {t('bloodFinder.request.successBody', {
+                reference: confirmed.reference,
+                facility: facilityName,
+              })}
+            </Text>
+          </View>
+
+          {/* The reference is the one thing to show at the counter. */}
+          <Card>
+            <Text style={styles.referenceLabel}>
+              {t('bloodFinder.reference', { reference: '' }).trim()}
+            </Text>
+            <Text style={styles.referenceValue} accessibilityLabel={confirmed.reference}>
+              {confirmed.reference}
+            </Text>
+            <View style={styles.lifecycle}>
+              <StepProgress
+                steps={lifecycleSteps}
+                currentIndex={lifecycleIndex}
+                accessibilityLabel={t(`bloodFinder.statuses.${confirmed.status}`, {
+                  defaultValue: confirmed.status_label,
+                })}
+              />
+            </View>
+          </Card>
+
+          <Card variant="flush">
+            <View style={styles.detailsHead}>
+              <Icon name="droplet" size={22} color={colors.statusCritical} />
+              <Text style={styles.detailsTitle} accessibilityRole="header">
+                {t('bloodFinder.request.reviewTitle')}
+              </Text>
+              <StatusBadge
+                status={confirmed.status}
+                label={t(`bloodFinder.statuses.${confirmed.status}`, {
+                  defaultValue: confirmed.status_label,
+                })}
+                size="sm"
+              />
+            </View>
+            <View style={styles.rows}>
+              <InfoRow
+                icon="droplet"
+                tint={BLOOD_TINT}
+                label={t('bloodFinder.bloodGroup')}
+                value={confirmed.blood_group}
+                divider
+              />
+              <InfoRow
+                icon="flask"
+                tint="blue"
+                label={t('bloodFinder.component')}
+                value={
+                  confirmed.component_label ||
+                  t(`bloodFinder.components.${confirmed.component_type}`)
+                }
+                divider
+              />
+              <InfoRow
+                icon="receipt"
+                tint="green"
+                label={t('bloodFinder.request.reviewUnits')}
+                value={String(confirmed.quantity)}
+                divider
+              />
+              <InfoRow
+                icon={URGENCY_ICON[confirmed.urgency]}
+                tint={URGENCY_TINT[confirmed.urgency]}
+                label={t('bloodFinder.request.reviewUrgency')}
+                value={t(`bloodFinder.urgencies.${confirmed.urgency}`)}
+                divider={!!facilityName}
+              />
+              {facilityName ? (
+                <InfoRow
+                  icon="building"
+                  tint="blue"
+                  label={t('bloodFinder.request.facility')}
+                  value={facilityName}
+                />
+              ) : null}
+            </View>
+          </Card>
+
+          <Card variant="flush">
+            <Text style={styles.overline}>{t('bloodFinder.request.nextSteps')}</Text>
+            {[
+              t('bloodFinder.request.next1'),
+              t('bloodFinder.request.next2'),
+              t('bloodFinder.request.next3'),
+            ].map((line, index, all) => (
+              <ListRow
+                key={index}
+                leading={
+                  <View style={styles.stepMark}>
+                    <Text style={styles.stepNumber}>{index + 1}</Text>
+                  </View>
+                }
+                title={line}
+                chevron={false}
+                divider={index < all.length - 1}
+              />
+            ))}
+          </Card>
+
+          <NoticeBanner
+            icon="shield-check"
+            tone="pending"
+            title={t('bloodFinder.safetyTitle')}
+            message={t('bloodFinder.safetyBody')}
+          />
+
+          <View style={styles.ctaStack}>
+            <GradientButton
+              label={t('bloodFinder.request.backToSearch')}
+              onPress={() => router.replace('/blood-finder')}
+            />
+            {confirmedPhone ? (
+              <CareButton
+                label={t('bloodFinder.call')}
+                icon="phone"
+                variant="secondary"
+                onPress={() => dial(confirmedPhone)}
+              />
+            ) : null}
+          </View>
+        </ScrollView>
+
+        {dialog.element}
+      </Screen>
+    );
+  }
+
+  /* ── The form ─────────────────────────────────────────────────────────── */
+
+  const notAvailable = errorCode === 'BLOOD_NOT_AVAILABLE' || errorCode === 'FACILITY_NOT_FOUND';
+  const tooMany = errorCode === 'TOO_MANY_OPEN_REQUESTS' || errorCode === 'REQUEST_ALREADY_OPEN';
+
   return (
     <Screen className="px-0">
+      <ScreenHeader
+        title={t('bloodFinder.request.title')}
+        subtitle={t('bloodFinder.request.subtitle')}
+        onBack={backToSearch}
+      />
+
       <ScrollView
-        className="flex-1 px-6"
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header */}
-        <View className="mt-2 flex-row items-center">
-          <Pressable
-            onPress={backToSearch}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={t('bloodFinder.back')}
-            className="h-10 w-10 items-center justify-center rounded-xl border border-cream-300 bg-white"
-          >
-            <ChevronLeft size={20} color={colors.navy.text} />
-          </Pressable>
-          <Text className="ml-3 flex-1 text-lg font-extrabold text-navy-text">
-            {t('bloodFinder.request.title')}
-          </Text>
-        </View>
-
-        <Text className="mt-3 text-xs leading-4 text-navy-secondary">
-          {t('bloodFinder.request.subtitle')}
-        </Text>
-
-        {/* Facility + live availability */}
         {search.isPending ? (
-          <View className="mt-6" style={{ gap: 12 }}>
-            <View className="h-24 rounded-2xl bg-cream-200" />
-            <View className="h-16 rounded-2xl bg-cream-200" />
-          </View>
+          <LoadingBlock label={t('bloodFinder.searching')} />
         ) : search.isError ? (
-          <View className="mt-6 items-center rounded-2xl border border-cream-300 bg-white px-6 py-8">
-            <CircleAlert size={22} color={colors.semantic.danger} />
-            <Text className="mt-2 text-center text-sm text-navy-secondary">
-              {t('bloodFinder.loadFailed')}
-            </Text>
-            <Pressable
-              onPress={() => search.refetch()}
-              accessibilityRole="button"
-              className="mt-3 rounded-xl border border-brand-500 px-4 py-2"
-            >
-              <Text className="text-xs font-bold text-brand-600">{t('bloodFinder.retry')}</Text>
-            </Pressable>
-          </View>
+          <Card variant="flush">
+            <EmptyState
+              icon="alert-circle"
+              tint="red"
+              title={t('bloodFinder.loadFailed')}
+              actionLabel={t('bloodFinder.retry')}
+              onAction={() => search.refetch()}
+            />
+          </Card>
         ) : !facility ? (
           /*
             The listing vanished between the search and this screen — the same
@@ -299,391 +508,305 @@ export default function BloodRequestScreen() {
             group={bloodGroup}
             component={componentLabel}
             phone={null}
-            hasCoords={false}
-            onCall={() => undefined}
             onBack={backToSearch}
           />
         ) : (
           <>
-            <View className="mt-5 flex-row rounded-2xl border border-brand-100 bg-cream-200 p-4">
-              <View className="h-16 w-16 items-center justify-center rounded-2xl bg-white">
-                <FacilityIcon size={24} color={colors.brand[600]} />
+            {/* Facility + the number to call before travelling. The safety
+                notice tells every patient to phone first, so the phone has to
+                be reachable without scrolling past the whole form. */}
+            <Card variant="flush">
+              <ListRow
+                icon={facilityIcon(facility.facility_type)}
+                tint={BLOOD_TINT}
+                title={facility.name}
+                meta={[
+                  [facility.address, facility.city].filter(Boolean).join(', ') || null,
+                  facility.distance_km === null
+                    ? t('bloodFinder.distanceUnknown')
+                    : t('bloodFinder.distanceKm', { km: facility.distance_km }),
+                  isVerified(facility.verification_status) ? t('bloodFinder.verified') : null,
+                ]}
+                chevron={false}
+                trailing={
+                  <StatusBadge
+                    status={stockKey}
+                    tone={stockTone(stockKey)}
+                    label={stockLabel}
+                    size="sm"
+                  />
+                }
+                divider
+              />
+              <View style={styles.cardFoot}>
+                <CareButton
+                  label={phone ? t('bloodFinder.call') : t('bloodFinder.noPhone')}
+                  icon="phone"
+                  variant="secondary"
+                  size="sm"
+                  disabled={!phone}
+                  onPress={() => dial(phone)}
+                  style={styles.footAction}
+                />
               </View>
-              <View className="ml-4 flex-1">
-                <View className="flex-row items-start">
-                  <Text
-                    className="flex-1 pr-2 text-base font-extrabold text-navy-text"
-                    numberOfLines={2}
-                  >
-                    {facility.name}
-                  </Text>
-                  {isVerified(facility.verification_status) ? (
-                    <BadgeCheck size={16} color={colors.semantic.info} />
-                  ) : null}
-                </View>
-                <Text className="mt-1 text-xs text-navy-secondary" numberOfLines={2}>
-                  {[facility.address, facility.city].filter(Boolean).join(', ')}
-                </Text>
-                <View className="mt-1 flex-row items-center">
-                  <MapPin size={11} color={colors.navy.muted} />
-                  <Text className="ml-1 text-[11px] text-navy-secondary">
-                    {facility.distance_km === null
-                      ? t('bloodFinder.distanceUnknown')
-                      : t('bloodFinder.distanceKm', { km: facility.distance_km })}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Call sits above the form: the safety notice tells every patient
-                to phone before travelling, so the phone must be reachable
-                without scrolling past the whole request form. */}
-            <View className="mt-3 flex-row" style={{ gap: 8 }}>
-              <Pressable
-                onPress={() => dial(phone)}
-                disabled={!phone}
-                accessibilityRole="button"
-                className="h-11 flex-1 flex-row items-center justify-center rounded-xl border border-brand-500 bg-white"
-                style={{ opacity: phone ? 1 : 0.45 }}
-              >
-                <Phone size={14} color={colors.brand[600]} />
-                <Text className="ml-2 text-xs font-bold text-brand-600">
-                  {phone ? t('bloodFinder.callShort') : t('bloodFinder.noPhone')}
-                </Text>
-              </Pressable>
-            </View>
+            </Card>
 
             {/* Embedded map — a real in-app OpenStreetMap view of this facility
                 with a locate-me/directions control that never leaves the app. */}
             {hasCoords ? (
-              <View className="mt-3">
+              <Card variant="flush">
                 <FacilityMap facilities={facility} height={200} directions />
-              </View>
+              </Card>
             ) : null}
 
-            {/* What is actually being asked for */}
-            <View className="mt-3 flex-row items-center justify-between rounded-2xl border border-cream-300 bg-white p-4">
-              <View className="flex-1 pr-2">
-                <Text className="text-[11px] font-semibold text-navy-muted">
-                  {`${bloodGroup}  •  ${componentLabel}`}
-                </Text>
-                <Text className="mt-0.5 text-sm font-extrabold text-navy-text">
-                  {facility.availability?.units_range
-                    ? t('bloodFinder.unitsRange', { range: facility.availability.units_range })
-                    : t('bloodFinder.unitsUnknown')}
-                </Text>
-              </View>
-              <View className="flex-row items-center">
-                <Clock size={12} color={freshnessTone(facility.availability?.freshness)} />
-                <Text
-                  className="ml-1 text-[11px] font-bold"
-                  style={{ color: freshnessTone(facility.availability?.freshness) }}
-                >
-                  {t(`bloodFinder.freshness.${facility.availability?.freshness ?? 'stale'}`, {
+            {/* What is actually being asked for, and how fresh the figure is. */}
+            <Card variant="flush">
+              <View style={styles.rows}>
+                <InfoRow
+                  icon="droplet"
+                  tint={BLOOD_TINT}
+                  label={t('bloodFinder.bloodGroup')}
+                  value={bloodGroup}
+                  divider
+                />
+                <InfoRow
+                  icon="flask"
+                  tint="blue"
+                  label={t('bloodFinder.component')}
+                  value={componentLabel}
+                  divider
+                />
+                <InfoRow
+                  icon="activity"
+                  tint={availability?.units_range ? 'green' : 'amber'}
+                  label={t('bloodFinder.request.reviewUnits')}
+                  value={
+                    availability?.units_range
+                      ? t('bloodFinder.unitsRange', { range: availability.units_range })
+                      : t('bloodFinder.unitsUnknown')
+                  }
+                  divider
+                />
+                <InfoRow
+                  icon="clock"
+                  tint="blue"
+                  label={t('bloodFinder.stockUpdated', { defaultValue: 'Stock updated' })}
+                  value={t(`bloodFinder.freshness.${availability?.freshness ?? 'stale'}`, {
                     defaultValue: t('bloodFinder.freshness.stale'),
                   })}
-                </Text>
+                />
               </View>
-            </View>
+            </Card>
 
             {/* Units */}
-            <Text className="mt-7 text-base font-extrabold text-navy-text">
-              {t('bloodFinder.request.quantity')}
-            </Text>
-            <View className="mt-3 flex-row items-center justify-between rounded-2xl border border-cream-300 bg-white px-4 py-3">
-              <Pressable
-                onPress={() => setQuantity((q) => Math.max(1, q - 1))}
-                disabled={quantity <= 1}
-                accessibilityRole="button"
-                accessibilityLabel="-1"
-                className="h-11 w-11 items-center justify-center rounded-xl border border-cream-300 bg-cream-100"
-                style={{ opacity: quantity <= 1 ? 0.4 : 1 }}
-              >
-                <Minus size={18} color={colors.navy.text} />
-              </Pressable>
-              <View className="items-center">
-                <Text className="text-2xl font-extrabold text-navy-text">{quantity}</Text>
-                <Text className="mt-0.5 text-[10px] text-navy-muted">
-                  {t('bloodFinder.request.maxUnits', { max: maxUnits })}
-                </Text>
-              </View>
-              <Pressable
-                onPress={() => setQuantity((q) => Math.min(maxUnits, q + 1))}
-                disabled={quantity >= maxUnits}
-                accessibilityRole="button"
-                accessibilityLabel="+1"
-                className="h-11 w-11 items-center justify-center rounded-xl border border-cream-300 bg-cream-100"
-                style={{ opacity: quantity >= maxUnits ? 0.4 : 1 }}
-              >
-                <Plus size={18} color={colors.navy.text} />
-              </Pressable>
+            <View>
+              <SectionHeader title={t('bloodFinder.request.quantity')} />
+              <Card>
+                <View style={styles.stepper}>
+                  <StepperButton
+                    icon="minus"
+                    label="-1"
+                    disabled={quantity <= 1}
+                    onPress={() => setQuantity((q) => Math.max(1, q - 1))}
+                  />
+                  <View style={styles.stepperValue}>
+                    <Text style={styles.stepperNumber}>{quantity}</Text>
+                    <Text style={styles.stepperHint}>
+                      {t('bloodFinder.request.maxUnits', { max: maxUnits })}
+                    </Text>
+                  </View>
+                  <StepperButton
+                    icon="plus"
+                    label="+1"
+                    disabled={quantity >= maxUnits}
+                    onPress={() => setQuantity((q) => Math.min(maxUnits, q + 1))}
+                  />
+                </View>
+              </Card>
             </View>
 
             {/* Urgency — the one choice that changes how the blood bank reads
-                this request, so it gets full-width cards, not chips. */}
-            <Text className="mt-7 text-base font-extrabold text-navy-text">
-              {t('bloodFinder.request.urgency')}
-            </Text>
-            <View className="mt-3" style={{ gap: 8 }}>
-              {URGENCIES.map((value) => (
-                <UrgencyCard
-                  key={value}
-                  value={value}
-                  selected={value === urgency}
-                  onPress={() => setUrgency(value)}
-                />
-              ))}
+                this request, so it gets full-width rows, not chips. */}
+            <View>
+              <SectionHeader title={t('bloodFinder.request.urgency')} />
+              <Card variant="flush">
+                {URGENCIES.map((value, index) => (
+                  <ListRow
+                    key={value}
+                    icon={URGENCY_ICON[value]}
+                    tint={URGENCY_TINT[value]}
+                    title={t(`bloodFinder.urgencies.${value}`)}
+                    subtitle={t(`bloodFinder.request.urgencyHints.${value}`)}
+                    chevron={false}
+                    trailing={
+                      value === urgency ? (
+                        <Icon name="check-circle" size={20} color={colors.blue} />
+                      ) : (
+                        <View style={styles.radio} />
+                      )
+                    }
+                    onPress={() => setUrgency(value)}
+                    divider={index < URGENCIES.length - 1}
+                  />
+                ))}
+              </Card>
             </View>
 
             {urgency === 'emergency' ? (
-              <View
-                className="mt-3 flex-row rounded-2xl p-4"
-                style={{
-                  backgroundColor: colors.semantic.dangerSurface,
-                  borderWidth: 1,
-                  borderColor: colors.semantic.danger,
-                }}
-              >
-                <Siren size={17} color={colors.semantic.danger} />
-                <View className="ml-3 flex-1">
-                  <Text className="text-[11px] leading-4" style={{ color: colors.semantic.danger }}>
-                    {t('bloodFinder.request.emergencyWarning')}
-                  </Text>
-                  {phone ? (
-                    <Pressable
-                      onPress={() => dial(phone)}
-                      accessibilityRole="button"
-                      className="mt-3 h-10 flex-row items-center justify-center rounded-xl"
-                      style={{ backgroundColor: colors.semantic.danger }}
-                    >
-                      <Phone size={14} color={colors.white} />
-                      <Text
-                        className="ml-2 text-xs font-bold"
-                        style={{ color: colors.white }}
-                      >
-                        {t('bloodFinder.request.callNow')}
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-              </View>
+              <>
+                <NoticeBanner
+                  icon="alert-triangle"
+                  tone="critical"
+                  title={t('bloodFinder.urgencies.emergency')}
+                  message={t('bloodFinder.request.emergencyWarning')}
+                />
+                {phone ? (
+                  <CareButton
+                    label={t('bloodFinder.request.callNow')}
+                    icon="phone"
+                    variant="dangerSolid"
+                    onPress={() => dial(phone)}
+                  />
+                ) : null}
+              </>
             ) : null}
 
             {/* Contact phone */}
-            <Text className="mt-7 text-base font-extrabold text-navy-text">
-              {t('bloodFinder.request.contactPhone')}
-            </Text>
-            <View className="mt-3 h-14 flex-row items-center rounded-2xl border border-cream-300 bg-white px-4">
-              <Phone size={16} color={colors.brand[600]} />
-              <TextInput
+            <View>
+              <SectionHeader title={t('bloodFinder.request.contactPhone')} />
+              <PillInput
+                icon={<Icon name="phone" size={18} color={colors.blue} />}
                 value={contactPhone}
                 onChangeText={setContactPhone}
                 placeholder={t('bloodFinder.request.contactPhonePlaceholder')}
-                placeholderTextColor={colors.navy.muted}
                 keyboardType="phone-pad"
                 maxLength={32}
-                className="ml-3 flex-1 text-base text-navy-text"
+                accessibilityLabel={t('bloodFinder.request.contactPhone')}
               />
             </View>
 
-            {/* Note */}
-            <Text className="mt-7 text-base font-extrabold text-navy-text">
-              {t('bloodFinder.request.note')}
-            </Text>
-            <View className="mt-3 rounded-2xl border border-cream-300 bg-white px-4 py-3">
-              <TextInput
-                value={note}
-                onChangeText={setNote}
-                placeholder={t('bloodFinder.request.notePlaceholder')}
-                placeholderTextColor={colors.navy.muted}
-                multiline
-                maxLength={500}
-                className="min-h-[72px] text-sm text-navy-text"
-                style={{ textAlignVertical: 'top' }}
-              />
+            {/* Note. PillInput carries its own bottom margin and the scroll
+                container already spaces siblings — cancel the double gap. */}
+            <View style={styles.noteBlock}>
+              <SectionHeader title={t('bloodFinder.request.note')} />
+              <Card>
+                <TextInput
+                  style={styles.textarea}
+                  value={note}
+                  onChangeText={setNote}
+                  placeholder={t('bloodFinder.request.notePlaceholder')}
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  maxLength={NOTE_MAX_LENGTH}
+                  textAlignVertical="top"
+                  accessibilityLabel={t('bloodFinder.request.note')}
+                />
+                <Text style={styles.counter}>{`${note.length} / ${NOTE_MAX_LENGTH}`}</Text>
+              </Card>
             </View>
 
-            {/* Review strip — the whole request in one line, before sending. */}
-            <View className="mt-5 rounded-2xl border border-cream-300 bg-white p-4">
-              <Text className="text-xs font-extrabold text-navy-text">
-                {t('bloodFinder.request.reviewTitle')}
-              </Text>
-              <View className="mt-3" style={{ gap: 8 }}>
-                <ReviewRow label={t('bloodFinder.bloodGroup')} value={bloodGroup} />
-                <ReviewRow label={t('bloodFinder.component')} value={componentLabel} />
-                <ReviewRow label={t('bloodFinder.request.reviewUnits')} value={String(quantity)} />
-                <ReviewRow
+            {/* Review — the whole request in one card, before sending. */}
+            <View>
+              <SectionHeader title={t('bloodFinder.request.reviewTitle')} />
+              <Card>
+                <SummaryLine label={t('bloodFinder.bloodGroup')} value={bloodGroup} strong />
+                <SummaryLine label={t('bloodFinder.component')} value={componentLabel} />
+                <SummaryLine label={t('bloodFinder.request.reviewUnits')} value={String(quantity)} />
+                <SummaryLine
                   label={t('bloodFinder.request.reviewUrgency')}
                   value={t(`bloodFinder.urgencies.${urgency}`)}
-                  tone={urgency === 'routine' ? undefined : urgencyTone(urgency).accent}
+                  valueColor={
+                    URGENCY_TONE[urgency] === 'critical'
+                      ? colors.statusCritical
+                      : URGENCY_TONE[urgency] === 'warning'
+                        ? colors.statusWarning
+                        : undefined
+                  }
                 />
-              </View>
+                <SummaryLine label={t('bloodFinder.request.facility')} value={facility.name} />
+              </Card>
             </View>
 
             {/* Clinical + payment notes */}
-            <View className="mt-3 flex-row rounded-2xl border border-cream-300 bg-white p-4">
-              <Info size={16} color={colors.semantic.info} />
-              <View className="ml-3 flex-1">
-                <Text className="text-[11px] leading-4 text-navy-secondary">
-                  {t('bloodFinder.request.clinicalNote')}
-                </Text>
-                <Text className="mt-2 text-[11px] leading-4 text-navy-muted">
-                  {t('bloodFinder.request.paymentNote')}
-                </Text>
-              </View>
-            </View>
+            <NoticeBanner
+              icon="info"
+              tone="pending"
+              message={t('bloodFinder.request.clinicalNote')}
+            />
+            <NoticeBanner
+              icon="wallet"
+              tone="normal"
+              message={t('bloodFinder.request.paymentNote')}
+            />
 
             {/* Outcome */}
-            {confirmed ? (
-              <SuccessPanel
-                request={confirmed}
-                facilityName={confirmed.facility?.name ?? facility.name}
-                phone={phone}
-                hasCoords={hasCoords}
-                onCall={() => dial(phone)}
-                onBack={() => router.replace('/blood-finder')}
-              />
-            ) : errorCode === 'BLOOD_NOT_AVAILABLE' || errorCode === 'FACILITY_NOT_FOUND' ? (
+            {notAvailable ? (
               <NotAvailablePanel
                 group={bloodGroup}
                 component={componentLabel}
                 phone={phone}
-                hasCoords={hasCoords}
-                onCall={() => dial(phone)}
                 onBack={backToSearch}
               />
-            ) : errorCode ? (
-              <View
-                className="mt-4 rounded-2xl p-4"
-                style={{ backgroundColor: colors.semantic.dangerSurface }}
-              >
-                <Text className="text-xs leading-4" style={{ color: colors.semantic.danger }}>
-                  {t(`bloodFinder.errors.${errorCode}`, {
+            ) : tooMany ? (
+              <Card variant="flush">
+                <EmptyState
+                  icon="alert-circle"
+                  tint="amber"
+                  title={t(`bloodFinder.errors.${errorCode}`, {
                     defaultValue: t('bloodFinder.errors.generic'),
                   })}
-                </Text>
-                {errorCode === 'TOO_MANY_OPEN_REQUESTS' || errorCode === 'REQUEST_ALREADY_OPEN' ? (
-                  <>
-                    <Text className="mt-2 text-[11px] leading-4 text-navy-secondary">
-                      {t('bloodFinder.request.openRequestsHint')}
-                    </Text>
-                    <Pressable
-                      onPress={backToSearch}
-                      accessibilityRole="button"
-                      className="mt-3 h-10 items-center justify-center rounded-xl bg-white"
-                    >
-                      <Text
-                        className="text-xs font-bold"
-                        style={{ color: colors.semantic.danger }}
-                      >
-                        {t('bloodFinder.request.backToSearch')}
-                      </Text>
-                    </Pressable>
-                  </>
-                ) : null}
-              </View>
+                  message={t('bloodFinder.request.openRequestsHint')}
+                  actionLabel={t('bloodFinder.request.backToSearch')}
+                  onAction={backToSearch}
+                />
+              </Card>
             ) : null}
 
             {/* Submit */}
-            {confirmed ? null : (
-              <View className="mt-5">
-                <Button
-                  label={t('bloodFinder.request.submit')}
-                  onPress={onSubmit}
-                  leftIcon={Send}
-                  showChevron={false}
-                  loading={createRequest.isPending}
-                />
-              </View>
-            )}
+            <GradientButton
+              label={t('bloodFinder.request.submit')}
+              icon="none"
+              loading={createRequest.isPending}
+              onPress={onSubmit}
+              accessibilityHint={t('bloodFinder.request.subtitle')}
+            />
           </>
         )}
-
-        <View className="h-10" />
       </ScrollView>
+
+      {dialog.element}
     </Screen>
   );
 }
 
-/* -- Pieces ---------------------------------------------------------------- */
+/* ── Pieces ───────────────────────────────────────────────────────────────── */
 
-function UrgencyCard({
-  value,
-  selected,
+/** Square 44pt tap target for the units stepper. */
+function StepperButton({
+  icon,
+  label,
+  disabled,
   onPress,
 }: {
-  value: BloodUrgencyValue;
-  selected: boolean;
+  icon: IconName;
+  label: string;
+  disabled?: boolean;
   onPress: () => void;
 }) {
-  const { t } = useTranslation();
-  const Icon = URGENCY_ICONS[value];
-  const tone = urgencyTone(value);
-  const filled = selected && tone.solid;
-
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <Pressable
+    <TouchableOpacity
       onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityState={{ selected }}
-      className="flex-row items-center rounded-2xl p-4"
-      style={{
-        backgroundColor: filled ? tone.accent : selected ? tone.surface : colors.white,
-        borderWidth: selected ? 2 : 1,
-        borderColor: selected ? tone.accent : colors.cream[300],
-      }}
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
+      style={[styles.stepperButton, disabled && styles.stepperButtonOff]}
     >
-      <View
-        className="h-10 w-10 items-center justify-center rounded-full"
-        style={{ backgroundColor: filled ? colors.white : tone.surface }}
-      >
-        <Icon size={18} color={tone.accent} />
-      </View>
-      <View className="ml-3 flex-1">
-        <Text
-          className="text-sm font-extrabold"
-          style={{ color: filled ? colors.white : selected ? tone.accent : colors.navy.text }}
-        >
-          {t(`bloodFinder.urgencies.${value}`)}
-        </Text>
-        <Text
-          className="mt-0.5 text-[11px] leading-4"
-          style={{ color: filled ? colors.cream[100] : colors.navy.secondary }}
-        >
-          {t(`bloodFinder.request.urgencyHints.${value}`)}
-        </Text>
-      </View>
-      {selected ? (
-        <CircleCheck size={20} color={filled ? colors.white : tone.accent} />
-      ) : (
-        <View
-          className="h-5 w-5 rounded-full border"
-          style={{ borderColor: colors.cream[300] }}
-        />
-      )}
-    </Pressable>
-  );
-}
-
-function ReviewRow({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone?: string;
-}) {
-  return (
-    <View className="flex-row items-center justify-between">
-      <Text className="text-[11px] text-navy-secondary">{label}</Text>
-      <Text
-        className="text-xs font-extrabold text-navy-text"
-        style={tone ? { color: tone } : undefined}
-      >
-        {value}
-      </Text>
-    </View>
+      <Icon name={icon} size={20} color={colors.link} />
+    </TouchableOpacity>
   );
 }
 
@@ -696,196 +819,201 @@ function NotAvailablePanel({
   group,
   component,
   phone,
-  hasCoords,
-  onCall,
   onBack,
 }: {
   group: string;
   component: string;
   phone: string | null;
-  hasCoords: boolean;
-  onCall: () => void;
   onBack: () => void;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
-    <View
-      className="mt-5 rounded-2xl p-5"
-      style={{
-        backgroundColor: colors.semantic.dangerSurface,
-        borderWidth: 1,
-        borderColor: colors.semantic.danger,
-      }}
-    >
-      <View className="flex-row items-center">
-        <View className="h-10 w-10 items-center justify-center rounded-full bg-white">
-          <CircleAlert size={19} color={colors.semantic.danger} />
-        </View>
-        <Text
-          className="ml-3 flex-1 text-sm font-extrabold"
-          style={{ color: colors.semantic.danger }}
-        >
-          {t('bloodFinder.request.notAvailableTitle')}
-        </Text>
-      </View>
-
-      <Text className="mt-3 text-[11px] leading-4 text-navy-secondary">
-        {t('bloodFinder.request.notAvailableBody', { group, component })}
-      </Text>
-      <Text className="mt-2 text-[11px] leading-4 text-navy-secondary">
-        {t('bloodFinder.empty.body')}
-      </Text>
-
-      <View className="mt-4" style={{ gap: 8 }}>
-        {phone ? (
-          <Pressable
-            onPress={onCall}
-            accessibilityRole="button"
-            className="h-11 flex-row items-center justify-center rounded-xl"
-            style={{ backgroundColor: colors.semantic.danger }}
-          >
-            <Phone size={15} color={colors.white} />
-            <Text className="ml-2 text-xs font-bold" style={{ color: colors.white }}>
-              {t('bloodFinder.request.callNow')}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        <Pressable
-          onPress={onBack}
-          accessibilityRole="button"
-          className="h-11 flex-row items-center justify-center rounded-xl border bg-white"
-          style={{ borderColor: colors.semantic.danger }}
-        >
-          <Droplets size={15} color={colors.semantic.danger} />
-          <Text className="ml-2 text-xs font-bold" style={{ color: colors.semantic.danger }}>
-            {t('bloodFinder.request.backToSearch')}
-          </Text>
-        </Pressable>
-      </View>
-
-      <Text className="mt-3 text-[11px] leading-4 text-navy-muted">
-        {t('bloodFinder.noResultsHint')}
-      </Text>
+    <View style={styles.stack}>
+      <Card variant="flush">
+        <EmptyState
+          icon="alert-circle"
+          tint="red"
+          title={t('bloodFinder.request.notAvailableTitle')}
+          message={`${t('bloodFinder.request.notAvailableBody', { group, component })}\n\n${t(
+            'bloodFinder.empty.body',
+          )}`}
+          actionLabel={t('bloodFinder.request.backToSearch')}
+          onAction={onBack}
+        />
+      </Card>
+      {phone ? (
+        <CareButton
+          label={t('bloodFinder.request.callNow')}
+          icon="phone"
+          variant="dangerSolid"
+          onPress={() => dial(phone)}
+        />
+      ) : null}
+      <Text style={styles.footnote}>{t('bloodFinder.noResultsHint')}</Text>
     </View>
   );
 }
 
-function SuccessPanel({
-  request,
-  facilityName,
-  phone,
-  hasCoords,
-  onCall,
-  onBack,
-}: {
-  request: BloodRequest;
-  facilityName: string;
-  phone: string | null;
-  hasCoords: boolean;
-  onCall: () => void;
-  onBack: () => void;
-}) {
-  const { t } = useTranslation();
+/* ── Styles ───────────────────────────────────────────────────────────────── */
 
-  return (
-    <View className="mt-5 overflow-hidden rounded-2xl border border-cream-300 bg-white">
-      <LinearGradient
-        colors={[colors.brand[600], colors.brand[500], colors.brand[300]]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ paddingHorizontal: 20, paddingVertical: 20, alignItems: 'center' }}
-      >
-        <View
-          className="h-12 w-12 items-center justify-center rounded-full"
-          style={{ backgroundColor: colors.white }}
-        >
-          <CircleCheck size={24} color={colors.semantic.success} />
-        </View>
-        <Text className="mt-3 text-base font-extrabold" style={{ color: colors.white }}>
-          {t('bloodFinder.request.successTitle')}
-        </Text>
-        <Text
-          className="mt-1 text-center text-[11px] leading-4"
-          style={{ color: colors.cream[100] }}
-        >
-          {t('bloodFinder.request.successBody', {
-            reference: request.reference,
-            facility: facilityName,
-          })}
-        </Text>
-      </LinearGradient>
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    gutter: { padding: spacing.md },
+    stack: { gap: spacing.md },
+    rows: { paddingVertical: spacing.xs },
 
-      <View className="items-center border-b border-cream-200 bg-cream-200 px-5 py-4">
-        <Text className="text-[10px] font-semibold uppercase text-navy-muted">
-          {t('bloodFinder.reference', { reference: '' }).trim()}
-        </Text>
-        <Text className="mt-1 text-xl font-extrabold tracking-widest text-navy-text">
-          {request.reference}
-        </Text>
-      </View>
+    hero: { alignItems: 'center', gap: spacing.sm + 2, paddingVertical: spacing.md },
+    heroMark: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      backgroundColor: c.statusNormal,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroTitle: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xl,
+      color: c.textPrimary,
+      textAlign: 'center',
+    },
+    heroText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: c.textSecondary,
+      textAlign: 'center',
+    },
 
-      <View className="px-5 py-4">
-        <Text className="text-xs font-extrabold text-navy-text">
-          {t('bloodFinder.request.nextSteps')}
-        </Text>
-        <View className="mt-3" style={{ gap: 10 }}>
-          {[
-            t('bloodFinder.request.next1'),
-            t('bloodFinder.request.next2'),
-            t('bloodFinder.request.next3'),
-          ].map((line, index) => (
-            <View key={index} className="flex-row">
-              <View className="mt-0.5 h-5 w-5 items-center justify-center rounded-full bg-brand-50">
-                <Text className="text-[10px] font-extrabold text-brand-700">{index + 1}</Text>
-              </View>
-              <Text className="ml-3 flex-1 text-[11px] leading-4 text-navy-secondary">{line}</Text>
-            </View>
-          ))}
-        </View>
+    referenceLabel: {
+      textAlign: 'center',
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: c.textMuted,
+    },
+    referenceValue: {
+      marginTop: 2,
+      textAlign: 'center',
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xl,
+      letterSpacing: 2,
+      color: c.textPrimary,
+    },
+    lifecycle: { marginTop: spacing.md },
 
-        <View className="mt-4" style={{ gap: 8 }}>
-          {phone ? (
-            <Pressable
-              onPress={onCall}
-              accessibilityRole="button"
-              className="h-11 flex-row items-center justify-center rounded-xl border border-brand-500"
-            >
-              <Phone size={14} color={colors.brand[600]} />
-              <Text className="ml-2 text-xs font-bold text-brand-600">
-                {t('bloodFinder.call')}
-              </Text>
-            </Pressable>
-          ) : null}
-          <Pressable onPress={onBack} accessibilityRole="button">
-            <LinearGradient
-              colors={[colors.brand[600], colors.brand[500], colors.brand[300]]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={{
-                height: 44,
-                borderRadius: 12,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Droplets size={14} color={colors.white} />
-              <Text className="ml-2 text-xs font-bold" style={{ color: colors.white }}>
-                {t('bloodFinder.request.backToSearch')}
-              </Text>
-            </LinearGradient>
-          </Pressable>
-        </View>
+    detailsHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
+    },
+    detailsTitle: {
+      flex: 1,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: c.textPrimary,
+    },
 
-        <View className="mt-4 flex-row items-center">
-          <ShieldCheck size={13} color={colors.brand[600]} />
-          <Text className="ml-2 flex-1 text-[10px] leading-4 text-navy-muted">
-            {t('bloodFinder.safetyBody')}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-}
+    overline: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xs,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: 13,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: c.textPrimary,
+    },
+    stepMark: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.pill,
+      backgroundColor: c.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepNumber: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.sm,
+      color: c.link,
+    },
+
+    cardFoot: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 4,
+    },
+    footAction: { flexGrow: 1, flexBasis: 120 },
+
+    stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    stepperButton: {
+      width: 44,
+      height: 44,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepperButtonOff: { opacity: 0.4 },
+    stepperValue: { alignItems: 'center', gap: 2 },
+    stepperNumber: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xxl,
+      color: c.textPrimary,
+    },
+    stepperHint: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+
+    radio: {
+      width: 20,
+      height: 20,
+      borderRadius: radii.pill,
+      borderWidth: 1.5,
+      borderColor: c.border,
+    },
+
+    noteBlock: { marginTop: -spacing.md },
+    textarea: {
+      minHeight: 92,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      padding: spacing.sm + 4,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: c.textPrimary,
+    },
+    counter: {
+      alignSelf: 'flex-end',
+      marginTop: 4,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+
+    footnote: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textMuted,
+    },
+
+    ctaStack: { gap: spacing.sm + 4 },
+  });

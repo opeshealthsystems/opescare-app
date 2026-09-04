@@ -1,64 +1,72 @@
-import { useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
-  Bell,
-  BellOff,
-  Calendar,
-  CheckCheck,
-  ChevronRight,
-  CircleAlert,
-  FlaskConical,
-  HeartPulse,
-  Lock,
-  MessageCircle,
-  Pill,
-  Settings as SettingsIcon,
-  ShieldAlert,
-  Sparkles,
-  Users,
-  type LucideIcon,
-} from 'lucide-react-native';
+  a11yJoin,
+  Card,
+  Chip,
+  EmptyState,
+  formatDate,
+  formatTime,
+  Icon,
+  ListRow,
+  radii,
+  ScreenHeader,
+  SectionHeader,
+  spacing,
+  StaleNotice,
+  StatusBadge,
+  typography,
+  useTheme,
+  type IconName,
+  type Palette,
+  type Tint,
+} from '@/components/opes-ui';
 import { Screen } from '../components/ui/Screen';
-import { Card } from '../components/ui/Card';
-import { Chip } from '../components/ui/Chip';
-import { EmptyState } from '../components/ui/EmptyState';
-import { SkeletonCard } from '../components/ui/Skeleton';
-import { InlineNotice, ScreenHeader } from '../components/settings/SettingsUi';
-import { toneOf, type Tone } from '../components/ui/tone';
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotifications,
   type NotificationItem,
 } from '../lib/api/queries';
-import { colors, radii, sizing, spacing, typography } from '../theme/tokens';
+import { useUnreadNotificationCount } from '../lib/api/appConfigQueries';
+import { useIsOnline } from '../lib/offline/connectivity';
 
 /**
- * Notification Center.
+ * Notification Center — the OPES `NotificationsScreen` (MSG-001) layout on
+ * this app's data layer.
  *
- * Reference: `Mobile app screens/a_crisp_mobile_app_screenshot_of_a_notification_c.png`
- * — title + "Mark all as read", a counted filter-chip row, then Today /
- * Yesterday / Earlier groups of rows, each with a tinted rounded-square icon
- * tile, title, body, an action link and a right-hand timestamp over an
- * unread dot, closing on a privacy assurance block.
+ * Presentation: `ScreenHeader` with a "Mark all read" right action, a counted
+ * filter-chip row, Today / Yesterday / Earlier `SectionHeader` overlines, one
+ * `Card variant="flush"` of `ListRow`s per day, an unread dot in the trailing
+ * column, a `StatusBadge` on high-severity items, `StaleNotice` when offline or
+ * when a refresh fails over data already on screen, and `EmptyState`s that
+ * change copy when the emptiness is caused by the active filter.
  *
- * Everything comes from GET /mobile/notifications. Two things the API gives us
- * are deliberately NOT rendered as-is:
+ * Data: everything comes from GET /mobile/notifications. Two things the API
+ * gives us are deliberately NOT rendered as-is:
  *
  *  - **`action_url` is a web-portal path** (`/portals/patient/logs`,
  *    `/portals/patient/health-id`), not an app route. Pushing it into the
  *    router would 404, so it is mapped to the equivalent screen in this app and
- *    ignored when there is no equivalent.
+ *    ignored when there is no equivalent (`destinationFor`).
  *  - **`action_label` is hardcoded English** on the API side ("View Access
  *    Logs"), so rendering it would put English into the French app. The label
- *    is taken from this app's own translations for the resolved destination.
+ *    is taken from this app's own translations for the resolved destination and
+ *    is spoken as the row's accessibility hint.
  *
  * The demo patient currently has zero notifications, so the empty state is the
  * state most sessions will show: it is a full `EmptyState` with a real next
- * step (notification preferences), and it changes copy when the emptiness is
- * caused by the active filter rather than by having nothing at all.
+ * step (notification preferences).
  */
 
 type Category = 'all' | 'appointments' | 'health' | 'messages' | 'system';
@@ -99,39 +107,73 @@ function destinationFor(item: NotificationItem): Destination | null {
   return TYPE_ROUTES.find((entry) => type.includes(entry.match))?.destination ?? null;
 }
 
-function iconForType(type: string): LucideIcon {
+/** Kit glyph for the tint circle, by notification `type`. */
+function iconForType(type: string | null | undefined): IconName {
   const value = type?.toLowerCase() ?? '';
-  if (value.includes('emergency') || value.includes('security')) return ShieldAlert;
-  if (value.includes('health_id')) return HeartPulse;
-  if (value.includes('appointment')) return Calendar;
-  if (value.includes('lab')) return FlaskConical;
-  if (value.includes('prescription')) return Pill;
-  if (value.includes('family')) return Users;
-  if (value.includes('message')) return MessageCircle;
-  if (value.includes('tip')) return Sparkles;
-  return Bell;
+  if (value.includes('emergency') || value.includes('security')) return 'shield';
+  if (value.includes('blood')) return 'droplet';
+  if (value.includes('health_id')) return 'id-card';
+  if (value.includes('appointment') || value.includes('booking')) return 'calendar';
+  if (value.includes('lab')) return 'flask';
+  if (value.includes('prescription') || value.includes('pharmacy') || value.includes('medication')) return 'pill';
+  if (value.includes('family')) return 'users';
+  if (value.includes('message')) return 'chat';
+  if (value.includes('consent') || value.includes('access')) return 'lock';
+  if (value.includes('document')) return 'document';
+  if (value.includes('payment') || value.includes('invoice') || value.includes('billing')) return 'receipt';
+  if (value.includes('tip')) return 'bulb';
+  return 'bell';
 }
 
-function iconForCategory(category: Category): LucideIcon {
+/**
+ * Tint circle by notification `type`, per DESIGN_SPEC §1: red for critical
+ * alerts (blood / emergency / security), green for pharmacy, prescriptions,
+ * medications and labs, blue for appointments, Health ID and documents (the
+ * default), purple for messages, consultations and referrals, amber for
+ * reminders and expiries. Returns null when the type says nothing.
+ */
+function tintForType(type: string | null | undefined): Tint | null {
+  const value = type?.toLowerCase() ?? '';
+  if (value.includes('blood') || value.includes('emergency') || value.includes('security')) return 'red';
+  if (
+    value.includes('pharmacy') ||
+    value.includes('prescription') ||
+    value.includes('medication') ||
+    value.includes('lab')
+  ) {
+    return 'green';
+  }
+  if (value.includes('appointment') || value.includes('booking') || value.includes('health_id') || value.includes('document')) {
+    return 'blue';
+  }
+  if (value.includes('message') || value.includes('consult') || value.includes('referral')) return 'purple';
+  if (value.includes('reminder') || value.includes('expir') || value.includes('renew')) return 'amber';
+  return null;
+}
+
+/**
+ * `severity` is `high | medium | normal` (MobileNotificationController). A
+ * high-severity item is a critical alert whatever its type; otherwise the type
+ * decides, and a medium-severity item of unknown type reads as a warning.
+ */
+function tintFor(item: NotificationItem): Tint {
+  if (item.severity === 'high') return 'red';
+  return tintForType(item.type) ?? (item.severity === 'medium' ? 'amber' : 'blue');
+}
+
+function iconForCategory(category: Category): IconName {
   switch (category) {
     case 'appointments':
-      return Calendar;
+      return 'calendar';
     case 'health':
-      return HeartPulse;
+      return 'heart-pulse';
     case 'messages':
-      return MessageCircle;
+      return 'chat';
     case 'system':
-      return SettingsIcon;
+      return 'settings';
     default:
-      return Bell;
+      return 'bell';
   }
-}
-
-/** `severity` is `high | medium | normal` (MobileNotificationController). */
-function toneForSeverity(severity: string): Tone {
-  if (severity === 'high') return 'danger';
-  if (severity === 'medium') return 'warning';
-  return 'gold';
 }
 
 function isSameDay(a: Date, b: Date): boolean {
@@ -142,39 +184,41 @@ function isSameDay(a: Date, b: Date): boolean {
 
 type SectionKey = 'today' | 'yesterday' | 'earlier';
 
-function timestampLabel(
-  iso: string | null,
-  sectionKey: SectionKey,
-  sectionLabel: string,
-  locale: string,
-): string {
+const SECTION_LABEL_KEY: Record<SectionKey, string> = {
+  today: 'notifications.sectionToday',
+  yesterday: 'notifications.sectionYesterday',
+  earlier: 'notifications.sectionEarlier',
+};
+
+/**
+ * Trailing timestamp. Rows already sit under a "TODAY" / "YESTERDAY" overline,
+ * so those show the clock only; older rows show the date. Both come from the
+ * kit formatters, so they read exactly as the web portal prints them.
+ */
+function whenLabel(iso: string | null, sectionKey: SectionKey): string {
   if (!iso) return '';
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
-  const time = date.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
-  if (sectionKey === 'today') return time;
-  if (sectionKey === 'yesterday') return `${sectionLabel}, ${time}`;
-  return date.toLocaleString(locale, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  return sectionKey === 'earlier' ? formatDate(date) : formatTime(date);
 }
 
 export default function NotificationsScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
-  const locale = i18n.language?.startsWith('fr') ? 'fr-FR' : 'en-US';
+  const { colors, statusMap, tintMap } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const isOnline = useIsOnline();
   const [filter, setFilter] = useState<Category>('all');
 
-  const { data, isLoading, isError, refetch, isRefetching } = useNotifications();
+  const { data, isLoading, isError, refetch, isRefetching, dataUpdatedAt } = useNotifications();
+  // The lightweight badge count keeps the header subtitle honest while the
+  // full list is still loading; once the list is here it is the source of truth.
+  const badgeCount = useUnreadNotificationCount();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
   const items = data?.data ?? [];
-  const unreadCount = data?.unread_count ?? 0;
+  const unreadCount = data ? (data.unread_count ?? 0) : badgeCount;
 
   const counts = useMemo(() => {
     const base: Record<Category, number> = {
@@ -194,12 +238,6 @@ export default function NotificationsScreen() {
     () => (filter === 'all' ? items : items.filter((n) => n.category === filter)),
     [items, filter],
   );
-
-  const sectionLabels: Record<SectionKey, string> = {
-    today: t('notifications.sectionToday'),
-    yesterday: t('notifications.sectionYesterday'),
-    earlier: t('notifications.sectionEarlier'),
-  };
 
   const groups = useMemo(() => {
     const now = new Date();
@@ -225,8 +263,8 @@ export default function NotificationsScreen() {
     // already arrive newest-first from the API within each bucket.
     return (['today', 'yesterday', 'earlier'] as const)
       .filter((key) => byKey.has(key))
-      .map((key) => ({ key, label: sectionLabels[key], items: byKey.get(key)! }));
-  }, [filtered, sectionLabels.today, sectionLabels.yesterday, sectionLabels.earlier]);
+      .map((key) => ({ key, items: byKey.get(key)! }));
+  }, [filtered]);
 
   const chips: { key: Category; label: string }[] = [
     { key: 'all', label: t('notifications.filterAll') },
@@ -236,91 +274,78 @@ export default function NotificationsScreen() {
     { key: 'system', label: t('notifications.filterSystem') },
   ];
 
-  const handlePress = (item: NotificationItem, destination: Destination | null) => {
-    if (!item.read) markRead.mutate(item.id);
-    if (destination) router.push(destination.route);
-  };
+  const handlePress = useCallback(
+    (item: NotificationItem, destination: Destination | null) => {
+      if (!item.read) markRead.mutate(item.id);
+      if (destination) router.push(destination.route);
+    },
+    [markRead, router],
+  );
+
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)/home');
+  }, [router]);
 
   const canMarkAll = unreadCount > 0 && !markAllRead.isPending;
+  const markAllLabel = t('opesMessaging.notifications.markAllRead');
+
+  // A failed refresh over data already on screen — or no connection at all —
+  // must say so, otherwise the previous payload is indistinguishable from fresh.
+  const loadedAt = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
+  const showStale = !!data && (isError || !isOnline);
+  const staleMessage = !isOnline ? t('offline.statusOffline') : t('notifications.errorBody');
+
+  const unreadA11y = t('notifications.unread', { defaultValue: 'Unread' });
+  const importantLabel = t('notifications.important');
 
   return (
     <Screen className="px-0">
+      <ScreenHeader
+        title={t('opesMessaging.notifications.title')}
+        subtitle={
+          unreadCount > 0
+            ? t('opesMessaging.notifications.subtitleUnread', { count: unreadCount })
+            : t('opesMessaging.notifications.subtitleNone')
+        }
+        onBack={goBack}
+        right={
+          <TouchableOpacity
+            onPress={() => markAllRead.mutate()}
+            disabled={!canMarkAll}
+            hitSlop={8}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={markAllLabel}
+            accessibilityState={{ disabled: !canMarkAll, busy: markAllRead.isPending }}
+            style={styles.headerAction}
+          >
+            <Icon name="check-double" size={16} color={canMarkAll ? colors.link : colors.textMuted} />
+            <Text style={[styles.headerActionText, !canMarkAll && styles.headerActionOff]}>
+              {markAllLabel}
+            </Text>
+          </TouchableOpacity>
+        }
+      />
+
       <ScrollView
-        className="flex-1"
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: spacing['4xl'] }}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
-            onRefresh={refetch}
-            tintColor={colors.brand[500]}
+            onRefresh={() => refetch()}
+            tintColor={colors.blue}
+            colors={[colors.blue]}
           />
         }
       >
-        <View style={{ paddingHorizontal: spacing['2xl'] }}>
-          <ScreenHeader
-            title={t('notifications.title')}
-            subtitle={t('notifications.subtitle')}
-            onBack={() => router.back()}
-            action={
-              <Pressable
-                onPress={() => markAllRead.mutate()}
-                disabled={!canMarkAll}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !canMarkAll }}
-                accessibilityLabel={t('notifications.markAllRead')}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  opacity: !canMarkAll ? 0.4 : pressed ? 0.6 : 1,
-                })}
-              >
-                <Text
-                  style={{
-                    fontSize: typography.size.sm,
-                    fontWeight: typography.weight.semibold,
-                    color: colors.semantic.success,
-                  }}
-                >
-                  {t('notifications.markAllRead')}
-                </Text>
-                <CheckCheck
-                  color={colors.semantic.success}
-                  size={sizing.icon.sm}
-                  style={{ marginLeft: 5 }}
-                />
-              </Pressable>
-            }
-          />
-
-          {unreadCount > 0 ? (
-            <View style={{ marginTop: spacing.md, flexDirection: 'row' }}>
-              <Chip
-                label={t('notifications.unreadCount', { count: unreadCount })}
-                tone="gold"
-                variant="soft"
-                icon={Bell}
-              />
-            </View>
-          ) : null}
-
-          {markAllRead.isError ? (
-            <InlineNotice
-              className="mt-3"
-              tone="danger"
-              icon={CircleAlert}
-              body={t('notifications.markAllError')}
-            />
-          ) : null}
-        </View>
-
-        {/* Counted filter row — the reference's "All (7) · Appointments (2) …" */}
+        {/* Counted filter row — "All 7 · Appointments 2 …" */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          className="mt-5 flex-grow-0"
-          contentContainerStyle={{ paddingHorizontal: spacing['2xl'], gap: spacing.sm }}
+          style={styles.chipsScroll}
+          contentContainerStyle={styles.chips}
         >
           {chips.map((chip) => (
             <Chip
@@ -328,240 +353,232 @@ export default function NotificationsScreen() {
               label={chip.label}
               count={counts[chip.key]}
               icon={iconForCategory(chip.key)}
-              size="md"
-              variant="outline"
-              tone="gold"
               selected={filter === chip.key}
               onPress={() => setFilter(chip.key)}
             />
           ))}
         </ScrollView>
 
-        <View style={{ paddingHorizontal: spacing['2xl'], marginTop: spacing.xl }}>
-          {isLoading ? (
-            <View style={{ gap: spacing.lg }}>
-              <SkeletonCard rows={3} />
-              <SkeletonCard rows={2} />
-            </View>
-          ) : isError ? (
-            <Card padding="none">
-              <EmptyState
-                compact
-                tone="danger"
-                icon={CircleAlert}
-                title={t('notifications.errorTitle')}
-                description={t('notifications.errorBody')}
-                actionLabel={t('notifications.retry')}
-                onAction={() => refetch()}
-              />
-            </Card>
-          ) : filtered.length === 0 ? (
-            <Card padding="none">
-              <EmptyState
-                icon={filter === 'all' ? BellOff : iconForCategory(filter)}
-                title={
-                  filter === 'all'
-                    ? t('notifications.emptyTitle')
-                    : t('notifications.emptyFilteredTitle')
-                }
-                description={
-                  filter === 'all'
-                    ? t('notifications.emptySubtitle')
-                    : t('notifications.emptyFilteredSubtitle')
-                }
-                actionLabel={
-                  filter === 'all'
-                    ? t('notifications.emptyAction')
-                    : t('notifications.emptyFilteredAction')
-                }
-                onAction={() =>
-                  filter === 'all' ? router.push('/settings') : setFilter('all')
-                }
-              />
-            </Card>
-          ) : (
-            <>
-              {groups.map((group) => (
-                <View key={group.key} style={{ marginBottom: spacing.xl }}>
-                  <Text
-                    style={{
-                      marginBottom: spacing.md,
-                      fontSize: typography.size.xs,
-                      lineHeight: typography.lineHeight.xs,
-                      fontWeight: typography.weight.bold,
-                      letterSpacing: typography.tracking.overline,
-                      textTransform: 'uppercase',
-                      color: colors.brand[600],
-                    }}
-                  >
-                    {group.label}
-                  </Text>
+        {showStale ? (
+          <StaleNotice
+            message={staleMessage}
+            loadedAt={loadedAt}
+            onRetry={() => refetch()}
+            retrying={isRefetching}
+          />
+        ) : null}
 
-                  <Card padding="none">
-                    {group.items.map((item, index) => (
-                      <NotificationRow
+        {markAllRead.isError ? (
+          <View
+            style={[styles.notice, { backgroundColor: statusMap.critical.bg }]}
+            accessibilityRole="alert"
+            accessibilityLiveRegion="assertive"
+          >
+            <Icon name="alert-circle" size={18} color={statusMap.critical.fg} />
+            <Text style={[styles.noticeText, { color: statusMap.critical.fg }]}>
+              {t('opesMessaging.notifications.markAllFailed')}
+            </Text>
+          </View>
+        ) : null}
+
+        {isLoading ? (
+          <View style={styles.loading} accessibilityLiveRegion="polite">
+            <ActivityIndicator color={colors.blue} />
+            <Text style={styles.loadingText}>{t('opesMessaging.notifications.loading')}</Text>
+          </View>
+        ) : isError && !data ? (
+          <EmptyState
+            icon="alert-circle"
+            tint="red"
+            title={t('notifications.errorTitle')}
+            message={t('notifications.errorBody')}
+            actionLabel={t('notifications.retry')}
+            onAction={() => refetch()}
+          />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={filter === 'all' ? 'bell-off' : iconForCategory(filter)}
+            tint="blue"
+            title={
+              filter === 'all'
+                ? t('opesMessaging.notifications.emptyTitle')
+                : t('notifications.emptyFilteredTitle')
+            }
+            message={
+              filter === 'all'
+                ? t('opesMessaging.notifications.emptyMessage')
+                : t('notifications.emptyFilteredSubtitle')
+            }
+            actionLabel={
+              filter === 'all' ? t('notifications.emptyAction') : t('notifications.emptyFilteredAction')
+            }
+            onAction={() => (filter === 'all' ? router.push('/settings') : setFilter('all'))}
+          />
+        ) : (
+          <>
+            {groups.map((group) => (
+              <View key={group.key}>
+                <SectionHeader title={t(SECTION_LABEL_KEY[group.key])} variant="overline" />
+                <Card variant="flush">
+                  {group.items.map((item, index) => {
+                    const destination = destinationFor(item);
+                    const when = whenLabel(item.created_at, group.key);
+                    const important = item.severity === 'high';
+                    const actionLabel = destination ? t(destination.labelKey) : undefined;
+                    return (
+                      <ListRow
                         key={item.id}
-                        item={item}
-                        timestamp={timestampLabel(item.created_at, group.key, group.label, locale)}
-                        destination={destinationFor(item)}
+                        icon={iconForType(item.type)}
+                        tint={tintFor(item)}
+                        title={item.title}
+                        subtitle={item.message || actionLabel}
                         divider={index < group.items.length - 1}
-                        onPress={handlePress}
-                        importantLabel={t('notifications.important')}
-                        actionLabelFor={(labelKey) => t(labelKey)}
+                        chevron={!!destination}
+                        onPress={() => handlePress(item, destination)}
+                        accessibilityLabel={a11yJoin(
+                          !item.read && unreadA11y,
+                          important && importantLabel,
+                          item.title,
+                          item.message,
+                          when,
+                        )}
+                        accessibilityHint={actionLabel}
+                        trailing={
+                          <View style={styles.trailing}>
+                            {important ? (
+                              <StatusBadge
+                                status="high"
+                                tone="critical"
+                                size="sm"
+                                icon="alert-triangle"
+                                label={importantLabel}
+                              />
+                            ) : null}
+                            <View style={styles.whenRow}>
+                              {when ? (
+                                <Text
+                                  style={[styles.when, !item.read && styles.whenUnread]}
+                                  numberOfLines={1}
+                                >
+                                  {when}
+                                </Text>
+                              ) : null}
+                              {!item.read ? <View style={styles.dot} /> : null}
+                            </View>
+                          </View>
+                        }
                       />
-                    ))}
-                  </Card>
-                </View>
-              ))}
+                    );
+                  })}
+                </Card>
+              </View>
+            ))}
 
-              <InlineNotice
-                tone="gold"
-                icon={Lock}
-                title={t('notifications.privacyTitle')}
-                body={t('notifications.privacySubtitle')}
-              />
-            </>
-          )}
-        </View>
+            {/* Privacy assurance — the reference closes the list on this. */}
+            <Card>
+              <View style={styles.privacy}>
+                <View style={[styles.privacyCircle, { backgroundColor: tintMap.blue.bg }]}>
+                  <Icon name="lock" size={20} color={tintMap.blue.fg} />
+                </View>
+                <View style={styles.privacyBody}>
+                  <Text style={styles.privacyTitle}>{t('notifications.privacyTitle')}</Text>
+                  <Text style={styles.privacyText}>{t('notifications.privacySubtitle')}</Text>
+                </View>
+              </View>
+            </Card>
+          </>
+        )}
       </ScrollView>
     </Screen>
   );
 }
 
-/**
- * One notification. Bespoke rather than a `ListRow` because the reference puts
- * the timestamp at the *top* right, level with the title, and lets the body
- * run full width beneath it — a shape `ListRow`'s right-hand value/meta column
- * cannot express.
- */
-function NotificationRow({
-  item,
-  timestamp,
-  destination,
-  divider,
-  onPress,
-  importantLabel,
-  actionLabelFor,
-}: {
-  item: NotificationItem;
-  timestamp: string;
-  destination: Destination | null;
-  divider: boolean;
-  onPress: (item: NotificationItem, destination: Destination | null) => void;
-  importantLabel: string;
-  actionLabelFor: (labelKey: string) => string;
-}) {
-  const Icon = iconForType(item.type);
-  const palette = toneOf(toneForSeverity(item.severity));
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    content: {
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.xxl,
+      gap: spacing.md,
+    },
 
-  return (
-    <Pressable
-      onPress={() => onPress(item, destination)}
-      accessibilityRole="button"
-      accessibilityLabel={item.title}
-      style={({ pressed }) => ({
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.lg,
-        borderBottomWidth: divider ? sizing.hairline : 0,
-        borderBottomColor: colors.line.subtle,
-        backgroundColor: pressed ? colors.surface.scrim : 'transparent',
-      })}
-    >
-      <View
-        style={{
-          width: sizing.tile.lg,
-          height: sizing.tile.lg,
-          borderRadius: radii.tile,
-          backgroundColor: palette.surface,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Icon color={palette.fg} size={sizing.icon.xl} />
-      </View>
+    headerAction: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      minHeight: 40,
+    },
+    headerActionText: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.link,
+    },
+    headerActionOff: { color: colors.textMuted },
 
-      <View style={{ flex: 1, marginLeft: spacing.md }}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-          <Text
-            style={{
-              flex: 1,
-              paddingRight: spacing.sm,
-              fontSize: typography.size.md,
-              lineHeight: typography.lineHeight.md,
-              fontWeight: item.read ? typography.weight.semibold : typography.weight.bold,
-              color: colors.navy.text,
-            }}
-          >
-            {item.title}
-          </Text>
-          {timestamp ? (
-            <Text
-              numberOfLines={1}
-              style={{
-                fontSize: typography.size.xs,
-                lineHeight: typography.lineHeight.xs,
-                color: colors.navy.muted,
-              }}
-            >
-              {timestamp}
-            </Text>
-          ) : null}
-          <View
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: radii.pill,
-              marginLeft: spacing.sm,
-              marginTop: 5,
-              backgroundColor: item.read ? colors.cream[300] : colors.brand[500],
-            }}
-          />
-        </View>
+    // Bleeds to the screen edges so the chips scroll under the gutter.
+    chipsScroll: { flexGrow: 0, marginHorizontal: -spacing.md },
+    chips: { paddingHorizontal: spacing.md, gap: spacing.sm },
 
-        {item.message ? (
-          <Text
-            style={{
-              marginTop: 3,
-              fontSize: typography.size.sm,
-              lineHeight: typography.lineHeight.sm,
-              color: colors.navy.secondary,
-            }}
-          >
-            {item.message}
-          </Text>
-        ) : null}
+    notice: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      padding: spacing.md - 2,
+      borderRadius: radii.md,
+    },
+    noticeText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+    },
 
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: spacing.sm,
-            marginTop: destination || item.severity === 'high' ? spacing.sm : 0,
-          }}
-        >
-          {item.severity === 'high' ? (
-            <Chip label={importantLabel} tone="danger" icon={ShieldAlert} />
-          ) : null}
+    loading: {
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.xl,
+    },
+    loadingText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
 
-          {destination ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text
-                style={{
-                  fontSize: typography.size.sm,
-                  fontWeight: typography.weight.semibold,
-                  color: colors.brand[600],
-                }}
-              >
-                {actionLabelFor(destination.labelKey)}
-              </Text>
-              <ChevronRight color={colors.brand[600]} size={sizing.icon.sm} />
-            </View>
-          ) : null}
-        </View>
-      </View>
-    </Pressable>
-  );
-}
+    trailing: { alignItems: 'flex-end', gap: spacing.xs },
+    whenRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    when: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+    },
+    whenUnread: {
+      fontFamily: typography.fontFamily.semiBold,
+      color: colors.link,
+    },
+    dot: {
+      width: spacing.sm,
+      height: spacing.sm,
+      borderRadius: radii.pill,
+      backgroundColor: colors.badge,
+    },
+
+    privacy: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+    privacyCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    privacyBody: { flex: 1, minWidth: 0, gap: 2 },
+    privacyTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    privacyText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+  });

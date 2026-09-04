@@ -1,46 +1,37 @@
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { Screen } from '@/components/ui/Screen';
 import {
-  Award,
-  BadgeCheck,
-  Building2,
-  CalendarPlus,
-  CheckCircle2,
-  ChevronRight,
-  Clock,
-  Info,
-  MapPin,
-  MessageSquare,
-  RefreshCw,
-  ScrollText,
-  SearchX,
-  Stethoscope,
-} from 'lucide-react-native';
-import { Screen } from '../../components/ui/Screen';
-import { Button } from '../../components/ui/Button';
-import {
-  Callout,
-  GhostButton,
-  IconTile,
-  MetaRow,
+  Card,
+  EmptyState,
+  GradientButton,
+  Icon,
+  ListRow,
   ScreenHeader,
-  SectionLabel,
-  StateHeading,
-} from '../../components/clinical/CareUi';
-import { colors } from '../../theme/tokens';
+  SectionHeader,
+  StatusBadge,
+  formatDate,
+  formatTime,
+  radii,
+  spacing,
+  typography,
+  useTheme,
+  type IconName,
+  type Palette,
+} from '@/components/opes-ui';
+import { CareButton, InfoRow, ProviderAvatar } from '@/components/care/shared';
 import {
   useProviderDetail,
   useStartMessageThread,
-  type AppointmentSlotOption,
   type ProviderDetail,
-} from '../../lib/api/queries';
+} from '@/lib/api/queries';
 
 /**
- * Clinician profile — the person behind a slot.
+ * Clinician profile — the person behind a slot. OPES CARE-004 layout
+ * (ProviderProfileScreen) on top of the app's own data layer.
  *
  * Reachable from the facility page (app/facility/[id].tsx) and from the booking
  * flow's doctor step. Two primary actions:
@@ -55,22 +46,14 @@ import {
  *
  * ── What this screen may and may not show ─────────────────────────────────
  * `staff_profiles` has no bio and no photo column, and there is no rating,
- * review count or years-of-experience anywhere in the schema (verified against
- * the migrations and MobileProviderController). The reference clinician card
- * carries all of those; this screen deliberately does NOT invent them. The
- * credibility signals here are the ones the API actually returns: job title,
- * department, facility affiliation, employment type, active licences and
- * credentials, and live open-slot availability. The avatar is a monogram
- * because there is no image to load.
+ * review count, consultation fee or years-of-experience anywhere in the schema
+ * (verified against the migrations and MobileProviderController). The OPES
+ * reference carries all of those; this screen deliberately does NOT invent
+ * them. The credibility signals here are the ones the API actually returns:
+ * job title, department, facility affiliation, employment type, active
+ * licences and credentials, and live open-slot availability. The avatar is a
+ * monogram because there is no image to load.
  */
-
-/** Two-letter monogram — the schema stores no provider photo. */
-function providerInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '—';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 /** provider_credentials.credential_type is a fixed DB enum — map it, never print it raw. */
 const CREDENTIAL_KEYS: Record<string, string> = {
@@ -100,19 +83,31 @@ const EMPLOYMENT_KEYS: Record<string, string> = {
   locum: 'doctor.employmentLocum',
 };
 
-function slotParts(slot: AppointmentSlotOption, locale: string) {
-  const localeTag = locale === 'fr' ? 'fr-FR' : 'en-US';
-  const date = new Date(slot.starts_at);
-  if (Number.isNaN(date.getTime())) return null;
-  return {
-    day: date.toLocaleDateString(localeTag, { weekday: 'short', day: 'numeric', month: 'short' }),
-    time: date.toLocaleTimeString(localeTag, { hour: '2-digit', minute: '2-digit' }),
-  };
+/** Open slots listed inline before the section defers to the booking flow. */
+const MAX_INLINE_SLOTS = 6;
+
+/** "Mon, 7 Sep" / "lun. 7 sept." in the active language; kit date as fallback. */
+function slotDay(iso: string, language: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  try {
+    return new Intl.DateTimeFormat(language.toLowerCase().startsWith('fr') ? 'fr-FR' : 'en-US', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    }).format(date);
+  } catch {
+    return formatDate(date);
+  }
 }
+
+type InfoLine = { icon: IconName; label: string; value: string; valueColor?: string };
 
 export default function DoctorDetailScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const params = useLocalSearchParams<{ id?: string }>();
   const providerId = params.id;
 
@@ -137,6 +132,8 @@ export default function DoctorDetailScreen() {
       params: { facilityId: p.care_facility_id, providerId: p.id },
     });
 
+  const goToFacility = (p: ProviderDetail) => router.push(`/facility/${p.care_facility_id}`);
+
   const submitMessage = async (appointmentId: string) => {
     const body = composeBody.trim();
     if (!body || startThread.isPending) return;
@@ -156,13 +153,16 @@ export default function DoctorDetailScreen() {
     return key ? t(key) : value;
   };
 
+  const headerTitle = t('opesCare.providerProfile.title');
+
   // ── Loading ───────────────────────────────────────────────────────────────
   if (providerQuery.isLoading) {
     return (
       <Screen className="px-0">
-        <ScreenHeader title={t('doctor.title')} onBack={() => router.back()} />
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={colors.brand[500]} size="large" />
+        <ScreenHeader title={headerTitle} />
+        <View style={styles.center} accessibilityLiveRegion="polite">
+          <ActivityIndicator color={colors.primary} size="large" />
+          <Text style={styles.loadingText}>{t('opesCare.providerProfile.loading')}</Text>
         </View>
       </Screen>
     );
@@ -175,29 +175,27 @@ export default function DoctorDetailScreen() {
   if (providerQuery.isError || !provider) {
     return (
       <Screen className="px-0">
-        <ScreenHeader title={t('doctor.title')} onBack={() => router.back()} />
-        <View className="flex-1 justify-center px-8">
-          <StateHeading
-            icon={isNotFound ? SearchX : Stethoscope}
-            tone={isNotFound ? 'neutral' : 'danger'}
-            title={isNotFound ? t('doctor.notFound') : t('doctor.loadErrorTitle')}
-            body={isNotFound ? t('doctor.notFoundBody') : t('doctor.loadError')}
-          />
-          <View className="mt-7 gap-3">
-            {isNotFound ? (
-              <GhostButton
-                label={t('doctor.findAnotherClinician')}
-                icon={Building2}
-                onPress={() => router.push('/care-map')}
-              />
-            ) : (
-              <GhostButton
-                label={t('doctor.retry')}
-                icon={RefreshCw}
-                onPress={() => providerQuery.refetch()}
-              />
-            )}
-          </View>
+        <ScreenHeader title={headerTitle} />
+        <View style={styles.center}>
+          {isNotFound ? (
+            <EmptyState
+              icon="person-search"
+              tint="blue"
+              title={t('doctor.notFound')}
+              message={t('doctor.notFoundBody')}
+              actionLabel={t('doctor.findAnotherClinician')}
+              onAction={() => router.push('/care-map')}
+            />
+          ) : (
+            <EmptyState
+              icon="alert-circle"
+              tint="red"
+              title={t('doctor.loadErrorTitle')}
+              message={t('doctor.loadError')}
+              actionLabel={t('doctor.retry')}
+              onAction={() => providerQuery.refetch()}
+            />
+          )}
         </View>
       </Screen>
     );
@@ -214,365 +212,388 @@ export default function DoctorDetailScreen() {
         ? t(EMPLOYMENT_KEYS[provider.employment_type])
         : provider.employment_type)
     : null;
+  const profession = professionLabel(provider.profession);
+  const inlineSlots = provider.next_slots.slice(0, MAX_INLINE_SLOTS);
 
-  const stats: { label: string; value: string }[] = [];
-  if (provider.department) stats.push({ label: t('doctor.statDepartment'), value: provider.department });
-  if (employmentLabel) stats.push({ label: t('doctor.statEngagement'), value: employmentLabel });
-  stats.push({
+  // Every line is a field the API really returns.
+  const infoLines: InfoLine[] = [];
+  if (profession) {
+    infoLines.push({
+      icon: 'stethoscope',
+      label: t('doctor.statProfession', { defaultValue: 'Profession' }),
+      value: profession,
+    });
+  }
+  if (provider.department) {
+    infoLines.push({ icon: 'grid', label: t('doctor.statDepartment'), value: provider.department });
+  }
+  if (employmentLabel) {
+    infoLines.push({ icon: 'id-card', label: t('doctor.statEngagement'), value: employmentLabel });
+  }
+  infoLines.push({
+    icon: 'calendar-check',
     label: t('doctor.statOpenSlots'),
     value: isAccepting ? String(openSlots) : t('doctor.statNone'),
+    valueColor: isAccepting ? colors.statusNormal : colors.textMuted,
   });
+
+  // With an appointment on file the composer opens; without one the tap goes
+  // where the explanation card below sends it — booking.
+  const onMessagePress = () => {
+    if (provider.messaging_appointment_id) setComposeOpen((open) => !open);
+    else goToBooking(provider);
+  };
 
   return (
     <Screen className="px-0">
-      <ScreenHeader title={provider.name} onBack={() => router.back()} />
+      <ScreenHeader title={headerTitle} subtitle={t('opesCare.providerProfile.subtitle')} />
 
-      <ScrollView className="flex-1 px-6 pt-4" contentContainerStyle={{ paddingBottom: 48 }}>
-        {/* ── Credential card ───────────────────────────────────────────────
-            Avatar left, identity stack right, metadata as icon rows — the
-            clinician-card treatment from the booking reference. */}
-        <View className="overflow-hidden rounded-2xl bg-white">
-          <LinearGradient
-            // className does not apply to LinearGradient (no cssInterop is
-            // registered for it), so every value here must be inline style.
-            colors={[colors.brand[50], colors.white]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 18 }}
-          >
-            <View className="flex-row">
-              <View>
-                <LinearGradient
-                  colors={[colors.brand[300], colors.brand[600]]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={{
-                    width: 76,
-                    height: 76,
-                    borderRadius: 38,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <View
-                    className="items-center justify-center rounded-full bg-white"
-                    style={{ width: 68, height: 68 }}
-                  >
-                    <Text className="text-xl font-extrabold text-brand-600">
-                      {providerInitials(provider.name)}
-                    </Text>
-                  </View>
-                </LinearGradient>
-                {/* Availability is derived from live open slots, not invented. */}
-                <View
-                  className="absolute h-5 w-5 items-center justify-center rounded-full border-2 border-white"
-                  style={{
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: isAccepting
-                      ? colors.semantic.success
-                      : colors.navy.muted,
-                  }}
-                >
-                  <View className="h-1.5 w-1.5 rounded-full bg-white" />
-                </View>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        {/* ── Profile hero ──────────────────────────────────────────────────
+            Avatar left, identity stack right, facility / city as icon rows,
+            honest status badges, then the secondary actions. */}
+        <Card>
+          <View style={styles.identity}>
+            <ProviderAvatar name={provider.name} size={78} />
+            <View style={styles.identityBody}>
+              <View style={styles.nameRow}>
+                <Text style={styles.name} numberOfLines={2} accessibilityRole="header">
+                  {provider.name}
+                </Text>
+                {isVerified ? <Icon name="check-circle" size={18} color={colors.primary} /> : null}
               </View>
-
-              <View className="ml-4 flex-1 justify-center">
-                <View className="flex-row items-center">
-                  <Text
-                    className="shrink text-xl font-extrabold text-navy-text"
-                    numberOfLines={2}
-                  >
-                    {provider.name}
-                  </Text>
-                  {isVerified ? (
-                    <BadgeCheck
-                      size={17}
-                      color={colors.brand[600]}
-                      style={{ marginLeft: 6, marginTop: 2 }}
-                    />
-                  ) : null}
-                </View>
-                {provider.job_title ? (
-                  <Text className="mt-0.5 text-sm font-bold text-brand-600">
-                    {provider.job_title}
-                  </Text>
-                ) : null}
-                <MetaRow icon={Building2}>{provider.facility_name}</MetaRow>
-                {provider.city ? <MetaRow icon={MapPin}>{provider.city}</MetaRow> : null}
-              </View>
-            </View>
-
-            <View className="mt-4 flex-row flex-wrap items-center gap-2">
-              <View
-                className="flex-row items-center rounded-full px-3 py-1"
-                style={{
-                  backgroundColor: isAccepting
-                    ? colors.semantic.successSurface
-                    : colors.cream[200],
-                }}
-              >
-                <View
-                  className="mr-1.5 h-1.5 w-1.5 rounded-full"
-                  style={{
-                    backgroundColor: isAccepting
-                      ? colors.semantic.success
-                      : colors.navy.muted,
-                  }}
-                />
-                <Text
-                  className="text-[11px] font-bold"
-                  style={{
-                    color: isAccepting ? colors.semantic.success : colors.navy.secondary,
-                  }}
-                >
-                  {isAccepting ? t('doctor.accepting') : t('doctor.notAccepting')}
+              {provider.job_title ? <Text style={styles.jobTitle}>{provider.job_title}</Text> : null}
+              <View style={styles.metaRow}>
+                <Icon name="building" size={16} color={colors.textSecondary} />
+                <Text style={styles.meta} numberOfLines={1}>
+                  {provider.facility_name}
                 </Text>
               </View>
-              {professionLabel(provider.profession) ? (
-                <View className="flex-row items-center rounded-full bg-cream-200 px-3 py-1">
-                  <Stethoscope size={11} color={colors.navy.secondary} />
-                  <Text className="ml-1.5 text-[11px] font-bold text-navy-secondary">
-                    {professionLabel(provider.profession)}
+              {provider.city ? (
+                <View style={styles.metaRow}>
+                  <Icon name="location" size={16} color={colors.textSecondary} />
+                  <Text style={styles.meta} numberOfLines={1}>
+                    {provider.city}
                   </Text>
                 </View>
               ) : null}
             </View>
-          </LinearGradient>
-
-          {/* Stat strip — every column is a field the API really returns. */}
-          <View
-            className="flex-row"
-            style={{ borderTopWidth: 1, borderTopColor: colors.cream[300] }}
-          >
-            {stats.map((stat, index) => (
-              <View
-                key={stat.label}
-                className="flex-1 items-center px-2 py-3"
-                style={
-                  index > 0
-                    ? { borderLeftWidth: 1, borderLeftColor: colors.cream[300] }
-                    : undefined
-                }
-              >
-                <Text
-                  className="text-center text-sm font-extrabold text-navy-text"
-                  numberOfLines={1}
-                >
-                  {stat.value}
-                </Text>
-                <Text className="mt-0.5 text-center text-[10px] font-semibold uppercase text-navy-muted">
-                  {stat.label}
-                </Text>
-              </View>
-            ))}
           </View>
-        </View>
 
-        {/* ── Primary action, straight under the credential card ───────────── */}
-        <View className="mt-5">
-          <Button
-            label={t('doctor.bookAppointment')}
-            leftIcon={CalendarPlus}
-            onPress={() => goToBooking(provider)}
-          />
-        </View>
+          <View style={styles.badges}>
+            {/* Availability is derived from live open slots, not invented. */}
+            <StatusBadge
+              status={isAccepting ? 'active' : 'neutral'}
+              tone={isAccepting ? 'normal' : 'neutral'}
+              icon={isAccepting ? 'calendar-check' : 'clock'}
+              label={isAccepting ? t('doctor.accepting') : t('doctor.notAccepting')}
+              size="sm"
+            />
+            {isVerified ? (
+              <StatusBadge
+                status="verified"
+                icon="shield-check"
+                label={t('opesCore.common.verified')}
+                size="sm"
+              />
+            ) : null}
+          </View>
 
-        {/* ── Next available slots ─────────────────────────────────────────── */}
-        <SectionLabel
-          title={t('doctor.nextSlotsTitle')}
-          hint={isAccepting ? t('doctor.nextSlotsHint') : undefined}
+          <View style={styles.actions}>
+            <CareButton
+              label={t('doctor.message')}
+              icon="chat"
+              variant="secondary"
+              size="sm"
+              style={styles.actionButton}
+              onPress={onMessagePress}
+            />
+            <CareButton
+              label={t('opesCare.providerProfile.facility')}
+              icon="building"
+              variant="secondary"
+              size="sm"
+              style={styles.actionButton}
+              onPress={() => goToFacility(provider)}
+            />
+          </View>
+        </Card>
+
+        {/* ── Primary action, straight under the hero ──────────────────────── */}
+        <GradientButton
+          label={t('doctor.bookAppointment')}
+          onPress={() => goToBooking(provider)}
+          accessibilityHint={t('doctor.nextSlotsHint')}
         />
-        {!isAccepting ? (
-          <View className="flex-row items-start rounded-2xl bg-white p-4">
-            <IconTile icon={Clock} tone="neutral" />
-            <View className="ml-3 flex-1">
-              <Text className="text-sm font-bold text-navy-text">{t('doctor.noSlots')}</Text>
-              <Text className="mt-1 text-xs leading-5 text-navy-secondary">
-                {t('doctor.noSlotsBody')}
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <View className="flex-row flex-wrap gap-2">
-            {provider.next_slots.map((slot) => {
-              const parts = slotParts(slot, i18n.language);
-              if (!parts) return null;
-              return (
-                <Pressable
+
+        {/* ── Professional information ─────────────────────────────────────── */}
+        <View>
+          <SectionHeader
+            title={t('opesCare.providerProfile.professionalInformation')}
+            variant="overline"
+          />
+          <Card variant="flush">
+            {infoLines.map((line, index) => (
+              <InfoRow
+                key={line.label}
+                icon={line.icon}
+                label={line.label}
+                value={line.value}
+                valueColor={line.valueColor}
+                divider={index < infoLines.length - 1}
+              />
+            ))}
+          </Card>
+        </View>
+
+        {/* ── Availability ─────────────────────────────────────────────────── */}
+        <View>
+          <SectionHeader
+            title={t('doctor.nextSlotsTitle')}
+            variant="overline"
+            actionLabel={isAccepting ? t('opesCare.providerProfile.viewAvailableTimes') : undefined}
+            onAction={isAccepting ? () => goToBooking(provider) : undefined}
+            actionChevron
+          />
+          {isAccepting ? <Text style={styles.hint}>{t('doctor.nextSlotsHint')}</Text> : null}
+          <Card variant="flush">
+            {isAccepting ? (
+              inlineSlots.map((slot, index) => (
+                <ListRow
                   key={slot.id}
+                  icon="clock"
+                  tint="blue"
+                  title={`${formatTime(slot.starts_at)} – ${formatTime(slot.ends_at)}`}
+                  subtitle={slotDay(slot.starts_at, i18n.language)}
                   onPress={() => goToBooking(provider)}
-                  accessibilityRole="button"
-                  className="rounded-xl border bg-white px-3 py-2"
-                  style={{ borderColor: colors.cream[300] }}
-                >
-                  <Text className="text-[10px] font-semibold uppercase text-navy-muted">
-                    {parts.day}
-                  </Text>
-                  <View className="mt-0.5 flex-row items-center">
-                    <Clock size={12} color={colors.brand[600]} />
-                    <Text className="ml-1.5 text-sm font-bold text-navy-text">{parts.time}</Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
+                  accessibilityHint={t('doctor.nextSlotsHint')}
+                  divider={index < inlineSlots.length - 1}
+                />
+              ))
+            ) : (
+              <EmptyState
+                icon="clock"
+                tint="amber"
+                title={t('doctor.noSlots')}
+                message={t('doctor.noSlotsBody')}
+                actionLabel={t('doctor.bookAppointment')}
+                onAction={() => goToBooking(provider)}
+              />
+            )}
+          </Card>
+        </View>
 
         {/* ── Where they practise ──────────────────────────────────────────── */}
-        <SectionLabel title={t('doctor.practisesAt')} />
-        <Pressable
-          onPress={() => router.push(`/facility/${provider.care_facility_id}`)}
-          accessibilityRole="button"
-          className="flex-row items-center rounded-2xl bg-white p-4"
-        >
-          <IconTile icon={Building2} tone="gold" size={42} />
-          <View className="ml-3 flex-1">
-            <Text className="text-base font-bold text-navy-text" numberOfLines={1}>
-              {provider.facility_name}
-            </Text>
-            <Text className="mt-0.5 text-xs text-navy-secondary" numberOfLines={1}>
-              {provider.city ?? t('doctor.viewFacility')}
-            </Text>
-          </View>
-          <ChevronRight size={18} color={colors.navy.muted} />
-        </Pressable>
+        <View>
+          <SectionHeader title={t('doctor.practisesAt')} variant="overline" />
+          <Card variant="flush">
+            <ListRow
+              icon="building"
+              tint="blue"
+              title={provider.facility_name}
+              subtitle={provider.city ?? t('doctor.viewFacility')}
+              onPress={() => goToFacility(provider)}
+              accessibilityHint={t('doctor.viewFacility')}
+            />
+          </Card>
+        </View>
 
         {/* ── Credentials — the schema's stand-in for a bio ─────────────────── */}
-        <SectionLabel
-          title={t('doctor.credentialsTitle')}
-          hint={isVerified ? t('doctor.credentialsHint') : undefined}
-        />
-        {!isVerified ? (
-          <View className="flex-row items-start rounded-2xl bg-white p-4">
-            <IconTile icon={ScrollText} tone="neutral" />
-            <View className="ml-3 flex-1">
-              <Text className="text-sm font-bold text-navy-text">{t('doctor.noCredentials')}</Text>
-              <Text className="mt-1 text-xs leading-5 text-navy-secondary">
-                {t('doctor.noCredentialsBody')}
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <View className="rounded-2xl bg-white px-4">
-            {provider.licenses.map((license, index) => (
-              <View
-                key={`lic-${index}`}
-                className="flex-row items-center py-3.5"
-                style={
-                  index > 0 ? { borderTopWidth: 1, borderTopColor: colors.cream[300] } : undefined
-                }
-              >
-                <IconTile icon={Award} tone="gold" />
-                <View className="ml-3 flex-1">
-                  <Text className="text-sm font-bold text-navy-text">
-                    {professionLabel(license.profession) ?? t('doctor.credentialOther')}
-                  </Text>
-                  {license.issuing_body ? (
-                    <Text className="mt-0.5 text-xs text-navy-secondary" numberOfLines={1}>
-                      {license.issuing_body}
-                    </Text>
-                  ) : null}
-                </View>
-                <Text className="text-[10px] font-bold uppercase text-success">
-                  {t('doctor.credentialActive')}
-                </Text>
-              </View>
-            ))}
-            {provider.credentials.map((credential, index) => (
-              <View
-                key={`cred-${index}`}
-                className="flex-row items-center py-3.5"
-                style={
-                  index > 0 || provider.licenses.length > 0
-                    ? { borderTopWidth: 1, borderTopColor: colors.cream[300] }
-                    : undefined
-                }
-              >
-                <IconTile icon={CheckCircle2} tone="success" />
-                <View className="ml-3 flex-1">
-                  <Text className="text-sm font-bold text-navy-text">
-                    {t(CREDENTIAL_KEYS[credential.type] ?? 'doctor.credentialOther')}
-                  </Text>
-                  {credential.issuing_body ? (
-                    <Text className="mt-0.5 text-xs text-navy-secondary" numberOfLines={1}>
-                      {credential.issuing_body}
-                    </Text>
-                  ) : null}
-                </View>
-                <Text className="text-[10px] font-bold uppercase text-success">
-                  {t('doctor.credentialActive')}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
+        <View>
+          <SectionHeader title={t('doctor.credentialsTitle')} variant="overline" />
+          {isVerified ? <Text style={styles.hint}>{t('doctor.credentialsHint')}</Text> : null}
+          <Card variant="flush">
+            {!isVerified ? (
+              <EmptyState
+                icon="document-text"
+                tint="blue"
+                title={t('doctor.noCredentials')}
+                message={t('doctor.noCredentialsBody')}
+              />
+            ) : (
+              <>
+                {provider.licenses.map((license, index) => (
+                  <ListRow
+                    key={`lic-${index}`}
+                    icon="shield-check"
+                    tint="green"
+                    title={professionLabel(license.profession) ?? t('doctor.credentialOther')}
+                    subtitle={license.issuing_body ?? undefined}
+                    trailing={
+                      <StatusBadge status="active" label={t('doctor.credentialActive')} size="sm" />
+                    }
+                    divider={index < provider.licenses.length - 1 || provider.credentials.length > 0}
+                  />
+                ))}
+                {provider.credentials.map((credential, index) => (
+                  <ListRow
+                    key={`cred-${index}`}
+                    icon="check-circle"
+                    tint="green"
+                    title={t(CREDENTIAL_KEYS[credential.type] ?? 'doctor.credentialOther')}
+                    subtitle={credential.issuing_body ?? undefined}
+                    trailing={
+                      <StatusBadge status="active" label={t('doctor.credentialActive')} size="sm" />
+                    }
+                    divider={index < provider.credentials.length - 1}
+                  />
+                ))}
+              </>
+            )}
+          </Card>
+        </View>
 
         {/* ── Messaging ────────────────────────────────────────────────────── */}
-        <SectionLabel title={t('doctor.messagingTitle')} />
-        {sent ? (
-          <View
-            className="flex-row items-start rounded-2xl p-4"
-            style={{ backgroundColor: colors.semantic.successSurface }}
-          >
-            <CheckCircle2 size={18} color={colors.semantic.success} />
-            <View className="ml-3 flex-1">
-              <Text className="text-sm text-navy-text">{t('doctor.messageSent')}</Text>
-              <Pressable onPress={() => router.push('/(tabs)/messages')} className="mt-2">
-                <Text className="text-sm font-bold text-brand-600">{t('doctor.openMessages')}</Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : provider.messaging_appointment_id ? (
-          <>
-            <GhostButton
-              label={t('doctor.message')}
-              icon={MessageSquare}
-              onPress={() => setComposeOpen((open) => !open)}
-            />
-            {composeOpen ? (
-              <View className="mt-3 rounded-2xl bg-white p-4">
-                <TextInput
-                  className="min-h-[88px] rounded-xl border px-3 py-2 text-sm text-navy-text"
-                  style={{ borderColor: colors.cream[300], textAlignVertical: 'top' }}
-                  placeholder={t('doctor.messagePlaceholder')}
-                  placeholderTextColor={colors.navy.muted}
-                  value={composeBody}
-                  onChangeText={setComposeBody}
-                  multiline
-                />
-                {startThread.isError ? (
-                  <Text className="mt-2 text-xs text-danger">{t('doctor.messageError')}</Text>
-                ) : null}
-                <View className="mt-3">
-                  <Button
-                    label={
-                      startThread.isPending ? t('doctor.messageSending') : t('doctor.messageSend')
-                    }
-                    leftIcon={MessageSquare}
-                    showChevron={false}
+        <View>
+          <SectionHeader title={t('doctor.messagingTitle')} variant="overline" />
+          {sent ? (
+            <Card accentColor={colors.statusNormal}>
+              <View style={styles.sentRow} accessibilityLiveRegion="polite">
+                <Icon name="check-circle" size={20} color={colors.statusNormal} />
+                <View style={styles.sentBody}>
+                  <Text style={styles.sentText}>{t('doctor.messageSent')}</Text>
+                  <CareButton
+                    label={t('doctor.openMessages')}
+                    icon="chat"
+                    variant="ghost"
+                    size="sm"
+                    onPress={() => router.push('/(tabs)/messages')}
+                  />
+                </View>
+              </View>
+            </Card>
+          ) : provider.messaging_appointment_id ? (
+            <View style={styles.stack}>
+              <CareButton
+                label={t('doctor.message')}
+                icon="chat"
+                variant="ghost"
+                onPress={() => setComposeOpen((open) => !open)}
+              />
+              {composeOpen ? (
+                <Card style={styles.composer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={t('doctor.messagePlaceholder')}
+                    placeholderTextColor={colors.textMuted}
+                    value={composeBody}
+                    onChangeText={setComposeBody}
+                    multiline
+                    accessibilityLabel={t('doctor.messagePlaceholder')}
+                  />
+                  {startThread.isError ? (
+                    <Text style={styles.inputError}>{t('doctor.messageError')}</Text>
+                  ) : null}
+                  <GradientButton
+                    label={startThread.isPending ? t('doctor.messageSending') : t('doctor.messageSend')}
+                    icon="none"
                     loading={startThread.isPending}
                     disabled={!composeBody.trim()}
                     onPress={() => submitMessage(provider.messaging_appointment_id as string)}
                   />
-                </View>
-              </View>
-            ) : null}
-          </>
-        ) : (
-          // No appointment with this clinician yet — the action stays visible
-          // and explains itself instead of failing on tap.
-          <Pressable onPress={() => goToBooking(provider)} accessibilityRole="button">
-            <Callout
-              icon={Info}
-              tone="info"
-              title={t('doctor.message')}
-              body={t('doctor.messageNeedsAppointment')}
-            />
-          </Pressable>
-        )}
+                </Card>
+              ) : null}
+            </View>
+          ) : (
+            // No appointment with this clinician yet — the action stays visible
+            // and explains itself instead of failing on tap.
+            <Card variant="flush">
+              <EmptyState
+                icon="info"
+                tint="blue"
+                title={t('doctor.message')}
+                message={t('doctor.messageNeedsAppointment')}
+                actionLabel={t('doctor.bookAppointment')}
+                onAction={() => goToBooking(provider)}
+              />
+            </Card>
+          )}
+        </View>
       </ScrollView>
     </Screen>
   );
 }
+
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    scroll: { flex: 1 },
+    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    center: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing.lg, gap: spacing.sm },
+    loadingText: {
+      textAlign: 'center',
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
+
+    identity: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md - 2 },
+    identityBody: { flex: 1, minWidth: 0, gap: 2 },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    name: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xl,
+      color: colors.textPrimary,
+    },
+    jobTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: colors.link,
+    },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
+    meta: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
+    badges: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md - 4 },
+
+    actions: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginTop: spacing.md,
+      paddingTop: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: colors.divider,
+    },
+    actionButton: { flex: 1 },
+
+    hint: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+      marginTop: -4,
+      marginBottom: 10,
+    },
+
+    stack: { gap: spacing.sm + 4 },
+    composer: { gap: spacing.sm + 4 },
+    input: {
+      minHeight: 96,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      backgroundColor: colors.surfaceMuted,
+      paddingHorizontal: spacing.md - 4,
+      paddingVertical: spacing.sm + 2,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+      textAlignVertical: 'top',
+    },
+    inputError: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.danger,
+    },
+
+    sentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 2 },
+    sentBody: { flex: 1, gap: spacing.sm },
+    sentText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textPrimary,
+    },
+  });

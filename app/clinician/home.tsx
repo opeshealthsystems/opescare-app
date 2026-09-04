@@ -263,6 +263,25 @@ export default function DoctorHomeScreen() {
           )}
         </Card>
 
+        {/*
+          Write a prescription — the clinician's one WRITE action on this
+          screen. A ListRow and not a CountTile: nothing is waiting on the
+          doctor here, so there is no server-counted figure to show and a "0"
+          would say something untrue. The path is a literal because
+          `components/doctor/chartRoutes.ts` (owned elsewhere) carries no entry
+          for it yet; the file is `app/clinician/prescribe.tsx`.
+        */}
+        <SectionHeader title={tx('home.writeSection', 'Write')} />
+        <Card variant="flush">
+          <ListRow
+            icon="pill"
+            tint="green"
+            title={tx('prescribe.title', 'Write a prescription')}
+            subtitle={tx('home.tilePrescribe', 'Look the patient up by Health ID, then issue')}
+            onPress={() => router.push('/clinician/prescribe')}
+          />
+        </Card>
+
         {data.urgent_results.length > 0 && (
           <>
             <SectionHeader

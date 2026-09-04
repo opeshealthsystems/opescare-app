@@ -1,16 +1,27 @@
-import { useCallback, useMemo } from 'react';
-import { RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Platform,
+  RefreshControl,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import QRCode from 'react-native-qrcode-svg';
 import {
   Card,
   EmptyState,
+  GradientButton,
   Icon,
   ListRow,
   ScreenHeader,
   SectionHeader,
   StatusBadge,
   a11yJoin,
+  formatDateTime,
   formatLabel,
   radii,
   spacing,
@@ -29,6 +40,14 @@ import {
   type PrescriptionItemDetail,
 } from '../../lib/api/queries';
 import { useCatalogMedicineMatch } from '../../lib/api/prescriptionQueries';
+import {
+  EXPIRY_COUNTDOWN_MINUTES,
+  grantExpiry,
+  isSharingUnavailable,
+  usePrescriptionAccess,
+  useSharePrescription,
+  useWithdrawPrescriptionAccess,
+} from '../../lib/api/prescriptionAccessQueries';
 import { formatXaf } from '../../lib/api/pharmacyQueries';
 import {
   EXPIRY_WARNING_WINDOW_DAYS,
@@ -60,7 +79,7 @@ import {
  * `MetricRow` card, one flush card holding the numbered medications, the care
  * team's notes when there are any, the safety banner and the action grid.
  *
- * Three things this screen is deliberately careful about:
+ * Four things this screen is deliberately careful about:
  *
  * 1. **Partial dispensing is a first-class state.** `partially_dispensed` on the
  *    header tells the patient *that* something is outstanding but never *what*.
@@ -83,6 +102,11 @@ import {
  *    PDF in that payload, so none of those appear here. Stock and price are not
  *    claimed either — the per-line row links into the Medicine Finder, which
  *    owns that question.
+ *
+ * 4. **Presenting is an act, not a display.** "Show to pharmacy" mints a
+ *    revocable, expiring access token only when the patient taps it, shows the
+ *    reference and a QR of the public verify URL, and is withheld entirely from
+ *    a prescription that must not be dispensed — see `ShowToPharmacyCard`.
  */
 
 /* -- Status vocabulary ------------------------------------------------------ */
@@ -266,6 +290,11 @@ export default function PrescriptionDetailScreen() {
           {/* Which lines are filled and which are not — the answer the header
               status alone cannot give. */}
           <DispensingCard prescription={prescription} state={state!} />
+
+          {/* How the patient actually hands this over at a counter. Sits high
+              on the screen because it is the one thing here that is done
+              standing in a pharmacy rather than read at home. */}
+          <ShowToPharmacyCard prescription={prescription} state={state!} />
 
           {/* Key dates. The facility is deliberately not repeated here — the
               card above already carries it as the prescription's attribution. */}
@@ -934,6 +963,359 @@ function DispensingCard({
   );
 }
 
+/* -- Show to pharmacy ------------------------------------------------------- */
+
+/**
+ * The reference is read aloud and keyed in character by character, so it is set
+ * in a mono face: the kit ships only Poppins, where `0`/`O` and `1`/`I` are
+ * easy to confuse at a counter. Sizes, colours and spacing stay the kit's.
+ */
+const MONO_FONT = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
+
+/** Large enough to scan off a phone held across a pharmacy counter. */
+const SHARE_QR_SIZE = 188;
+
+/**
+ * The server-issued reference, e.g. `RX-4F2A-9C31`.
+ *
+ * `reference` is new on the API and not yet declared on `PrescriptionDetail`
+ * (that interface lives in `lib/api/queries.ts`, which this screen does not
+ * own), so it is read defensively. Missing or blank means this server has not
+ * shipped it yet — and then no reference is shown here at all, rather than a
+ * code derived on the device and passed off as one a pharmacy can look up.
+ */
+function serverReference(rx: PrescriptionDetail): string | null {
+  const value = (rx as unknown as { reference?: unknown }).reference;
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+/**
+ * "Show to pharmacy" — how the patient hands this prescription over.
+ *
+ * A printed sheet will carry a scannable code; this is the same thing from the
+ * phone, so a patient without the paper is not stuck at the counter. Three
+ * things it is careful about:
+ *
+ * 1. **Access is granted by a tap, never by opening the screen.** Nothing is
+ *    fetched on mount. `POST /mobile/prescriptions/{id}/share` mints a
+ *    revocable, expiring token only when the patient asks for it, and the
+ *    result is held for the session so re-reading the screen does not mint a
+ *    second one.
+ *
+ * 2. **The QR encodes the verify URL itself** — `verify_url`, verbatim, never a
+ *    JSON blob wrapping it. A pharmacist's phone camera has to be able to open
+ *    it with no app at all. The reference sits above it in mono for the case
+ *    where nothing can scan.
+ *
+ * 3. **Nothing is offered that cannot be filled, and nothing is faked.** The
+ *    section is withheld from a prescription `state.fillable` already rules out
+ *    (voided, entered-in-error, cancelled, amended, expired, fully dispensed)
+ *    and explains why instead. If the share endpoints are not on this server
+ *    yet, the request settles on the 404 with no retry (`accessRetry`) and the
+ *    section says so plainly — no spinner, no invented code.
+ */
+function ShowToPharmacyCard({
+  prescription,
+  state,
+}: {
+  prescription: PrescriptionDetail;
+  state: RxState;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const vocab = usePrescriptionVocab();
+  const dialog = useDialog();
+
+  const id = prescription.id;
+  const { data: grant } = usePrescriptionAccess(id);
+  const share = useSharePrescription(id);
+  const withdraw = useWithdrawPrescriptionAccess(id);
+
+  // Ticks only while a grant with an expiry is on screen. Without it a token
+  // that lapses while the patient is queuing would keep looking live until the
+  // screen was reopened — and a QR that silently stopped working is worse at a
+  // counter than no QR at all.
+  const [now, setNow] = useState(() => Date.now());
+  const expiry = grantExpiry(grant, now);
+  useEffect(() => {
+    // Stops itself once the token has lapsed — there is nothing left to count.
+    if (!grant?.expires_at || expiry.expired) return;
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, [grant?.expires_at, expiry.expired]);
+
+  const live = !!grant && !expiry.expired;
+  const reference = grant?.reference ?? serverReference(prescription);
+
+  const title = vocab.tx('prescriptions.shareTitle', { defaultValue: 'Show to pharmacy' });
+
+  // ── A prescription that must not be dispensed is not presentable ─────────
+  // `state.fillable` is the screen's single answer to "could a pharmacy act on
+  // this?" — voided, entered-in-error, cancelled, amended, expired and fully
+  // dispensed all fail it. Reasons are ordered exactly as the notice at the top
+  // of the screen orders them, so the two never disagree.
+  if (!state.fillable) {
+    const reason = state.retracted
+      ? vocab.tx('prescriptions.shareBlockedRetracted', {
+          defaultValue:
+            'This prescription was retracted by your care team, so it cannot be presented for dispensing.',
+        })
+      : state.cancelled
+        ? vocab.tx('prescriptions.shareBlockedCancelled', {
+            defaultValue:
+              'This prescription was cancelled, so a pharmacy cannot dispense against it.',
+          })
+        : state.amended
+          ? vocab.tx('prescriptions.shareBlockedAmended', {
+              defaultValue:
+                'This version was replaced by a newer prescription. Show that one instead.',
+            })
+          : state.expired
+            ? vocab.tx('prescriptions.shareBlockedExpired', {
+                defaultValue:
+                  'This prescription has expired, so a pharmacy can no longer dispense against it.',
+              })
+            : state.dispensed
+              ? vocab.tx('prescriptions.shareBlockedDispensed', {
+                  defaultValue:
+                    'Every medicine on this prescription has already been collected.',
+                })
+              : vocab.tx('prescriptions.shareBlockedGeneric', {
+                  defaultValue: 'A pharmacy can no longer dispense against this prescription.',
+                });
+
+    const blockedTitle = vocab.tx('prescriptions.shareBlockedTitle', {
+      defaultValue: 'Cannot be shown to a pharmacy',
+    });
+
+    return (
+      <Card>
+        <SectionHeader variant="overline" title={title} />
+        <View
+          style={styles.shareBlocked}
+          accessible
+          accessibilityLabel={a11yJoin(blockedTitle, reason)}
+        >
+          <Icon name="lock" size={22} color={colors.textMuted} />
+          <View style={styles.shareBlockedBody}>
+            <Text style={styles.shareBlockedTitle}>{blockedTitle}</Text>
+            <Text style={styles.shareNote}>{reason}</Text>
+          </View>
+        </View>
+      </Card>
+    );
+  }
+
+  // ── Fillable: mint, present, withdraw ───────────────────────────────────
+  const unavailable = share.isError && isSharingUnavailable(share.error);
+  const failed = share.isError && !unavailable;
+
+  const expiryLabel = !expiry.hasExpiry
+    ? vocab.tx('prescriptions.shareNoExpiry', { defaultValue: 'No automatic expiry' })
+    : expiry.at === null
+      ? vocab.tx('prescriptions.shareExpiryUnknown', { defaultValue: 'Expiry unknown' })
+      : expiry.minutesLeft === null || expiry.minutesLeft >= EXPIRY_COUNTDOWN_MINUTES
+        ? vocab.tx('prescriptions.shareExpiresAt', {
+            date: formatDateTime(expiry.at),
+            defaultValue: 'Expires {{date}}',
+          })
+        : expiry.minutesLeft === 0
+          ? vocab.tx('prescriptions.shareExpiresSoon', {
+              defaultValue: 'Expires in under a minute',
+            })
+          : vocab.tx('prescriptions.shareExpiresInMinutes', {
+              minutes: expiry.minutesLeft,
+              defaultValue: 'Expires in {{minutes}} min',
+            });
+
+  const expiryTone: StatusTone =
+    expiry.minutesLeft !== null && expiry.minutesLeft < EXPIRY_COUNTDOWN_MINUTES
+      ? 'warning'
+      : 'neutral';
+
+  const confirmWithdraw = () =>
+    dialog.confirm({
+      title: vocab.tx('prescriptions.shareWithdrawTitle', { defaultValue: 'Withdraw access?' }),
+      message: vocab.tx('prescriptions.shareWithdrawBody', {
+        defaultValue:
+          'The code and the link stop working straight away, and a pharmacy that has not dispensed yet will no longer be able to open this prescription. You can show it again whenever you need to.',
+      }),
+      confirmLabel: vocab.tx('prescriptions.shareWithdrawConfirm', { defaultValue: 'Withdraw' }),
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await withdraw.mutateAsync();
+        } catch {
+          // The grant is left on screen on purpose: telling a patient their
+          // prescription is private again when the revoke never landed would
+          // be the worst failure this section could have.
+          dialog.alert(
+            vocab.tx('prescriptions.shareWithdrawFailedTitle', {
+              defaultValue: 'Access was not withdrawn',
+            }),
+            vocab.tx('prescriptions.shareWithdrawFailedBody', {
+              defaultValue:
+                'The code is still live. Check your connection and try withdrawing it again.',
+            }),
+          );
+        }
+      },
+    });
+
+  return (
+    // The confirm sheet is a sibling of the card, not a child: `Card` clips its
+    // children (`overflow: hidden`) and a modal has no business inside that.
+    <>
+      <Card>
+        <SectionHeader variant="overline" title={title} />
+
+        <View style={styles.shareBody}>
+          {reference ? (
+            <View
+              style={styles.shareRef}
+              accessible
+              accessibilityLabel={a11yJoin(
+                vocab.tx('prescriptions.shareRefLabel', { defaultValue: 'Reference' }),
+                // Spoken character by character — this is a code a pharmacist
+                // types in, not a word.
+                reference.split('').join(' '),
+              )}
+            >
+              <Text style={styles.shareRefLabel}>
+                {vocab.tx('prescriptions.shareRefLabel', { defaultValue: 'Reference' })}
+              </Text>
+              <Text style={styles.shareRefValue} selectable>
+                {reference}
+              </Text>
+              <Text style={styles.shareNote}>
+                {vocab.tx('prescriptions.shareRefHint', {
+                  defaultValue: 'Read this out if the pharmacist cannot scan.',
+                })}
+              </Text>
+            </View>
+          ) : null}
+
+          {live && grant ? (
+            <>
+              <View
+                style={styles.shareQrBox}
+                accessible
+                accessibilityLabel={vocab.tx('prescriptions.shareQrA11y', {
+                  defaultValue: 'QR code that opens this prescription for a pharmacy',
+                })}
+              >
+                {/* The URL itself, verbatim — a phone camera has to be able to
+                    open it without this app. Never a JSON payload. */}
+                <QRCode
+                  value={grant.verify_url}
+                  size={SHARE_QR_SIZE}
+                  color={colors.textPrimary}
+                  backgroundColor={colors.surface}
+                />
+              </View>
+
+              <Text style={styles.shareHint}>
+                {vocab.tx('prescriptions.shareScanHint', {
+                  defaultValue: 'The pharmacy scans this, or opens the link it contains.',
+                })}
+              </Text>
+
+              <View style={styles.shareExpiryRow}>
+                <StatusBadge
+                  status="access"
+                  tone={expiryTone}
+                  icon="clock"
+                  label={expiryLabel}
+                  size="sm"
+                />
+              </View>
+
+              <ListRow
+                icon="lock"
+                tint="red"
+                title={vocab.tx('prescriptions.shareWithdraw', { defaultValue: 'Withdraw access' })}
+                subtitle={vocab.tx('prescriptions.shareWithdrawHint', {
+                  defaultValue: 'The code and the link stop working straight away.',
+                })}
+                chevron={false}
+                onPress={confirmWithdraw}
+                style={styles.shareWithdrawRow}
+              />
+            </>
+          ) : (
+            <>
+              <Text style={styles.shareIntro}>
+                {grant
+                  ? vocab.tx('prescriptions.shareLapsedIntro', {
+                      defaultValue:
+                        'The code you created has expired. Make a new one when you are at the counter.',
+                    })
+                  : vocab.tx('prescriptions.shareIntro', {
+                      defaultValue:
+                        'Create a code the pharmacy can scan or type in. It opens this prescription for them, and nothing else in your record.',
+                    })}
+              </Text>
+
+              {unavailable || failed ? (
+                <View
+                  style={styles.shareProblem}
+                  accessibilityLiveRegion="polite"
+                  accessible
+                >
+                  <Icon
+                    name={unavailable ? 'info' : 'alert-circle'}
+                    size={18}
+                    color={unavailable ? colors.textMuted : colors.statusCritical}
+                  />
+                  <Text style={styles.shareProblemText}>
+                    {unavailable
+                      ? vocab.tx('prescriptions.shareUnavailable', {
+                          defaultValue:
+                            'This server cannot create a pharmacy code yet. The pharmacy can still look this prescription up at their counter.',
+                        })
+                      : vocab.tx('prescriptions.shareFailed', {
+                          defaultValue:
+                            'The code could not be created. Check your connection and try again.',
+                        })}
+                  </Text>
+                </View>
+              ) : null}
+
+              <GradientButton
+                label={
+                  grant
+                    ? vocab.tx('prescriptions.shareAgain', { defaultValue: 'Create a new code' })
+                    : title
+                }
+                icon="none"
+                loading={share.isPending}
+                disabled={unavailable}
+                onPress={() => share.mutate()}
+                accessibilityHint={vocab.tx('prescriptions.shareActionHint', {
+                  defaultValue: 'Creates a code a pharmacy can use to open this prescription.',
+                })}
+              />
+            </>
+          )}
+
+          {/* The standing promise, shown whether or not a code is live. */}
+          <View style={styles.sharePrivacy}>
+            <Icon name="shield-check" size={16} color={colors.textMuted} />
+            <Text style={styles.shareNote}>
+              {vocab.tx('prescriptions.shareNotice', {
+                defaultValue:
+                  'Showing this lets a pharmacy see this prescription. You can withdraw access at any time.',
+              })}
+            </Text>
+          </View>
+        </View>
+      </Card>
+
+      {dialog.element}
+    </>
+  );
+}
+
 /** A dosage value, or null when it is blank — blank must read "Not specified". */
 function clean(value: string | null | undefined): string | null {
   return value && value.trim().length > 0 ? value : null;
@@ -1275,6 +1657,100 @@ const makeStyles = (c: Palette) =>
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
       color: c.textMuted,
+    },
+
+    // -- Show to pharmacy ----------------------------------------------------
+    shareBody: { gap: 12, marginTop: 12 },
+    shareIntro: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: c.textSecondary,
+    },
+    shareNote: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textMuted,
+    },
+    shareRef: {
+      alignItems: 'center',
+      gap: 4,
+      borderRadius: radii.md,
+      backgroundColor: c.primarySoft,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 12,
+    },
+    shareRefLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: c.blue,
+    },
+    // The one thing on this card a pharmacist may have to key in by hand, so
+    // it is the largest text on it and set in a mono face.
+    shareRefValue: {
+      fontFamily: MONO_FONT,
+      fontSize: typography.size.xl,
+      lineHeight: typography.lineHeight.xl,
+      letterSpacing: 1.5,
+      textAlign: 'center',
+      color: c.textPrimary,
+    },
+    shareQrBox: {
+      alignSelf: 'center',
+      padding: 12,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+    },
+    shareHint: {
+      textAlign: 'center',
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textSecondary,
+    },
+    shareExpiryRow: { flexDirection: 'row', justifyContent: 'center' },
+    shareWithdrawRow: {
+      paddingHorizontal: 0,
+      paddingBottom: 0,
+      borderTopWidth: 1,
+      borderTopColor: c.divider,
+    },
+    shareProblem: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      borderRadius: radii.sm,
+      backgroundColor: c.surfaceMuted,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    shareProblemText: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textSecondary,
+    },
+    sharePrivacy: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+    shareBlocked: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      marginTop: 12,
+    },
+    shareBlockedBody: { flex: 1, minWidth: 0, gap: 3 },
+    shareBlockedTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: c.textSecondary,
     },
 
     // -- Medications ---------------------------------------------------------

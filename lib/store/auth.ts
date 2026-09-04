@@ -6,6 +6,14 @@ import { apiClient, setSessionExpiredHandler } from '../api/client';
 import { endpoints } from '../api/endpoints';
 import { tokenStorage } from '../api/tokenStorage';
 import { getCachedDemographics, isNetworkError } from '../offline/cache';
+import {
+  fetchProviderMe as fetchProviderAccount,
+  isProviderConnectionFailure,
+  providerAuthErrorMessage,
+  providerLogin,
+  providerLogout,
+  type ProviderAccount,
+} from '../api/providerQueries';
 import type { AuthTokenResponse, Patient } from '../api/types';
 
 // 'permissions_pending' is a deliberately non-'authenticated' status so the
@@ -28,17 +36,17 @@ type AuthStatus =
  * is the clinician area under `app/clinician`: schedule, patient charts,
  * results inbox, appointment requests.
  *
- * TODAY IT ALWAYS RESOLVES TO `patient`, and that is not a stub for missing
- * code — it is the truth about the backend. Every mobile auth route
- * (`/mobile/auth/login`, `/mobile/auth/verify-otp`, `/mobile/auth/register`)
- * mints a PATIENT token against a PatientAccount and answers `/mobile/auth/me`
- * with a `Patient`, which carries no field that could say "clinician". The
- * clinician API (`/mobile/doctor/*`) is likewise not served yet, so every
- * doctor hook 404s.
+ * `doctor` now resolves for a REAL session: `POST /mobile/auth/provider/login`
+ * mints a provider token and `GET /mobile/auth/provider/me` restores it, and a
+ * live provider account is what `resolvePersona` reads first. The build-time
+ * override and the runtime preview below remain as fallbacks, for the demo
+ * hosts and dev builds whose server does not serve provider auth yet — they
+ * unlock a UI and nothing else.
  *
- * When the server starts issuing provider tokens, `resolvePersona` below is
- * the ONE function to change: read the role off the session payload there and
- * the whole doctor area unlocks behind it.
+ * The patient routes (`/mobile/auth/login-email`, `/mobile/auth/otp/verify`,
+ * `/mobile/auth/register`) still mint PATIENT tokens and answer `/mobile/me`
+ * with a `Patient`, which carries no field that could say "clinician" — the
+ * persona of a patient session is therefore never read off the profile.
  */
 export type Persona = 'patient' | 'doctor';
 
@@ -57,23 +65,175 @@ const DOCTOR_PERSONA_OVERRIDE =
   process.env.EXPO_PUBLIC_DOCTOR_PERSONA === 'true';
 
 /**
- * The persona a session resolves to.
- *
- * The patient argument is taken and deliberately unused: it is where the role
- * will be read from the day `/mobile/auth/me` carries one, and taking it now
- * means that day changes this function's body, not its callers.
- */
-/**
  * Runtime clinician preview. The build-time override above is the real switch;
  * this exists so the demo login can show the clinician UI on a DEPLOYED demo
  * build, where env vars are baked in at export time and cannot be flipped.
  * It changes only which screens render — it grants no data and mints no
- * clinician token, because the server has no provider API to mint one from.
+ * clinician token, so it is now strictly the FALLBACK for a server that does
+ * not serve `/mobile/auth/provider/*`.
  */
 let CLINICIAN_PREVIEW = false;
 
-export function resolvePersona(_patient: Patient | null): Persona {
+/**
+ * The persona a session resolves to.
+ *
+ * A verified provider account wins outright — that is a real clinician token,
+ * not a preview. Only when there is none do the dev override and the demo
+ * preview get a say.
+ *
+ * The patient argument is still taken and still unused: `/mobile/me` carries
+ * no role, and a patient session is a patient session. It stays in the
+ * signature so every existing call site keeps compiling and so the day the
+ * patient payload does carry a role, this function's body changes and nothing
+ * else does.
+ */
+export function resolvePersona(
+  _patient: Patient | null,
+  provider: ProviderAccount | null = null,
+): Persona {
+  if (provider) return 'doctor';
   return DOCTOR_PERSONA_OVERRIDE || CLINICIAN_PREVIEW ? 'doctor' : 'patient';
+}
+
+// ---------------------------------------------------------------------------
+// Session kind — and why there can only ever be one
+//
+// `tokenStorage` is a SINGLE SLOT (one SecureStore key). Both session kinds go
+// through it, so a provider token physically overwrites a patient token and
+// vice versa: two live tokens cannot coexist, and the bearer header
+// `lib/api/client.ts` attaches is never ambiguous. That is the guarantee, and
+// it is structural rather than a rule somebody has to remember.
+//
+// What the slot cannot say is WHICH kind the token is, and bootstrap needs to
+// know: a provider token asked `/mobile/me` gets a 401 and ends the session.
+// So one extra flag rides alongside it. It is a marker, not a second token
+// scheme — it holds no secret, and 'provider' is the only value ever written
+// (absent means patient, so a token written by any other code path — signup,
+// the refresh interceptor — is read back as what it is).
+// ---------------------------------------------------------------------------
+
+type SessionKind = 'patient' | 'provider';
+
+const SESSION_KIND_KEY = 'opescare_session_kind';
+
+/** Same platform split as the token and the permissions flag: SecureStore is a no-op on web. */
+const sessionKindStorage =
+  Platform.OS === 'web'
+    ? {
+        get: async () =>
+          typeof localStorage !== 'undefined' ? localStorage.getItem(SESSION_KIND_KEY) : null,
+        set: async () => {
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(SESSION_KIND_KEY, 'provider');
+          }
+        },
+        clear: async () => {
+          if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem(SESSION_KIND_KEY);
+          }
+        },
+      }
+    : {
+        get: () => SecureStore.getItemAsync(SESSION_KIND_KEY),
+        set: () => SecureStore.setItemAsync(SESSION_KIND_KEY, 'provider'),
+        clear: () => SecureStore.deleteItemAsync(SESSION_KIND_KEY),
+      };
+
+/** What kind of session the stored token belongs to. Unreadable storage reads as `patient`. */
+async function readSessionKind(): Promise<SessionKind> {
+  try {
+    return (await sessionKindStorage.get()) === 'provider' ? 'provider' : 'patient';
+  } catch {
+    return 'patient';
+  }
+}
+
+/**
+ * The ONE writer of the token slot.
+ *
+ * The marker goes first on purpose. If the second write fails the pair is
+ * still safe in both directions: a marker with no token boots as no session at
+ * all, and a token whose marker never landed is asked `/mobile/me`, refused,
+ * and ended. Neither order can produce a provider token being used as a
+ * patient's, or the reverse.
+ */
+async function adoptSession(kind: SessionKind, token: string): Promise<void> {
+  try {
+    if (kind === 'provider') await sessionKindStorage.set();
+    else await sessionKindStorage.clear();
+  } catch {
+    // Marker storage is unavailable on this device; the token write below still
+    // decides the session, and an unmarked provider token fails closed.
+  }
+  await tokenStorage.set(token);
+}
+
+/** Wipe the slot and the marker together. Every end-of-session path goes through here. */
+async function clearStoredSession(): Promise<void> {
+  await tokenStorage.clear();
+  try {
+    await sessionKindStorage.clear();
+  } catch {
+    // Best effort — a stale marker with no token boots as no session.
+  }
+}
+
+/**
+ * Mutual exclusion, enforced BEFORE a sign-in attempt rather than after it.
+ *
+ * If the slot holds a session of the other kind, it is dropped now — so the
+ * login request itself cannot carry the wrong bearer header (the request
+ * interceptor attaches whatever is in storage), and a FAILED attempt cannot
+ * leave the other kind's token behind to be picked up on the next launch.
+ */
+async function dropSessionOfOtherKind(next: SessionKind): Promise<void> {
+  if ((await readSessionKind()) !== next) await clearStoredSession();
+}
+
+/**
+ * Land the DEMO PREVIEW on the clinician area.
+ *
+ * `app/_layout.tsx` sends every authenticated session sitting in the `(auth)`
+ * group or on `/` to `/(tabs)/home` — the patient app — and that effect is not
+ * this feature's to change. So this runs on the next macrotask: React has
+ * flushed the effect by then, and the later `replace` is the last word. From
+ * `/clinician/...` the effect is a no-op (not the auth group, not the root
+ * index), so nothing bounces back out.
+ *
+ * Only for the preview, whose session is an ordinary PATIENT token — the tabs
+ * mounting for a frame on the way through costs nothing there. A real provider
+ * session uses `enterClinicianArea` below, which cannot afford that frame.
+ *
+ * Exported because the login screen mints the preview session itself, the same
+ * way `resolvePostAuthStatus` is exported for signup.
+ */
+export function routeToClinicianArea(): void {
+  setTimeout(() => {
+    router.replace('/clinician/home');
+  }, 0);
+}
+
+/**
+ * Land a REAL provider session on the clinician area — and never, not even for
+ * one frame, on the patient tabs.
+ *
+ * That frame is not cosmetic. If `app/_layout.tsx` sees an authenticated
+ * session in the `(auth)` group it replaces to `/(tabs)/home`; the patient tabs
+ * mount, their queries fire at `/mobile/*` carrying the PROVIDER bearer token,
+ * every one comes back 401, and the session-expired handler in `client.ts`
+ * signs the clinician out of an entirely valid session.
+ *
+ * So the navigation goes first, behind the one status that effect ignores
+ * outright ('booting' → it returns immediately), and 'authenticated' is set
+ * only once the router is already inside `/clinician`. React 18+ batches all
+ * three into a single render, so in practice the intermediate status is never
+ * even observed — but if it ever were, every intermediate state it could see is
+ * one the effect declines to act on.
+ */
+function enterClinicianArea(setState: (partial: Partial<AuthState>) => void): void {
+  setState({ status: 'booting' });
+  router.replace('/clinician/home');
+  setState({ status: 'authenticated' });
 }
 
 /**
@@ -120,6 +280,14 @@ interface AuthState {
   status: AuthStatus;
   patient: Patient | null;
   /**
+   * The signed-in clinician, or null. NON-NULL EXACTLY WHEN `patient` IS NULL
+   * AND THE STORED TOKEN IS A PROVIDER ONE — the two session kinds share one
+   * token slot and are never both live. Set only from a verified
+   * `/mobile/auth/provider/login` or `/mobile/auth/provider/me`; never guessed,
+   * and never populated from a cache.
+   */
+  provider: ProviderAccount | null;
+  /**
    * Which half of the app this session may see. Derived — never set by a
    * screen. Kept as state rather than computed at every read so a future
    * role-bearing payload has somewhere to land.
@@ -130,6 +298,13 @@ interface AuthState {
 
   bootstrap: () => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
+  /**
+   * Sign a clinician in against `POST /mobile/auth/provider/login`. Ends any
+   * patient session first, wins or throws, and never falls back to anything.
+   */
+  loginAsProvider: (email: string, password: string) => Promise<void>;
+  /** Refresh the signed-in clinician from `GET /mobile/auth/provider/me`. */
+  fetchProviderMe: () => Promise<void>;
   loginWithPhone: (phoneNumber: string, pin: string, dateOfBirth?: string) => Promise<void>;
   verifyOtp: (otp: string) => Promise<void>;
   resendOtp: () => Promise<void>;
@@ -152,6 +327,7 @@ function extractErrorMessage(err: unknown): string {
 export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'booting',
   patient: null,
+  provider: null,
   persona: resolvePersona(null),
   pendingPhone: null,
   error: null,
@@ -162,6 +338,58 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ status: 'unauthenticated' });
       return;
     }
+
+    // A provider token is restored the same way a patient one is — by asking
+    // the server who it belongs to — just against the provider `/me`. Asking
+    // the PATIENT `/me` with it would 401 and silently end a valid clinician
+    // session, which is why the kind is recorded alongside the token.
+    if ((await readSessionKind()) === 'provider') {
+      try {
+        await get().fetchProviderMe();
+        enterClinicianArea(set);
+      } catch (err) {
+        if (isProviderConnectionFailure(err)) {
+          // Same principle as the patient branch below: a dropped connection is
+          // not a rejected session, so the token is KEPT. The difference is
+          // where it leaves the clinician. A patient can boot on a cached
+          // profile; a clinician has no offline cache and every clinician
+          // screen is a live read, so entering the app on an unverified
+          // provider token would put the doctor UI up over nothing — or worse,
+          // resolve to the PATIENT app with a provider bearer header. So we
+          // hold at the sign-in screen and pull them in the moment `/me`
+          // answers, without making them type anything.
+          set({ status: 'unauthenticated' });
+          void (async () => {
+            for (const delayMs of [2_000, 5_000, 15_000, 30_000]) {
+              await new Promise((resolve) => setTimeout(resolve, delayMs));
+              // Someone signed in (either kind) in the meantime — stand down.
+              if (get().status !== 'unauthenticated' || get().provider) return;
+              if (!(await tokenStorage.get())) return;
+              if ((await readSessionKind()) !== 'provider') return;
+              try {
+                await get().fetchProviderMe();
+                enterClinicianArea(set);
+                return;
+              } catch (retryErr) {
+                // Reachable again and refused: the token is dead, so stop
+                // holding it. Still unreachable: wait longer and ask again.
+                if (!isProviderConnectionFailure(retryErr)) {
+                  await clearStoredSession();
+                  return;
+                }
+              }
+            }
+          })();
+          return;
+        }
+
+        // The server judged the token and said no. End it.
+        await clearStoredSession();
+        set({ status: 'unauthenticated', provider: null, persona: resolvePersona(null) });
+      }
+      return;
+    }
+
     try {
       await get().fetchMe();
       set({ status: 'authenticated' });
@@ -212,25 +440,77 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
 
-      await tokenStorage.clear();
+      await clearStoredSession();
       set({ status: 'unauthenticated' });
     }
   },
 
   loginWithEmail: async (email, password) => {
     set({ error: null });
+    // A clinician token in the slot would otherwise ride along on this request
+    // and, if the login failed, still be sitting there afterwards.
+    await dropSessionOfOtherKind('patient');
+    set({ provider: null });
     try {
       const { data } = await apiClient.post<AuthTokenResponse>(endpoints.loginEmail, {
         email,
         password,
       });
-      await tokenStorage.set(data.access_token);
+      await adoptSession('patient', data.access_token);
       await get().fetchMe();
       const nextStatus = await resolvePostAuthStatus();
       set({ status: nextStatus });
       if (nextStatus === 'permissions_pending') router.replace('/(auth)/permissions');
     } catch (err) {
       set({ error: extractErrorMessage(err) });
+      throw err;
+    }
+  },
+
+  loginAsProvider: async (email, password) => {
+    set({ error: null });
+
+    // Mutual exclusion, before the request rather than after it: any patient
+    // token is gone before the clinician's credentials are even sent, so the
+    // login cannot carry a patient bearer header and a failure cannot leave one
+    // behind. The in-memory patient goes with it — there is no session left for
+    // it to describe.
+    await dropSessionOfOtherKind('provider');
+    set({ patient: null, provider: null, pendingPhone: null });
+
+    try {
+      const session = await providerLogin(
+        email,
+        password,
+        `OpesCare Finder (${Platform.OS})`,
+      );
+      await adoptSession('provider', session.access_token);
+
+      // A real clinician session supersedes any UI preview that was switched on
+      // before it — the persona is now backed by a token, not by a flag.
+      CLINICIAN_PREVIEW = false;
+
+      set({
+        provider: session.provider,
+        patient: null,
+        persona: resolvePersona(null, session.provider),
+      });
+      // Sets 'authenticated' itself, on the far side of the navigation.
+      enterClinicianArea(set);
+    } catch (err) {
+      await clearStoredSession();
+      set({
+        provider: null,
+        // The slot is empty either way now, so the status says so rather than
+        // leaving a claim of a session that no longer has a token behind it.
+        status: 'unauthenticated',
+        persona: resolvePersona(get().patient),
+        // 401 (bad credentials OR not a clinician — the API does not say which),
+        // 409 (no facility) and 404 (this server has no provider auth) all come
+        // back with the server's own wording where there is any; the screen
+        // decides how to phrase the ones it can recognise.
+        error: providerAuthErrorMessage(err, 'Something went wrong. Please try again.'),
+      });
       throw err;
     }
   },
@@ -254,12 +534,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const phone = get().pendingPhone;
     if (!phone) throw new Error('No pending phone login');
     set({ error: null });
+    await dropSessionOfOtherKind('patient');
+    set({ provider: null });
     try {
       const { data } = await apiClient.post<AuthTokenResponse>(endpoints.verifyOtp, {
         phone_number: phone,
         otp,
       });
-      await tokenStorage.set(data.access_token);
+      await adoptSession('patient', data.access_token);
       await get().fetchMe();
       const nextStatus = await resolvePostAuthStatus();
       set({ status: nextStatus, pendingPhone: null });
@@ -280,19 +562,43 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { data } = await apiClient.get<Patient>(endpoints.me);
     // The session profile is the only thing a persona could ever be read from,
     // so it is re-derived on every successful read of it.
-    set({ patient: data, persona: resolvePersona(data) });
+    set({ patient: data, persona: resolvePersona(data, get().provider) });
+  },
+
+  fetchProviderMe: async () => {
+    const provider = await fetchProviderAccount();
+    // A verified clinician and a patient profile cannot describe the same
+    // session, so adopting one drops the other.
+    set({ provider, patient: null, persona: resolvePersona(null, provider) });
   },
 
   previewClinician: (on) => {
     CLINICIAN_PREVIEW = on;
-    set({ persona: resolvePersona(get().patient) });
+    set({ persona: resolvePersona(get().patient, get().provider) });
   },
 
   logout: async () => {
-    await tokenStorage.clear();
+    // Revoke the clinician token server-side before dropping it locally, so a
+    // signed-out phone cannot be replayed. Best effort by design: a logout a
+    // flaky network can veto is not a logout, so the local wipe runs either way.
+    if (get().provider || (await readSessionKind()) === 'provider') {
+      try {
+        await providerLogout();
+      } catch {
+        // Already expired, offline, or no such route — the local wipe stands.
+      }
+    }
+
+    await clearStoredSession();
+
+    // The preview is a demo affordance, not a property of the device: leaving
+    // it on would hand the clinician UI to whoever signs in next.
+    CLINICIAN_PREVIEW = false;
+
     set({
       status: 'unauthenticated',
       patient: null,
+      provider: null,
       persona: resolvePersona(null),
       pendingPhone: null,
     });
@@ -313,9 +619,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 // Wired once, outside the component tree: if any request's token refresh fails,
 // force the store back to unauthenticated so the router redirects to login.
 setSessionExpiredHandler(() => {
+  // `client.ts` has already cleared the token; clear the kind marker with it so
+  // the next launch cannot read a dead provider session out of a bare flag.
+  void sessionKindStorage.clear().catch(() => {});
   useAuthStore.setState({
     status: 'unauthenticated',
     patient: null,
+    provider: null,
     persona: resolvePersona(null),
   });
 });

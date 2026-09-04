@@ -71,7 +71,7 @@
     },
     "owner": "opesware",
     "experiments": {
-      "baseUrl": "/app"
+      "baseUrl": "/finder"
     }
   }
 }

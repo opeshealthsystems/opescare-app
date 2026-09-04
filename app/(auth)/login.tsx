@@ -29,16 +29,35 @@ import {
 import { FieldLabel, FormError, Note } from '@/components/enrol/shared';
 import { Screen } from '@/components/ui/Screen';
 import { GoogleMark } from '@/components/icons/GoogleMark';
-import { useAuthStore } from '@/lib/store/auth';
+import { routeToClinicianArea, useAuthStore } from '@/lib/store/auth';
+import {
+  isProviderAuthUnavailable,
+  isProviderCredentialsRejected,
+  looksLikeProviderAccount,
+} from '@/lib/api/providerQueries';
+
+/**
+ * The demo clinician's credentials.
+ *
+ * Overridable at export time so a deployment can point the demo at whichever
+ * clinician its seeder actually created, without a code change. The default
+ * follows the Finder demo convention (`demo.<role>@opescare.test` / `demo1234`).
+ */
+const DEMO_CLINICIAN_EMAIL =
+  process.env.EXPO_PUBLIC_DEMO_CLINICIAN_EMAIL ?? 'demo.doctor@opescare.test';
+const DEMO_CLINICIAN_PASSWORD = process.env.EXPO_PUBLIC_DEMO_CLINICIAN_PASSWORD ?? 'demo1234';
 
 /** One-tap demo sign-in. Shown when the build is a demo build (or in dev):
  * this app is deployed as a public demo, where a visitor has no credentials
  * and an empty login screen is a dead end.
  *
- * The mobile API is patient-scoped end to end, so there is no clinician
- * account to sign into. The doctor entry therefore signs in as the demo
- * patient and switches the UI to the clinician side for a look — it grants no
- * clinician data, and those screens say so themselves. */
+ * The clinician entry is a REAL sign-in: it posts the demo clinician's
+ * credentials to `/mobile/auth/provider/login`, and when that succeeds the
+ * session is an actual provider token with actual clinician data behind it.
+ * Only when the server serves no provider auth AT ALL does it fall back to the
+ * old behaviour — the demo patient session plus the clinician UI preview — and
+ * the notice under the menu then says exactly that. A server that HAS the
+ * endpoint and refuses these credentials is reported, never papered over. */
 const DEMO_ACCOUNTS = [
   {
     key: 'patient',
@@ -52,8 +71,8 @@ const DEMO_ACCOUNTS = [
     key: 'doctor',
     icon: 'stethoscope',
     labelKey: 'auth.demoLoginDoctor',
-    email: 'demo.patient@opescare.test',
-    password: 'demo1234',
+    email: DEMO_CLINICIAN_EMAIL,
+    password: DEMO_CLINICIAN_PASSWORD,
     clinician: true,
   },
 ] as const satisfies readonly {
@@ -64,6 +83,10 @@ const DEMO_ACCOUNTS = [
   password: string | null;
   clinician: boolean;
 }[];
+
+/** The patient account the clinician preview falls back onto — on a server with
+ * no provider auth it is the only way into the app at all. */
+const DEMO_PATIENT = DEMO_ACCOUNTS[0];
 
 /**
  * "Remember my email" persistence. Only the identifier is stored — never the
@@ -117,6 +140,7 @@ export default function LoginScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const loginWithEmail = useAuthStore((s) => s.loginWithEmail);
+  const loginAsProvider = useAuthStore((s) => s.loginAsProvider);
   const clearError = useAuthStore((s) => s.clearError);
   const storeError = useAuthStore((s) => s.error);
 
@@ -127,6 +151,9 @@ export default function LoginScreen() {
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const [demoMenuOpen, setDemoMenuOpen] = useState(false);
   const [demoNotice, setDemoNotice] = useState<string | null>(null);
+  /** A failure this screen phrases better than the store can — it takes
+   * precedence over `storeError`, which is the raw server wording. */
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Prefill the identifier the patient last chose to remember.
   useEffect(() => {
@@ -147,8 +174,19 @@ export default function LoginScreen() {
   // A stale server error must not linger over freshly typed credentials.
   const resetErrors = useCallback(() => {
     setFieldErrors((prev) => (prev.email || prev.password ? {} : prev));
+    setFormError(null);
     if (storeError) clearError();
   }, [clearError, storeError]);
+
+  /** Keep the identifier the sign-in actually succeeded with. Never the password. */
+  const rememberIdentifier = async (identifier: string) => {
+    try {
+      if (rememberMe) await rememberedEmail.set(identifier);
+      else await rememberedEmail.clear();
+    } catch {
+      // Best-effort convenience only — never block a successful sign-in.
+    }
+  };
 
   const handleSelectDemoAccount = async (account: (typeof DEMO_ACCOUNTS)[number]) => {
     setDemoMenuOpen(false);
@@ -159,16 +197,50 @@ export default function LoginScreen() {
     setEmail(account.email);
     setPassword(account.password);
     resetErrors();
-    setDemoNotice(account.clinician ? t('auth.demoDoctorNotice') : null);
+    setDemoNotice(null);
 
-    // The clinician side is a UI preview: it is switched on BEFORE the session
-    // resolves so the post-login redirect lands on the doctor tabs, and off for
-    // the patient entry so a previous preview never leaks into a patient login.
-    useAuthStore.getState().previewClinician(account.clinician);
+    // Whatever a previous tap left switched on, this one decides again from
+    // scratch — a preview must never leak into the next session, of either kind.
+    useAuthStore.getState().previewClinician(false);
 
     setSubmitting(true);
     try {
-      await loginWithEmail(account.email, account.password);
+      if (!account.clinician) {
+        await loginWithEmail(account.email, account.password);
+        return;
+      }
+
+      // The clinician demo is a real provider sign-in first.
+      try {
+        await loginAsProvider(account.email, account.password);
+        return;
+      } catch (err) {
+        // A server that HAS provider auth and refused these credentials has
+        // given a real answer: the demo clinician is not seeded here, or the
+        // credentials are wrong. Say so (the store already holds the server's
+        // words) rather than quietly showing an empty imitation of the app.
+        if (!isProviderAuthUnavailable(err)) return;
+      }
+
+      // No provider auth on this server at all. Fall back to what this screen
+      // did before there was any: the demo PATIENT session, with the clinician
+      // screens switched on for a look. The notice below says so in plain
+      // words, because this session carries no clinician data whatsoever.
+      clearError();
+      setFormError(null);
+      setDemoNotice(t('auth.demoDoctorNotice'));
+      useAuthStore.getState().previewClinician(true);
+      try {
+        await loginWithEmail(DEMO_PATIENT.email, DEMO_PATIENT.password);
+        // Only jump to the clinician side once the session has actually
+        // settled. A first-run device lands on the permissions primer instead,
+        // and yanking it away from that would strand the router.
+        if (useAuthStore.getState().status === 'authenticated') routeToClinicianArea();
+      } catch {
+        // Even the patient demo is refused — leave nothing pretending otherwise.
+        useAuthStore.getState().previewClinician(false);
+        setDemoNotice(null);
+      }
     } catch {
       // The store surfaces the reason; leave the filled form for a manual retry.
       useAuthStore.getState().previewClinician(false);
@@ -186,16 +258,42 @@ export default function LoginScreen() {
     if (Object.keys(errors).length > 0) return;
 
     setSubmitting(true);
+    setFormError(null);
     try {
       await loginWithEmail(trimmed, password);
+      await rememberIdentifier(trimmed);
+    } catch (err) {
+      // A clinician typing their own credentials reaches the patient login
+      // first — there is one form, and they have no reason to know there are
+      // two APIs behind it. The patient endpoint answers 404 "no patient record
+      // for this account" when the password checked out but no chart belongs to
+      // it, which on this platform is precisely what staff look like. So try
+      // the provider login before telling them anything at all.
+      if (!looksLikeProviderAccount(err)) return;
+
+      // Keep the patient endpoint's own wording: if the provider login also
+      // refuses, that is still the most specific true thing we know.
+      const noPatientRecord = useAuthStore.getState().error;
       try {
-        if (rememberMe) await rememberedEmail.set(trimmed);
-        else await rememberedEmail.clear();
-      } catch {
-        // Best-effort convenience only — never block a successful sign-in.
+        await loginAsProvider(trimmed, password);
+        await rememberIdentifier(trimmed);
+      } catch (providerErr) {
+        if (isProviderAuthUnavailable(providerErr)) {
+          setFormError(
+            t('auth.clinicianSignInUnavailable', {
+              defaultValue: "Clinician sign-in isn't available on this server yet.",
+            }),
+          );
+        } else if (isProviderCredentialsRejected(providerErr) && noPatientRecord) {
+          // 401 here is deliberately ambiguous ("wrong password" and "not a
+          // clinician" are the same answer), and we already know the password
+          // was good. So the patient endpoint's "no patient record for this
+          // account" is the more specific truth — show that instead.
+          setFormError(noPatientRecord);
+        }
+        // Anything else — notably 409, a real clinician with no facility —
+        // stands in `storeError` in the server's own words.
       }
-    } catch {
-      // storeError already reflects the failure; nothing further to do here.
     } finally {
       setSubmitting(false);
     }
@@ -298,7 +396,7 @@ export default function LoginScreen() {
             <Text style={styles.rememberText}>{t('auth.rememberEmail')}</Text>
           </TouchableOpacity>
 
-          <FormError message={storeError ?? null} />
+          <FormError message={formError ?? storeError ?? null} />
 
           <GradientButton label={t('auth.signIn')} onPress={handleSignIn} loading={submitting} />
 

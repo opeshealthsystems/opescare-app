@@ -252,7 +252,7 @@ export default function PatientLookupScreen() {
               if (entryError) setEntryError(null);
             }}
             onSubmitEditing={submit}
-            placeholder={tx('search.idPlaceholder', 'e.g. OPES-24-AEDL-4L8D')}
+            placeholder={tx('search.idPlaceholder', 'e.g. CM-HID-XXXX-XXXX-XXXX')}
             error={entryError ?? undefined}
             autoCapitalize="characters"
             autoCorrect={false}

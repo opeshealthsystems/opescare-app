@@ -63,8 +63,17 @@ const DOCTOR_PERSONA_OVERRIDE =
  * will be read from the day `/mobile/auth/me` carries one, and taking it now
  * means that day changes this function's body, not its callers.
  */
+/**
+ * Runtime clinician preview. The build-time override above is the real switch;
+ * this exists so the demo login can show the clinician UI on a DEPLOYED demo
+ * build, where env vars are baked in at export time and cannot be flipped.
+ * It changes only which screens render — it grants no data and mints no
+ * clinician token, because the server has no provider API to mint one from.
+ */
+let CLINICIAN_PREVIEW = false;
+
 export function resolvePersona(_patient: Patient | null): Persona {
-  return DOCTOR_PERSONA_OVERRIDE ? 'doctor' : 'patient';
+  return DOCTOR_PERSONA_OVERRIDE || CLINICIAN_PREVIEW ? 'doctor' : 'patient';
 }
 
 /**
@@ -126,6 +135,8 @@ interface AuthState {
   resendOtp: () => Promise<void>;
   fetchMe: () => Promise<void>;
   logout: () => Promise<void>;
+  /** Show the clinician UI for this session (demo preview only — grants no data). */
+  previewClinician: (on: boolean) => void;
   clearError: () => void;
   /** Called by the permissions priming screen when the user finishes or
    * skips it — records the device as primed and settles status to
@@ -270,6 +281,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // The session profile is the only thing a persona could ever be read from,
     // so it is re-derived on every successful read of it.
     set({ patient: data, persona: resolvePersona(data) });
+  },
+
+  previewClinician: (on) => {
+    CLINICIAN_PREVIEW = on;
+    set({ persona: resolvePersona(get().patient) });
   },
 
   logout: async () => {

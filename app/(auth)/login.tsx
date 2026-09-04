@@ -31,24 +31,30 @@ import { Screen } from '@/components/ui/Screen';
 import { GoogleMark } from '@/components/icons/GoogleMark';
 import { useAuthStore } from '@/lib/store/auth';
 
-/** Dev-only quick-login shortcuts for local/demo backends (seeded by
- * DemoUsersSeeder). Only the patient account can actually sign into this
- * app — its mobile API is patient-scoped end to end — so "doctor" surfaces
- * an explainer instead of credentials that would just fail here. */
+/** One-tap demo sign-in. Shown when the build is a demo build (or in dev):
+ * this app is deployed as a public demo, where a visitor has no credentials
+ * and an empty login screen is a dead end.
+ *
+ * The mobile API is patient-scoped end to end, so there is no clinician
+ * account to sign into. The doctor entry therefore signs in as the demo
+ * patient and switches the UI to the clinician side for a look — it grants no
+ * clinician data, and those screens say so themselves. */
 const DEMO_ACCOUNTS = [
   {
     key: 'patient',
     icon: 'person',
     labelKey: 'auth.demoLoginPatient',
     email: 'demo.patient@opescare.test',
-    password: 'DemoPass!2026',
+    password: 'demo1234',
+    clinician: false,
   },
   {
     key: 'doctor',
     icon: 'stethoscope',
     labelKey: 'auth.demoLoginDoctor',
-    email: null,
-    password: null,
+    email: 'demo.patient@opescare.test',
+    password: 'demo1234',
+    clinician: true,
   },
 ] as const satisfies readonly {
   key: string;
@@ -56,6 +62,7 @@ const DEMO_ACCOUNTS = [
   labelKey: string;
   email: string | null;
   password: string | null;
+  clinician: boolean;
 }[];
 
 /**
@@ -65,6 +72,16 @@ const DEMO_ACCOUNTS = [
  * because expo-secure-store is a no-op on web.
  */
 const REMEMBERED_EMAIL_KEY = 'opescare_remembered_email';
+
+/**
+ * Demo sign-in is visible in development, and in any build exported with
+ * EXPO_PUBLIC_DEMO_LOGINS=1 — which is how finder.opescare.cloud/app is built.
+ * A real production build sets neither and never renders it.
+ */
+const SHOW_DEMO_LOGINS =
+  __DEV__ ||
+  process.env.EXPO_PUBLIC_DEMO_LOGINS === '1' ||
+  process.env.EXPO_PUBLIC_DEMO_LOGINS === 'true';
 
 interface RememberedEmailStore {
   get: () => Promise<string | null>;
@@ -133,15 +150,30 @@ export default function LoginScreen() {
     if (storeError) clearError();
   }, [clearError, storeError]);
 
-  const handleSelectDemoAccount = (account: (typeof DEMO_ACCOUNTS)[number]) => {
+  const handleSelectDemoAccount = async (account: (typeof DEMO_ACCOUNTS)[number]) => {
     setDemoMenuOpen(false);
-    if (account.email && account.password) {
-      setEmail(account.email);
-      setPassword(account.password);
-      resetErrors();
-      setDemoNotice(null);
-    } else {
-      setDemoNotice(t('auth.demoDoctorNotice'));
+    if (!account.email || !account.password) return;
+
+    // Fill the fields too, so the tap is legible and a failure leaves the
+    // form ready to retry by hand rather than mysteriously empty.
+    setEmail(account.email);
+    setPassword(account.password);
+    resetErrors();
+    setDemoNotice(account.clinician ? t('auth.demoDoctorNotice') : null);
+
+    // The clinician side is a UI preview: it is switched on BEFORE the session
+    // resolves so the post-login redirect lands on the doctor tabs, and off for
+    // the patient entry so a previous preview never leaks into a patient login.
+    useAuthStore.getState().previewClinician(account.clinician);
+
+    setSubmitting(true);
+    try {
+      await loginWithEmail(account.email, account.password);
+    } catch {
+      // The store surfaces the reason; leave the filled form for a manual retry.
+      useAuthStore.getState().previewClinician(false);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -189,7 +221,7 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.content}
         >
-          {__DEV__ ? (
+          {SHOW_DEMO_LOGINS ? (
             <DemoAccountPicker
               open={demoMenuOpen}
               notice={demoNotice}

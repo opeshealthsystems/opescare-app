@@ -57,10 +57,10 @@
     "pinPlaceholder": "••••••",
     "invalidEmail": "Enter a valid email or Health ID",
     "invalidPassword": "Password is required",
-    "demoLoginLabel": "Quick demo login (dev only)",
-    "demoLoginPatient": "Demo Patient — Jean Dupont",
-    "demoLoginDoctor": "Demo Doctor — Dr. Amara Diallo",
-    "demoDoctorNotice": "Doctor accounts use the OpesCare Staff Portal on the web, not this patient app. Sign in there with demo.doctor@opescare.test / DemoPass!2026."
+    "demoLoginLabel": "Try the demo — sign in with one tap",
+    "demoLoginPatient": "Demo patient",
+    "demoLoginDoctor": "Demo clinician (preview)",
+    "demoDoctorNotice": "Signed in as the demo patient, showing the clinician screens. Clinician data is not connected on this server yet, so those screens will be empty."
   },
   "signup": {
     "stepIndicator": "Step {{current}} of {{total}}",

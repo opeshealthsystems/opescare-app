@@ -57,10 +57,10 @@
     "pinPlaceholder": "••••••",
     "invalidEmail": "Entrez un e-mail ou identifiant santé valide",
     "invalidPassword": "Le mot de passe est requis",
-    "demoLoginLabel": "Connexion démo rapide (développement uniquement)",
-    "demoLoginPatient": "Patient démo — Jean Dupont",
-    "demoLoginDoctor": "Médecin démo — Dr Amara Diallo",
-    "demoDoctorNotice": "Les comptes médecins utilisent le portail personnel OpesCare sur le web, pas cette application patient. Connectez-vous là-bas avec demo.doctor@opescare.test / DemoPass!2026."
+    "demoLoginLabel": "Essayer la démo — connexion en un geste",
+    "demoLoginPatient": "Patient de démonstration",
+    "demoLoginDoctor": "Soignant de démonstration (aperçu)",
+    "demoDoctorNotice": "Connecté en tant que patient de démonstration, avec les écrans soignant affichés. Les données soignant ne sont pas encore connectées sur ce serveur : ces écrans seront vides."
   },
   "signup": {
     "stepIndicator": "Étape {{current}} sur {{total}}",

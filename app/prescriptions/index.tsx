@@ -34,8 +34,7 @@ import {
   EXPIRY_WARNING_WINDOW_DAYS,
   daysUntil,
   referenceCode,
-  statusLabelKey,
-  fallbackStatusLabel,
+  resolveStatusLabel,
 } from '../../components/prescriptions/status';
 import {
   LoadingBlock,
@@ -266,24 +265,11 @@ function usePrescriptionVocab() {
 
   const statusLabel = useCallback(
     (status: string): string => {
-      switch ((status ?? '').toLowerCase()) {
-        case 'active':
-        case 'dispensed':
-        case 'partially_dispensed':
-        case 'expired':
-        case 'cancelled':
-          return tx(statusLabelKey(status) ?? '') || fallbackStatusLabel(status);
-        case 'voided':
-          return tx('prescriptions.statusVoided', { defaultValue: 'Voided' });
-        case 'entered_in_error':
-          return tx('prescriptions.statusEnteredInError', { defaultValue: 'Entered in error' });
-        case 'amended':
-          return tx('prescriptions.statusAmended', { defaultValue: 'Amended' });
-        case 'draft':
-          return tx('prescriptions.statusDraft', { defaultValue: 'Draft' });
-        default:
-          return formatLabel(status);
-      }
+      // One vocabulary, shared with the list screen and the status pill. The
+      // hand-written switch that used to live here named the retracted states
+      // inline because the shared helper answered "Active" for them; it does
+      // not any more.
+      return resolveStatusLabel(status ?? '', (key) => tx(key));
     },
     [tx],
   );

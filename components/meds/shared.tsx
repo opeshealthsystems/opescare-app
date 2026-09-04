@@ -163,12 +163,22 @@ export const prescriptionTypeLabel = (v?: string | null) => vocabLabel('prescrip
  * list that is a safety-legibility problem, so `cancelled` is promoted to
  * critical. Anything else falls through to the kit's keyword map.
  */
+/** Retracted on the server — the record was taken back, never merely ended. */
+const RETRACTED_STATUSES = ['voided', 'entered_in_error'];
+
 export function prescriptionTone(
   status: string,
-  statusColor?: 'success' | 'info' | 'warning' | 'default' | null
+  statusColor?: 'success' | 'info' | 'warning' | 'danger' | 'default' | null
 ): StatusTone {
-  if (status === 'cancelled') return 'critical';
+  // Driven off the status, not the colour, so a retracted record still reads as
+  // critical if the server ever changes what colour it sends. `toneForStatus`
+  // does not know these words — it would answer 'neutral', which is the same
+  // grey a lapsed prescription gets.
+  if (status === 'cancelled' || RETRACTED_STATUSES.includes(status)) return 'critical';
+
   switch (statusColor) {
+    case 'danger':
+      return 'critical';
     case 'success':
       return 'normal';
     case 'info':

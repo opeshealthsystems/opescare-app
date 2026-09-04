@@ -371,7 +371,14 @@ export interface PrescriptionSummary {
   reference: string | null;
   facility_name: string | null;
   status: string;
-  status_color: 'success' | 'info' | 'warning' | 'default';
+  /**
+   * Mirrors `Prescription::statusColor()`. `danger` is NOT optional: the
+   * server returns it for `voided` and `entered_in_error`, and leaving it
+   * out of this union let those values fall through every `switch` on this
+   * field to a neutral arm — a retracted prescription rendered grey, the
+   * same as one that had merely lapsed.
+   */
+  status_color: 'success' | 'info' | 'warning' | 'danger' | 'default';
   item_count: number;
   prescribed_at: string | null;
   dispensed_at: string | null;

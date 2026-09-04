@@ -53,8 +53,7 @@ import {
   EXPIRY_WARNING_WINDOW_DAYS,
   daysUntil,
   referenceCode,
-  statusLabelKey,
-  fallbackStatusLabel,
+  resolveStatusLabel,
 } from '../../components/prescriptions/status';
 import {
   ActionGrid,
@@ -89,11 +88,10 @@ import {
  *    `dispense_notes`.
  *
  * 2. **A retracted record is never shown as live.** `Prescription::
- *    TERMINAL_STATUSES` includes `voided`, `entered_in_error` and `amended`, and
- *    the shared `statusLabelKey` helper falls through to "Active" for all three
- *    — so those are named locally instead (see `usePrescriptionVocab`). Clinical
- *    events here are immutable: a cancelled drug line stays on the screen,
- *    struck through and labelled, rather than disappearing.
+ *    TERMINAL_STATUSES` includes `voided`, `entered_in_error` and `amended`;
+ *    all three are named by the shared `resolveStatusLabel` helper and tone as
+ *    critical. Clinical events here are immutable: a cancelled drug line stays
+ *    on the screen, struck through and labelled, rather than disappearing.
  *
  * 3. **Nothing is invented.** `GET /api/mobile/prescriptions/{id}` returns
  *    exactly: id, facility_name, status, status_color, item_count,
@@ -520,24 +518,11 @@ function usePrescriptionVocab() {
 
   const statusLabel = useCallback(
     (status: string): string => {
-      switch ((status ?? '').toLowerCase()) {
-        case 'active':
-        case 'dispensed':
-        case 'partially_dispensed':
-        case 'expired':
-        case 'cancelled':
-          return tx(statusLabelKey(status) ?? '') || fallbackStatusLabel(status);
-        case 'voided':
-          return tx('prescriptions.statusVoided', { defaultValue: 'Voided' });
-        case 'entered_in_error':
-          return tx('prescriptions.statusEnteredInError', { defaultValue: 'Entered in error' });
-        case 'amended':
-          return tx('prescriptions.statusAmended', { defaultValue: 'Amended' });
-        case 'draft':
-          return tx('prescriptions.statusDraft', { defaultValue: 'Draft' });
-        default:
-          return formatLabel(status);
-      }
+      // One vocabulary, shared with the list screen and the status pill. The
+      // hand-written switch that used to live here named the retracted states
+      // inline because the shared helper answered "Active" for them; it does
+      // not any more.
+      return resolveStatusLabel(status ?? '', (key) => tx(key));
     },
     [tx],
   );

@@ -2,6 +2,7 @@ import { Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { colors } from '../../theme/tokens';
 import type { PrescriptionSummary } from '../../lib/api/queries';
+import { formatLabel } from '@/components/opes-ui';
 
 /**
  * Shared prescription presentation helpers — status vocabulary, the status
@@ -44,10 +45,40 @@ export function statusLabelKey(status: string): string | null {
   return STATUS_LABEL_KEYS[status] ?? null;
 }
 
-/** Sentence-cases a raw server value so an unmapped status stays readable. */
+/**
+ * Sentence-cases a raw server value so an unmapped status stays readable.
+ *
+ * Delegates to the kit's `formatLabel` so there is one rule for turning API
+ * vocabulary into a label; a second local copy is how the two drift.
+ */
 export function fallbackStatusLabel(status: string): string {
-  const words = status.replace(/[_-]+/g, ' ').trim();
-  return words.charAt(0).toUpperCase() + words.slice(1);
+  return formatLabel(status);
+}
+
+/**
+ * The label for a status: the translated string when we have a key for it,
+ * otherwise the raw value formatted.
+ *
+ * Exported because both prescription screens were each carrying their own
+ * switch over the same statuses, listing `voided` / `entered_in_error` /
+ * `amended` / `draft` by hand with inline `defaultValue`s. Two copies of a
+ * safety-critical vocabulary is one copy too many — when the server gains a
+ * status, this is the only place that has to learn about it.
+ *
+ * `translate` takes the i18n key and returns the resolved string; pass a
+ * `t`-shaped function.
+ */
+export function resolveStatusLabel(
+  status: string,
+  translate: (key: string) => string,
+): string {
+  const key = statusLabelKey(status);
+  if (!key) return fallbackStatusLabel(status);
+
+  // A missing translation resolves to the key itself in i18next; that is not a
+  // label, so fall back rather than printing "prescriptions.statusVoided".
+  const label = translate(key);
+  return label && label !== key ? label : fallbackStatusLabel(status);
 }
 
 export interface StatusTone {
@@ -69,6 +100,8 @@ export function statusTone(status: string, statusColor: PrescriptionStatusColor)
   }
 
   switch (statusColor) {
+    case 'danger':
+      return { fg: colors.semantic.danger, bg: colors.semantic.dangerSurface };
     case 'success':
       return { fg: colors.semantic.success, bg: colors.semantic.successSurface };
     case 'info':
@@ -102,7 +135,7 @@ export function StatusPill({
         className={`font-bold ${large ? 'text-xs' : 'text-[11px]'}`}
         style={{ color: tone.fg }}
       >
-        {statusLabelKey(status) ? t(statusLabelKey(status) as string) : fallbackStatusLabel(status)}
+        {resolveStatusLabel(status, (key) => String(t(key)))}
       </Text>
     </View>
   );

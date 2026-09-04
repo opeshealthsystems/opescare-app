@@ -228,18 +228,20 @@ function hoursLine(
 function freshness(
   stock: PharmacyStock | null | undefined,
   t: (key: string, params?: Record<string, unknown>) => string,
-): { line: string; stale: boolean } {
-  if (!stock?.last_reported_at) {
+): { date: string; line: string; stale: boolean } {
+  const age = daysSince(stock?.last_reported_at);
+  if (age === null) {
     return {
-      line: t('pharmacy.stockNotDated', { defaultValue: 'Stock report not dated' }),
-      // An undated report cannot be shown as current either.
+      date: t('prescriptions.notRecorded'),
+      line: t('pharmacy.stockNotDated', { defaultValue: 'The pharmacy did not date this report' }),
+      // An undated report cannot be presented as current either.
       stale: true,
     };
   }
-  const age = daysSince(stock.last_reported_at);
   return {
-    line: t('pharmacy.stockUpdated', { when: formatDate(stock.last_reported_at) }),
-    stale: age !== null && age > STOCK_STALE_DAYS,
+    date: formatDate(stock?.last_reported_at),
+    line: t('pharmacy.stockUpdated', { when: formatDate(stock?.last_reported_at) }),
+    stale: age > STOCK_STALE_DAYS,
   };
 }
 
@@ -496,11 +498,12 @@ export default function MedicineDetailScreen() {
                 'This stock report is more than {{days}} days old. Call the pharmacy before you travel.',
             })
           : stockFreshness.line,
-        '',
-        t('pharmacy.paymentNote'),
       ]
         .filter(Boolean)
-        .join('\n'),
+        .join('\n')
+        // Blank line before the money statement — `filter(Boolean)` above would
+        // have swallowed an empty entry, so the spacer is appended here.
+        .concat('\n\n', t('pharmacy.paymentNote')),
       confirmLabel: t('pharmacy.reserve'),
       tone: 'info',
       onConfirm: placeReservation,
@@ -897,20 +900,20 @@ export default function MedicineDetailScreen() {
                   />
                   {stock.pack_size ? (
                     <SummaryLine
-                      label={t('pharmacy.packSizeOptions')}
+                      label={t('pharmacy.packSizeLabel', { defaultValue: 'Pack size' })}
                       value={stock.pack_size}
                     />
                   ) : null}
                   {stock.packs_available !== null ? (
                     <SummaryLine
-                      label={t('pharmacy.stock.in_stock')}
+                      label={t('pharmacy.packsOnShelf', { defaultValue: 'Packs reported' })}
                       value={t('pharmacy.packsAvailable', { count: stock.packs_available })}
                     />
                   ) : null}
                   {/* Always present: a pack count is not a substitute for a date. */}
                   <SummaryLine
-                    label={t('pharmacy.stockDetails', { defaultValue: 'Last reported' })}
-                    value={stockFreshness.line}
+                    label={t('pharmacy.lastReported', { defaultValue: 'Last reported' })}
+                    value={stockFreshness.date}
                   />
                 </View>
 

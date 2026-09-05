@@ -83,7 +83,7 @@ import {
   type Palette,
   type Tint,
 } from '@/components/opes-ui';
-import { NoticeBanner, describeFailure, type Translate } from '@/components/care/shared';
+import { CareButton, NoticeBanner, describeFailure, type Translate } from '@/components/care/shared';
 // ── Doctor foundation (owned by the foundation agent) ─────────────────────
 import {
   OVERVIEW_ENCOUNTER_SCAN,
@@ -336,6 +336,7 @@ function DeadChart({
 // ── Identity ──────────────────────────────────────────────────────────────
 
 function IdentityCard({ patient: p, tx }: { patient: ChartPatient; tx: Tx }) {
+  const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const location = [p.address, p.city].filter(Boolean).join(', ') || null;
@@ -346,21 +347,40 @@ function IdentityCard({ patient: p, tx }: { patient: ChartPatient; tx: Tx }) {
   return (
     <>
       {/*
-        Consent is what makes this record readable at all. When the server says
-        the grant is not held, the chart says so above everything else — a
-        clinician must know they are looking at a record they are not currently
-        authorised for, whatever the endpoint chose to return.
+        `consent_granted: false` alongside a 200 does NOT mean this read was
+        unauthorised. `relationshipBasis()` refuses with 403 when no basis
+        holds, so a chart that rendered at all was opened lawfully — on a care
+        relationship (an appointment, a care-team seat, having treated them, or
+        a live episode at this facility) rather than on an explicit grant.
+
+        The old wording said "this record is not currently shared with you …
+        before relying on anything below", which impugns data that is fine and
+        describes the wrong thing as the problem. It also told the clinician to
+        "ask the patient to grant access" and then offered no way to do it — the
+        request-access screen existed with nothing linking to it.
+
+        So: name the real authority, and carry the action. The patient's own
+        Privacy screen words the same fact the same way ("They have treated you
+        … cannot be withdrawn here"), and the two surfaces should agree.
       */}
       {p.consent_granted === false && (
-        <NoticeBanner
-          icon="lock"
-          tone="warning"
-          title={tx('chart.noConsentTitle', 'No consent grant on file')}
-          message={tx(
-            'chart.noConsentBody',
-            'This record is not currently shared with you. Ask the patient to grant access before relying on anything below.'
-          )}
-        />
+        <>
+          <NoticeBanner
+            icon="shield-check"
+            tone="pending"
+            title={tx('chart.careBasisTitle', 'Open on your care relationship')}
+            message={tx(
+              'chart.careBasisBody',
+              'You can see this record because you are treating this patient, not because they granted your facility standing access. Ask for a consent grant if you need it beyond this episode.'
+            )}
+          />
+          <CareButton
+            label={tx('chart.requestAccess', 'Ask for access')}
+            icon="lock-open"
+            variant="secondary"
+            onPress={() => router.push(doctorRoutes.requestAccess(p.health_id))}
+          />
+        </>
       )}
 
       <Card>

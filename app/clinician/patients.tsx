@@ -294,6 +294,35 @@ export default function PatientLookupScreen() {
           </Text>
         </Card>
 
+        {/*
+          Emergency access lives HERE, on the lookup screen, and deliberately
+          NOT on a refusal.
+
+          The temptation is to offer it the moment a chart 403s — which would
+          turn it into a retry button and hollow out the refusal it sits behind.
+          A clinician would learn that "no relationship" is a speed bump with a
+          text box in front of it. So it is a standing, separately-labelled
+          route a clinician chooses on purpose, worded as the exception it is:
+          the screen itself then demands an exact Health ID, twenty characters
+          of free-text account, and three acknowledgements before anything
+          opens, and the patient is told.
+
+          Until now nothing in the app linked to it at all — the screen shipped
+          reachable only by typing a URL, which on a phone means not at all.
+        */}
+        <Card variant="flush">
+          <ListRow
+            icon="alert-triangle"
+            tint="red"
+            title={tx('emergency.entryTitle', 'Emergency access')}
+            subtitle={tx(
+              'emergency.entryBody',
+              'For an unconscious or unidentified patient with no record of care here. Logged as an override, and the patient is told.'
+            )}
+            onPress={() => router.push(doctorRoutes.breakGlass)}
+          />
+        </Card>
+
         {result}
 
         <TodaySection

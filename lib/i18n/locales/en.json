@@ -5120,7 +5120,10 @@
       "noConsentBody": "This record is not currently shared with you. Ask the patient to grant access before relying on anything below.",
       "noConsentTitle": "No consent grant on file",
       "noIdBody": "A chart is opened with a patient’s Health ID. Look the patient up again from the Patients tab.",
-      "noIdTitle": "No Health ID in this link"
+      "noIdTitle": "No Health ID in this link",
+      "careBasisTitle": "Open on your care relationship",
+      "careBasisBody": "You can see this record because you are treating this patient, not because they granted your facility standing access. Ask for a consent grant if you need it beyond this episode.",
+      "requestAccess": "Ask for access"
     },
     "section": {
       "loading": "Loading…",
@@ -5748,6 +5751,10 @@
       "refusedNotAssigned": "You no longer have an active posting at {{name}}. Your session has not changed.",
       "refusedSuspended": "{{name}} is suspended and cannot be used. Your session has not changed.",
       "refusedUnknown": "Your facility could not be changed. Check your connection and open this screen again to see which facility you are acting as."
+    },
+    "emergency": {
+      "entryTitle": "Emergency access",
+      "entryBody": "For an unconscious or unidentified patient with no record of care here. Logged as an override, and the patient is told."
     }
   },
   "_readme": [

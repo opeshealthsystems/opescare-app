@@ -5120,7 +5120,10 @@
       "noConsentBody": "Ce dossier ne vous est pas partagé actuellement. Demandez au patient de vous en accorder l’accès avant de vous fier à ce qui suit.",
       "noConsentTitle": "Aucun consentement au dossier",
       "noIdBody": "Un dossier s’ouvre avec l’identifiant santé d’un patient. Recherchez à nouveau le patient depuis l’onglet Patients.",
-      "noIdTitle": "Aucun identifiant santé dans ce lien"
+      "noIdTitle": "Aucun identifiant santé dans ce lien",
+      "careBasisTitle": "Ouvert au titre de votre relation de soins",
+      "careBasisBody": "Vous voyez ce dossier parce que vous soignez ce patient, et non parce qu’il a accordé un accès permanent à votre établissement. Demandez un consentement si vous en avez besoin au-delà de cet épisode de soins.",
+      "requestAccess": "Demander l’accès"
     },
     "section": {
       "loading": "Chargement…",
@@ -5748,6 +5751,10 @@
       "refusedNotAssigned": "Vous n'avez plus d'affectation active dans {{name}}. Votre session n'a pas changé.",
       "refusedSuspended": "{{name}} est suspendu et ne peut pas être utilisé. Votre session n'a pas changé.",
       "refusedUnknown": "Votre établissement n'a pas pu être changé. Vérifiez votre connexion et rouvrez cet écran pour voir pour quel établissement vous agissez."
+    },
+    "emergency": {
+      "entryTitle": "Accès d’urgence",
+      "entryBody": "Pour un patient inconscient ou non identifié, sans historique de soins ici. Enregistré comme dérogation, et le patient en est informé."
     }
   },
   "_readme": [

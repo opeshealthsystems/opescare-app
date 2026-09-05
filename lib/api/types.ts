@@ -124,7 +124,15 @@ export interface TimelineEvent {
   id: string;
   facility_name: string | null;
   occurred_at: string;
+  /**
+   * The endpoint's English string — "Prescription — 3 item(s)". Unchanged
+   * because clients parse it. Do NOT render it: use `summary_label`.
+   */
   summary: string;
+  /** The same line in the patient's language, with a real plural. */
+  summary_label?: string | null;
+  /** Just its tail, for a row whose title already names the kind of entry. */
+  detail_label?: string | null;
 }
 
 export interface TimelineResponse {

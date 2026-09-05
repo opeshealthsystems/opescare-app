@@ -1,0 +1,13 @@
+{
+  "consentCopy": {
+    "durationOfAccess": "{{duration}} d’accès",
+    "confirmApproveBody": "{{facility}} pourra consulter {{scope}} au titre de « {{purpose}} », pendant {{duration}}. Chaque consultation sera inscrite dans votre journal d’accès — et vous pouvez révoquer cet accès à tout moment.",
+    "unnamedCode": "OpesCare n’a pas de libellé en langage clair pour l’un des codes affichés ici : il est montré exactement tel qu’il a été enregistré. Demandez à l’établissement ce qu’il recouvre — il peut recouvrir plus qu’il n’y paraît.",
+    "unnamedPurpose": "OpesCare n’a pas de libellé en langage clair pour ce code de motif : il est montré exactement tel qu’il a été enregistré.",
+    "durationUnknown": "La durée de cet accès n’a pas été transmise avec cette demande."
+  },
+  "profile": {
+    "profileStrengthHint_one": "{{count}} information encore manquante",
+    "profileStrengthHint_other": "{{count}} informations encore manquantes"
+  }
+}

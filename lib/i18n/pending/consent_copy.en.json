@@ -1,0 +1,13 @@
+{
+  "consentCopy": {
+    "durationOfAccess": "{{duration}} of access",
+    "confirmApproveBody": "{{facility}} will be able to open {{scope}} for \"{{purpose}}\", for {{duration}}. Every time they open it, it is written to your access log — and you can revoke this at any moment.",
+    "unnamedCode": "OpesCare has no plain-language name for one of the codes shown here, so it is shown exactly as it was recorded. Ask the facility what it covers — it may cover more than it appears to.",
+    "unnamedPurpose": "OpesCare has no plain-language name for this reason code, so it is shown exactly as it was recorded.",
+    "durationUnknown": "How long this access would last was not sent with this request."
+  },
+  "profile": {
+    "profileStrengthHint_one": "{{count}} detail still missing",
+    "profileStrengthHint_other": "{{count}} details still missing"
+  }
+}

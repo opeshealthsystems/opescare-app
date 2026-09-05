@@ -544,7 +544,13 @@ export default function HomeScreen() {
                 events.slice(0, RECENT_RECORDS_COUNT).map((ev, i, all) => {
                   const meta = RECORD_META[ev.event_type];
                   const category = t(`records.category.${ev.event_type}`);
-                  const summary = ev.summary?.trim();
+                  // `summary` is the endpoint's English string — a French
+                  // patient read "Prescription — 1 item(s)" here, plural
+                  // parenthesis and all, because this row printed it verbatim.
+                  // `summary_label` is the same line in their language with a
+                  // real plural; `summary` remains the fallback for a server
+                  // that predates it.
+                  const summary = (ev.summary_label ?? ev.summary)?.trim();
                   return (
                     <ListRow
                       key={`${ev.event_type}-${ev.id}`}

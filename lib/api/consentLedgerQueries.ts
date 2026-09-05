@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import i18next from 'i18next';
 import { apiClient } from './client';
+import type { VocabularyItem } from './queries';
 
 /*
  * ---------------------------------------------------------------------------
@@ -157,9 +158,23 @@ export interface ConsentGrantItem {
   /** Only when the originating request named a person. Null is not "unknown staff". */
   clinician: LedgerClinician | null;
 
+  /** The stored codes, exactly as stored. What the patient READS is `scope_items`. */
   scope: string[];
   purpose: string | null;
   basis: ConsentGrantBasis;
+
+  /*
+   * Server-resolved, out of the same vocabulary the clinician's picker is built
+   * from. An item with `recognised: false` carries the raw code as its own
+   * label: this column genuinely holds values from outside the consent
+   * vocabulary (`patients:read`, the B2B Connect token scope), and naming one
+   * of those would misstate how much of the record its holder can open.
+   * `scope_note` is set only when that happens.
+   */
+  scope_items?: VocabularyItem[] | null;
+  scope_note?: string | null;
+  purpose_label?: string | null;
+  purpose_note?: string | null;
 
   granted_at: string | null;
   expires_at: string | null;

@@ -186,18 +186,26 @@ export default function RecordsScreen() {
       let href: string | null = null;
       let actionLabel: string | null = null;
 
+      // `detail_label` is the server's own tail — already in the patient's
+      // language, already pluralised, out of lang/{en,fr}/patient_timeline.php.
+      // Preferring it means one vocabulary rather than this screen re-deriving
+      // one by parsing an English string. The parsing stays as the fallback for
+      // a server that predates the field.
       if (ev.event_type === 'lab_result') {
         // The tail is the test name — real clinical data, shown as-is. The
         // dedicated lab detail screen is not part of the finder build.
+        descriptor = ev.detail_label ?? tail;
       } else if (ev.event_type === 'prescription') {
         // "3 item(s)" — recover the real count so it can be pluralised properly.
         const n = tail ? Number.parseInt(tail, 10) : Number.NaN;
-        descriptor = Number.isNaN(n) ? tail : t('records.item.prescriptionItems', { count: n });
+        descriptor =
+          ev.detail_label ??
+          (Number.isNaN(n) ? tail : t('records.item.prescriptionItems', { count: n }));
         href = `/prescriptions/${ev.id}`;
         actionLabel = t('records.action.viewPrescription');
       } else {
         // Visit: the tail is a visit_type token (outpatient, lab-only, …).
-        descriptor = tail ? enumLabel('visitType', tail) : null;
+        descriptor = ev.detail_label ?? (tail ? enumLabel('visitType', tail) : null);
       }
 
       items.push({

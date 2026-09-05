@@ -118,24 +118,37 @@ type Stage = 'patient' | 'compose' | 'sent' | 'outbox';
 /** The least that can be asked for — and where the form starts. */
 const DEFAULT_SCOPE = ['patient.summary'];
 
-/** Fallbacks used only until GET /options answers. */
-const FALLBACK_PURPOSES: ConsentVocabularyItem[] = [
-  { value: 'treatment', label: 'Treating this patient' },
-  { value: 'referral', label: 'A referral' },
-  { value: 'second_opinion', label: 'A second opinion' },
-  { value: 'continuity_of_care', label: 'Continuity of care' },
-  { value: 'emergency_followup', label: 'Follow-up after emergency care' },
+/**
+ * Fallbacks used only until GET /options answers — and, if that call fails,
+ * for as long as the clinician stays on the screen.
+ *
+ * They were English string literals, which made this the last place in the
+ * app where the consent vocabulary existed twice: the server serves these
+ * labels out of lang/{en,fr}/consent_requests.php, and a French clinician
+ * still read "Record summary" until the fetch landed. Building them through
+ * `tx()` keeps them a fallback while making them a TRANSLATED one — the
+ * English text below is the i18n default, so nothing changed for English.
+ *
+ * The codes are the contract and stay literal: they are what gets submitted,
+ * what the patient's screen resolves, and what the grant is written against.
+ */
+const buildFallbackPurposes = (tx: Tx): ConsentVocabularyItem[] => [
+  { value: 'treatment', label: tx('fallbackPurpose.treatment', 'Treating this patient') },
+  { value: 'referral', label: tx('fallbackPurpose.referral', 'A referral') },
+  { value: 'second_opinion', label: tx('fallbackPurpose.second_opinion', 'A second opinion') },
+  { value: 'continuity_of_care', label: tx('fallbackPurpose.continuity_of_care', 'Continuity of care') },
+  { value: 'emergency_followup', label: tx('fallbackPurpose.emergency_followup', 'Follow-up after emergency care') },
 ];
 
-const FALLBACK_SCOPES: ConsentVocabularyItem[] = [
-  { value: 'patient.summary', label: 'Record summary' },
-  { value: 'allergies.read', label: 'Allergies' },
-  { value: 'problems.read', label: 'Ongoing problems' },
-  { value: 'encounters.read', label: 'Visits and consultations' },
-  { value: 'vitals.read', label: 'Vital signs' },
-  { value: 'medications.read', label: 'Medicines and prescriptions' },
-  { value: 'diagnoses.read', label: 'Diagnoses' },
-  { value: 'orders.read', label: 'Laboratory and imaging orders' },
+const buildFallbackScopes = (tx: Tx): ConsentVocabularyItem[] => [
+  { value: 'patient.summary', label: tx('fallbackScope.patient_summary', 'Record summary') },
+  { value: 'allergies.read', label: tx('fallbackScope.allergies_read', 'Allergies') },
+  { value: 'problems.read', label: tx('fallbackScope.problems_read', 'Ongoing problems') },
+  { value: 'encounters.read', label: tx('fallbackScope.encounters_read', 'Visits and consultations') },
+  { value: 'vitals.read', label: tx('fallbackScope.vitals_read', 'Vital signs') },
+  { value: 'medications.read', label: tx('fallbackScope.medications_read', 'Medicines and prescriptions') },
+  { value: 'diagnoses.read', label: tx('fallbackScope.diagnoses_read', 'Diagnoses') },
+  { value: 'orders.read', label: tx('fallbackScope.orders_read', 'Laboratory and imaging orders') },
 ];
 
 export default function RequestAccessScreen() {
@@ -181,8 +194,10 @@ export default function RequestAccessScreen() {
     enabled: stage === 'outbox',
   });
 
-  const purposes = options.data?.purposes.length ? options.data.purposes : FALLBACK_PURPOSES;
-  const scopes = options.data?.scopes.length ? options.data.scopes : FALLBACK_SCOPES;
+  const fallbackPurposes = useMemo(() => buildFallbackPurposes(tx), [tx]);
+  const fallbackScopes = useMemo(() => buildFallbackScopes(tx), [tx]);
+  const purposes = options.data?.purposes.length ? options.data.purposes : fallbackPurposes;
+  const scopes = options.data?.scopes.length ? options.data.scopes : fallbackScopes;
 
   // If the server's vocabulary does not contain the purpose this screen
   // started on, follow the server rather than sending a value it will reject.

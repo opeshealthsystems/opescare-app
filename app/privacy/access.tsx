@@ -33,7 +33,10 @@ import {
   type StatusTone,
   type Tint,
 } from '@/components/opes-ui';
-import { extractApiErrorMessage } from '../../lib/api/queries';
+import { extractApiErrorMessage, type VocabularyItem } from '../../lib/api/queries';
+// EN/FR chrome for these screens while it waits in lib/i18n/pending/. The
+// VOCABULARY is not in there — it comes from the server.
+import '../../lib/i18n/consentCopyStrings';
 import {
   useConsentLedger,
   useRevokeConsentGrant,
@@ -100,9 +103,45 @@ import {
  * from the server already translated — the hook sends the running language —
  * so this screen is bilingual today, not once the pending locale files are
  * merged.
+ *
+ * The scope chips now come from there too. They used to be translated here
+ * against a `privacy.scope.*` table built from a vocabulary the API has never
+ * emitted, so a live grant listed `Patient.summary` and `Allergies.read` in
+ * both languages while the clinician who asked for it had picked "Record
+ * summary" and "Allergies" off a labelled list. One vocabulary now, on the
+ * server (App\Support\PatientVocabulary), read from the same lang files that
+ * picker is built from.
  */
 
 type ScreenNotice = { tone: StatusTone; icon: IconName; body: string };
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
+
+/**
+ * The scope list a grant card renders, and the caution that goes under it.
+ *
+ * The server's `scope_items` whenever they are there. The fallback covers a
+ * payload from a server that predates them: raw codes shown AS the labels,
+ * every one marked unrecognised, caution displayed. It is deliberately not a
+ * local translation table — this screen having one was the bug.
+ */
+function scopeView(
+  items: VocabularyItem[] | null | undefined,
+  rawCodes: string[] | null | undefined,
+  serverNote: string | null | undefined,
+  t: TFn,
+): { items: VocabularyItem[]; note: string | null } {
+  if (items && items.length > 0) {
+    return { items, note: serverNote ?? null };
+  }
+
+  const codes = rawCodes ?? [];
+  if (codes.length === 0) return { items: [], note: null };
+
+  return {
+    items: codes.map((code) => ({ code, label: code, recognised: false })),
+    note: t('consentCopy.unnamedCode'),
+  };
+}
 
 /** How each derived state is dressed. Active is the only one that looks live. */
 const STATE_SKIN: Record<ConsentGrantState, { tone: StatusTone; icon: IconName; tint: Tint }> = {
@@ -469,6 +508,7 @@ function GrantCard({
   const skin = STATE_SKIN[item.state] ?? STATE_SKIN.ended;
   const live = item.state === 'active';
   const canWithdraw = live && item.revoke.available && !!onWithdraw;
+  const scopes = scopeView(item.scope_items, item.scope, item.scope_note, t as TFn);
 
   const expires = item.expires_at ? new Date(item.expires_at) : null;
   const ended = item.ended_at ? new Date(item.ended_at) : null;
@@ -533,13 +573,10 @@ function GrantCard({
               {t('consentLedger.scopeLabel', { defaultValue: 'What they can see' })}
             </Text>
           </View>
-          {item.scope.length > 0 ? (
+          {scopes.items.length > 0 ? (
             <View style={styles.chips}>
-              {item.scope.map((scope) => (
-                <Chip
-                  key={scope}
-                  label={t(`privacy.scope.${scope}`, { defaultValue: formatLabel(scope) })}
-                />
+              {scopes.items.map((scope) => (
+                <Chip key={scope.code} label={scope.label} />
               ))}
             </View>
           ) : (
@@ -547,13 +584,25 @@ function GrantCard({
               {t('consentLedger.scopeUnspecified', { defaultValue: 'Not specified' })}
             </Text>
           )}
+          {/* Shown only when a code has no name in OpesCare's vocabulary. The
+              chip above then carries the code itself; this says why, and to ask
+              the facility what it covers. `patients:read` — the B2B Connect
+              token scope — is in this column on live records today, and it is
+              exactly the kind of value a friendly-looking guess would
+              understate. */}
+          {scopes.note ? (
+            <View style={styles.codeNoteRow}>
+              <Icon name="alert-circle" size={14} color={colors.statusWarning} />
+              <Text style={styles.codeNote}>{scopes.note}</Text>
+            </View>
+          ) : null}
         </View>
 
-        {/* WHY, when a request recorded a purpose. */}
+        {/* WHY, when a request recorded a purpose. The server's label. */}
         {item.purpose ? (
           <Field
             label={t('consentLedger.purposeLabel', { defaultValue: 'Why' })}
-            value={t(`privacy.purpose.${item.purpose}`, { defaultValue: formatLabel(item.purpose) })}
+            value={item.purpose_label ?? item.purpose}
             icon="info"
           />
         ) : null}
@@ -861,6 +910,22 @@ const makeStyles = (colors: Palette) =>
       color: colors.textPrimary,
     },
     chips: { marginTop: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+
+    // The caution under a code OpesCare could not name.
+    codeNoteRow: {
+      marginTop: spacing.sm,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.xs,
+    },
+    codeNote: {
+      flex: 1,
+      marginTop: spacing.xs,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: 17,
+      color: colors.textSecondary,
+    },
 
     basisBox: {
       gap: spacing.xs,

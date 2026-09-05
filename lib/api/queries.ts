@@ -605,6 +605,22 @@ export function extractApiErrorMessage(err: unknown): string {
   return anyErr?.response?.data?.message ?? 'Something went wrong. Please try again.';
 }
 
+/**
+ * One code as the patient reads it, resolved by the server.
+ *
+ * `recognised: false` means OpesCare has no plain-language name for this code,
+ * and `label` is then the raw code itself, unchanged. Do not substitute a
+ * prettier string for it: `consent_grants.scope` really does hold values from
+ * outside the consent vocabulary (`patients:read`, the B2B Connect token
+ * scope), and a friendly name invented for one of those understates how much of
+ * a medical record is being handed over.
+ */
+export interface VocabularyItem {
+  code: string;
+  label: string;
+  recognised: boolean;
+}
+
 export interface ConsentRequestItem {
   id: string;
   patient_id: string;
@@ -617,6 +633,28 @@ export interface ConsentRequestItem {
   duration_minutes: number;
   /** pending_patient_approval | approved | denied | expired */
   status: string;
+
+  /*
+   * ── Server-resolved labels ─────────────────────────────────────────────
+   *
+   * The same words the clinician picked, in the patient's language, out of the
+   * one vocabulary the platform has (ConsentRequestResource →
+   * App\Support\PatientVocabulary). The raw codes above stay beside them,
+   * because approve and deny act on those and not on their rendering.
+   *
+   * Optional only so a build can still talk to a server that predates them.
+   * When they are missing the screens show the raw code and say it is
+   * unrecognised — they never re-derive a name here.
+   */
+  purpose_label?: string | null;
+  purpose_recognised?: boolean | null;
+  purpose_note?: string | null;
+  scope_items?: VocabularyItem[] | null;
+  /** Set only when a scope code could not be resolved. */
+  scope_note?: string | null;
+  /** e.g. "24 hours" — the unit the clinician chose, never "1440 min". */
+  duration_label?: string | null;
+
   /** The active ConsentGrant this request produced, once approved — the id `revoke` targets. */
   grant_id: string | null;
   grant_status: string | null;
@@ -674,6 +712,12 @@ export interface AccessLogItem {
   organization_id: string | null;
   facility_id: string | null;
   facility: AccessLogFacility | null;
+  /**
+   * The audit column, verbatim — `treatment:treating_clinician`,
+   * `emergency:break_glass:<event id>`. Kept because this is an audit trail and
+   * what was recorded is not replaced by how it is rendered. It is NOT what the
+   * patient reads: use `purpose_label`.
+   */
   purpose: string;
   data_category: string;
   resource_type: string;
@@ -683,6 +727,23 @@ export interface AccessLogItem {
   ip_address: string | null;
   user_agent: string | null;
   created_at: string;
+
+  /*
+   * ── Server-resolved labels ─────────────────────────────────────────────
+   *
+   * Both halves of `purpose` — the reason, and the authority the read rested on
+   * — resolved by App\Support\PatientVocabulary in the patient's language.
+   * `purpose_recognised: false` means the value had no entry in that
+   * vocabulary and `purpose_label` is the raw string; nothing is invented for
+   * it. Optional so a build can still talk to a server that predates them.
+   */
+  purpose_label?: string | null;
+  purpose_basis?: string | null;
+  purpose_basis_label?: string | null;
+  purpose_recognised?: boolean | null;
+  purpose_note?: string | null;
+  data_category_label?: string | null;
+  data_category_recognised?: boolean | null;
 }
 
 export interface PaginatedAccessLogs {

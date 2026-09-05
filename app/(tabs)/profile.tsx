@@ -22,6 +22,9 @@ import {
 } from '@/components/opes-ui';
 import { useAuthStore } from '../../lib/store/auth';
 import { useFamilyMembers } from '../../lib/api/queries';
+// Registers `profile.profileStrengthHint_one/_other` (and the consent chrome)
+// from lib/i18n/pending/ until those keys are folded into locales/{en,fr}.json.
+import '../../lib/i18n/consentCopyStrings';
 
 /**
  * Profile tab — the OPES CORE-008 layout (navy identity hero, quick-overview
@@ -253,7 +256,16 @@ export default function ProfileScreen() {
       hint:
         completeness.filled === completeness.total
           ? t('profile.profileStrengthComplete')
-          : t('profile.profileStrengthHint', { missing: completeness.total - completeness.filled }),
+          : // `count` and not `missing`: `missing` is not i18next's plural
+            // variable, so the key had no plural forms to select and both
+            // languages fell back to the lazy parenthesis — "2 detail(s) still
+            // missing". `_one`/`_other` live in lib/i18n/pending/consent_copy.*
+            // until the locale files are merged; French agrees the adjective
+            // as well as the noun, which "(s)" cannot express.
+            t('profile.profileStrengthHint', {
+              count: completeness.total - completeness.filled,
+              missing: completeness.total - completeness.filled,
+            }),
       onPress: goEditProfile,
     },
   ];

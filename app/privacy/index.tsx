@@ -36,11 +36,15 @@ import {
 } from '@/components/opes-ui';
 import {
   type ConsentRequestItem,
+  type VocabularyItem,
   extractApiErrorMessage,
   useApproveConsent,
   useConsentRequests,
   useDenyConsent,
 } from '../../lib/api/queries';
+// Registers the EN/FR chrome these screens need while it waits in
+// lib/i18n/pending/. The VOCABULARY is not in there — it comes from the server.
+import '../../lib/i18n/consentCopyStrings';
 import {
   useConsentLedger,
   useRevokeConsentGrant,
@@ -109,10 +113,66 @@ import {
  *    its own figure and its own screen (`/privacy/access`), because a patient
  *    who withdraws everything here and still sees their doctor read the chart
  *    has been misled.
+ *
+ * ── Where the WORDS come from ──────────────────────────────────────────────
+ *
+ * From the server, and only from the server.
+ *
+ * This screen used to translate the codes itself, against a `privacy.scope.*`
+ * table in the locale files built from a vocabulary the API has never emitted
+ * (`read_records`, `outpatient`, `pharmacy`…). Every real code missed it, so
+ * `t()` fell through to `formatLabel()` and a patient deciding whether to open
+ * their medical record to a hospital read this:
+ *
+ *     WHY THEY WANT IT:     Second opinion
+ *     WHAT THEY WOULD SEE:  Patient.summary / Allergies.read
+ *     HOW LONG:             1440 min of access
+ *
+ * — the wire values, identical in French, while the clinician who raised the
+ * request had picked "Record summary", "Allergies" and "24 hours" from a
+ * labelled list. Two copies of one vocabulary do not stay in step, so there is
+ * now one: ConsentRequestResource and MobileConsentLedgerController resolve
+ * every label through App\Support\PatientVocabulary, out of the same lang files
+ * the clinician's picker is built from, in the patient's language.
+ *
+ * So `purpose_label`, `scope_items[].label` and `duration_label` are rendered
+ * as given. Where the server could not resolve a code — or is old enough not to
+ * send labels at all — the raw code is shown AS the label and a caution says it
+ * is unrecognised (`scopeView()` below). Nothing on this screen guesses a name:
+ * `consent_grants.scope` holds `patients:read` today, and dressing that up as
+ * "Patients: Read" would understate what its holder can open.
  */
 
 type ScreenNotice = { tone: StatusTone; icon: IconName; body: string };
 type TFn = (key: string, opts?: Record<string, unknown>) => string;
+
+/**
+ * The scope list a card renders, and the caution that goes under it.
+ *
+ * `scope_items` is the server's answer and is used whenever it is present. The
+ * fallback is for a payload from a server old enough not to send labels: the
+ * raw codes are shown AS the labels, every one marked unrecognised, and the
+ * caution appears. It is deliberately not a client-side translation table —
+ * this screen having its own was the bug.
+ */
+function scopeView(
+  items: VocabularyItem[] | null | undefined,
+  rawCodes: string[] | null | undefined,
+  serverNote: string | null | undefined,
+  t: TFn,
+): { items: VocabularyItem[]; note: string | null } {
+  if (items && items.length > 0) {
+    return { items, note: serverNote ?? null };
+  }
+
+  const codes = rawCodes ?? [];
+  if (codes.length === 0) return { items: [], note: null };
+
+  return {
+    items: codes.map((code) => ({ code, label: code, recognised: false })),
+    note: t('consentCopy.unnamedCode'),
+  };
+}
 
 /** How each derived grant state is dressed. Only `active` looks live. */
 const GRANT_SKIN: Record<ConsentGrantState, { tone: StatusTone; icon: IconName; tint: Tint }> = {
@@ -244,11 +304,16 @@ export default function PrivacyHubScreen() {
       setNotice(null);
       dialog.confirm({
         title: t('privacy.approve'),
-        message: t('privacy.confirmApproveBody', {
+        // `consentCopy.confirmApproveBody` rather than the older
+        // `privacy.confirmApproveBody`: that one ended "for {{duration}}
+        // minutes", so a 24-hour grant asked the patient to approve "1440
+        // minutes", and it was handed `item.purpose` — the raw code — inside
+        // the quotation marks. Both now come from the server's own wording.
+        message: t('consentCopy.confirmApproveBody', {
           facility: facilityLabel(item),
           scope: scopeSummary(item, t as TFn),
-          purpose: item.purpose,
-          duration: item.duration_minutes,
+          purpose: item.purpose_label ?? item.purpose,
+          duration: item.duration_label ?? t('consentCopy.durationUnknown'),
         }),
         confirmLabel: t('privacy.confirmApproveCta'),
         cancelLabel: t('privacy.cancel'),
@@ -619,6 +684,7 @@ function GrantRow({
   const skin = GRANT_SKIN[item.state] ?? GRANT_SKIN.ended;
   const live = item.state === 'active';
   const canWithdraw = live && item.revoke.available && !!onWithdraw;
+  const grantScopes = scopeView(item.scope_items, item.scope, item.scope_note, t as TFn);
 
   const when = live ? item.expires_at : item.ended_at;
   const whenDate = when ? new Date(when) : null;
@@ -669,15 +735,21 @@ function GrantRow({
             is the line that stops it reading as live. */}
         <Text style={live ? styles.detailValue : styles.detailValueMuted}>{item.state_detail}</Text>
 
-        {/* WHAT they can see. */}
-        {item.scope.length > 0 ? (
+        {/* WHAT they can see, in the server's words. `consent_grants.scope`
+            holds codes from outside the consent vocabulary (`patients:read`),
+            and those arrive as themselves with the caution below rather than
+            as a friendlier name than they deserve. */}
+        {grantScopes.items.length > 0 ? (
           <View style={styles.chips}>
-            {item.scope.map((scope) => (
-              <Chip
-                key={scope}
-                label={t(`privacy.scope.${scope}`, { defaultValue: formatLabel(scope) })}
-              />
+            {grantScopes.items.map((scope) => (
+              <Chip key={scope.code} label={scope.label} />
             ))}
+          </View>
+        ) : null}
+        {grantScopes.note ? (
+          <View style={styles.codeNoteRow}>
+            <Icon name="alert-circle" size={14} color={colors.statusWarning} />
+            <Text style={styles.codeNote}>{grantScopes.note}</Text>
           </View>
         ) : null}
 
@@ -719,14 +791,12 @@ function GrantRow({
   );
 }
 
-/** Comma-joined, translated scope list — used in the approve confirmation so
- * the patient reads exactly what they are handing over. */
+/** Comma-joined scope list — used in the approve confirmation so the patient
+ * reads exactly what they are handing over, in the words the clinician chose. */
 function scopeSummary(item: ConsentRequestItem, t: TFn): string {
-  const scopes = item.requested_scope ?? [];
-  if (scopes.length === 0) return t('privacy.scopeUnspecified');
-  return scopes
-    .map((scope) => t(`privacy.scope.${scope}`, { defaultValue: formatLabel(scope) }))
-    .join(', ');
+  const { items } = scopeView(item.scope_items, item.requested_scope, item.scope_note, t);
+  if (items.length === 0) return t('privacy.scopeUnspecified');
+  return items.map((s) => s.label).join(', ');
 }
 
 /**
@@ -747,7 +817,7 @@ function ConsentCard({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const scopes = item.requested_scope ?? [];
+  const scopes = scopeView(item.scope_items, item.requested_scope, item.scope_note, t as TFn);
 
   const expiry = item.grant_expires_at ? new Date(item.grant_expires_at) : null;
   const expiryValid = !!expiry && !Number.isNaN(expiry.getTime());
@@ -775,12 +845,20 @@ function ConsentCard({
       />
 
       <View style={styles.detail}>
-        {/* WHY they want it — the single most important line on the card. */}
+        {/* WHY they want it — the single most important line on the card.
+            The server's label, in the patient's language. A purpose outside
+            the vocabulary arrives as its own code with a note saying so. */}
         <View>
           <Text style={styles.detailLabel}>{t('privacy.purposeLabel')}</Text>
-          <Text style={styles.detailValue}>
-            {t(`privacy.purpose.${item.purpose}`, { defaultValue: formatLabel(item.purpose) })}
-          </Text>
+          <Text style={styles.detailValue}>{item.purpose_label ?? item.purpose}</Text>
+          {/* Either the server said it could not name this code, or it sent no
+              label at all — both leave the raw code on screen, and neither is
+              something to leave unexplained on a consent decision. */}
+          {item.purpose_recognised === false || item.purpose_label == null ? (
+            <Text style={styles.codeNote}>
+              {item.purpose_note ?? t('consentCopy.unnamedPurpose')}
+            </Text>
+          ) : null}
         </View>
 
         {/* WHAT they would see. */}
@@ -789,27 +867,35 @@ function ConsentCard({
             <Icon name="list" size={14} color={colors.textMuted} />
             <Text style={styles.detailLabel}>{t('privacy.scopeLabel')}</Text>
           </View>
-          {scopes.length > 0 ? (
+          {scopes.items.length > 0 ? (
             <View style={styles.chips}>
-              {scopes.map((scope) => (
-                <Chip
-                  key={scope}
-                  label={t(`privacy.scope.${scope}`, { defaultValue: formatLabel(scope) })}
-                />
+              {scopes.items.map((scope) => (
+                <Chip key={scope.code} label={scope.label} />
               ))}
             </View>
           ) : (
             <Text style={styles.detailValue}>{t('privacy.scopeUnspecified')}</Text>
           )}
+          {/* Only when a code could not be resolved. It says the code is shown
+              as recorded and to ask what it covers — never a guessed name. */}
+          {scopes.note ? (
+            <View style={styles.codeNoteRow}>
+              <Icon name="alert-circle" size={14} color={colors.statusWarning} />
+              <Text style={styles.codeNote}>{scopes.note}</Text>
+            </View>
+          ) : null}
         </View>
 
-        {/* HOW LONG. */}
+        {/* HOW LONG. `duration_label` is the unit the clinician actually chose
+            ("24 hours"), not the stored column ("1440 min"). */}
         <View style={styles.detailLabelRow}>
           <Icon name={expiryValid ? 'calendar' : 'clock'} size={14} color={colors.textMuted} />
           <Text style={styles.durationText}>
             {expiryValid
               ? t('privacy.expiresLabel', { date: formatDateTime(expiry) })
-              : t('privacy.durationLabel', { count: item.duration_minutes })}
+              : item.duration_label
+                ? t('consentCopy.durationOfAccess', { duration: item.duration_label })
+                : t('consentCopy.durationUnknown')}
           </Text>
         </View>
 
@@ -994,6 +1080,24 @@ const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
     },
     chips: { marginTop: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+
+    // The caution under a code OpesCare could not name. Warning-toned, not
+    // muted: it is telling the patient the screen does not know what a code
+    // covers, which is the opposite of a footnote.
+    codeNoteRow: {
+      marginTop: spacing.sm,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.xs,
+    },
+    codeNote: {
+      flex: 1,
+      marginTop: spacing.xs,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: 17,
+      color: colors.textSecondary,
+    },
 
     // Actions
     actions: {

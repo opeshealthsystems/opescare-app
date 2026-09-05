@@ -49,6 +49,15 @@ import { useIsOnline } from '../../lib/offline/connectivity';
  *   WHY   — the recorded purpose, with the data category and the kind of
  *           access (`purpose`, `data_category`, `access_type`).
  *
+ * WHY is the one that was not being answered. `access_logs.purpose` is a
+ * compound audit value — `treatment:treating_clinician`,
+ * `emergency:break_glass:<event id>` — and this screen title-cased the whole
+ * string, so the line meant to tell a patient why their record was opened read
+ * `Treatment:treating clinician`, in English in both locales. It is now
+ * resolved by the server, both halves, in the patient's language, out of
+ * lang/{en,fr}/access_log.php; the raw value still travels beside the label
+ * because an audit trail records what happened, not how it is worded.
+ *
  * The API returns no clinician name (only `actor_id`/`actor_type`), so no
  * person is ever named here — inventing one would be a fabrication in an audit
  * trail. Counts come from a real total, and the summary is only shown once the
@@ -431,12 +440,21 @@ function AccessLogEntry({ item, divider }: { item: AccessLogItem; divider?: bool
   const accessLabel = t(`privacy.accessType.${item.access_type}`, {
     defaultValue: formatLabel(item.access_type),
   });
-  const categoryLabel = t(`privacy.dataCategory.${item.data_category}`, {
-    defaultValue: formatLabel(item.data_category),
-  });
-  const purposeLabel = t(`privacy.purpose.${item.purpose}`, {
-    defaultValue: formatLabel(item.purpose),
-  });
+
+  // Both from the server (App\Support\PatientVocabulary → lang/*/access_log.php).
+  //
+  // `purpose` is a compound audit value — `treatment:treating_clinician`,
+  // `emergency:break_glass:<event id>` — and this screen used to title-case the
+  // whole thing, so the line answering "why was my record opened?" read
+  // `Treatment:treating clinician`, in English in both locales. Both halves are
+  // now words: "Your care and treatment — they had treated you".
+  //
+  // A value with no entry in that vocabulary comes back verbatim with
+  // `purpose_recognised: false`, and is shown verbatim. An audit line is the
+  // last place to smooth over a code nobody can explain.
+  const categoryLabel = item.data_category_label ?? formatLabel(item.data_category);
+  const purposeLabel = item.purpose_label ?? formatLabel(item.purpose);
+  const purposeNote = item.purpose_recognised === false ? item.purpose_note : null;
 
   return (
     <View>
@@ -479,6 +497,7 @@ function AccessLogEntry({ item, divider }: { item: AccessLogItem; divider?: bool
       <View style={styles.detail}>
         <Text style={styles.detailLabel}>{t('privacy.reasonGiven')}</Text>
         <Text style={styles.detailValue}>{purposeLabel}</Text>
+        {purposeNote ? <Text style={styles.detailNote}>{purposeNote}</Text> : null}
         <View style={styles.chipRow}>
           <Chip label={categoryLabel} />
         </View>
@@ -592,6 +611,15 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.sm,
       lineHeight: typography.lineHeight.sm,
       color: colors.textPrimary,
+    },
+    // Shown only under a purpose code OpesCare has no name for: it says the
+    // value above is the raw record, not a rendering of one.
+    detailNote: {
+      marginTop: spacing.xs,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: 17,
+      color: colors.textSecondary,
     },
     chipRow: { marginTop: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     divider: { height: 1, backgroundColor: colors.divider, marginHorizontal: spacing.md },

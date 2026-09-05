@@ -250,6 +250,7 @@ export default function ScanPatientScreen() {
                   label={tx('openChart', 'Open chart')}
                   icon="folder"
                   style={styles.action}
+                  size="sm"
                   onPress={() => router.push(doctorRoutes.patient(patient.id))}
                 />
               ) : (
@@ -257,6 +258,7 @@ export default function ScanPatientScreen() {
                   label={tx('askAccess', 'Ask for access')}
                   icon="key"
                   style={styles.action}
+                  size="sm"
                   onPress={() => router.push(doctorRoutes.requestAccess(patient.health_id))}
                 />
               )}
@@ -265,6 +267,7 @@ export default function ScanPatientScreen() {
                 icon="qr"
                 variant="secondary"
                 style={styles.action}
+                size="sm"
                 onPress={reset}
               />
             </View>

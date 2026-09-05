@@ -47,10 +47,12 @@
  *
  * A 403 from a section is a REAL answer: the server opens a chart only for a
  * clinician with a care relationship to that patient and refuses everyone
- * else. `isDoctorApiUnavailable` (foundation-owned) still folds 403 in with
- * 404, so a refusal currently renders through the same "not available on this
- * server yet" `EmptyState`; the response body carries
- * `error_code: NO_CLINICAL_RELATIONSHIP` for the day those are told apart.
+ * else. 403 is no longer folded in with 404 — neither `isDoctorApiUnavailable`
+ * nor the `isDoctorFeatureUnserved` this screen calls matches it — so a
+ * refusal can no longer render through the "not available on this server yet"
+ * `EmptyState`. The response body carries
+ * `error_code: NO_CLINICAL_RELATIONSHIP` and a `required_action`;
+ * `doctorAccessRefusal` reads them.
  *
  * Every section opened here writes an `access_logs` row on the server, tagged
  * with the data category this screen actually asked for.
@@ -64,7 +66,6 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
 import type { UseQueryResult } from '@tanstack/react-query';
 import {
   Card,
@@ -104,6 +105,7 @@ import {
   type ChartVitals,
   type DoctorPage,
   type ScanResult,
+  isDoctorFeatureUnserved,
 } from '@/lib/api/doctorQueries';
 import {
   AllergyBlock,
@@ -161,12 +163,6 @@ function asSection(value: unknown): PatientChartSectionName | null {
   return typeof value === 'string' && (ALL_SECTIONS as readonly string[]).includes(value)
     ? (value as PatientChartSectionName)
     : null;
-}
-
-/** 404 / 501: this server does not serve the clinician surface yet. */
-function isNotServed(e: unknown): boolean {
-  const status = axios.isAxiosError(e) ? e.response?.status : undefined;
-  return status === 404 || status === 501;
 }
 
 /**
@@ -399,7 +395,7 @@ function SectionData<T>({
   tr: Translate;
   children: (data: T) => React.ReactNode;
 }) {
-  if (query.isError && query.data === undefined && isNotServed(query.error)) {
+  if (query.isError && query.data === undefined && isDoctorFeatureUnserved(query.error)) {
     return (
       <EmptyState
         icon="folder"
@@ -1045,8 +1041,8 @@ function OrderCard({
           ever allowed to render as "no values were released", which would be a
           statement about the PATIENT.
         */
-        <Text style={isNotServed(results.error) ? styles.note : styles.failed}>
-          {isNotServed(results.error)
+        <Text style={isDoctorFeatureUnserved(results.error) ? styles.note : styles.failed}>
+          {isDoctorFeatureUnserved(results.error)
             ? tx(
                 'section.itemisedNotServed',
                 'Itemised analyte values are not available on this server yet. The order, and any reported result above, are complete — only the value-by-value breakdown is missing.'

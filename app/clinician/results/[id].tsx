@@ -63,29 +63,10 @@ import {
   useResultDetail,
   type InboxAnalyte,
   type InboxResultDetail,
+  isDoctorFeatureUnserved,
 } from '@/lib/api/doctorQueries';
 import { categoryLabel, fmtReported } from '@/components/doctor/shared';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
-
-/**
- * "This server does not serve the clinician surface yet" — as opposed to any
- * other failure.
- *
- * `/mobile/doctor/results-inbox/{id}` is served now, and it answers 404 with a
- * message for a result that is not in this clinician's inbox — out of their
- * facility, not their order, or withdrawn. That is a real answer about a real
- * result and must not be dressed up as a missing feature. Laravel's
- * unknown-API-route handler is the discriminator: it answers
- * `{"error_code":"ENDPOINT_NOT_FOUND"}`, which this slice never returns.
- */
-function isNotServed(e: unknown): boolean {
-  if (!axios.isAxiosError(e)) return false;
-  const status = e.response?.status;
-  if (status === 501) return true;
-  if (status !== 404) return false;
-  const body = e.response?.data as { error_code?: string; message?: string } | undefined;
-  return body?.error_code === 'ENDPOINT_NOT_FOUND' || !body?.message;
-}
 
 /**
  * The server's own sentence, when it sent one.
@@ -254,7 +235,7 @@ export default function ResultDetailScreen() {
   } else if (detail.isPending) {
     body = <LoadingBlock label={tx('result.loading', 'Loading this result…')} />;
   } else if (detail.isError && detail.data === undefined) {
-    const notServed = isNotServed(detail.error);
+    const notServed = isDoctorFeatureUnserved(detail.error);
     // An expired clinician session, a result that is not theirs and a dead
     // network are three different problems with three different fixes.
     // `describeFailure` names each in both languages; the server's own 404

@@ -44,7 +44,6 @@ import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
 import {
   Card,
   EmptyState,
@@ -83,6 +82,7 @@ import {
   useRescheduleDoctorAppointment,
   useSetAppointmentStatus,
   type StaffAppointment,
+  isDoctorFeatureUnserved,
 } from '@/lib/api/doctorQueries';
 import {
   isTelemedicine,
@@ -106,12 +106,6 @@ const DEFAULT_WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 type PendingKey = 'check-in' | 'start' | 'complete' | 'no-show' | 'cancel' | 'reschedule';
 
 type Tx = (key: string, defaultValue: string, params?: Record<string, unknown>) => string;
-
-/** 404 / 501: this server does not serve the clinician surface yet. */
-function isNotServed(e: unknown): boolean {
-  const status = axios.isAxiosError(e) ? e.response?.status : undefined;
-  return status === 404 || status === 501;
-}
 
 /**
  * Failure copy for a write. When the request left the phone but no answer came
@@ -352,7 +346,7 @@ export default function DoctorAppointmentDetailScreen() {
   } else if (appointment.isPending) {
     body = <LoadingBlock label={tx('appointment.loading', 'Loading appointment…')} />;
   } else if (appointment.isError && a === undefined) {
-    const notServed = isNotServed(appointment.error);
+    const notServed = isDoctorFeatureUnserved(appointment.error);
     body = (
       <EmptyState
         icon={notServed ? 'calendar' : 'alert-circle'}
@@ -360,7 +354,13 @@ export default function DoctorAppointmentDetailScreen() {
         title={
           notServed
             ? tx('shared.notServedTitle', 'Not available on this server yet')
-            : tr('opesCore.errors.unknownTitle')
+            : // `describeFailure` names the failure, and the message beside this
+              // line already comes from it — a hardcoded "something went wrong"
+              // made the two halves disagree. It matters now that an
+              // appointment the SERVER could not find lands in this branch
+              // rather than the "not available" one: the body says "we could
+              // not find it", so the heading must not say "unknown error".
+              describeFailure(appointment.error).title
         }
         message={
           notServed

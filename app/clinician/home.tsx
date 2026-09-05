@@ -30,7 +30,6 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
 import {
   Card,
   EmptyState,
@@ -52,16 +51,11 @@ import {
   type DoctorAppointment,
   type StaffAppointment,
   type StaffAppointmentStatus,
+  isDoctorFeatureUnserved,
 } from '@/lib/api/doctorQueries';
 import { CountTile, ResultRow } from '@/components/doctor/shared';
 import { ScheduleRow } from '@/components/doctor/scheduleShared';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
-
-/** 404 / 501: this server does not serve the clinician surface yet. */
-function isNotServed(e: unknown): boolean {
-  const status = axios.isAxiosError(e) ? e.response?.status : undefined;
-  return status === 404 || status === 501;
-}
 
 /**
  * The home endpoint sends a slimmer appointment than the schedule endpoint
@@ -193,7 +187,7 @@ export default function DoctorHomeScreen() {
   if (home.isPending) {
     body = <LoadingBlock label={tx('home.loading', 'Loading your day…')} />;
   } else if (home.isError && data === undefined) {
-    const notServed = isNotServed(home.error);
+    const notServed = isDoctorFeatureUnserved(home.error);
     body = (
       <EmptyState
         icon={notServed ? 'stethoscope' : 'alert-circle'}

@@ -36,7 +36,6 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
 import {
   Card,
   EmptyState,
@@ -59,6 +58,7 @@ import {
   useDoctorUnreadCounts,
   type DoctorThread,
   type DoctorThreadQuery,
+  isDoctorFeatureUnserved,
 } from '@/lib/api/doctorQueries';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
 
@@ -101,30 +101,6 @@ const EMPTY: Record<Folder, { title: [string, string]; message: [string, string]
     message: ['messages.emptyArchivedBody', 'Conversations you archive are kept here.'],
   },
 };
-
-/**
- * 501, or a 404 that means the ROUTE is missing — this server does not serve
- * the clinician surface yet.
- *
- * A bare 404 is no longer proof of that. Now that `/mobile/doctor/messages/*`
- * is served, the same status also comes back for a conversation the server
- * REFUSED — one rooted at another facility, or one this clinician does not
- * participate in — and answering that with "not available on this server yet"
- * would be a lie about their own inbox.
- *
- * The two are distinguishable on the wire and always have been: the API's
- * global handler answers a missing route with `error_code: 'ENDPOINT_NOT_FOUND'`,
- * while the messaging controller answers a refused thread with
- * `error_code: 'NOT_FOUND'`. Only the first is a missing backend.
- */
-function isNotServed(e: unknown): boolean {
-  if (!axios.isAxiosError(e)) return false;
-  const status = e.response?.status;
-  if (status === 501) return true;
-  if (status !== 404) return false;
-  const code = (e.response?.data as { error_code?: string } | undefined)?.error_code;
-  return code !== 'NOT_FOUND';
-}
 
 /**
  * Today shows a clock, anything older shows a date, an unparseable value
@@ -222,7 +198,7 @@ export default function DoctorMessagesScreen() {
   if (threads.isPending) {
     body = <LoadingBlock label={tx('messages.loading', 'Loading your conversations…')} />;
   } else if (threads.isError && threads.data === undefined) {
-    const notServed = isNotServed(threads.error);
+    const notServed = isDoctorFeatureUnserved(threads.error);
     body = (
       <EmptyState
         icon={notServed ? 'chat' : 'alert-circle'}

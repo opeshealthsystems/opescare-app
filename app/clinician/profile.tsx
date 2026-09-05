@@ -53,7 +53,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
 import {
   Card,
   EmptyState,
@@ -89,6 +88,7 @@ import {
   type ProviderLicenseStatus,
   type ProviderProfile,
   type ProviderProfileEdit,
+  isDoctorFeatureUnserved,
 } from '@/lib/api/doctorQueries';
 // ── Facility switching ────────────────────────────────────────────────────
 import {
@@ -102,12 +102,6 @@ import {
   type ProviderFacility,
 } from '@/lib/api/facilitySwitchQueries';
 import { useAuthStore } from '@/lib/store/auth';
-
-/** 404 / 501: this server does not serve the clinician surface yet. */
-function isNotServed(e: unknown): boolean {
-  const status = axios.isAxiosError(e) ? e.response?.status : undefined;
-  return status === 404 || status === 501;
-}
 
 /** Failure copy for a write, saying plainly when the outcome is unknown. */
 function writeFailureMessage(t: Translate, e: unknown, checkHint: string): string {
@@ -488,7 +482,7 @@ export default function DoctorProfileScreen() {
   if (me.isPending) {
     identity = <LoadingBlock label={tx('profile.loading', 'Loading your account…')} />;
   } else if (me.isError && me.data === undefined) {
-    const notServed = isNotServed(me.error);
+    const notServed = isDoctorFeatureUnserved(me.error);
     identity = (
       <Card variant="flush">
         <EmptyState
@@ -640,7 +634,7 @@ export default function DoctorProfileScreen() {
   } else if (profileQuery.isPending) {
     professional = <LoadingBlock label={tx('profile.profileLoading', 'Loading your profile…')} />;
   } else if (profileQuery.isError && profileQuery.data === undefined) {
-    const notServed = isNotServed(profileQuery.error);
+    const notServed = isDoctorFeatureUnserved(profileQuery.error);
     professional = (
       <Card variant="flush">
         <EmptyState

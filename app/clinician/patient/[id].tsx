@@ -42,10 +42,12 @@
  *   • A 403 is a REAL answer, not a missing route. The server opens a chart
  *     only for a clinician with a care relationship to that patient — on their
  *     schedule, their own clinical act, an episode at their own facility, or a
- *     consent grant — and refuses everyone else. `isDoctorApiUnavailable`
- *     (foundation-owned) still folds 403 in with 404, so a refusal reads today
- *     as "not available on this server yet"; the response body carries
- *     `error_code: NO_CLINICAL_RELATIONSHIP` for the day those are split.
+ *     consent grant — and refuses everyone else. 403 is no longer folded in
+ *     with 404: neither `isDoctorApiUnavailable` nor the
+ *     `isDoctorFeatureUnserved` this screen calls matches it, so a refusal can
+ *     no longer read as "not available on this server yet". The response body
+ *     carries `error_code: NO_CLINICAL_RELATIONSHIP` and a `required_action`;
+ *     `doctorAccessRefusal` is how a screen reads them.
  *   • Every section read is a disclosure, and the server records each one in
  *     `access_logs`. Opening this screen writes three rows — one per
  *     independent load — which is exactly why the three are kept independent.
@@ -64,7 +66,6 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
 import type { UseQueryResult } from '@tanstack/react-query';
 import {
   Card,
@@ -91,6 +92,7 @@ import {
   useChartSummary,
   type ChartPatient,
   type ChartSummary,
+  isDoctorFeatureUnserved,
 } from '@/lib/api/doctorQueries';
 import {
   AllergyBlock,
@@ -123,12 +125,6 @@ import {
 
 /** How many rows each overview section shows before "View All". */
 const PREVIEW = 3;
-
-/** 404 / 501: this server does not serve the clinician surface yet. */
-function isNotServed(e: unknown): boolean {
-  const status = axios.isAxiosError(e) ? e.response?.status : undefined;
-  return status === 404 || status === 501;
-}
 
 /**
  * A chart hook's result, with the error type the foundation actually produces.
@@ -204,7 +200,8 @@ export default function PatientChartScreen() {
         {identityDead ? (
           <DeadChart
             missingId={!patientId}
-            notServed={isNotServed(identity.error)}
+            notServed={isDoctorFeatureUnserved(identity.error)}
+            failureTitle={identity.error ? describeFailure(identity.error).title : null}
             message={identity.error ? describeFailure(identity.error).message : null}
             onRetry={() => void identity.refetch()}
             tx={tx}
@@ -277,6 +274,7 @@ export default function PatientChartScreen() {
 function DeadChart({
   missingId,
   notServed,
+  failureTitle,
   message,
   onRetry,
   tx,
@@ -284,6 +282,16 @@ function DeadChart({
 }: {
   missingId: boolean;
   notServed: boolean;
+  /**
+   * `describeFailure(...).title` for the read that failed, or null when there
+   * is no error to name. It exists because the heading used to be hardcoded to
+   * "something went wrong" while the body beside it came from
+   * `describeFailure` — and a patient the SERVER could not find now reaches
+   * this branch instead of the "not available" one, so a body reading "we
+   * could not find that" under a heading reading "unknown error" would be the
+   * screen contradicting itself.
+   */
+  failureTitle: string | null;
   message: string | null;
   onRetry: () => void;
   tx: Tx;
@@ -309,7 +317,7 @@ function DeadChart({
       title={
         notServed
           ? tx('shared.notServedTitle', 'Not available on this server yet')
-          : tr('opesCore.errors.unknownTitle')
+          : (failureTitle ?? tr('opesCore.errors.unknownTitle'))
       }
       message={
         notServed

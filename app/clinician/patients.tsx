@@ -48,7 +48,6 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
 import {
   Card,
   EmptyState,
@@ -82,16 +81,12 @@ import {
   type PatientLookupResult,
   type ChartPatient,
   type StaffAppointment,
+  isDoctorFeatureUnserved,
+  isDoctorRecordNotFound,
 } from '@/lib/api/doctorQueries';
 import { sexLabel } from '@/components/doctor/chartShared';
 import { patientName, staffTypeLabel } from '@/components/doctor/scheduleShared';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
-
-/** 404 / 501: no such patient — or no such route. See the header comment. */
-function isNotServed(e: unknown): boolean {
-  const status = axios.isAxiosError(e) ? e.response?.status : undefined;
-  return status === 404 || status === 501;
-}
 
 /** One submitted lookup. The nonce lets the same ID be looked up twice. */
 type LookupRequest = { healthId: string; nonce: number };
@@ -181,7 +176,16 @@ export default function PatientLookupScreen() {
   } else if (lookup.isPending) {
     result = <LoadingBlock label={tx('search.searching', 'Searching…')} />;
   } else if (lookup.isError) {
-    const ambiguous = isNotServed(lookup.error);
+    // Both halves of the ambiguity the header describes, spelled out. On every
+    // other clinician screen a 404 the server ANSWERED (`isDoctorRecordNotFound`)
+    // is worth naming separately from a route nothing serves
+    // (`isDoctorFeatureUnserved`) — here it is not, because the copy below
+    // deliberately declines to guess between "no record carries this Health ID"
+    // and "no clinician service on this host". Keeping both in this branch is
+    // what preserves that refusal; dropping either would make the screen claim
+    // one of the two answers it says it cannot tell apart.
+    const ambiguous =
+      isDoctorFeatureUnserved(lookup.error) || isDoctorRecordNotFound(lookup.error);
     result = (
       <EmptyState
         icon={ambiguous ? 'person-search' : 'alert-circle'}

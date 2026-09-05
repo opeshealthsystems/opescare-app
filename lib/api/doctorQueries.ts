@@ -211,15 +211,72 @@ export interface PageQuery {
  * (that last one even carries `error_code: "NOT_FOUND"`), and the schedule's
  * `appointment_not_found` — which is deliberately a 404 rather than a 403 so
  * it cannot confirm that an appointment exists. None of those is "this server
- * does not serve the feature". They are left in this predicate for now only
- * because four screens already render them through the "not available"
- * `EmptyState` and splitting them is a screen-side change; a caller that can
- * tell the two apart should prefer a "we could not find that" message.
+ * does not serve the feature". They stay in THIS predicate, which is the broad
+ * "the call did not land" question the react-query layer asks; the split is
+ * done one level up by `isDoctorRecordNotFound` and `isDoctorFeatureUnserved`,
+ * which is what a screen choosing an `EmptyState` should call.
  */
 export function isDoctorApiUnavailable(error: unknown): boolean {
   if (!axios.isAxiosError(error)) return false;
   const status = error.response?.status;
   return status === 404 || status === 501 || status === 401;
+}
+
+/**
+ * True when a 404 is the APP answering "that record is not here" — as opposed
+ * to nothing on the host answering at all.
+ *
+ * This is the split the note above calls a known gap. It is decidable, just not
+ * from the status: every 404 the clinician controllers raise carries a JSON
+ * body the server wrote in the reader's language —
+ * `{"message": "…"}` from the chart and the results inbox,
+ * `{"error_code": "NOT_FOUND", "message": "…"}` from messaging,
+ * `refuse('appointment_not_found', 404)` from the schedule. A 404 produced by
+ * something that never reached the app — a proxy, a stripped route, an HTML
+ * error page — carries no such body, and that absence is the signal.
+ *
+ * `error_code: 'ENDPOINT_NOT_FOUND'` is honoured as an explicit override for a
+ * server that wants to say "this route is gone" in words.
+ */
+export function isDoctorRecordNotFound(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  if (error.response?.status !== 404) return false;
+
+  const body = error.response?.data as { error_code?: string; message?: string } | undefined;
+  if (body?.error_code === 'ENDPOINT_NOT_FOUND') return false;
+
+  return typeof body?.message === 'string' && body.message.length > 0;
+}
+
+/**
+ * The ONE predicate a clinician screen uses to decide whether to render the
+ * blue "not available on this server yet" `EmptyState`.
+ *
+ * Twelve screens each kept a private `isNotServed`, and they did not agree:
+ * eight folded EVERY 404 into "unavailable", while results and messaging (four
+ * screens) already discriminated on the response body. So the same server
+ * answer read as a missing feature on one screen and as a named failure on the
+ * next. This is that helper, once.
+ *
+ * It is `isDoctorApiUnavailable` minus the two statuses that mean something
+ * better, and the screens can all say the better thing because they all fall
+ * through to `describeFailure`:
+ *
+ *   401 → `describeFailure` already renders "your session has expired, sign in
+ *         again", which is what the note on `isDoctorApiUnavailable` asks a
+ *         screen to do when it can. Calling an expired session a missing
+ *         feature is the same category error as calling a 403 one.
+ *   404 with a server-authored body → the app answered; show what it said.
+ *         Only a bodyless 404 is evidence that nothing served the route.
+ *
+ * 403 is not in `isDoctorApiUnavailable` and must not arrive here either — it
+ * is a real refusal with a `required_action`; see `doctorAccessRefusal`.
+ */
+export function isDoctorFeatureUnserved(error: unknown): boolean {
+  if (!isDoctorApiUnavailable(error)) return false;
+  if (axios.isAxiosError(error) && error.response?.status === 401) return false;
+
+  return !isDoctorRecordNotFound(error);
 }
 
 /**

@@ -31,7 +31,6 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
 import {
   Card,
   EmptyState,
@@ -58,18 +57,13 @@ import {
   useAppointmentRequests,
   useDeclineAppointmentRequest,
   type StaffAppointment,
+  isDoctorFeatureUnserved,
 } from '@/lib/api/doctorQueries';
 import { ScheduleRow, patientName, staffTypeLabel } from '@/components/doctor/scheduleShared';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
 
 /** How far ahead a doctor is asked to decide — the OPES screen's horizon. */
 const HORIZON_DAYS = 60;
-
-/** 404 / 501: this server does not serve the clinician surface yet. */
-function isNotServed(e: unknown): boolean {
-  const status = axios.isAxiosError(e) ? e.response?.status : undefined;
-  return status === 404 || status === 501;
-}
 
 /**
  * Failure copy for a write. When the request left the phone but no answer
@@ -228,7 +222,7 @@ export default function AppointmentRequestsScreen() {
   if (requests.isPending) {
     body = <LoadingBlock label={tx('requests.loading', 'Loading requests…')} />;
   } else if (requests.isError && requests.data === undefined) {
-    const notServed = isNotServed(requests.error);
+    const notServed = isDoctorFeatureUnserved(requests.error);
     body = (
       <EmptyState
         icon={notServed ? 'clipboard' : 'alert-circle'}

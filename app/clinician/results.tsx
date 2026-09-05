@@ -9,6 +9,12 @@
  * newest first. Counts on the filter chips come from the server's meta —
  * never a length of whatever page happens to be loaded.
  *
+ * The server reads a BOUNDED window (250 lab orders + 250 radiology reports)
+ * and reports `meta.truncated` when it bit. When it did, the list and every
+ * count on this screen describe that window and not the clinician's record,
+ * and the screen SAYS SO — see `truncation` below. Silence there would be the
+ * screen making a completeness claim the server never made.
+ *
  * NOTHING ON THIS SCREEN ACKNOWLEDGES ANYTHING. Opening a row, scrolling
  * past it or refreshing the list changes no state — acknowledgement is an
  * explicit, confirmed act and lives on the detail screen alone.
@@ -165,6 +171,18 @@ export default function ResultsInboxScreen() {
   const rows = inbox.data?.rows ?? [];
   const criticalPending = counts?.critical_pending ?? 0;
 
+  /**
+   * TRUE ⇒ this inbox is a SUBSET of the clinician's results.
+   *
+   * The endpoint assembles rows from a bounded window (250 lab orders + 250
+   * radiology reports) and says so on `meta.truncated`; `InboxPage.truncated`
+   * carries it here. Read off `inbox.data` rather than kept in state on
+   * purpose — unlike the chip counts, a completeness claim must never outlive
+   * the page it describes, and it is `false` while loading and on a failure
+   * that left nothing on screen, which is exactly right.
+   */
+  const truncated = inbox.data?.truncated === true;
+
   // A refresh that failed while rows are on screen must never pass as fresh.
   const stale =
     inbox.isError && inbox.data !== undefined ? (
@@ -175,6 +193,38 @@ export default function ResultsInboxScreen() {
         retrying={inbox.isFetching}
       />
     ) : null;
+
+  /**
+   * A quietly short results inbox is the same hazard as a quietly stale one,
+   * and worse here than on a chart: the row that fell off the end could be an
+   * unacknowledged CRITICAL.
+   *
+   * Rendered ABOVE `body`, not inside the rows branch, because the branch that
+   * needs it most is the EMPTY one — on `filter=critical` a truncated window
+   * with no criticals in it renders "No critical results / No result sent to
+   * you has been flagged critical", which is a claim about the record that the
+   * server never made. It is also placed before the list so the caveat is read
+   * before the figures it qualifies: `counts` describes the loaded window, so
+   * the critical-pending banner below is a count over that window too.
+   *
+   * Tone is `warning`, not `critical`, and the glyph is a circle rather than
+   * the critical banner's triangle: an incomplete list must not outrank, or be
+   * mistaken for, an unacknowledged critical result sitting under it.
+   *
+   * Only when `truncated` — a completeness warning shown on every load is
+   * trained away as noise, and would be worthless on the day it is true.
+   */
+  const truncation = truncated ? (
+    <NoticeBanner
+      icon="alert-circle"
+      tone="warning"
+      title={tx('inbox.truncatedTitle', 'Showing your most recent results')}
+      message={`${tx(
+        'inbox.truncatedBody',
+        'You have more results than this list can load at once. The counts above describe what is loaded, not your whole record — open the results inbox on a workstation to see everything.'
+      )}\n\n${tx('inbox.truncatedAction', 'Open on a workstation')}`}
+    />
+  ) : null;
 
   let body: React.ReactNode;
   if (inbox.isPending) {
@@ -283,6 +333,7 @@ export default function ResultsInboxScreen() {
         }
       >
         {stale}
+        {truncation}
         {body}
       </ScrollView>
     </SafeAreaView>

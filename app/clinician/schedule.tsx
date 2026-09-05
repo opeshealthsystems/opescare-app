@@ -30,7 +30,6 @@ import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
 import {
   Card,
   EmptyState,
@@ -53,7 +52,11 @@ import {
   type Translate,
 } from '@/components/care/shared';
 // ── Doctor foundation (owned by the foundation agent) ─────────────────────
-import { useDoctorSchedule, type StaffAppointment } from '@/lib/api/doctorQueries';
+import {
+  isDoctorFeatureUnserved,
+  useDoctorSchedule,
+  type StaffAppointment,
+} from '@/lib/api/doctorQueries';
 import {
   ACTIVE_STATUSES,
   CountStrip,
@@ -80,12 +83,6 @@ function addDays(d: Date, n: number): Date {
 function startOfWeek(d: Date): Date {
   const day = d.getDay();
   return addDays(d, day === 0 ? -6 : 1 - day);
-}
-
-/** 404 / 501: this server does not serve the clinician surface yet. */
-function isNotServed(e: unknown): boolean {
-  const status = axios.isAxiosError(e) ? e.response?.status : undefined;
-  return status === 404 || status === 501;
 }
 
 export default function DoctorScheduleScreen() {
@@ -165,7 +162,7 @@ export default function DoctorScheduleScreen() {
   if (schedule.isPending) {
     body = <LoadingBlock label={tx('schedule.loading', 'Loading your schedule…')} />;
   } else if (schedule.isError && schedule.data === undefined) {
-    const notServed = isNotServed(schedule.error);
+    const notServed = isDoctorFeatureUnserved(schedule.error);
     body = (
       <EmptyState
         icon={notServed ? 'calendar' : 'alert-circle'}

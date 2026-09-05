@@ -735,7 +735,9 @@
     "signOutConfirmCancel": "Rester connecté",
     "unavailableTitle": "Votre profil n'a pas été chargé",
     "unavailableBody": "Nous n'avons pas pu joindre OpesCare pour charger vos informations. Le reste de l'application fonctionne normalement — vérifiez votre connexion et réessayez.",
-    "unavailableRetryHint": "Recharge votre profil"
+    "unavailableRetryHint": "Recharge votre profil",
+    "profileStrengthHint_one": "{{count}} information encore manquante",
+    "profileStrengthHint_other": "{{count}} informations encore manquantes"
   },
   "editProfile": {
     "title": "Modifier le profil",
@@ -5665,7 +5667,24 @@
       "unavailableTitle": "Ce serveur ne peut pas encore recevoir de demandes d'accès",
       "unavailableBody": "Rien n'a été envoyé et le patient n'a pas été contacté. Demandez à votre administrateur quand ce sera disponible.",
       "failedTitle": "La demande n'a pas été envoyée",
-      "failedBody": "Rien n'a été envoyé. Veuillez réessayer."
+      "failedBody": "Rien n'a été envoyé. Veuillez réessayer.",
+      "fallbackPurpose": {
+        "treatment": "La prise en charge de ce patient",
+        "referral": "Une orientation",
+        "second_opinion": "Un deuxième avis",
+        "continuity_of_care": "La continuité des soins",
+        "emergency_followup": "Un suivi après des soins d’urgence"
+      },
+      "fallbackScope": {
+        "patient_summary": "Résumé du dossier",
+        "allergies_read": "Allergies",
+        "problems_read": "Problèmes en cours",
+        "encounters_read": "Visites et consultations",
+        "vitals_read": "Signes vitaux",
+        "medications_read": "Médicaments et ordonnances",
+        "diagnoses_read": "Diagnostics",
+        "orders_read": "Analyses de laboratoire et imagerie"
+      }
     },
     "breakGlass": {
       "title": "Accès d’urgence",
@@ -6248,6 +6267,34 @@
       "badgeUnavailable": "Dans l'application uniquement",
       "action": "Activer les notifications",
       "noteUnavailable": "Cette version de l'application ne peut pas encore envoyer d'alertes sur l'écran verrouillé de votre téléphone ; OpesCare ne demande donc pas l'autorisation de notification. Rien n'est perdu — ouvrez Notifications dans l'application pour voir tout ce qu'OpesCare vous a envoyé."
+    }
+  },
+  "consentCopy": {
+    "durationOfAccess": "{{duration}} d’accès",
+    "confirmApproveBody": "{{facility}} pourra consulter {{scope}} au titre de « {{purpose}} », pendant {{duration}}. Chaque consultation sera inscrite dans votre journal d’accès — et vous pouvez révoquer cet accès à tout moment.",
+    "unnamedCode": "OpesCare n’a pas de libellé en langage clair pour l’un des codes affichés ici : il est montré exactement tel qu’il a été enregistré. Demandez à l’établissement ce qu’il recouvre — il peut recouvrir plus qu’il n’y paraît.",
+    "unnamedPurpose": "OpesCare n’a pas de libellé en langage clair pour ce code de motif : il est montré exactement tel qu’il a été enregistré.",
+    "durationUnknown": "La durée de cet accès n’a pas été transmise avec cette demande."
+  },
+  "discovery": {
+    "scope": {
+      "clinicians": "Avec médecins",
+      "cliniciansHint": "N’afficher que les établissements publiant au moins un soignant",
+      "bookable": "Réservables",
+      "bookableHint": "N’afficher que les établissements ayant un créneau de rendez-vous ouvert maintenant"
+    },
+    "explainer": {
+      "clinicians": "{{clinicians}} des {{total}} établissements répertoriés publient un soignant que vous pouvez chercher par son nom. {{connected}} autres sont connectés à OpesCare mais n’ont pas publié leur personnel — vous pouvez tout de même y réserver, ou appeler n’importe quelle fiche.",
+      "noClinicians": "Aucun établissement n’a encore publié de profil de soignant : il n’y a donc pas de médecin à chercher par son nom. {{connected}} des {{total}} fiches sont connectées à OpesCare et peuvent encore accepter un rendez-vous ; les autres restent trouvables et joignables par téléphone.",
+      "bookable": "{{bookable}} des {{total}} établissements répertoriés ont un créneau de rendez-vous ouvert en ce moment. {{connected}} sont connectés à OpesCare ; le reste de l’annuaire reste trouvable et joignable par téléphone."
+    },
+    "empty": {
+      "cliniciansTitle": "Aucun profil de soignant publié pour l’instant",
+      "cliniciansBody": "Aucun établissement sur OpesCare n’a publié ses soignants : il n’y a donc pas de médecin à chercher par son nom. {{connected}} établissements sont connectés et peuvent encore accepter un rendez-vous ; toutes les fiches de l’annuaire peuvent être trouvées et appelées.",
+      "cliniciansSearchBody": "Aucun établissement correspondant à cette recherche ne publie de soignant que vous puissiez chercher par son nom. Élargissez aux établissements connectés — ils peuvent encore accepter un rendez-vous — ou à toutes les fiches, que vous pouvez trouver et appeler.",
+      "bookableTitle": "Aucun créneau de rendez-vous ouvert actuellement",
+      "bookableBody": "Aucun établissement sur OpesCare n’a de créneau de rendez-vous ouvert pour le moment : il n’y a donc encore rien à réserver en ligne. {{connected}} établissements sont connectés et peuvent être appelés directement.",
+      "bookableFilteredBody": "Aucun établissement correspondant à ces filtres n’a de créneau ouvert. Élargissez aux établissements connectés — vous pouvez les appeler pour convenir d’une visite — ou effacez les filtres."
     }
   }
 }

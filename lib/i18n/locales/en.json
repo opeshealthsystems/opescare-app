@@ -735,7 +735,9 @@
     "signOutConfirmCancel": "Stay signed in",
     "unavailableTitle": "Your profile has not loaded",
     "unavailableBody": "We could not reach OpesCare to load your details. Everything else in the app still works — check your connection and try again.",
-    "unavailableRetryHint": "Fetches your profile again"
+    "unavailableRetryHint": "Fetches your profile again",
+    "profileStrengthHint_one": "{{count}} detail still missing",
+    "profileStrengthHint_other": "{{count}} details still missing"
   },
   "editProfile": {
     "title": "Edit Profile",
@@ -5665,7 +5667,24 @@
       "unavailableTitle": "This server cannot take access requests yet",
       "unavailableBody": "Nothing was sent and the patient has not been contacted. Ask your administrator when this will be available.",
       "failedTitle": "The request was not sent",
-      "failedBody": "Nothing was sent. Please try again."
+      "failedBody": "Nothing was sent. Please try again.",
+      "fallbackPurpose": {
+        "treatment": "Treating this patient",
+        "referral": "A referral",
+        "second_opinion": "A second opinion",
+        "continuity_of_care": "Continuity of care",
+        "emergency_followup": "Follow-up after emergency care"
+      },
+      "fallbackScope": {
+        "patient_summary": "Record summary",
+        "allergies_read": "Allergies",
+        "problems_read": "Ongoing problems",
+        "encounters_read": "Visits and consultations",
+        "vitals_read": "Vital signs",
+        "medications_read": "Medicines and prescriptions",
+        "diagnoses_read": "Diagnoses",
+        "orders_read": "Laboratory and imaging orders"
+      }
     },
     "breakGlass": {
       "title": "Emergency access",
@@ -6247,6 +6266,34 @@
       "badgeUnavailable": "In-app only",
       "action": "Turn on notifications",
       "noteUnavailable": "This app build cannot deliver alerts to your phone's lock screen yet, so OpesCare does not ask for the notification permission. Nothing is missed — open Notifications inside the app to see everything OpesCare has sent you."
+    }
+  },
+  "consentCopy": {
+    "durationOfAccess": "{{duration}} of access",
+    "confirmApproveBody": "{{facility}} will be able to open {{scope}} for \"{{purpose}}\", for {{duration}}. Every time they open it, it is written to your access log — and you can revoke this at any moment.",
+    "unnamedCode": "OpesCare has no plain-language name for one of the codes shown here, so it is shown exactly as it was recorded. Ask the facility what it covers — it may cover more than it appears to.",
+    "unnamedPurpose": "OpesCare has no plain-language name for this reason code, so it is shown exactly as it was recorded.",
+    "durationUnknown": "How long this access would last was not sent with this request."
+  },
+  "discovery": {
+    "scope": {
+      "clinicians": "With doctors",
+      "cliniciansHint": "Show only facilities that publish at least one clinician",
+      "bookable": "Bookable",
+      "bookableHint": "Show only facilities with an appointment slot open right now"
+    },
+    "explainer": {
+      "clinicians": "{{clinicians}} of {{total}} listed facilities publish a clinician you can look up by name. {{connected}} more are connected to OpesCare but have not published their staff — you can still book those, or call any listing.",
+      "noClinicians": "No facility has published a clinician profile yet, so there is no doctor to look up by name. {{connected}} of {{total}} listings are connected to OpesCare and may still take a booking; the rest can be found and called.",
+      "bookable": "{{bookable}} of {{total}} listed facilities have an appointment slot open right now. {{connected}} are connected to OpesCare; the rest of the directory can still be found and called."
+    },
+    "empty": {
+      "cliniciansTitle": "No clinician profiles published yet",
+      "cliniciansBody": "Not one facility on OpesCare has published its clinicians, so there is no doctor to search for by name. {{connected}} facilities are connected and may still take a booking; every listing in the directory can be found and called.",
+      "cliniciansSearchBody": "No facility matching that search publishes a clinician you can look up by name. Widen to the connected facilities — those can still take a booking — or to every listing, which you can find and call.",
+      "bookableTitle": "No open appointment slots right now",
+      "bookableBody": "No facility on OpesCare has an appointment slot open at the moment, so there is nothing to book online yet. {{connected}} facilities are connected and can be called directly.",
+      "bookableFilteredBody": "No facility matching those filters has an appointment slot open. Widen to the connected facilities — you can call them to arrange a visit — or clear the filters."
     }
   }
 }

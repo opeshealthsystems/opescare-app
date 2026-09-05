@@ -56,6 +56,10 @@ import {
 import { CountTile, ResultRow } from '@/components/doctor/shared';
 import { ScheduleRow } from '@/components/doctor/scheduleShared';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
+import { useAuthStore } from '@/lib/store/auth';
+
+/** Roles that write prescriptions. Everyone else still identifies patients and asks for access. */
+const PRESCRIBER_ROLES = new Set(['doctor', 'specialist', 'specialist_doctor', 'resident_doctor', 'medical_supervisor', 'multi_doctor']);
 
 /**
  * The home endpoint sends a slimmer appointment than the schedule endpoint
@@ -168,7 +172,25 @@ export default function DoctorHomeScreen() {
   // this screen renders a full-height EmptyState — which used to swallow the
   // only route to `app/clinician/prescribe.tsx` and leave a doctor with no way
   // to write a prescription at all. Writing one needs nothing from the summary.
-  const writeSection = (
+  const providerRole = useAuthStore((s) => s.provider?.role ?? '');
+  const canPrescribe = PRESCRIBER_ROLES.has(providerRole.toLowerCase());
+
+  const identifySection = (
+    <>
+      <SectionHeader title={tx('home.identifySection', 'Identify')} />
+      <Card variant="flush">
+        <ListRow
+          icon="qr"
+          tint="blue"
+          title={tx('home.tileScan', 'Scan a patient’s Health ID')}
+          subtitle={tx('home.tileScanSub', 'Read the code they present, then ask for access or open the chart')}
+          onPress={() => router.push(doctorRoutes.scan)}
+        />
+      </Card>
+    </>
+  );
+
+  const writeSection = !canPrescribe ? null : (
     <>
       <SectionHeader title={tx('home.writeSection', 'Write')} />
       <Card variant="flush">
@@ -387,6 +409,7 @@ export default function DoctorHomeScreen() {
         }
       >
         {stale}
+        {identifySection}
         {writeSection}
         {body}
       </ScrollView>

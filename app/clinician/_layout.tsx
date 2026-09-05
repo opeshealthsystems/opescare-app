@@ -150,6 +150,7 @@ function DoctorTabs() {
       {/* ── Everything else in the group: routable, never a tab button ─── */}
       <Tabs.Screen name="break-glass" options={{ href: null }} />
       <Tabs.Screen name="request-access" options={{ href: null }} />
+      <Tabs.Screen name="scan" options={{ href: null }} />
       <Tabs.Screen name="prescribe" options={{ href: null }} />
       <Tabs.Screen name="requests" options={{ href: null }} />
       <Tabs.Screen name="results/[id]" options={{ href: null }} />

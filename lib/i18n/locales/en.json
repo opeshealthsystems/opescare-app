@@ -59,10 +59,13 @@
     "invalidPassword": "Password is required",
     "demoLoginLabel": "Try the demo — sign in with one tap",
     "demoLoginPatient": "Demo patient — female, provisional ID",
-    "demoLoginDoctor": "Demo clinician (preview)",
+    "demoLoginDoctor": "Demo doctor",
     "demoDoctorNotice": "Signed in as the demo patient, showing the clinician screens. Clinician data is not connected on this server yet, so those screens will be empty.",
     "clinicianSignInUnavailable": "Clinician sign-in isn’t available on this server yet.",
-    "demoLoginReviewer": "Demo patient — male, verified ID, full record"
+    "demoLoginReviewer": "Demo patient — male, verified ID, full record",
+    "demoLoginNurse": "Demo nurse",
+    "demoLoginPharmacist": "Demo pharmacist",
+    "demoLoginReceptionist": "Demo receptionist"
   },
   "signup": {
     "stepIndicator": "Step {{current}} of {{total}}",
@@ -4978,7 +4981,10 @@
       "countedLive": "These figures are counted live on the hospital record each time this screen loads.",
       "tileRequestsUnknown": "Open to see what is awaiting your decision",
       "writeSection": "Write",
-      "tilePrescribe": "Look the patient up by Health ID, then issue"
+      "tilePrescribe": "Look the patient up by Health ID, then issue",
+      "identifySection": "Identify",
+      "tileScan": "Scan a patient’s Health ID",
+      "tileScanSub": "Read the code they present, then ask for access or open the chart"
     },
     "schedule": {
       "title": "My Schedule",
@@ -5108,7 +5114,8 @@
       "todayFailedTitle": "Today’s list could not be read",
       "todayLoading": "Reading your schedule…",
       "todayRetry": "Retry",
-      "todayTitle": "Your patients today"
+      "todayTitle": "Your patients today",
+      "scanCode": "Scan code"
     },
     "chart": {
       "title": "Patient Chart",
@@ -5836,6 +5843,47 @@
     "emergency": {
       "entryTitle": "Emergency access",
       "entryBody": "For an unconscious or unidentified patient with no record of care here. Logged as an override, and the patient is told."
+    },
+    "scan": {
+      "title": "Scan a Health ID",
+      "subtitle": "Point the camera at the code the patient presents",
+      "preparing": "Preparing the camera…",
+      "permissionTitle": "Camera access needed",
+      "permissionBody": "OpesCare only uses the camera to read the patient’s Health ID code. Nothing is photographed or stored.",
+      "allowCamera": "Allow camera",
+      "webUnsupportedTitle": "This browser cannot read codes",
+      "webUnsupportedBody": "Use the OpesCare app on a phone, or paste the code below. Typing the patient’s Health ID works too.",
+      "hint": "Ask the patient to open their Health ID and hold it steady",
+      "resolving": "Checking the code with OpesCare…",
+      "matchedTitle": "Health ID confirmed",
+      "recordedRef": "Recorded under reference {{ref}}",
+      "age": "Age",
+      "sex": "Sex",
+      "blood": "Blood",
+      "accessGrantedTitle": "Your facility has access",
+      "accessGrantedBody": "The patient has granted your facility access to their record. You can open the chart.",
+      "accessNotGrantedTitle": "No access to this record yet",
+      "accessNotGrantedBody": "Ask the patient for access to the parts of their record you need — prescriptions, lab results, vitals. They approve it on their phone.",
+      "openChart": "Open chart",
+      "askAccess": "Ask for access",
+      "scanAgain": "Scan another",
+      "manualLabel": "No camera? Enter it by hand",
+      "manualPlaceholder": "Paste the code, or type the Health ID",
+      "useCode": "Use this",
+      "manualInvalid": "Paste the code from the patient’s QR, or type their full Health ID.",
+      "noEnumeration": "A code names one patient or nobody. There is no name search on any OpesCare surface.",
+      "notACodeTitle": "Not a Health ID code",
+      "notACodeBody": "That QR is not an OpesCare Health ID. Ask the patient to open their Health ID in the OpesCare app.",
+      "expiredTitle": "This code has expired",
+      "expiredBody": "Presentation codes last 15 minutes. Ask the patient to present a new one.",
+      "revokedTitle": "The patient withdrew this code",
+      "revokedBody": "The patient cancelled this code from their app. Ask them to present a new one.",
+      "invalidTitle": "Code not recognised",
+      "invalidBody": "This code does not match any live Health ID. It may have been altered or copied.",
+      "offlineTitle": "Could not reach OpesCare",
+      "offlineBody": "Check the connection and scan again. Nothing was recorded.",
+      "unknownTitle": "The code could not be checked",
+      "unknownBody": "Something went wrong on our side. Scan again in a moment."
     }
   },
   "_readme": [

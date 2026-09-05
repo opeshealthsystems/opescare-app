@@ -59,10 +59,13 @@
     "invalidPassword": "Le mot de passe est requis",
     "demoLoginLabel": "Essayer la démo — connexion en un geste",
     "demoLoginPatient": "Patiente de démonstration — identité provisoire",
-    "demoLoginDoctor": "Soignant de démonstration (aperçu)",
+    "demoLoginDoctor": "Médecin de démonstration",
     "demoDoctorNotice": "Connecté en tant que patient de démonstration, avec les écrans soignant affichés. Les données soignant ne sont pas encore connectées sur ce serveur : ces écrans seront vides.",
     "clinicianSignInUnavailable": "La connexion clinicien n’est pas encore disponible sur ce serveur.",
-    "demoLoginReviewer": "Patient de démonstration (homme) — identité vérifiée, dossier complet"
+    "demoLoginReviewer": "Patient de démonstration (homme) — identité vérifiée, dossier complet",
+    "demoLoginNurse": "Infirmière de démonstration",
+    "demoLoginPharmacist": "Pharmacienne de démonstration",
+    "demoLoginReceptionist": "Réceptionniste de démonstration"
   },
   "signup": {
     "stepIndicator": "Étape {{current}} sur {{total}}",
@@ -4978,7 +4981,10 @@
       "countedLive": "Ces chiffres sont comptés en direct sur le dossier hospitalier à chaque ouverture de cet écran.",
       "tileRequestsUnknown": "Ouvrir pour voir ce qui attend votre décision",
       "writeSection": "Rédiger",
-      "tilePrescribe": "Recherchez le patient par identifiant santé, puis délivrez"
+      "tilePrescribe": "Recherchez le patient par identifiant santé, puis délivrez",
+      "identifySection": "Identifier",
+      "tileScan": "Scanner l’Identifiant Santé d’un patient",
+      "tileScanSub": "Lisez le code présenté, puis demandez l’accès ou ouvrez le dossier"
     },
     "schedule": {
       "title": "Mon agenda",
@@ -5108,7 +5114,8 @@
       "todayFailedTitle": "La liste du jour n’a pas pu être lue",
       "todayLoading": "Lecture de votre agenda…",
       "todayRetry": "Réessayer",
-      "todayTitle": "Vos patients du jour"
+      "todayTitle": "Vos patients du jour",
+      "scanCode": "Scanner un code"
     },
     "chart": {
       "title": "Dossier patient",
@@ -5836,6 +5843,47 @@
     "emergency": {
       "entryTitle": "Accès d’urgence",
       "entryBody": "Pour un patient inconscient ou non identifié, sans historique de soins ici. Enregistré comme dérogation, et le patient en est informé."
+    },
+    "scan": {
+      "title": "Scanner un Identifiant Santé",
+      "subtitle": "Visez le code que le patient présente",
+      "preparing": "Préparation de la caméra…",
+      "permissionTitle": "Accès à la caméra requis",
+      "permissionBody": "OpesCare n’utilise la caméra que pour lire le code Identifiant Santé du patient. Rien n’est photographié ni conservé.",
+      "allowCamera": "Autoriser la caméra",
+      "webUnsupportedTitle": "Ce navigateur ne peut pas lire les codes",
+      "webUnsupportedBody": "Utilisez l’application OpesCare sur un téléphone, ou collez le code ci-dessous. Saisir l’Identifiant Santé du patient fonctionne aussi.",
+      "hint": "Demandez au patient d’ouvrir son Identifiant Santé et de le tenir immobile",
+      "resolving": "Vérification du code auprès d’OpesCare…",
+      "matchedTitle": "Identifiant Santé confirmé",
+      "recordedRef": "Enregistré sous la référence {{ref}}",
+      "age": "Âge",
+      "sex": "Sexe",
+      "blood": "Sang",
+      "accessGrantedTitle": "Votre établissement a accès",
+      "accessGrantedBody": "Le patient a accordé à votre établissement l’accès à son dossier. Vous pouvez ouvrir le dossier.",
+      "accessNotGrantedTitle": "Pas encore d’accès à ce dossier",
+      "accessNotGrantedBody": "Demandez au patient l’accès aux parties du dossier dont vous avez besoin — ordonnances, résultats de laboratoire, signes vitaux. Il approuve sur son téléphone.",
+      "openChart": "Ouvrir le dossier",
+      "askAccess": "Demander l’accès",
+      "scanAgain": "Scanner un autre",
+      "manualLabel": "Pas de caméra ? Saisissez-le",
+      "manualPlaceholder": "Collez le code ou saisissez l’Identifiant Santé",
+      "useCode": "Utiliser",
+      "manualInvalid": "Collez le code du QR du patient, ou saisissez son Identifiant Santé complet.",
+      "noEnumeration": "Un code désigne un patient ou personne. Aucune recherche par nom n’existe sur OpesCare.",
+      "notACodeTitle": "Ce n’est pas un code Identifiant Santé",
+      "notACodeBody": "Ce QR n’est pas un Identifiant Santé OpesCare. Demandez au patient d’ouvrir son Identifiant Santé dans l’application OpesCare.",
+      "expiredTitle": "Ce code a expiré",
+      "expiredBody": "Les codes de présentation durent 15 minutes. Demandez au patient d’en présenter un nouveau.",
+      "revokedTitle": "Le patient a retiré ce code",
+      "revokedBody": "Le patient a annulé ce code depuis son application. Demandez-lui d’en présenter un nouveau.",
+      "invalidTitle": "Code non reconnu",
+      "invalidBody": "Ce code ne correspond à aucun Identifiant Santé actif. Il a peut-être été altéré ou copié.",
+      "offlineTitle": "Impossible de joindre OpesCare",
+      "offlineBody": "Vérifiez la connexion et scannez à nouveau. Rien n’a été enregistré.",
+      "unknownTitle": "Le code n’a pas pu être vérifié",
+      "unknownBody": "Un problème est survenu de notre côté. Scannez à nouveau dans un instant."
     }
   },
   "_readme": [

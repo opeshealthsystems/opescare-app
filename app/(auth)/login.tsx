@@ -86,6 +86,11 @@ const DEMO_ACCOUNTS = [
     password: DEMO_CLINICIAN_PASSWORD,
     clinician: true,
   },
+  // The other staff the Finder seeds. Same real provider sign-in as the
+  // doctor; the clinician area adapts (no prescribing for non-prescribers).
+  { key: 'nurse', icon: 'activity', labelKey: 'auth.demoLoginNurse', email: 'demo.nurse@opescare.test', password: 'demo1234', clinician: true },
+  { key: 'pharmacist', icon: 'pill', labelKey: 'auth.demoLoginPharmacist', email: 'demo.pharmacist@opescare.test', password: 'demo1234', clinician: true },
+  { key: 'receptionist', icon: 'clipboard', labelKey: 'auth.demoLoginReceptionist', email: 'demo.receptionist@opescare.test', password: 'demo1234', clinician: true },
 ] as const satisfies readonly {
   key: string;
   icon: IconName;

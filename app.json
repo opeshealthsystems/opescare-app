@@ -16,7 +16,10 @@
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "CFBundleLocalizations": ["en", "fr"],
+        "CFBundleLocalizations": [
+          "en",
+          "fr"
+        ],
         "CFBundleAllowMixedLocalizations": true
       },
       "privacyManifests": {
@@ -25,11 +28,15 @@
         "NSPrivacyAccessedAPITypes": [
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
           },
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
-            "NSPrivacyAccessedAPITypeReasons": ["C617.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
           }
         ]
       }
@@ -95,6 +102,12 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#0F4C81"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "OpesCare uses the camera so a clinician can scan a patient's Health ID code."
         }
       ]
     ],

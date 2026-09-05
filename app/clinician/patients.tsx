@@ -276,6 +276,13 @@ export default function PatientLookupScreen() {
               loading={!!request && lookup.isPending}
               disabled={entry.trim().length === 0}
             />
+            <CareButton
+              label={tx('search.scanCode', 'Scan code')}
+              icon="qr"
+              variant="secondary"
+              style={styles.action}
+              onPress={() => router.push(doctorRoutes.scan)}
+            />
             {(entry.length > 0 || !!request) && (
               <CareButton
                 label={tx('search.clear', 'Clear')}

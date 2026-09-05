@@ -175,6 +175,11 @@ export const doctorRoutes = {
    * and the patient is notified. It must be a decision, not a retry.
    */
   breakGlass: '/clinician/break-glass',
+  /**
+   * Scan the patient's Health ID QR with the camera — the identification
+   * path that hands off to requestAccess() or the chart.
+   */
+  scan: '/clinician/scan',
 } as const;
 
 /** Where a non-clinician is sent back to — the patient app's home tab. */

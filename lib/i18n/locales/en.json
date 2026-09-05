@@ -65,7 +65,9 @@
     "demoLoginReviewer": "Demo patient — male, verified ID, full record",
     "demoLoginNurse": "Demo nurse",
     "demoLoginPharmacist": "Demo pharmacist",
-    "demoLoginReceptionist": "Demo receptionist"
+    "demoLoginReceptionist": "Demo receptionist",
+    "demoLoginBoy": "Demo boy — child, verified ID",
+    "demoLoginGirl": "Demo girl — child, verified ID"
   },
   "signup": {
     "stepIndicator": "Step {{current}} of {{total}}",

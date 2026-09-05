@@ -65,7 +65,9 @@
     "demoLoginReviewer": "Patient de démonstration (homme) — identité vérifiée, dossier complet",
     "demoLoginNurse": "Infirmière de démonstration",
     "demoLoginPharmacist": "Pharmacienne de démonstration",
-    "demoLoginReceptionist": "Réceptionniste de démonstration"
+    "demoLoginReceptionist": "Réceptionniste de démonstration",
+    "demoLoginBoy": "Garçon de démonstration — enfant, identité vérifiée",
+    "demoLoginGirl": "Fille de démonstration — enfant, identité vérifiée"
   },
   "signup": {
     "stepIndicator": "Étape {{current}} sur {{total}}",

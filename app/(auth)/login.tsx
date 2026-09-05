@@ -78,6 +78,9 @@ const DEMO_ACCOUNTS = [
     password: 'demo1234',
     clinician: false,
   },
+  // Children: the boy and girl anatomical holograms on a real credential.
+  { key: 'boy', icon: 'baby', labelKey: 'auth.demoLoginBoy', email: 'demo.boy@opescare.test', password: 'demo1234', clinician: false },
+  { key: 'girl', icon: 'baby', labelKey: 'auth.demoLoginGirl', email: 'demo.girl@opescare.test', password: 'demo1234', clinician: false },
   {
     key: 'doctor',
     icon: 'stethoscope',

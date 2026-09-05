@@ -1942,6 +1942,20 @@
     "typesTitle": "Types d’établissement",
     "findDoctor": {
       "body": "Recherchez plutôt des soignants par nom ou spécialité."
+    },
+    "filterPanel": {
+      "typeLabel": "Type d’établissement",
+      "areaLabel": "Zone",
+      "refineLabel": "Affiner",
+      "phoneOnly": "Avec un numéro de téléphone",
+      "phoneOnlyBody": "Uniquement les établissements que vous pouvez appeler depuis la fiche.",
+      "mappableOnly": "Affichable sur la carte",
+      "mappableOnlyBody": "Uniquement les établissements dont la position est vérifiée. Les autres restent dans la liste.",
+      "showResults": "Afficher {{count}} résultats",
+      "hint": "Filtrer par type d’établissement, zone et détails",
+      "buttonWithCount": "Filtres · {{count}}",
+      "clearType": "Effacer {{type}}",
+      "refinedAway": "{{count}} masqués par vos filtres"
     }
   },
   "forgotPassword": {

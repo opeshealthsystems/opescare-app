@@ -415,7 +415,9 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.heroIdText}>
               <Text style={styles.heroIdLabel}>{t('profile.healthId')}</Text>
-              <Text style={styles.heroIdValue} numberOfLines={1}>
+              {/* Never ellipsize a Health ID: it is read out at counters. Two
+                  lines at 375px, one on anything wider. */}
+              <Text style={styles.heroIdValue} numberOfLines={2}>
                 {patient.health_id || '—'}
               </Text>
               <Text style={styles.heroIdHint}>{t('profile.tapToView')}</Text>
@@ -583,7 +585,7 @@ function HeroFact({ icon, value }: { icon: IconName; value: string }) {
   return (
     <View style={styles.heroFact}>
       <Icon name={icon} size={16} color={colors.textOnBrand} />
-      <Text style={styles.heroFactText} numberOfLines={1}>
+      <Text style={styles.heroFactText} numberOfLines={2}>
         {value}
       </Text>
     </View>

@@ -1942,6 +1942,20 @@
     "typesTitle": "Facility types",
     "findDoctor": {
       "body": "Search clinicians by name or specialty instead."
+    },
+    "filterPanel": {
+      "typeLabel": "Facility type",
+      "areaLabel": "Area",
+      "refineLabel": "Refine",
+      "phoneOnly": "Has a phone number",
+      "phoneOnlyBody": "Only facilities you can call from the listing.",
+      "mappableOnly": "Can be shown on the map",
+      "mappableOnlyBody": "Only facilities with a verified location. Others still appear in the list.",
+      "showResults": "Show {{count}} results",
+      "hint": "Filter by facility type, area and details",
+      "buttonWithCount": "Filters · {{count}}",
+      "clearType": "Clear {{type}}",
+      "refinedAway": "{{count}} hidden by your filters"
     }
   },
   "forgotPassword": {

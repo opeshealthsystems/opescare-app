@@ -644,7 +644,7 @@ function IdCard({
         <Text style={styles.cardFootCopy}>{t('opesCore.healthId.cardFootCopy')}</Text>
         <View style={styles.cardFootBrand}>
           <Text style={styles.cardFootBrandTitle}>{t('healthId.cardLabel').toUpperCase()}</Text>
-          <Text style={styles.cardFootBrandSub} numberOfLines={1}>
+          <Text style={styles.cardFootBrandSub} numberOfLines={2}>
             {t('healthId.cardTagline')}
           </Text>
         </View>

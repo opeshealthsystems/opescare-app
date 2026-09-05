@@ -140,6 +140,7 @@ export function PresentationMode({
                 active
                 background={colors.surface}
                 foreground={colors.navy}
+                logo={HEALTH_ID_ART.qrLogo}
               />
             ) : minting ? (
               <View style={styles.stageState}>

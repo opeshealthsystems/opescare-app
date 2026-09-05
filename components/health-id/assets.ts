@@ -60,6 +60,9 @@ export const HEALTH_ID_ART = {
 
   // 08 Document
   documentTexture: require('../../assets/health-id/document-texture.png'),
+
+  /** The app icon at 128px, for the centre of the large presentation QR (the mockup's mark). */
+  qrLogo: require('../../assets/health-id/qr-logo.png'),
 } as const;
 
 /**

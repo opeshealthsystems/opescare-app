@@ -704,7 +704,9 @@
       "tileEmergency": "Profil d’urgence",
       "tileEmergencyCaption": "Disponible hors ligne",
       "tilePrivacy": "Confidentialité et sécurité",
-      "tilePrivacyCaption": "Gérer vos préférences"
+      "tilePrivacyCaption": "Gérer vos préférences",
+      "frameTagline": "Un peuple en meilleure santé · Une Afrique plus forte",
+      "edgeText": "Soigner · Connecter · Protéger"
     }
   },
   "profile": {

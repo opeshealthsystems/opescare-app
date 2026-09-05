@@ -704,7 +704,9 @@
       "tileEmergency": "Emergency profile",
       "tileEmergencyCaption": "Available offline",
       "tilePrivacy": "Privacy & security",
-      "tilePrivacyCaption": "Manage your preferences"
+      "tilePrivacyCaption": "Manage your preferences",
+      "frameTagline": "A healthier people · A stronger Africa",
+      "edgeText": "Care · Connect · Protect"
     }
   },
   "profile": {

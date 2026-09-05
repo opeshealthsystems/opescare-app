@@ -200,6 +200,7 @@ export function QrPanel({
   accessibilityLabel,
   background,
   foreground,
+  logo,
 }: {
   value: string;
   size: number;
@@ -208,6 +209,12 @@ export function QrPanel({
   accessibilityLabel?: string;
   background: string;
   foreground: string;
+  /**
+   * The mockup's brand mark in the centre of the code. Only for LARGE codes:
+   * the library raises error correction to "H" (30% of modules recoverable)
+   * to make room for it, which is fine at 190px and too dense at 86px.
+   */
+  logo?: ImageSourcePropType;
 }) {
   const pad = Math.round(size * 0.1);
   const box = size + pad * 2;
@@ -225,7 +232,22 @@ export function QrPanel({
         justifyContent: 'center',
       }}
     >
-      <QRCode value={value} size={size} color={foreground} backgroundColor={background} />
+      {logo ? (
+        <QRCode
+          value={value}
+          size={size}
+          color={foreground}
+          backgroundColor={background}
+          ecl="H"
+          logo={logo}
+          logoSize={Math.round(size * 0.2)}
+          logoBackgroundColor={background}
+          logoMargin={3}
+          logoBorderRadius={Math.round(size * 0.04)}
+        />
+      ) : (
+        <QRCode value={value} size={size} color={foreground} backgroundColor={background} />
+      )}
     </View>
   );
 

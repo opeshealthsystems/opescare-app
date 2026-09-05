@@ -58,11 +58,11 @@
     "invalidEmail": "Enter a valid email or Health ID",
     "invalidPassword": "Password is required",
     "demoLoginLabel": "Try the demo — sign in with one tap",
-    "demoLoginPatient": "Demo patient (provisional ID)",
+    "demoLoginPatient": "Demo patient — female, provisional ID",
     "demoLoginDoctor": "Demo clinician (preview)",
     "demoDoctorNotice": "Signed in as the demo patient, showing the clinician screens. Clinician data is not connected on this server yet, so those screens will be empty.",
     "clinicianSignInUnavailable": "Clinician sign-in isn’t available on this server yet.",
-    "demoLoginReviewer": "Demo patient — verified ID, full record"
+    "demoLoginReviewer": "Demo patient — male, verified ID, full record"
   },
   "signup": {
     "stepIndicator": "Step {{current}} of {{total}}",

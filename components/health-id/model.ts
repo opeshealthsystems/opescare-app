@@ -11,11 +11,34 @@ import type { StatusTone } from '@/components/opes-ui';
 import type { HealthIdCard } from '@/lib/api/types';
 import type { OfflineEmergencyProfile } from '@/lib/offline';
 
+/**
+ * Which anatomical hologram the credential shows. Selected from the
+ * patient's own profile fields (sex + date of birth), never inferred from a
+ * photo or an avatar; `generic` (the neutral watermark) when sex is not
+ * recorded as male or female. The avatar is the identity representation
+ * everywhere else in the app; this drives only the credential visual.
+ */
+export type AnatomicalProfile = 'adult_male' | 'adult_female' | 'child_male' | 'child_female' | 'generic';
+
+/** Paediatric variants apply up to and including this age. */
+export const CHILD_MAX_AGE = 17;
+
+export function anatomicalProfileFor(sex: string | null, dob: string | null): AnatomicalProfile {
+  const s = (sex ?? '').trim().toLowerCase();
+  const age = ageFrom(dob);
+  const child = age !== null && age <= CHILD_MAX_AGE;
+  if (s === 'male') return child ? 'child_male' : 'adult_male';
+  if (s === 'female') return child ? 'child_female' : 'adult_female';
+  return 'generic';
+}
+
 export type CredentialModel = {
   healthId: string | null;
   name: string | null;
   dob: string | null;
   sex: string | null;
+  /** Deterministic: see anatomicalProfileFor(). */
+  anatomicalProfile: AnatomicalProfile;
   bloodType: string | null;
   qrPayload: string | null;
   statusKey: string | null;
@@ -88,6 +111,7 @@ export function modelFromLive(card: HealthIdCard): CredentialModel {
     name: card.display_name,
     dob: card.dob,
     sex: card.sex,
+    anatomicalProfile: anatomicalProfileFor(card.sex, card.dob),
     bloodType: presentOrNull(card.blood_type),
     qrPayload: card.qr_payload,
     statusKey: (card.status ?? '').toLowerCase() || null,
@@ -102,6 +126,7 @@ export function modelFromCache(profile: OfflineEmergencyProfile): CredentialMode
     name: profile.display_name,
     dob: profile.dob,
     sex: profile.sex,
+    anatomicalProfile: anatomicalProfileFor(profile.sex, profile.dob),
     bloodType: presentOrNull(profile.blood_group),
     qrPayload: null,
     statusKey: null,

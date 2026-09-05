@@ -33,7 +33,7 @@ import {
   type StatusTone,
 } from '@/components/opes-ui';
 import type { TemporaryQrCode } from '@/lib/api/types';
-import { HEALTH_ID_ART, HEALTH_ID_INDICATORS } from './assets';
+import { HEALTH_ID_ART, HEALTH_ID_INDICATORS, anatomicalArt } from './assets';
 import { Art, CornerBrackets, DECORATIVE, FILL, PulseArt, QrPanel, SealSystem, qrPanelExtent } from './Layers';
 import { formatCountdown, presentOrNull, titleCase, type CredentialModel } from './model';
 
@@ -130,6 +130,16 @@ export function PresentationMode({
             </View>
           </View>
 
+          {/* ── The holder's anatomical hologram ─────────────────────────
+              Adult male / adult female / boy / girl, from the profile's own
+              sex + date of birth (model.anatomicalProfile) — the health
+              visual of a live credential. Here, and only here, it is a focal
+              element; on the card it is a faint watermark. */}
+          <View style={styles.figure} {...DECORATIVE}>
+            <PulseArt source={HEALTH_ID_ART.holoRing} style={styles.figureAura} low={0.22} high={0.42} duration={3200} active={live} />
+            <PulseArt source={anatomicalArt(model.anatomicalProfile)} style={styles.figureBody} low={0.72} high={0.98} duration={3200} active={live} />
+          </View>
+
           {/* ── The live code ───────────────────────────────────────────── */}
           <View style={styles.stage}>
             <CornerBrackets color={colors.primarySoft} size={34} inset={0} radius={12} thickness={3} active={live} />
@@ -207,6 +217,8 @@ export function PresentationMode({
           {/* ── Holder strip ────────────────────────────────────────────── */}
           <View style={styles.holder}>
             <Art source={HEALTH_ID_ART.cornerMarkers} style={FILL} resizeMode="stretch" opacity={0.55} />
+            {/* Watermark behind the identity details (Presentation Mode: 6–12%). */}
+            <Art source={anatomicalArt(model.anatomicalProfile)} style={styles.holderWatermark} resizeMode="contain" opacity={0.09} />
             <View style={styles.holderTop}>
               <View style={styles.avatarRing}>
                 <Avatar name={name} size={40} uri={model.photoUrl} />
@@ -375,6 +387,19 @@ const makeStyles = (colors: Palette) =>
       color: colors.textOnBrand,
       opacity: 0.75,
     },
+
+    figure: {
+      alignSelf: 'center',
+      width: 190,
+      height: 172,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: -10,
+    },
+    figureAura: { position: 'absolute', width: 190, height: 172 },
+    // 305×720 source: keep the figure's aspect so it never stretches.
+    figureBody: { width: 70, height: 165 },
+    holderWatermark: { position: 'absolute', right: 10, top: -14, width: 64, height: 150 },
 
     stage: {
       alignSelf: 'center',

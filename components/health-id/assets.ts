@@ -16,6 +16,9 @@
  * encodes, how a token is minted and when it dies is decided by the backend and
  * untouched here.
  */
+import type { ImageSourcePropType } from 'react-native';
+import type { AnatomicalProfile } from './model';
+
 export const HEALTH_ID_ART = {
   // 01 DNA — biomedical identity edge
   dnaHelix: require('../../assets/health-id/dna-helix.png'),
@@ -83,14 +86,18 @@ export const HEALTH_ID_INDICATORS = {
 export type IndicatorState = keyof typeof HEALTH_ID_INDICATORS;
 
 /**
- * The anatomical hologram that matches the holder. Sex and age come from the
- * card itself; when either is unknown the neutral watermark is used, never a
- * guess.
+ * The anatomical hologram for a profile — `generic` is the neutral watermark.
+ * Keyed by the explicit AnatomicalProfile so the choice is deterministic and
+ * never read off an avatar or a photo.
  */
-export function hologramFor(sex: string | null, age: number | null) {
-  const s = (sex ?? '').toLowerCase();
-  const child = age !== null && age < 18;
-  if (s === 'female') return child ? HEALTH_ID_ART.hologramChildGirl : HEALTH_ID_ART.hologramAdultFemale;
-  if (s === 'male') return child ? HEALTH_ID_ART.hologramChildBoy : HEALTH_ID_ART.hologramAdultMale;
-  return HEALTH_ID_ART.anatomyWatermark;
+export const ANATOMICAL_ART: Record<AnatomicalProfile, ImageSourcePropType> = {
+  adult_male: HEALTH_ID_ART.hologramAdultMale,
+  adult_female: HEALTH_ID_ART.hologramAdultFemale,
+  child_male: HEALTH_ID_ART.hologramChildBoy,
+  child_female: HEALTH_ID_ART.hologramChildGirl,
+  generic: HEALTH_ID_ART.anatomyWatermark,
+};
+
+export function anatomicalArt(profile: AnatomicalProfile): ImageSourcePropType {
+  return ANATOMICAL_ART[profile] ?? HEALTH_ID_ART.anatomyWatermark;
 }

@@ -37,7 +37,7 @@ import {
   type Palette,
   type StatusTone,
 } from '@/components/opes-ui';
-import { HEALTH_ID_ART, hologramFor } from './assets';
+import { HEALTH_ID_ART, anatomicalArt } from './assets';
 import { Art, CornerBrackets, DECORATIVE, FILL, PulseArt, QrPanel, SealSystem, qrPanelExtent } from './Layers';
 import { ageFrom, presentOrNull, titleCase, type CredentialModel } from './model';
 
@@ -83,7 +83,7 @@ export function SecureCredentialCard({
     : t('healthId.notSet');
   const sexKey = (model.sex ?? '').toLowerCase();
   const sexLabel = sexKey ? t(`healthId.sexValues.${sexKey}`, { defaultValue: titleCase(sexKey) }) : t('healthId.notSet');
-  const hologram = hologramFor(model.sex, age);
+  const hologram = anatomicalArt(model.anatomicalProfile);
   const statusKey = model.statusKey ?? '';
 
   // The on-device copy has no identity status; its badge says how old it is.
@@ -175,7 +175,10 @@ export function SecureCredentialCard({
         <View style={styles.face}>
           <View pointerEvents="none" style={StyleSheet.absoluteFill} {...DECORATIVE}>
             <Art source={HEALTH_ID_ART.guillocheLines} style={FILL} resizeMode="cover" opacity={0.07} />
-            <Art source={hologram} style={styles.hologram} resizeMode="contain" opacity={presentation ? 0.2 : 0.15} />
+            {/* Anatomical WATERMARK: a security/health motif behind the holder's
+                details, never a portrait. 3–7% on the quiet card, 6–12% when the
+                card is presented — it must not compete with patient data. */}
+            <Art source={hologram} style={styles.hologram} resizeMode="contain" opacity={presentation ? 0.1 : 0.06} />
           </View>
 
           <View style={styles.holderRow}>

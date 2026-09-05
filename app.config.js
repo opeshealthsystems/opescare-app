@@ -25,12 +25,20 @@
  * `app/` — the clinician area included — to anyone who asks, signed in or not.
  * It is a developer tool, and it is a free map of the app's attack surface.
  *
- * Gated on NODE_ENV === 'development', which is what `expo start` sets and
- * what `expo export` / an EAS build does not. Written to fail CLOSED: any
- * invocation that leaves NODE_ENV unset gets no sitemap, so the worst case is
- * a missing dev convenience rather than a shipped one.
+ * Gated on an EXPLICIT opt-in, not on an inferred environment.
+ *
+ * This was first written as `NODE_ENV === 'development'` on the assumption that
+ * `expo export` does not set it. It does: with NODE_ENV unset in the shell,
+ * `expo config --type public` resolves `extra.router.sitemap: true`, and the
+ * sitemap duly shipped to production and was live on finder.opescare.cloud.
+ * Simulating the config merge agreed with the assumption; running the real
+ * command did not.
+ *
+ * So the gate is now a variable nothing sets by accident. It fails closed by
+ * CONSTRUCTION rather than by a claim about someone else's tooling: to get the
+ * sitemap you must ask for it with EXPO_PUBLIC_ENABLE_SITEMAP=1.
  */
-const isDevServer = process.env.NODE_ENV === 'development';
+const sitemapEnabled = process.env.EXPO_PUBLIC_ENABLE_SITEMAP === '1';
 
 module.exports = ({ config }) => {
   const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
@@ -49,7 +57,7 @@ module.exports = ({ config }) => {
       // no props, so `sitemap` survives the merge.
       router: {
         ...config.extra?.router,
-        sitemap: isDevServer,
+        sitemap: sitemapEnabled,
       },
     },
   };

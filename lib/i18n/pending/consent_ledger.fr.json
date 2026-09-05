@@ -1,0 +1,69 @@
+{
+  "_comment": "Chaînes du registre des consentements — « Qui peut voir mon dossier » (app/privacy/access.tsx et les sections de app/privacy/index.tsx alimentées par le registre). Enregistrées à l’exécution par lib/api/consentLedgerQueries.ts avec deep=true, overwrite=false : fusionner ces clés dans lib/i18n/locales/fr.json est sans risque à tout moment et rend l’enregistrement inopérant. 1:1 avec consent_ledger.en.json, mêmes {{placeholders}}. REMARQUE : toutes les phrases décrivant l’ÉTAT d’une autorisation, sa BASE et les explications sur les relations de soins viennent du SERVEUR déjà traduites (lang/{en,fr}/consent_ledger.php) — le hook envoie ?lang=, donc elles sont correctes dans les deux langues dès aujourd’hui. Seule l’interface ci-dessous vit ici.",
+
+  "consentLedger": {
+    "title": "Qui peut voir mon dossier",
+    "subtitle": "Les accès à votre dossier, en ce moment",
+
+    "hubCard": "Qui peut voir mon dossier",
+    "hubCardDesc": "Toutes les personnes qui peuvent ouvrir votre dossier en ce moment, et comment les en empêcher",
+
+    "loading": "Vérification des accès en cours",
+    "errorTitle": "Impossible de consulter la liste de vos accès",
+    "errorBody": "Cela n’ouvre votre dossier à personne de nouveau — nous n’avons simplement pas pu lire la liste. Réessayez dans un instant.",
+    "retry": "Réessayer",
+
+    "summaryTitle": "En ce moment",
+    "statActive": "Accès actifs",
+    "statActiveCaption": "Établissements pouvant ouvrir votre dossier",
+    "statExpiring": "Bientôt expirés",
+    "statExpiringCaption": "Accès actifs se terminant sous une semaine",
+    "statEnded": "Terminés",
+    "statEndedCaption": "Expirés ou retirés — conservés dans l’historique",
+    "statOther": "Par vos soins",
+    "statOtherCaption": "Accès qui ne relèvent pas du consentement et ne peuvent pas être retirés ici",
+
+    "activeSection": "Accès actifs",
+    "activeHint": "Chacun d’eux peut ouvrir votre dossier maintenant. Vous pouvez retirer n’importe lequel.",
+    "activeEmptyTitle": "Aucun établissement ne détient d’accès",
+    "activeEmptyBody": "Personne ne détient actuellement d’autorisation de consentement sur votre dossier. Consultez la section ci-dessous : un clinicien qui vous soigne peut malgré tout l’ouvrir sans autorisation.",
+
+    "historySection": "Historique",
+    "historyHint": "Accès qui ont pris fin. Aucun d’eux ne peut ouvrir votre dossier.",
+    "historyEmptyTitle": "Rien n’a encore pris fin",
+    "historyEmptyBody": "Lorsqu’un accès expire ou que vous le retirez, il vient ici pour que vous puissiez voir qu’il a existé.",
+
+    "relationshipsSection": "Accès liés à vos soins",
+    "relationshipsHint": "Ce ne sont pas des autorisations de consentement. Retirer un consentement n’y met pas fin.",
+    "relationshipsEmptyTitle": "Aucune relation de soins ne donne accès",
+    "relationshipsEmptyBody": "Personne ne peut ouvrir votre dossier au titre d’un rendez-vous, d’une équipe soignante, de soins passés ou d’un épisode de soins ouvert.",
+    "notAGrant": "Pas une autorisation de consentement",
+    "cannotWithdrawHere": "Ne peut pas être retiré ici",
+
+    "withdraw": "Retirer l’accès",
+    "keepAccess": "Conserver l’accès",
+    "confirmTitle": "Retirer l’accès",
+    "confirmBody": "{{facility}} ne pourra plus ouvrir votre dossier. Cela prend effet immédiatement. Vous pourrez accorder l’accès à nouveau plus tard si nécessaire.",
+    "confirmCta": "Le retirer",
+    "withdrawnNotice": "{{facility}} ne peut plus ouvrir votre dossier.",
+
+    "grantedLabel": "Accordé le",
+    "expiresLabel": "Expire le {{date}}",
+    "endedLabel": "Terminé le {{date}}",
+    "sinceLabel": "Depuis le {{date}}",
+    "scopeLabel": "Ce qu’ils peuvent voir",
+    "scopeUnspecified": "Non précisé",
+    "purposeLabel": "Pourquoi",
+    "clinicianLabel": "Clinicien désigné",
+    "expiringChip": "Bientôt expiré",
+    "withdrawnByYou": "Vous avez retiré cet accès",
+    "withdrawnBySomeoneElse": "Retiré par quelqu’un d’autre",
+
+    "unknownFacility": "Établissement non désigné",
+    "unknownClinician": "Clinicien non désigné",
+    "noClinicianNamed": "Aucun clinicien en particulier n’est désigné ici",
+
+    "truncatedTitle": "Cette liste est incomplète",
+    "truncatedBody": "Votre dossier comporte plus d’accès qu’une seule liste ne peut en contenir. Les compteurs ci-dessus décrivent ce qui est affiché ici, et non la totalité."
+  }
+}

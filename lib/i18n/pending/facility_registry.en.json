@@ -1,0 +1,20 @@
+{
+  "_comment": "New keys for the two-facility-register work (app/doctors.tsx, app/facility/[id].tsx). Flat dotted keys, 1:1 with facility_registry.fr.json. Merge into lib/i18n/locales/*.json under a new `facilityRegistry` namespace. Until merged, every call site passes the same English as `defaultValue`, so EN is already correct and FR falls back to EN — merging is what turns FR on.",
+  "_context": "care_facilities is the public directory (2728 active listings). facilities is the operational tenant (482 rows). care_facilities.facility_id joins them and only 468 listings carry it, so 2260 listings can be found and phoned but can never publish a clinician or take a booking. These strings say that plainly. They must never imply a listing is connected when it is not.",
+
+  "facilityRegistry.connectedOnly": "Connected",
+  "facilityRegistry.connectedOnlyHint": "Show only facilities that can publish clinicians and take bookings",
+  "facilityRegistry.allListings": "All listings",
+  "facilityRegistry.allListingsHint": "Show every facility in the public directory, connected or not",
+  "facilityRegistry.connectedExplainer": "{{connected}} of {{total}} listed facilities are connected to OpesCare. Only these can publish clinicians or take an online booking — the rest can still be found and called.",
+  "facilityRegistry.allExplainer": "Showing all {{total}} listed facilities. Only {{connected}} are connected to OpesCare; the others can be found and called, but publish no clinicians.",
+  "facilityRegistry.noConnectedMatch": "No connected facility matches that search. The place you are looking for may still be in the public directory — show all listings to find and call it.",
+  "facilityRegistry.bookableShort": "Bookable",
+  "facilityRegistry.showConnected": "Show connected facilities",
+  "facilityRegistry.noRosterTitle": "No clinician profiles published yet",
+  "facilityRegistry.noRosterBookableBody": "This facility is connected to OpesCare but has not published its clinicians. Its appointment calendar is open, so you can book here without choosing a doctor first.",
+  "facilityRegistry.connectedTitle": "Connected to OpesCare",
+  "facilityRegistry.connectedFallback": "This facility is on OpesCare, so it can publish clinicians and take online bookings.",
+  "facilityRegistry.directoryOnlyTitle": "Public directory listing",
+  "facilityRegistry.directoryOnlyFallback": "This place is in the public directory only. It has not joined OpesCare, so it publishes no clinicians and cannot take an online booking. You can still call it directly."
+}

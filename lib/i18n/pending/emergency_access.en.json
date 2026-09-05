@@ -1,0 +1,81 @@
+{
+  "opesDoctor": {
+    "breakGlass": {
+      "title": "Emergency access",
+      "subtitle": "For a patient who cannot consent",
+      "warnTitle": "This opens a record without consent",
+      "warnBody": "Use this only when the patient cannot consent and care cannot wait — not because a chart was refused. It is logged under your name, the patient is told, and a reviewer reads it.",
+
+      "step1": "1. Confirm the patient",
+      "healthId": "Health ID",
+      "healthIdPlaceholder": "CM-HID-XXXX-XXXX-XXXX",
+      "noSearch": "An exact Health ID only. There is no name search here, and never a list of patients.",
+      "lookUp": "Look up",
+      "lookupFailed": "No record matches that Health ID on this server. Check it with the escort, the referring team or the patient’s card.",
+      "usePatient": "This is the patient",
+      "changePatient": "Change patient",
+      "unnamedPatient": "this patient",
+      "noHealthId": "no Health ID",
+      "dob": "Date of birth",
+      "sex": "Sex",
+
+      "step2": "2. Say what happened",
+      "reasonHelp": "In your own words. This is stored on the record, shown to the patient exactly as you type it, and read by whoever reviews the override.",
+      "reasonPlaceholder": "e.g. Unresponsive after an RTA, no escort and no ID; need allergies and blood group before induction.",
+      "reasonOk": "{{chars}} characters — this will be stored and shown to the patient.",
+      "reasonShort": "{{needed}} more characters needed. A few words is not an account.",
+
+      "step3": "3. Confirm you understand",
+      "ack": {
+        "logged": "This access is recorded against my name, this facility and this patient, and is marked as an emergency override.",
+        "patientTold": "The patient is notified — immediately, and again when they next sign in — and my reason is shown to them word for word.",
+        "reviewed": "A human reviews this afterwards, and repeated overrides on the same patient are escalated."
+      },
+
+      "action": "Break the glass",
+      "footNote": "Emergency access opens the emergency profile only — identity, emergency contact, blood group, allergies and chronic conditions — and closes by itself after {{hours}} hours.",
+      "confirmTitle": "Open emergency access?",
+      "confirmBody": "You are about to read {{name}} ({{healthId}}) without their consent. It is logged as an emergency override, {{name}} is told immediately and shown your reason, a reviewer looks at it afterwards, and it closes by itself in {{hours}} hours.",
+      "confirmAction": "Break the glass",
+
+      "uncertainTitle": "We do not know whether this opened",
+      "uncertainBody": "The request got no answer, so emergency access may already be open and the patient may already have been alerted. Check your open grants before trying again — do not simply retry.",
+      "unavailableTitle": "This server cannot open emergency access",
+      "unavailableBody": "The emergency access route is not available on this deployment. Use your facility’s paper emergency procedure.",
+      "notFoundTitle": "No such record",
+      "blockedTitle": "Emergency access is blocked",
+      "failedTitle": "Emergency access was not opened",
+      "retryAfter": "Try again in about {{time}}.",
+
+      "grantedTitle": "Emergency access open",
+      "grantedSubtitle": "Recorded, reviewable, and time-limited",
+      "grantedBannerTitle": "This access is on the record",
+      "grantedBannerBody": "Every section you open under this grant is logged against your name as an emergency override, and a reviewer will read it alongside the reason you gave.",
+      "notNotifiedTitle": "The patient has NOT been notified",
+      "notNotifiedBody": "The alert could not be sent. The access still stands and is still logged — tell the patient or their next of kin directly, and report this to your facility’s governance team.",
+      "reusedBody": "You already had emergency access to this record, so the existing grant was reopened rather than a second override created.",
+      "repeatTitle": "This is a repeat override",
+      "repeatBody": "You have broken the glass on this patient before in the last 24 hours. This one has been escalated for review.",
+
+      "closesIn": "Closes in {{time}}",
+      "closed": "This access has closed",
+      "windowNote": "The window is {{hours}} hours from when you opened it and reading does not extend it. When it closes the record is refused again, exactly as it was before.",
+
+      "profileTitle": "Emergency profile",
+      "bloodGroup": "Blood group",
+      "allergiesTitle": "Allergies",
+      "noAllergiesRecorded": "No allergies are recorded on this record. That is not the same as no known allergies — treat this as unknown.",
+      "conditionsTitle": "Chronic conditions",
+      "noConditions": "No active conditions are recorded.",
+      "contactTitle": "Emergency contact",
+      "contactName": "Name",
+      "contactRelationship": "Relationship",
+      "contactPhone": "Phone",
+      "noContact": "No emergency contact is recorded.",
+      "scopeTitle": "This is not the whole chart",
+      "scopeBody": "Emergency access opens only what an emergency needs. Consultation notes, past visits, prescriptions and results are not included and are not missing — they were never part of this grant.",
+      "yourReason": "The reason you gave",
+      "done": "Back to my patients"
+    }
+  }
+}

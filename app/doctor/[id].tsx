@@ -42,12 +42,13 @@ import {
   errorMessage,
   type Translate,
 } from '@/components/care/shared';
+import { useFacilityDetail, useProviderDetail, type ProviderDetail } from '@/lib/api/queries';
 import {
-  useFacilityDetail,
-  useProviderDetail,
-  useStartMessageThread,
-  type ProviderDetail,
-} from '@/lib/api/queries';
+  useMessageRecipients,
+  useStartThread,
+  type ClinicianRecipient,
+} from '@/lib/api/messagingRecipients';
+import { registerMessagingRecipientStrings } from '@/lib/i18n/messagingRecipientStrings';
 import {
   joinLocationParts,
   openStateToday,
@@ -66,11 +67,7 @@ import {
  *   • Book — deep-links into /appointments/book pre-filled with this
  *     clinician's directory facility AND provider id (that wizard reads both
  *     params), so the patient lands straight on this clinician's slots.
- *   • Message — messaging requires an existing care relationship (the backend
- *     validates the appointment belongs to the caller), so the composer only
- *     exists when the API hands back a `messaging_appointment_id`. With no
- *     appointment yet the action explains itself and routes to booking —
- *     never a send button that silently 422s.
+ *   • Message — see below. It NEVER silently redirects.
  *   • Facility — opens /facility/[id] (the directory profile).
  *   • Call — the facility's published number, since a clinician has no
  *     personal one in the directory. Dimmed when the facility publishes none.
@@ -90,6 +87,28 @@ import {
  * facility's address, phone and today's opening state — the same cached query
  * the facility page uses, so arriving from there costs nothing. If it fails the
  * clinician still renders in full; the phone action simply stays dimmed.
+ *
+ * ── The "Message" action, and what it used to do ──────────────────────────
+ * It used to check `messaging_appointment_id` and, when that was null, push the
+ * patient to BOOKING. A tap labelled "Message" that lands on a booking wizard
+ * is not an answer; the patient never learns why, and a patient who is in this
+ * clinician's care WITHOUT an appointment on file (on their care team, treated
+ * by them, under a consent grant) was sent to book something they did not need.
+ *
+ * The screen now asks the server the actual question —
+ * `GET /mobile/messages/recipients`, whose `clinicians` list is the patient's
+ * own care relationships and nobody else's — and says what it finds:
+ *
+ *   • a relationship, and an inbox that can receive it → the composer opens,
+ *     addressed to this clinician (`clinician_id`, which the server re-checks);
+ *   • a relationship, but nothing that can receive it yet → it says so, and
+ *     offers the facility's front desk, which reads its messages;
+ *   • no relationship → it says so, offers the front desk, and offers booking
+ *     as a choice the patient makes rather than a redirect that happens to them.
+ *
+ * `messaging_appointment_id` is still honoured as the optimistic hint it always
+ * was, so the composer is not gated behind a second round trip on the common
+ * path — but it is no longer the only way to be allowed to write.
  */
 
 /** provider_credentials.credential_type is a fixed DB enum — map it, never print it raw. */
@@ -205,6 +224,24 @@ function CircleAction({
 
 type InfoLine = { key: string; icon: IconName; label: string; value: string; valueColor?: string };
 
+/**
+ * What this screen may offer for "Message", resolved from the server rather
+ * than guessed from an appointment id.
+ *
+ *   'checking'   — the recipients read is still in flight.
+ *   'open'       — a relationship AND an inbox: the composer works.
+ *   'unreachable'— a relationship, but nothing that can receive it yet.
+ *   'none'       — no care relationship. Not an error, and not a redirect.
+ *   'unknown'    — the read FAILED. Distinct from 'none' on purpose: telling a
+ *                  patient "you are not in this clinician's care" because a
+ *                  request timed out is a lie the app has no business telling.
+ */
+type MessageAccess = 'checking' | 'open' | 'unreachable' | 'none' | 'unknown';
+
+// Renders this screen's messaging copy in both languages before the pending
+// i18n files are merged into the shipped catalogue.
+registerMessagingRecipientStrings();
+
 export default function DoctorDetailScreen() {
   const { t, i18n } = useTranslation();
   // The shared care helpers take a plain `(key, params) => string`; i18next's
@@ -224,11 +261,22 @@ export default function DoctorDetailScreen() {
   const facilityQuery = useFacilityDetail(provider?.care_facility_id);
   const facility = facilityQuery.data;
 
-  const startThread = useStartMessageThread();
+  const startThread = useStartThread();
+
+  // Who this patient may write to. The clinician half is built from the
+  // patient's own record server-side, so finding this provider in it is the
+  // real answer to "can I message them", not an inference from an appointment.
+  const recipientsQuery = useMessageRecipients('', !!providerId);
+  const recipient: ClinicianRecipient | undefined = useMemo(
+    () => recipientsQuery.data?.clinicians.find((c) => c.id === providerId),
+    [recipientsQuery.data, providerId],
+  );
 
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeBody, setComposeBody] = useState('');
   const [sent, setSent] = useState(false);
+  /** True when the message that was sent went to the desk, not the clinician. */
+  const [sentToDesk, setSentToDesk] = useState(false);
 
   // The composer lives in the Messaging section, well below the fold. Without
   // these the hero's "Message" action opens a box the patient cannot see and
@@ -272,13 +320,38 @@ export default function DoctorDetailScreen() {
     if (url) Linking.openURL(url).catch(() => {});
   };
 
-  const submitMessage = async (appointmentId: string) => {
+  /**
+   * Write to the clinician by name. `clinician_id` is what goes on the wire —
+   * the server resolves the care relationship and the appointment behind it,
+   * and refuses if there is none, so the phone is not the thing deciding.
+   */
+  const submitMessage = async (clinicianId: string) => {
     const body = composeBody.trim();
     if (!body || startThread.isPending) return;
     try {
-      await startThread.mutateAsync({ appointment_id: appointmentId, body });
+      await startThread.mutateAsync({ clinician_id: clinicianId, body });
       setComposeBody('');
       setComposeOpen(false);
+      setSentToDesk(false);
+      setSent(true);
+    } catch {
+      // startThread.isError renders the classified error below the composer.
+    }
+  };
+
+  /**
+   * Write to the facility's front desk instead — the honest offer when this
+   * clinician cannot be written to. Never fired without the patient asking:
+   * it is a labelled button, not a fallback the send path takes on its own.
+   */
+  const submitToDesk = async (facilityId: string) => {
+    const body = composeBody.trim();
+    if (!body || startThread.isPending) return;
+    try {
+      await startThread.mutateAsync({ facility_id: facilityId, body });
+      setComposeBody('');
+      setComposeOpen(false);
+      setSentToDesk(true);
       setSent(true);
     } catch {
       // startThread.isError renders the classified error below the composer.
@@ -420,15 +493,36 @@ export default function DoctorDetailScreen() {
     });
   }
 
-  // With an appointment on file the composer opens AND the page moves to it;
-  // without one the tap goes where the explanation card below sends it —
-  // booking. Either way the button does something visible.
+  /**
+   * What the Messaging section is allowed to offer.
+   *
+   * `messaging_appointment_id` is kept as an optimistic hint so the common case
+   * (an appointment on file) does not wait on a second request — but it is only
+   * a hint now. The server's recipient list is the authority, and it is what
+   * distinguishes "in your care but no inbox" from "not in your care", a
+   * distinction the appointment id cannot make.
+   */
+  const messageAccess: MessageAccess = recipient
+    ? recipient.deliverable
+      ? 'open'
+      : 'unreachable'
+    : provider.messaging_appointment_id
+      ? 'open'
+      : recipientsQuery.isLoading
+        ? 'checking'
+        : recipientsQuery.isError
+          ? 'unknown'
+          : 'none';
+
+  // The desk the honest fallback writes to: this clinician's own facility.
+  const deskFacilityId = recipient?.facility_id ?? provider.facility_id ?? null;
+  const deskFacilityName = recipient?.facility_name ?? provider.facility_name;
+
+  // Every tap moves the page to the Messaging section and says something there.
+  // It never navigates away: a button labelled "Message" that lands on a
+  // booking wizard is a redirect the patient did not ask for.
   const onMessagePress = () => {
-    if (!provider.messaging_appointment_id) {
-      goToBooking(provider);
-      return;
-    }
-    if (!sent) setComposeOpen(true);
+    if (!sent && messageAccess === 'open') setComposeOpen(true);
     scrollRef.current?.scrollTo({ y: Math.max(messagingY.current - spacing.sm, 0), animated: true });
   };
 
@@ -748,12 +842,25 @@ export default function DoctorDetailScreen() {
           }}
         >
           <SectionHeader title={t('doctor.messagingTitle')} variant="overline" />
+
+          {/* The standing warning, above every state of this section. */}
+          <View style={styles.emergencyNotice} accessibilityRole="alert">
+            <Icon name="alert-triangle" size={18} color={colors.statusWarning} />
+            <Text style={styles.emergencyNoticeText}>
+              {recipientsQuery.data?.notice ?? t('messagingRecipients.notEmergency')}
+            </Text>
+          </View>
+
           {sent ? (
             <Card accentColor={colors.statusNormal}>
               <View style={styles.sentRow} accessibilityLiveRegion="polite">
                 <Icon name="check-circle" size={20} color={colors.statusNormal} />
                 <View style={styles.sentBody}>
-                  <Text style={styles.sentText}>{t('doctor.messageSent')}</Text>
+                  <Text style={styles.sentText}>
+                    {sentToDesk
+                      ? t('messagingRecipients.facilitySentTitle')
+                      : t('doctor.messageSent')}
+                  </Text>
                   <CareButton
                     label={t('doctor.openMessages')}
                     icon="chat"
@@ -764,7 +871,22 @@ export default function DoctorDetailScreen() {
                 </View>
               </View>
             </Card>
-          ) : provider.messaging_appointment_id ? (
+          ) : messageAccess === 'checking' ? (
+            <LoadingBlock label={t('messagingRecipients.doctorCheckingAccess')} />
+          ) : messageAccess === 'unknown' ? (
+            // The read failed. Say THAT — never "you are not in their care",
+            // which is a different sentence and, on a timeout, a false one.
+            <Card variant="flush">
+              <EmptyState
+                icon="alert-circle"
+                tint="amber"
+                title={t('messagingRecipients.loadError')}
+                message={t('opesCore.errors.offlineBody')}
+                actionLabel={t('messages.retry')}
+                onAction={() => recipientsQuery.refetch()}
+              />
+            </Card>
+          ) : messageAccess === 'open' ? (
             <View style={styles.stack}>
               <CareButton
                 label={t('doctor.message')}
@@ -795,25 +917,93 @@ export default function DoctorDetailScreen() {
                     icon="none"
                     loading={startThread.isPending}
                     disabled={!composeBody.trim()}
-                    onPress={() => submitMessage(provider.messaging_appointment_id as string)}
+                    onPress={() => submitMessage(provider.id)}
                   />
                 </Card>
               ) : null}
             </View>
           ) : (
-            // No appointment with this clinician yet — the backend would reject
-            // a thread, so there is no send button to press. The rule is stated
-            // and the way to satisfy it is one tap away.
-            <Card variant="flush">
-              <EmptyState
-                icon="info"
-                tint="blue"
-                title={t('doctor.message')}
-                message={t('doctor.messageNeedsAppointment')}
-                actionLabel={t('doctor.bookAppointment')}
-                onAction={() => goToBooking(provider)}
-              />
-            </Card>
+            // Two different truths, told apart rather than blurred into one
+            // "book first" card — and neither of them navigates on its own.
+            //
+            //   unreachable → the patient IS in this clinician's care; the
+            //     clinician simply has no inbox that can receive it yet, so the
+            //     honest route is the desk that does read its messages.
+            //   none        → no care relationship. Booking is offered as a
+            //     choice, sitting next to the desk, not taken on the patient's
+            //     behalf the moment they tap "Message".
+            <View style={styles.stack}>
+              <Card variant="flush">
+                <EmptyState
+                  icon="info"
+                  tint="blue"
+                  title={t(
+                    messageAccess === 'unreachable'
+                      ? 'messagingRecipients.doctorUnreachableTitle'
+                      : 'messagingRecipients.doctorNoRelationshipTitle',
+                  )}
+                  message={t(
+                    messageAccess === 'unreachable'
+                      ? 'messagingRecipients.doctorUnreachableBody'
+                      : 'messagingRecipients.doctorNoRelationshipBody',
+                    { name: provider.name },
+                  )}
+                />
+              </Card>
+
+              {deskFacilityId ? (
+                <>
+                  <CareButton
+                    label={
+                      deskFacilityName
+                        ? t('messagingRecipients.messageFacility', { facility: deskFacilityName })
+                        : t('messagingRecipients.messageFrontDesk')
+                    }
+                    icon="building"
+                    variant="ghost"
+                    onPress={() => setComposeOpen((open) => !open)}
+                  />
+                  {composeOpen ? (
+                    <Card style={styles.composer}>
+                      <TextInput
+                        style={styles.input}
+                        placeholder={t('doctor.messagePlaceholder')}
+                        placeholderTextColor={colors.textMuted}
+                        value={composeBody}
+                        onChangeText={setComposeBody}
+                        multiline
+                        accessibilityLabel={t('doctor.messagePlaceholder')}
+                      />
+                      {startThread.isError ? (
+                        <Text style={styles.inputError} accessibilityLiveRegion="polite">
+                          {errorMessage(startThread.error, t('doctor.messageError'))}
+                        </Text>
+                      ) : null}
+                      <GradientButton
+                        label={
+                          startThread.isPending
+                            ? t('doctor.messageSending')
+                            : t('doctor.messageSend')
+                        }
+                        icon="none"
+                        loading={startThread.isPending}
+                        disabled={!composeBody.trim()}
+                        onPress={() => submitToDesk(deskFacilityId)}
+                      />
+                    </Card>
+                  ) : null}
+                </>
+              ) : null}
+
+              {messageAccess === 'none' ? (
+                <CareButton
+                  label={t('messagingRecipients.bookInstead')}
+                  icon="calendar-plus"
+                  variant="ghost"
+                  onPress={() => goToBooking(provider)}
+                />
+              ) : null}
+            </View>
           )}
         </View>
       </ScrollView>
@@ -910,6 +1100,26 @@ const makeStyles = (colors: Palette) =>
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.sm,
       lineHeight: typography.lineHeight.sm,
+      color: colors.textPrimary,
+    },
+
+    // Warning tint, not the info blue the rest of the page uses: this is the
+    // only line in the Messaging section that is about risk, and it is shown
+    // in every state of it — composer, refusal and confirmation alike.
+    emergencyNotice: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+      padding: spacing.sm + 2,
+      borderRadius: radii.sm + 2,
+      backgroundColor: colors.statusWarningBg,
+    },
+    emergencyNoticeText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
       color: colors.textPrimary,
     },
   });

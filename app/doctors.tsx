@@ -11,20 +11,34 @@
  * clinicians) and `GET /mobile/providers/{id}` (one profile). So the honest
  * flow is:
  *
- *   1. Pick a facility (paged directory search by name / city). Each visible
- *      row is probed with the providers endpoint — one request per row, same
- *      cache key as `useFacilityProviders` — so the row can say how many
- *      clinicians it publishes before the patient commits. Of 903 listings
- *      only the ones linked to an internal facility publish anyone
- *      (`facility_id: null` on the rest), so without that hint the picker is
- *      a guessing game.
+ *   1. Pick a facility (paged directory search by name / city).
  *   2. Inside the facility: search by name / title / department, narrow by
  *      department chips (derived from the loaded list, not a lookup), and tap
  *      a row to open `/doctor/[id]`.
  *
  * Aggregating "all doctors across the first N nearby facilities" was
- * deliberately NOT done: it is N requests for a list that is empty for
- * ~98 % of facilities, and there is no server-side sort or search across it.
+ * deliberately NOT done: there is no server-side sort or search across it.
+ *
+ * ── The two facility registers, and why step 1 used to feel broken ────────
+ * The app browses `care_facilities`, the PUBLIC DIRECTORY — 2 728 active
+ * listings. Care happens in `facilities`, the OPERATIONAL TENANT — 482 rows.
+ * A listing is joined to a tenant by `care_facilities.facility_id`, and only
+ * 468 listings carry one. So 2 260 places can be found, phoned and visited,
+ * but can never publish a clinician or take an online booking.
+ *
+ * The directory endpoint used to return those 2 728 rows in NO order at all,
+ * and the only way to learn whether a row was usable was to ask the providers
+ * endpoint about it — one request per visible row. Page after page came back
+ * "Not connected", and a real user concluded the feature was broken.
+ *
+ * `GET /mobile/facilities` now answers that question in the payload itself:
+ * every row carries `connected`, `provider_count` and `open_slot_count`, the
+ * response carries the register-wide `registry` totals, connected listings
+ * sort first, and `?connected=1` filters to them. So the per-row probe is
+ * gone — the badge below is read, not guessed — and this screen opens on the
+ * 468 listings that can actually do something, with one tap out to all 2 728.
+ * Nothing is hidden, and no listing is ever described as connected when it is
+ * not.
  *
  * ── What the OPES screen shows that this one omits (no backing data) ──────
  * `FacilityProviderSummary` carries no rating, review count, years of
@@ -44,7 +58,7 @@ import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useQueries } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import {
   Card,
   Chip,
@@ -65,12 +79,12 @@ import {
   CareButton,
   ErrorBlock,
   LoadingBlock,
+  NoticeBanner,
   ProviderAvatar,
   SearchField,
 } from '@/components/care/shared';
 import { apiClient } from '@/lib/api/client';
 import { endpoints } from '@/lib/api/endpoints';
-import { flattenFacilityPages, useInfiniteFacilities } from '@/lib/api/bookingQueries';
 import {
   useFacilityDetail,
   useFacilityProviders,
@@ -86,17 +100,88 @@ import {
   usablePhone,
 } from '@/lib/careMap/facilityDisplay';
 
-// ── Constants ──────────────────────────────────────────────────────────────
+// ── The register, as the directory endpoint now reports it ─────────────────
 
 /**
- * How many directory rows get a clinician-count probe. One request each and
- * no batch endpoint, so this is capped — the same trade the booking wizard
- * makes for its bookability badges (app/appointments/book.tsx). 20 is one
- * directory page, so a fresh search is fully labelled.
+ * A directory row plus the four facts that say what it can actually do.
+ *
+ * `CareFacilitySummary` in lib/api/queries.ts predates these fields, and that
+ * module is shared with the booking wizard, so the extra shape is declared
+ * here rather than widened there. Every field is optional-safe at the read
+ * site: an older API build simply reports nothing, and the row then renders
+ * with no badge instead of a wrong one.
  */
-const PROBE_LIMIT = 20;
-/** A facility's clinician list does not change minute to minute. */
-const PROBE_STALE_MS = 5 * 60_000;
+type RegistryFacility = CareFacilitySummary & {
+  /** Internal `facilities` id, or null when this listing has no tenant. */
+  facility_id: string | null;
+  /** `facility_id !== null`. The single fact this whole screen turns on. */
+  connected: boolean;
+  /** Clinicians this facility publishes. Counted server-side, not probed. */
+  provider_count: number;
+  /** Open, future, not-yet-full appointment slots. */
+  open_slot_count: number;
+};
+
+/** Register-wide totals — the honest denominator behind "Not connected". */
+type RegistryTotals = {
+  directory_total: number;
+  connected_total: number;
+  bookable_total: number;
+  with_providers_total: number;
+};
+
+type DirectoryPage = {
+  data: RegistryFacility[];
+  pagination: { total: number; per_page: number; current_page: number; last_page: number };
+  registry: RegistryTotals;
+};
+
+/**
+ * Why a facility's clinician list is empty — the three cases the app has to
+ * tell apart, because the honest next step differs in each.
+ */
+type RosterStatus = 'not_connected' | 'none_published' | 'published';
+
+/** `GET /mobile/facilities/{id}/providers`, with the reason for an empty list. */
+type FacilityRoster = FacilityProvidersResponse & {
+  connected?: boolean;
+  roster_status?: RosterStatus;
+  provider_count?: number;
+  open_slot_count?: number;
+  message?: string;
+};
+
+/**
+ * The directory, filtered to what the patient asked for.
+ *
+ * Replaces `useInfiniteFacilities` + a per-row providers probe: the counts the
+ * badges need now ride on the rows themselves, so a page of 20 costs one
+ * request rather than 21. The query key is deliberately distinct from the
+ * booking wizard's (`['facilities', 'infinite', …]`) because the parameters
+ * differ — sharing it would serve the wizard a connected-only list.
+ */
+function useRegistryDirectory(params: { q?: string; connectedOnly: boolean }) {
+  return useInfiniteQuery({
+    queryKey: ['facility-registry', 'directory', params.q ?? '', params.connectedOnly] as const,
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) =>
+      (
+        await apiClient.get<DirectoryPage>(endpoints.facilities, {
+          params: {
+            ...(params.q ? { q: params.q } : {}),
+            ...(params.connectedOnly ? { connected: 1 } : {}),
+            page: pageParam,
+          },
+        })
+      ).data,
+    getNextPageParam: (last) =>
+      last.pagination.current_page < last.pagination.last_page
+        ? last.pagination.current_page + 1
+        : undefined,
+  });
+}
+
+// ── Constants ──────────────────────────────────────────────────────────────
 
 /** The slice of a facility the picker needs to remember after selection. */
 type FacilityPick = {
@@ -159,6 +244,11 @@ export default function FindDoctorScreen() {
   const [facilityInput, setFacilityInput] = useState('');
   const [facilitySearch, setFacilitySearch] = useState('');
 
+  // Opens on the listings that can actually publish a clinician. This is a
+  // filter, not a fiction: the "All listings" chip is one tap away and shows
+  // the full register, each row still labelled with what it can do.
+  const [connectedOnly, setConnectedOnly] = useState(true);
+
   // Step 2 — clinicians inside the chosen facility
   const [providerInput, setProviderInput] = useState(params.q ?? '');
   const [department, setDepartment] = useState<string | null>(null);
@@ -179,32 +269,37 @@ export default function FindDoctorScreen() {
   }, [linkConsumed, linkedFacility.data, linkedFacility.isError]);
 
   // ── Directory ────────────────────────────────────────────────────────────
-  const facilitiesQuery = useInfiniteFacilities({ q: facilitySearch || undefined });
-  const facilities = useMemo(
-    () => flattenFacilityPages(facilitiesQuery.data?.pages),
+  const facilitiesQuery = useRegistryDirectory({
+    q: facilitySearch || undefined,
+    connectedOnly,
+  });
+  const facilities = useMemo<RegistryFacility[]>(
+    () => (facilitiesQuery.data?.pages ?? []).flatMap((page) => page.data),
     [facilitiesQuery.data],
   );
   const totalFacilities = facilitiesQuery.data?.pages[0]?.pagination.total ?? 0;
-
-  // Clinician-count probe for the rows on screen. Key is byte-identical to
-  // `useFacilityProviders` so picking a probed facility costs no second trip.
-  const probeIds = useMemo(
-    () => (facility ? [] : facilities.slice(0, PROBE_LIMIT).map((f) => f.id)),
-    [facility, facilities],
-  );
-  const probes = useQueries({
-    queries: probeIds.map((id) => ({
-      queryKey: ['facilities', id, 'providers'] as const,
-      queryFn: async () =>
-        (await apiClient.get<FacilityProvidersResponse>(endpoints.facilityProviders(id))).data,
-      staleTime: PROBE_STALE_MS,
-    })),
-  });
+  /** Register-wide totals, straight from the response. Never computed here. */
+  const registry = facilitiesQuery.data?.pages[0]?.registry;
 
   // ── Clinicians ───────────────────────────────────────────────────────────
   const providersQuery = useFacilityProviders(facility?.id);
-  const providers = useMemo(() => providersQuery.data?.data ?? [], [providersQuery.data]);
-  const facilityUnlinked = providersQuery.data?.facility_id === null;
+  const roster = providersQuery.data as FacilityRoster | undefined;
+  const providers = useMemo(() => roster?.data ?? [], [roster]);
+  /**
+   * Why the roster is empty. `roster_status` is authoritative when the API
+   * sends it; `facility_id === null` is the same fact and keeps an older
+   * build honest rather than silently optimistic.
+   */
+  const rosterStatus: RosterStatus | undefined = roster
+    ? (roster.roster_status ??
+       (roster.facility_id === null
+         ? 'not_connected'
+         : roster.data.length > 0
+           ? 'published'
+           : 'none_published'))
+    : undefined;
+  const facilityUnlinked = rosterStatus === 'not_connected';
+  const facilityOpenSlots = roster?.open_slot_count ?? 0;
 
   const roleLabel = useCallback(
     (p: FacilityProviderSummary): string => {
@@ -246,7 +341,7 @@ export default function FindDoctorScreen() {
     else router.replace('/(tabs)/home');
   };
 
-  const chooseFacility = (f: CareFacilitySummary) => {
+  const chooseFacility = (f: RegistryFacility) => {
     setFacility(pickOf(f));
     setDepartment(null);
   };
@@ -269,25 +364,80 @@ export default function FindDoctorScreen() {
   const facilityTypeLabel = (type: string) =>
     t(`careMap.types.${type}`, { defaultValue: type });
 
+  const goToBooking = (careFacilityId: string) =>
+    router.push({ pathname: '/appointments/book', params: { facilityId: careFacilityId } });
+
   // ── Render helpers ───────────────────────────────────────────────────────
 
-  /** Right-hand text on a directory row: what the probe found, or nothing yet. */
-  const probeValue = (index: number): { text?: string; color?: string } => {
-    const r = probes[index];
-    if (!r) return {};
-    if (r.isPending) return { text: t('opesCare.findProvider.checking', { defaultValue: 'Checking…' }), color: colors.textMuted };
-    if (r.isError || !r.data) return {};
-    if (r.data.facility_id === null) {
+  /**
+   * Right-hand text on a directory row.
+   *
+   * Read straight off the row the server sent — no probe, no inference. The
+   * ladder is deliberately pessimistic: a facility is only called bookable
+   * when it has open slots, and only shows a clinician count when it has
+   * published clinicians.
+   */
+  const rowValue = (f: RegistryFacility): { text?: string; color?: string } => {
+    if (!f.connected) {
       return {
         text: t('opesCare.findProvider.notConnectedShort', { defaultValue: 'Not connected' }),
         color: colors.textMuted,
       };
     }
-    const n = r.data.data.length;
-    return n > 0
-      ? { text: t('opesCare.findFacility.doctors', { count: n }), color: colors.statusNormal }
-      : { text: t('opesCare.findProvider.noneListed', { defaultValue: 'None listed' }), color: colors.textMuted };
+    if (f.provider_count > 0) {
+      return {
+        text: t('opesCare.findFacility.doctors', { count: f.provider_count }),
+        color: colors.statusNormal,
+      };
+    }
+    if (f.open_slot_count > 0) {
+      return {
+        text: t('facilityRegistry.bookableShort', { defaultValue: 'Bookable' }),
+        color: colors.statusNormal,
+      };
+    }
+    return {
+      text: t('opesCare.findProvider.noneListed', { defaultValue: 'None listed' }),
+      color: colors.textMuted,
+    };
   };
+
+  /**
+   * The state of the register, in the patient's own terms. Shown above the
+   * list so "Not connected" reads as a fact about the country's facilities
+   * rather than as a failure of their search.
+   */
+  const renderRegistryFilter = () => (
+    <View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipRow}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Chip
+          icon="shield-check"
+          label={t('facilityRegistry.connectedOnly', { defaultValue: 'Connected' })}
+          count={registry?.connected_total}
+          selected={connectedOnly}
+          onPress={() => setConnectedOnly(true)}
+          accessibilityHint={t('facilityRegistry.connectedOnlyHint', {
+            defaultValue: 'Show only facilities that can publish clinicians and take bookings',
+          })}
+        />
+        <Chip
+          icon="grid"
+          label={t('facilityRegistry.allListings', { defaultValue: 'All listings' })}
+          count={registry?.directory_total}
+          selected={!connectedOnly}
+          onPress={() => setConnectedOnly(false)}
+          accessibilityHint={t('facilityRegistry.allListingsHint', {
+            defaultValue: 'Show every facility in the public directory, connected or not',
+          })}
+        />
+      </ScrollView>
+    </View>
+  );
 
   const renderFacilityPicker = () => (
     <>
@@ -318,6 +468,33 @@ export default function FindDoctorScreen() {
         accessibilityLabel={t('appointments.book.stepFacility')}
       />
 
+      {renderRegistryFilter()}
+
+      {/* The denominator, stated once. Only when the totals are actually in
+          hand — an absent `registry` block means an older API, and a made-up
+          number here would be worse than none. */}
+      {!!registry && (
+        <NoticeBanner
+          tone={connectedOnly ? 'normal' : 'pending'}
+          icon="info"
+          message={
+            connectedOnly
+              ? t('facilityRegistry.connectedExplainer', {
+                  connected: registry.connected_total,
+                  total: registry.directory_total,
+                  defaultValue:
+                    '{{connected}} of {{total}} listed facilities are connected to OpesCare. Only these can publish clinicians or take an online booking — the rest can still be found and called.',
+                })
+              : t('facilityRegistry.allExplainer', {
+                  connected: registry.connected_total,
+                  total: registry.directory_total,
+                  defaultValue:
+                    'Showing all {{total}} listed facilities. Only {{connected}} are connected to OpesCare; the others can be found and called, but publish no clinicians.',
+                })
+          }
+        />
+      )}
+
       {facilitiesQuery.isPending ? (
         <LoadingBlock label={t('careMap.loading')} />
       ) : facilitiesQuery.isError ? (
@@ -331,15 +508,32 @@ export default function FindDoctorScreen() {
             icon="building"
             tint="amber"
             title={t('appointments.book.searchEmptyTitle')}
-            message={t('appointments.book.searchEmptyBody')}
-            actionLabel={facilitySearch ? t('appointments.book.clearSearch') : undefined}
+            message={
+              connectedOnly
+                ? t('facilityRegistry.noConnectedMatch', {
+                    defaultValue:
+                      'No connected facility matches that search. The place you are looking for may still be in the public directory — show all listings to find and call it.',
+                  })
+                : t('appointments.book.searchEmptyBody')
+            }
+            // An empty CONNECTED list is usually not an empty directory. The
+            // way out is the wider filter, not a cleared search.
+            actionLabel={
+              connectedOnly
+                ? t('facilityRegistry.allListings', { defaultValue: 'All listings' })
+                : facilitySearch
+                  ? t('appointments.book.clearSearch')
+                  : undefined
+            }
             onAction={
-              facilitySearch
-                ? () => {
-                    setFacilityInput('');
-                    setFacilitySearch('');
-                  }
-                : undefined
+              connectedOnly
+                ? () => setConnectedOnly(false)
+                : facilitySearch
+                  ? () => {
+                      setFacilityInput('');
+                      setFacilitySearch('');
+                    }
+                  : undefined
             }
           />
         </Card>
@@ -354,7 +548,7 @@ export default function FindDoctorScreen() {
           <Card variant="flush">
             {facilities.map((f, i) => {
               const glyph = facilityGlyph(f.facility_type);
-              const probe = probeValue(i);
+              const badge = rowValue(f);
               return (
                 <ListRow
                   key={f.id}
@@ -362,8 +556,8 @@ export default function FindDoctorScreen() {
                   tint={glyph.tint}
                   title={f.facility_name}
                   meta={[facilityTypeLabel(f.facility_type), joinLocationParts(f.city, f.region)]}
-                  value={probe.text}
-                  valueColor={probe.color}
+                  value={badge.text}
+                  valueColor={badge.color}
                   onPress={() => chooseFacility(f)}
                   accessibilityHint={t('appointments.book.select')}
                   divider={i < facilities.length - 1}
@@ -401,24 +595,66 @@ export default function FindDoctorScreen() {
       // number, so a truthiness test offered a Call button that dialled nothing.
       const phone = usablePhone(facility?.phone_primary);
       return (
-        <Card>
-          <EmptyState
-            icon="building"
-            tint="amber"
-            title={t('opesCare.findProvider.notConnectedTitle', {
-              defaultValue: 'This facility has not published its clinicians',
+        <View style={styles.stack}>
+          <Card>
+            <EmptyState
+              icon="building"
+              tint="amber"
+              title={t('opesCare.findProvider.notConnectedTitle', {
+                defaultValue: 'This facility has not published its clinicians',
+              })}
+              message={t('opesCare.findProvider.notConnectedMessage', {
+                defaultValue:
+                  'It is not connected to OpesCare yet, so no clinician profiles are listed. You can still call the facility directly.',
+              })}
+              actionLabel={phone ? t('facility.callAction') : undefined}
+              onAction={phone ? () => callFacility(phone) : undefined}
+            />
+          </Card>
+          {/* A dead end needs a way out, not just an explanation. */}
+          <CareButton
+            label={t('facilityRegistry.showConnected', {
+              defaultValue: 'Show connected facilities',
             })}
-            message={t('opesCare.findProvider.notConnectedMessage', {
-              defaultValue:
-                'It is not connected to OpesCare yet, so no clinician profiles are listed. You can still call the facility directly.',
-            })}
-            actionLabel={phone ? t('facility.callAction') : undefined}
-            onAction={phone ? () => callFacility(phone) : undefined}
+            variant="secondary"
+            icon="shield-check"
+            onPress={() => {
+              setConnectedOnly(true);
+              changeFacility();
+            }}
           />
-        </Card>
+        </View>
       );
     }
     if (providers.length === 0) {
+      // Connected, but nobody published. If the calendar is open the patient
+      // can still book — a slot belongs to a facility, not to a named
+      // clinician — so offer that instead of a dead end.
+      if (facilityOpenSlots > 0 && facility) {
+        return (
+          <View style={styles.stack}>
+            <Card>
+              <EmptyState
+                icon="stethoscope"
+                tint="blue"
+                title={t('facilityRegistry.noRosterTitle', {
+                  defaultValue: 'No clinician profiles published yet',
+                })}
+                message={t('facilityRegistry.noRosterBookableBody', {
+                  count: facilityOpenSlots,
+                  defaultValue:
+                    'This facility is connected to OpesCare but has not published its clinicians. Its appointment calendar is open, so you can book here without choosing a doctor first.',
+                })}
+              />
+            </Card>
+            <CareButton
+              label={t('facility.bookHere')}
+              icon="calendar"
+              onPress={() => goToBooking(facility.id)}
+            />
+          </View>
+        );
+      }
       return (
         <Card>
           <EmptyState
@@ -611,6 +847,7 @@ const makeStyles = (colors: Palette) =>
     screen: { flex: 1, backgroundColor: colors.page },
     content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
     chipRow: { gap: spacing.sm + 2, paddingRight: spacing.md },
+    stack: { gap: spacing.sm + 2 },
     loadMore: { marginTop: spacing.md },
 
     assist: {

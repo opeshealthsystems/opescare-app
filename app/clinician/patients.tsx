@@ -78,6 +78,8 @@ import {
   normaliseHealthId,
   useDoctorSchedule,
   usePatientLookup,
+  ageFromDateOfBirth,
+  type PatientLookupResult,
   type ChartPatient,
   type StaffAppointment,
 } from '@/lib/api/doctorQueries';
@@ -309,39 +311,41 @@ export default function PatientLookupScreen() {
 /**
  * The matched patient.
  *
- * `has_allergies` is the server's own flag and is shown so a clinician knows
- * there is something to read before opening the chart. It is a POINTER, never
- * a summary — and its absence is never rendered as "no allergies". Only the
- * chart's `AllergyBlock`, after a successful read of the allergy list, is
- * allowed to make that claim.
+ * NO ALLERGY SIGNAL HERE, deliberately. This row used to tint red and show an
+ * "Allergies" badge from `has_allergies` — but the lookup endpoint has never
+ * returned that field. `MobilePrescribingController::lookupPatient` states its
+ * intent plainly: it "identifies a patient, it does not disclose their record",
+ * and an allergy flag is clinical history. So the value was always `undefined`,
+ * always falsy, and every patient rendered as though nothing had been flagged.
+ *
+ * The old docblock had the principle exactly right — "its absence is never
+ * rendered as 'no allergies'" — and the code did precisely that, silently, for
+ * every patient. A blue row that means "not checked" is indistinguishable from
+ * one that means "checked, none found", which is the worse of the two to get
+ * wrong. Only the chart's `AllergyBlock`, after actually reading the allergy
+ * list, may say anything on the subject.
  */
 function PatientRow({
   patient: p,
   onPress,
   tx,
 }: {
-  patient: ChartPatient;
+  patient: PatientLookupResult;
   onPress: () => void;
   tx: (key: string, defaultValue: string, params?: Record<string, unknown>) => string;
 }) {
-  const age = p.age !== null ? tx('search.years', '{{count}} yrs', { count: p.age }) : null;
+  // Derived here rather than read off the payload: the lookup returns
+  // `date_of_birth`, never `age`. The old `p.age !== null` guard passed on
+  // `undefined` and printed the literal string "undefined".
+  const years = ageFromDateOfBirth(p.date_of_birth);
+  const age = years !== null ? tx('search.years', '{{count}} yrs', { count: years }) : null;
+  const name = p.full_name?.trim() || p.health_id;
   return (
     <ListRow
       icon="person"
-      tint={p.has_allergies ? 'red' : 'blue'}
-      title={p.name}
+      tint="blue"
+      title={name}
       meta={[p.health_id, age, p.sex ? sexLabel(p.sex) : null]}
-      trailing={
-        p.has_allergies ? (
-          <StatusBadge
-            status="critical"
-            label={tx('search.allergiesBadge', 'Allergies')}
-            tone="critical"
-            icon="alert-triangle"
-            size="sm"
-          />
-        ) : undefined
-      }
       onPress={onPress}
     />
   );

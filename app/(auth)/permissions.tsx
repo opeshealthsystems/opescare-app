@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
-import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +22,20 @@ import { Note } from '@/components/enrol/shared';
 import { Screen } from '@/components/ui/Screen';
 import { useAuthStore } from '@/lib/store/auth';
 import { useRegisterPushToken } from '@/lib/api/queries';
+import {
+  acquireExpoPushToken,
+  getOrCreateFingerprint,
+  getPushCapability,
+  readNotificationPermission,
+  readPushRegistrationId,
+  registerPushStrings,
+  savePushRegistration,
+  type PushTokenOutcome,
+} from '@/lib/push';
+
+// EN/FR for the `push.*` keys used below, plus the corrections this screen and
+// app/settings.tsx need while push cannot be delivered. See lib/push/strings.ts.
+registerPushStrings();
 
 /**
  * One-time priming screen shown right after signup / first successful login
@@ -40,44 +52,40 @@ import { useRegisterPushToken } from '@/lib/api/queries';
  * permission with a `StatusBadge` for its state. Only the two permissions the
  * app actually requests are listed — camera/files/health-data rows would be
  * decoration.
+ *
+ * ## The notification row does not always ask
+ *
+ * This screen used to request the OS notification permission unconditionally
+ * and then register `push_token: fingerprint` — the device's own random id,
+ * which no push service can deliver to. It promised a patient "appointment
+ * reminders, health alerts, and important updates" that the app had no way to
+ * send. That is a false promise about medical reminders, so it is gone.
+ *
+ * The row is now driven by `getPushCapability()` (see `lib/push/capability.ts`):
+ *
+ *  - **deliverable** — behaves as before, but registers a genuine
+ *    `ExponentPushToken[…]` minted by Expo.
+ *  - **not deliverable** — which is this build today, because `app.json` has
+ *    no EAS `projectId` — the row is read-only, no OS prompt is shown, no
+ *    token is registered, and the copy says where the patient's alerts
+ *    actually are: the in-app notification centre, which is real
+ *    (`GET /api/mobile/notifications`).
+ *
+ * Nothing about the location row changes; that permission has always been
+ * acted on.
  */
 
-type PermissionState = 'checking' | 'undetermined' | 'granted' | 'denied';
-
-/** Mirrors app/settings.tsx's device-registration keys exactly, so a push
- * token registered here is recognized by the Settings toggle later instead
- * of being registered twice under a different identity. */
-const DEVICE_FINGERPRINT_KEY = 'opescare_device_fingerprint';
-const PUSH_TOKEN_ID_KEY = 'opescare_push_token_id';
+/**
+ * `'unavailable'` is the notification row's state when this build cannot
+ * receive a push at all. It is not an OS answer — the OS was never asked.
+ */
+type PermissionState = 'checking' | 'undetermined' | 'granted' | 'denied' | 'unavailable';
 
 /** `Linking.openSettings()` is a native-only API: on web it is not merely a
  * no-op, it throws synchronously before any `.catch()` can attach. So web
  * never gets an "open settings" control — it gets a written instruction
  * instead, and the row stops being pressable. */
 const CAN_OPEN_OS_SETTINGS = Platform.OS !== 'web';
-
-const deviceStore =
-  Platform.OS === 'web'
-    ? {
-        get: async (key: string) =>
-          typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null,
-        set: async (key: string, value: string) => localStorage.setItem(key, value),
-      }
-    : {
-        get: (key: string) => SecureStore.getItemAsync(key),
-        set: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-      };
-
-function generateFingerprint(): string {
-  const random = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-  return `${Platform.OS}-${Date.now().toString(36)}-${random}`.slice(0, 128);
-}
-
-function resolvePlatform(): 'ios' | 'android' | 'web' {
-  if (Platform.OS === 'ios') return 'ios';
-  if (Platform.OS === 'android') return 'android';
-  return 'web';
-}
 
 function toState(status: string | undefined): PermissionState {
   if (status === 'granted') return 'granted';
@@ -93,7 +101,14 @@ export default function PermissionsScreen() {
   const completePermissionsPriming = useAuthStore((s) => s.completePermissionsPriming);
   const registerPushToken = useRegisterPushToken();
 
-  const [notifState, setNotifState] = useState<PermissionState>('checking');
+  /** Constant for the life of the process — read once, so the row never shows
+   * an offer it then withdraws. */
+  const [pushCapability] = useState(getPushCapability);
+  const pushDeliverable = pushCapability.deliverable;
+
+  const [notifState, setNotifState] = useState<PermissionState>(
+    pushDeliverable ? 'checking' : 'unavailable',
+  );
   const [locState, setLocState] = useState<PermissionState>('checking');
   const [busy, setBusy] = useState(false);
   const [pushRegisterFailed, setPushRegisterFailed] = useState(false);
@@ -101,54 +116,77 @@ export default function PermissionsScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    Notifications.getPermissionsAsync()
-      .then((r) => !cancelled && setNotifState(toState(r.status)))
-      .catch(() => !cancelled && setNotifState('undetermined'));
+    // Only read the notification permission on a build that could act on it.
+    // Reading is harmless, but branching here keeps one rule in one place:
+    // when push is not deliverable this screen does not touch the OS at all.
+    if (pushDeliverable) {
+      readNotificationPermission()
+        .then((status) => !cancelled && setNotifState(toState(status)))
+        .catch(() => !cancelled && setNotifState('undetermined'));
+    }
     Location.getForegroundPermissionsAsync()
       .then((r) => !cancelled && setLocState(toState(r.status)))
       .catch(() => !cancelled && setLocState('undetermined'));
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [pushDeliverable]);
 
-  /** Best-effort: registers this device for push once notifications are
-   * granted, reusing the same fingerprint convention as Settings so the two
-   * screens agree on device state. Never blocks or fails the onboarding
-   * flow — a failure here surfaces as a note and the user registers later
-   * from Settings instead. */
-  const registerDeviceForPush = useCallback(async () => {
-    try {
-      const existing = await deviceStore.get(PUSH_TOKEN_ID_KEY);
-      if (existing) return;
-      let fingerprint = await deviceStore.get(DEVICE_FINGERPRINT_KEY);
-      if (!fingerprint) {
-        fingerprint = generateFingerprint();
-        await deviceStore.set(DEVICE_FINGERPRINT_KEY, fingerprint);
+  /** Best-effort: hands the freshly minted token to the API, under the same
+   * device fingerprint Settings uses, so the two screens agree about this
+   * handset. Never blocks or fails the onboarding flow — a failure surfaces as
+   * a note and the patient can retry from Settings.
+   *
+   * Takes the token rather than fetching its own: minting is a network round
+   * trip to Expo, and doing it twice in one tap would turn a flaky connection
+   * into a spurious failure straight after a success. */
+  const registerDeviceForPush = useCallback(
+    async (minted: Extract<PushTokenOutcome, { status: 'ready' }>) => {
+      try {
+        const existing = await readPushRegistrationId();
+        if (existing) return;
+
+        const fingerprint = await getOrCreateFingerprint();
+        const result = await registerPushToken.mutateAsync({
+          device_fingerprint: fingerprint,
+          platform: minted.platform,
+          // A real `ExponentPushToken[…]`. This field used to carry the
+          // fingerprint on the line above it — the same random string twice,
+          // one of them pretending to be a push credential.
+          push_token: minted.token,
+        });
+        await savePushRegistration(result.token_id);
+        setPushRegisterFailed(false);
+      } catch {
+        // Surfaced as a note, never as a blocker — Settings offers a retry.
+        setPushRegisterFailed(true);
       }
-      const result = await registerPushToken.mutateAsync({
-        device_fingerprint: fingerprint,
-        platform: resolvePlatform(),
-        push_token: fingerprint,
-      });
-      await deviceStore.set(PUSH_TOKEN_ID_KEY, result.token_id);
-      setPushRegisterFailed(false);
-    } catch {
-      // Surfaced as a note, never as a blocker — Settings offers a retry.
-      setPushRegisterFailed(true);
-    }
-  }, [registerPushToken]);
+    },
+    [registerPushToken],
+  );
 
   const requestNotifications = useCallback(async () => {
-    try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      const next = toState(status);
-      setNotifState(next);
-      if (next === 'granted') await registerDeviceForPush();
-    } catch {
-      setNotifState((prev) => (prev === 'checking' ? 'undetermined' : prev));
+    // Unreachable when push is not deliverable — the row is not pressable and
+    // handleContinue skips it — but guarded anyway, because "never ask for a
+    // permission this build cannot act on" is the point of the change.
+    if (!pushDeliverable) return;
+
+    const outcome = await acquireExpoPushToken({ requestPermission: true });
+
+    if (outcome.status === 'ready') {
+      setNotifState('granted');
+      await registerDeviceForPush(outcome);
+      return;
     }
-  }, [registerDeviceForPush]);
+    if (outcome.status === 'permission_denied') {
+      setNotifState(outcome.canAskAgain ? 'undetermined' : 'denied');
+      return;
+    }
+    // 'failed' (offline, simulator, credentials not uploaded) or 'unavailable'.
+    // The permission itself may well have been granted, so do not claim denial.
+    setNotifState(await readNotificationPermission());
+    setPushRegisterFailed(outcome.status === 'failed');
+  }, [pushDeliverable, registerDeviceForPush]);
 
   const requestLocation = useCallback(async () => {
     try {
@@ -187,6 +225,8 @@ export default function PermissionsScreen() {
   const handleContinue = useCallback(async () => {
     setBusy(true);
     try {
+      // `notifState` is 'unavailable' — never 'undetermined' — on a build that
+      // cannot deliver a push, so Continue does not raise an OS prompt for it.
       if (notifState === 'undetermined') await requestNotifications();
       if (locState === 'undetermined') await requestLocation();
     } finally {
@@ -209,12 +249,28 @@ export default function PermissionsScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Card variant="flush">
+          {/* Two different rows, not one row with a caveat. When push cannot
+              be delivered the icon, the body and the badge all say the same
+              thing, and there is nothing to press. */}
           <PermissionRow
-            icon="bell"
+            icon={pushDeliverable ? 'bell' : 'bell-off'}
             tint="blue"
-            title={t('permissions.notificationsTitle')}
-            body={t('permissions.notificationsBody')}
-            actionLabel={t('permissions.notificationsAction')}
+            title={t('push.permissions.title', { defaultValue: 'Notifications' })}
+            body={
+              pushDeliverable
+                ? t('push.permissions.bodyDeliverable', {
+                    defaultValue:
+                      'Appointment reminders, new results and consent requests, sent to this phone.',
+                  })
+                : t('push.permissions.bodyUnavailable', {
+                    defaultValue:
+                      "Reminders, results and consent requests appear in the app's notification centre.",
+                  })
+            }
+            actionLabel={t('push.permissions.action', { defaultValue: 'Turn on notifications' })}
+            unavailableLabel={t('push.permissions.badgeUnavailable', {
+              defaultValue: 'In-app only',
+            })}
             state={notifState}
             onPress={() => handleRowPress(notifState, requestNotifications)}
             divider
@@ -237,6 +293,18 @@ export default function PermissionsScreen() {
             <Icon name="globe" size={12} color={colors.textMuted} />
             <Text style={styles.meta}>{t('permissions.deniedWebHint')}</Text>
           </View>
+        ) : null}
+
+        {/* Says plainly that push is not switched on for this build, and where
+            the patient's reminders and results actually arrive instead. */}
+        {!pushDeliverable ? (
+          <Note
+            icon="info"
+            text={t('push.permissions.noteUnavailable', {
+              defaultValue:
+                "This app build cannot deliver alerts to your phone's lock screen yet, so OpesCare does not ask for the notification permission. Nothing is missed — open Notifications inside the app to see everything OpesCare has sent you.",
+            })}
+          />
         ) : null}
 
         {pushRegisterFailed ? (
@@ -270,6 +338,7 @@ function PermissionRow({
   title,
   body,
   actionLabel,
+  unavailableLabel,
   state,
   onPress,
   divider,
@@ -279,6 +348,9 @@ function PermissionRow({
   title: string;
   body: string;
   actionLabel: string;
+  /** Badge text for `state === 'unavailable'`. Required only for a row that
+   * can reach that state, which today is notifications and only notifications. */
+  unavailableLabel?: string;
   state: PermissionState;
   onPress: () => void;
   divider?: boolean;
@@ -286,6 +358,8 @@ function PermissionRow({
   const { t } = useTranslation();
   // A denied permission is only actionable where OS settings can be opened;
   // on web the row becomes a read-only explanation instead of a dead control.
+  // 'unavailable' is never actionable: the OS is not the obstacle, the build
+  // is, and opening device settings would not help.
   const actionable = state === 'undetermined' || (state === 'denied' && CAN_OPEN_OS_SETTINGS);
 
   const badge: { label: string; tone: StatusTone; icon?: IconName } =
@@ -298,9 +372,19 @@ function PermissionRow({
               : t('permissions.statusDenied'),
             tone: 'critical',
           }
-        : state === 'checking'
-          ? { label: t('permissions.statusChecking'), tone: 'neutral' }
-          : { label: t('permissions.enable'), tone: 'pending' };
+        : state === 'unavailable'
+          ? {
+              // Neutral, not critical: nothing has gone wrong and there is
+              // nothing for the patient to fix.
+              label:
+                unavailableLabel ??
+                t('push.permissions.badgeUnavailable', { defaultValue: 'In-app only' }),
+              tone: 'neutral',
+              icon: 'info',
+            }
+          : state === 'checking'
+            ? { label: t('permissions.statusChecking'), tone: 'neutral' }
+            : { label: t('permissions.enable'), tone: 'pending' };
 
   return (
     <ListRow

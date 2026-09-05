@@ -1,0 +1,25 @@
+{
+  "_note": "Staging catalogue for the clinician facility switcher (app/clinician/profile.tsx). Not loaded by lib/i18n/index.ts yet (that file is owned elsewhere) — merge the `opesDoctor` object into lib/i18n/locales/en.json and delete this file. Every string is already carried as a `defaultValue` at the call site, so the screen reads correctly in English before the merge; the merge is what makes it read correctly in French. `serverErrors` keys are the `error_code` values returned by app/Http/Controllers/Api/Mobile/MobileProviderFacilityController.php (wording in lang/en/facility_switch.php): SetLocale is registered on the `web` middleware group only, so /api/* refusals ignore Accept-Language and always answer in the application default locale — `error_code` is what lets the phone say it in the clinician's language. Key set MUST stay 1:1 with facility_switch.fr.json.",
+  "opesDoctor": {
+    "facility": {
+      "section": "Facility",
+      "loading": "Loading your facilities…",
+      "current": "Acting as",
+      "suspended": "Suspended",
+      "switching": "Switching…",
+      "rowHint": "Ends this session and starts one at this facility.",
+      "confirmTitle": "Act as {{name}}?",
+      "confirmMessage": "This ends your current session and starts a new one at {{name}}. Everything on this device — patients, diary, results — will reload for that facility.",
+      "confirmCta": "Switch facility",
+      "confirmCancel": "Stay here",
+      "refusedTitle": "Facility not changed",
+      "refusedNotAssigned": "You no longer have an active posting at {{name}}. Your session has not changed.",
+      "refusedSuspended": "{{name}} is suspended and cannot be used. Your session has not changed.",
+      "refusedUnknown": "Your facility could not be changed. Check your connection and open this screen again to see which facility you are acting as."
+    },
+    "serverErrors": {
+      "FACILITY_NOT_ASSIGNED": "You do not hold an active posting at that facility.",
+      "FACILITY_SUSPENDED": "That facility is suspended and cannot be used."
+    }
+  }
+}

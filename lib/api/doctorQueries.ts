@@ -4,36 +4,45 @@
  * endpoint constants spelled out here (not in `endpoints.ts`, owned elsewhere).
  *
  * ─────────────────────────────────────────────────────────────────────────
- * BACKEND GAP — READ THIS BEFORE WIRING A SCREEN TO IT
+ * THE BACKEND NOW EXISTS — READ THIS BEFORE WIRING A SCREEN TO IT
  * ─────────────────────────────────────────────────────────────────────────
- * The Finder mobile API (`finder.opescare.cloud/api/mobile/*`) is PATIENT-TOKEN
- * ONLY. Every `/mobile/*` route group runs behind `auth.mobile`
- * (`AuthenticateMobilePatient`), the login endpoints mint patient tokens, and
- * there is no `/mobile/doctor/*`, no staff login and no provider guard on the
- * mobile surface (verified against the finder route files on 2026-09-04:
- * `routes/api.php`, `routes/mobile_*.php`).
+ * The clinician surface is DEPLOYED. `finder.opescare.cloud/api/mobile/doctor/*`
+ * is served behind `auth.provider` (`AuthenticateMobileProvider`), which stamps
+ * `provider_user_id` and `provider_facility_id` onto the request attributes
+ * from the bearer token — never from a header, body, query string or session.
+ * Verified against the finder source on 2026-09-05:
  *
- * So this module is a real, typed CLIENT CONTRACT for a surface the server does
- * not serve yet. The contract is a port of the OPES clinician API
- * (`UIUX/src/api/doctorChart.ts`, `doctorInbox.ts`, `doctorScheduling.ts`,
- * `staffMessaging.ts`, `staffProfile.ts`), re-rooted under `/mobile/doctor/…`
- * and re-keyed on the OpesCare **Health ID** where OPES used a hospital MRN.
+ *   routes/mobile_doctor_chart.php      → MobileDoctorChartController      (chart, 8 routes)
+ *   routes/mobile_doctor_schedule.php   → MobileDoctorScheduleController   (me/home/diary)
+ *   routes/mobile_doctor_results.php    → MobileResultsInboxController     (inbox, order results)
+ *   routes/mobile_doctor_messaging.php  → MobileDoctorMessagingController  (threads)
+ *                                       + MobileDoctorProfileController    (own profile)
+ *   routes/api.php:91                   → MobilePrescribingController::lookupPatient
  *
- * Until the backend lands, every hook here answers 404 (route missing) and the
- * hooks are built to fail gracefully:
- *   • `retry: false` on 404 / 501 / 401 / 403 — nothing hammers a missing route;
- *   • `isDoctorApiUnavailable(error)` lets a screen say "not available on this
- *     server yet" instead of a generic failure;
- *   • no hook ever fabricates a row — an unavailable endpoint is an error
- *     state, never an empty list.
+ * This file therefore stopped being a speculative contract and became a
+ * description of a live wire format. Every shape below is checked against the
+ * controller that serialises it; where the two disagreed, the SERVER won.
  *
- * What a real doctor login needs server-side:
- *   1. a provider login (`POST /mobile/doctor/auth/login`) issuing a
- *      provider-scoped token, plus `GET /mobile/doctor/me` — the persona in
- *      `lib/store/auth.ts` is already plumbed to consume it;
- *   2. an `auth.mobile.provider` middleware that sets `provider_id` /
- *      `facility_id` on the request from that token (never from headers/body);
- *   3. the routes below, each ConsentGrant-gated for the patient they read.
+ * ── WHAT THE FAILURE CODES MEAN NOW ───────────────────────────────────────
+ * They no longer all mean "the route is missing". On the deployed surface:
+ *
+ *   401  the provider token is missing, expired, or is not a provider token.
+ *        Sign in again. (AuthenticateMobileProvider is the only source.)
+ *   403  ONLY from the chart: this clinician has no care relationship with
+ *        THIS patient. A real, meaningful refusal — see `doctorAccessRefusal`.
+ *   404  a record was not found (patient / appointment / thread / result), OR
+ *        the route genuinely is not served. The two are NOT distinguishable
+ *        from the status alone — see the note on `isDoctorApiUnavailable`.
+ *   409  a state conflict (already cancelled, already no-show, closed row).
+ *   422  the write was refused on its merits (bad transition, bad datetime).
+ *   503  the chart could not write its access_logs row. No trail, no
+ *        disclosure — this is the server refusing to leak without an audit.
+ *
+ * Failure handling the hooks still guarantee:
+ *   • `retry: false` on 401 / 403 / 404 / 501 — a final answer is never
+ *     hammered, and a refusal is never retried into a second denial audit row;
+ *   • no hook ever fabricates a row — a failed endpoint is an error state,
+ *     never an empty list.
  *
  * Two rules this module enforces on every screen that uses it:
  *   1. Patients are found by EXACT Health ID only. There is no name search, no
@@ -51,7 +60,7 @@ import { apiClient } from './client';
 // Endpoints — every path in one place, all under the (unserved) doctor prefix
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Root of the provider-side mobile surface. Nothing under it exists server-side today. */
+/** Root of the provider-side mobile surface. Served, behind `auth.provider`. */
 export const DOCTOR_API_PREFIX = '/mobile/doctor';
 
 export const doctorEndpoints = {
@@ -94,11 +103,29 @@ export const doctorEndpoints = {
   patientPrescriptions: (patientId: string) => `${DOCTOR_API_PREFIX}/patients/${patientId}/prescriptions`,
   patientDiagnoses: (patientId: string) => `${DOCTOR_API_PREFIX}/patients/${patientId}/diagnoses`,
   patientOrders: (patientId: string) => `${DOCTOR_API_PREFIX}/patients/${patientId}/orders`,
-  /** GET — analyte rows for one order. */
+  /**
+   * GET — analyte rows for one lab order. Served
+   * (`MobileResultsInboxController::orderResults`); takes either the bare
+   * `lab_orders.id` a chart row carries or the inbox's `lab-<uuid>` form, and
+   * 404s unless the order was placed BY this clinician AT their facility.
+   */
   orderResults: (orderId: string) => `${DOCTOR_API_PREFIX}/orders/${orderId}/results`,
 
   /** GET `?filter=`. */
   resultsInbox: `${DOCTOR_API_PREFIX}/results-inbox`,
+  /**
+   * GET — the RESULTS half of the clinician's badge:
+   * `{ unacknowledged_results, critical_unacknowledged, critical_total }`.
+   *
+   * This, not `unreadCounts`, is where the result figures live. The server also
+   * registers the same handler at `messages/unread-count`, but
+   * `routes/mobile_doctor_messaging.php` is loaded FIRST
+   * (AppServiceProvider::boot, line 133 before 138) and Laravel keeps the first
+   * matching route — so `messages/unread-count` is the MESSAGING payload and
+   * this path is the only way to reach the result counts.
+   */
+  resultCounts: `${DOCTOR_API_PREFIX}/results-inbox/counts`,
+  /** `{id}` is the inbox's composite id: `lab-<uuid>` | `rad-<uuid>`. */
   result: (id: string) => `${DOCTOR_API_PREFIX}/results-inbox/${id}`,
   /** POST — idempotent. */
   acknowledgeResult: (id: string) => `${DOCTOR_API_PREFIX}/results-inbox/${id}/acknowledge`,
@@ -110,7 +137,10 @@ export const doctorEndpoints = {
   sendMessage: (id: string) => `${DOCTOR_API_PREFIX}/messages/threads/${id}/messages`,
   /** PATCH `{ state }`. */
   threadState: (id: string) => `${DOCTOR_API_PREFIX}/messages/threads/${id}/state`,
-  /** GET. */
+  /**
+   * GET — the MESSAGING badge only: `{ unread_threads, unread_messages }`.
+   * Result figures are NOT here; they are at `resultCounts` above.
+   */
   unreadCounts: `${DOCTOR_API_PREFIX}/messages/unread-count`,
 
   /** GET / PUT. */
@@ -149,20 +179,109 @@ export interface PageQuery {
 }
 
 /**
- * True when the failure means "this server does not serve the doctor surface"
- * — a missing route (404), an explicit not-implemented (501), or a patient
- * token being refused on a provider route (401/403). A screen should render
- * this as "not available on this server yet", not as a transient error.
+ * True when the failure plausibly means "this server does not serve this
+ * endpoint" — a missing route (404) or an explicit not-implemented (501).
+ *
+ * ── 403 IS NO LONGER IN THIS SET, AND MUST NOT GO BACK IN ─────────────────
+ * It used to be. That was correct while `/mobile/doctor/*` was unserved and a
+ * provider route could only ever refuse a patient token. It is WRONG now.
+ * `MobileDoctorChartController` answers 403 to mean something specific and
+ * true: this clinician has NO CARE RELATIONSHIP with THIS patient — not on
+ * their schedule, no clinical act of their own, no episode at their facility,
+ * no consent grant. The body says so verbatim:
+ *
+ *     { message, error_code: "NO_CLINICAL_RELATIONSHIP",
+ *       required_action: "request_consent" }
+ *
+ * Rendering that as "not available on this server yet" hides a REFUSAL behind
+ * a CAPABILITY CLAIM. The clinician is told the feature does not exist when
+ * the truth is that they may not open this particular record — so they stop
+ * looking instead of requesting consent, and the one action that would get
+ * them the chart is never offered. Use `doctorAccessRefusal` for that state.
+ *
+ * ── 401 STAYS, BUT MEANS "SIGN IN AGAIN" ──────────────────────────────────
+ * `AuthenticateMobileProvider` is the only source of a 401 on this surface and
+ * emits it for a missing / malformed / non-provider token. A screen that can
+ * do better than "unavailable" should say "your session has expired".
+ *
+ * ── 404 STAYS, BUT IS AMBIGUOUS — KNOWN GAP ───────────────────────────────
+ * On the deployed surface a 404 is usually a RECORD that was not found, not a
+ * route that is missing: `doctor_chart.patient_not_found`,
+ * `doctor_results.order_not_found`, `doctor_messaging.thread_not_found`
+ * (that last one even carries `error_code: "NOT_FOUND"`), and the schedule's
+ * `appointment_not_found` — which is deliberately a 404 rather than a 403 so
+ * it cannot confirm that an appointment exists. None of those is "this server
+ * does not serve the feature". They are left in this predicate for now only
+ * because four screens already render them through the "not available"
+ * `EmptyState` and splitting them is a screen-side change; a caller that can
+ * tell the two apart should prefer a "we could not find that" message.
  */
 export function isDoctorApiUnavailable(error: unknown): boolean {
   if (!axios.isAxiosError(error)) return false;
   const status = error.response?.status;
-  return status === 404 || status === 501 || status === 401 || status === 403;
+  return status === 404 || status === 501 || status === 401;
 }
 
-/** React-query `retry` for every doctor hook: one retry, none when the route is missing. */
+/**
+ * True when the answer is FINAL — retrying it cannot change it.
+ *
+ * Kept separate from `isDoctorApiUnavailable` so that narrowing the "feature
+ * missing" message did not quietly turn 403 into a retryable failure. A
+ * retried 403 buys nothing and costs a second `access_logs` denial row on the
+ * server, so a refusal is asked exactly once.
+ */
+export function isDoctorRequestFinal(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  const status = error.response?.status;
+  return status === 401 || status === 403 || status === 404 || status === 501;
+}
+
+/** React-query `retry` for every doctor hook: one retry, none once the answer is final. */
 export const doctorRetry = (failureCount: number, error: unknown): boolean =>
-  !isDoctorApiUnavailable(error) && failureCount < 1;
+  !isDoctorRequestFinal(error) && failureCount < 1;
+
+/**
+ * The chart's refusal body. `error_code` and `required_action` are open unions
+ * because the server may add reasons; the two spellings below are the ones
+ * `MobileDoctorChartController` emits today.
+ */
+export interface DoctorAccessRefusal {
+  /** Already localised by the server (`doctor_chart.no_clinical_relationship`, EN/FR). */
+  message: string | null;
+  error_code: 'NO_CLINICAL_RELATIONSHIP' | (string & {});
+  /** What would actually get this clinician the chart. */
+  required_action: 'request_consent' | (string & {});
+}
+
+/**
+ * The refusal behind a 403, or null when the failure is anything else.
+ *
+ * A screen should use this to render "you do not have access to THIS record"
+ * plus the `required_action` — never "not available on this server yet".
+ *
+ * Only the chart refuses this way; the status is required as well as the body
+ * so a 403 from anywhere else (a proxy, a WAF interstitial) cannot be dressed
+ * up as a clinical refusal.
+ */
+export function doctorAccessRefusal(error: unknown): DoctorAccessRefusal | null {
+  if (!axios.isAxiosError(error)) return null;
+  if (error.response?.status !== 403) return null;
+
+  const body = error.response?.data as Partial<DoctorAccessRefusal> | undefined;
+
+  return {
+    message: typeof body?.message === 'string' ? body.message : null,
+    // A 403 with no code is still a refusal, and must still read as one.
+    error_code: typeof body?.error_code === 'string' ? body.error_code : 'NO_CLINICAL_RELATIONSHIP',
+    required_action:
+      typeof body?.required_action === 'string' ? body.required_action : 'request_consent',
+  };
+}
+
+/** True when the server refused THIS record (403), as opposed to not serving the feature. */
+export function isDoctorAccessRefused(error: unknown): boolean {
+  return doctorAccessRefusal(error) !== null;
+}
 
 /** Message from an API error body, else a neutral fallback. Never leaks a stack. */
 export function doctorErrorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
@@ -256,12 +375,20 @@ export function isClinicalRole(role: ProviderRole | null | undefined): boolean {
   return !!role && CLINICAL_ROLES.includes(role);
 }
 
-/** `GET /mobile/doctor/me`. */
+/**
+ * `GET /mobile/doctor/me` — `MobileDoctorScheduleController::me`.
+ *
+ * Every actor id on this surface is a `users.id`, and `users.id` is a UUID
+ * column on this deployment (`2026_05_14_215752_alter_users_table_for_foundation`:
+ * `$table->uuid('id')->primary()`), so it arrives as a string like
+ * `"00000000-0000-0000-0000-200000000001"`.
+ */
 export interface DoctorUser {
-  id: number;
+  id: string;
   name: string;
   email: string | null;
-  role: ProviderRole;
+  /** `$user->role?->name` — null when the account carries no role row. */
+  role: ProviderRole | null;
   facility_id: string | null;
   facility_name: string | null;
   is_active: boolean;
@@ -297,9 +424,18 @@ export interface DoctorAppointment {
   patient_health_id: string | null;
 }
 
-/** `GET /mobile/doctor/home` — counted server-side, never guessed on the phone. */
+/**
+ * `GET /mobile/doctor/home` — counted server-side, never guessed on the phone.
+ *
+ * `meta.counts_basis` on the response names the table each figure came from.
+ * On this deployment the only acknowledgement ledger is
+ * `critical_value_alerts`, so `unacknowledged_results` and
+ * `critical_unacknowledged` count the SAME set and the server says so rather
+ * than inventing them apart.
+ */
 export interface DoctorHome {
-  provider: { id: number; name: string; role: ProviderRole };
+  /** `id` is a `users.id` UUID string; `role` is null when the account has no role row. */
+  provider: { id: string; name: string; role: ProviderRole | null };
   counts: {
     appointments_today: number;
     unread_messages: number;
@@ -324,6 +460,42 @@ export function useDoctorHome(opts: QueryOpts = {}) {
 // Schedule & appointments (port of `doctorScheduling.ts`)
 // ═══════════════════════════════════════════════════════════════════════════
 
+/**
+ * The WIRE vocabulary — deliberately narrower than the `appointments.status`
+ * column, which this deployment writes in several spellings.
+ * `MobileDoctorScheduleController::WIRE_STATUS` maps column → wire on the way
+ * out and inverts the same map for the `status=` filter on the way in:
+ *
+ *     booked | scheduled | pending | requested  → scheduled
+ *     confirmed                                 → confirmed
+ *     checked_in | arrived                      → arrived
+ *     in_progress                               → in_progress
+ *     completed                                 → completed
+ *     cancelled | canceled | rescheduled        → cancelled
+ *     no_show                                   → no_show
+ *
+ * ── `rescheduled` IS NOT ADDED HERE, ON PURPOSE ───────────────────────────
+ * It is a real COLUMN value, but it is never a WIRE value: the server folds it
+ * into `cancelled` before serialising, so widening this union would add a
+ * member no response can contain. Worse, the union is bidirectional — it also
+ * types the `status` a client SENDS. `PATCH /appointments/{id}/status`
+ * validates `in:scheduled,confirmed,arrived,in_progress,completed,cancelled,no_show`,
+ * so a `rescheduled` write would 422, and a `status=rescheduled` filter would
+ * match nothing (`columnStatusesFor` narrows an unknown status to no rows
+ * rather than quietly returning everything).
+ *
+ * The mapping is also the honest one for a reader: a rescheduled row IS closed
+ * and replaced, filtering by `cancelled` correctly includes it (the inverted
+ * map expands `cancelled` → `cancelled | canceled | rescheduled`), and the
+ * appointment the patient actually has is the NEW row, listed on its own.
+ *
+ * Decision: KEEP THE MAPPING, keep the union closed.
+ *
+ * One caveat: `wireStatus()` is `WIRE_STATUS[$status] ?? $status`, so a column
+ * value nobody has mapped would pass through verbatim. Every value the schema
+ * writes today is in the map; treat an unrecognised status as data, not as a
+ * reason to widen this union.
+ */
 export type StaffAppointmentStatus =
   | 'scheduled'
   | 'confirmed'
@@ -353,7 +525,8 @@ export interface StaffAppointment {
   patient_medical_id?: string | null;
   patient_sex?: string | null;
   patient_dob?: string | null;
-  provider_id: number | null;
+  /** `appointments.provider_id` — a nullable `users.id` UUID string. */
+  provider_id: string | null;
   provider_name: string | null;
   facility_id: string | null;
   facility_name: string | null;
@@ -453,12 +626,34 @@ export function useCancelDoctorAppointment() {
 }
 
 /**
- * `2027-12-30 14:30:00` from the local components of `d`.
+ * `2027-12-30 14:30:00` from the LOCAL components of `d` — no offset, no `Z`.
  *
- * The server parses an incoming datetime in the application timezone
- * (Africa/Douala) and normalises an explicit `Z` the same way rather than
- * honouring it — `toISOString()` would shift the appointment by an hour. The
- * clinic's wall clock is what goes on the wire.
+ * ── CORRECTED 2026-09-05: THE SERVER TIMEZONE IS UTC, NOT AFRICA/DOUALA ────
+ * This docblock used to claim the finder parses incoming datetimes in
+ * Africa/Douala and normalises an explicit `Z` the same way. Both halves were
+ * wrong. `MobileDoctorScheduleController::reschedule` does:
+ *
+ *     Carbon::parse($validated['scheduled_at'], config('app.timezone'))
+ *
+ * and the finder's `config/app.php` sets `'timezone' => 'UTC'` with no
+ * `APP_TIMEZONE` override. So the naive string above is read as UTC, and an
+ * explicit `Z` would be HONOURED (it already is UTC), not shifted.
+ *
+ * BEHAVIOUR IS UNCHANGED — only this comment moved. What the two options
+ * actually do, so the next reader can decide with the facts:
+ *
+ *   • this function sends the DIGITS the clinician picked. They are stored as
+ *     those digits in UTC and come back from `toIso8601String()` as the same
+ *     digits, so the schedule shows back exactly what was chosen.
+ *   • `toISOString()` would send the INSTANT. On a phone set to Africa/Douala
+ *     (UTC+1) that is one hour earlier in digits than what was picked, so the
+ *     row would read 13:30 where the clinician chose 14:30.
+ *
+ * Sending wall-clock digits is therefore still the right call for a picker
+ * whose value is a wall-clock time, but note it is only exactly correct while
+ * the client renders `scheduled_at` in UTC too. If a screen ever formats
+ * appointment times in device-local time, this pairing needs revisiting
+ * TOGETHER with that screen — do not change one side alone.
  */
 export function toClinicWallClock(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
@@ -573,12 +768,94 @@ export function isPlausibleHealthId(input: string): boolean {
  * `GET /mobile/doctor/patients/lookup?health_id=` — ONE patient by EXACT Health
  * ID, or 404. Refuses to send anything that is not a plausible ID so the server
  * is never asked a prefix or a name.
+ *
+ * ── ⚠ THE RETURN TYPE IS WRONG AND THE SERVER IS THE REASON ───────────────
+ * This route is NOT served by `MobileDoctorChartController`. `routes/api.php:91`
+ * points it at `MobilePrescribingController::lookupPatient`, whose
+ * `formatPatient()` returns a much smaller row:
+ *
+ *     { id, health_id, first_name, last_name, full_name,
+ *       date_of_birth, sex, blood_group }
+ *
+ * There is no `name`, no `age`, no `next_of_kin`, no `has_allergies` and no
+ * `consent_granted` in it — the chart header's `formatPatient()`
+ * (MobileDoctorChartController) is a different method on a different
+ * controller. Typing this as `ChartPatient` makes five fields compile that
+ * arrive `undefined` at runtime, which is why this is flagged here rather than
+ * silently corrected: splitting the type breaks two screens this file does not
+ * own, and the split is theirs to make. Consequences observed today:
+ *
+ *   • `has_allergies` is `undefined` → falsy → reads as "no known allergies";
+ *   • `consent_granted` is `undefined` → falsy → always the "not granted" arm;
+ *   • `age` is `undefined`, and `undefined !== null` is true, so an `age !== null`
+ *     guard passes and renders the string "undefined";
+ *   • `next_of_kin` is `undefined`, so `p.next_of_kin.name` would throw.
+ *
+ * `id` IS safe: the lookup returns `patients.id` (uuid) while the chart header
+ * returns `health_id`, and `MobileDoctorChartController::resolvePatient`
+ * accepts either form, so routing onward from a lookup result works.
+ *
+ * Do NOT "fix" this by loosening `ChartPatient` — that would weaken the chart
+ * header, which genuinely does carry all of these. It needs its own type.
  */
-export async function lookupPatientByHealthId(healthId: string): Promise<ChartPatient> {
+/**
+ * What `GET /mobile/doctor/patients/lookup` ACTUALLY returns.
+ *
+ * This is NOT a `ChartPatient`. The route is served by
+ * `MobilePrescribingController::lookupPatient`, whose own docblock states the
+ * intent: "The minimum a prescriber needs to be sure they have the right
+ * person. No contact details, no address, no clinical history — this endpoint
+ * identifies a patient, it does not disclose their record."
+ *
+ * It was typed as `ChartPatient` — a much richer object served by a different
+ * method on a different controller. Five fields therefore arrived `undefined`
+ * at runtime, and TypeScript could not see it:
+ *
+ *   - `name`            -> the patient's name rendered BLANK on the card whose
+ *                          only job is confirming you have the right person
+ *   - `age`             -> `undefined !== null` is true, so the guard passed and
+ *                          the screen printed the literal string "undefined"
+ *   - `consent_granted` -> always falsy, so "you already have access" never showed
+ *   - `has_allergies`   -> always falsy, so an allergy tint could NEVER fire on a
+ *                          row whose comment says it is there "so a clinician knows"
+ *   - `next_of_kin`     -> a property read on `undefined` would have thrown
+ *
+ * The right shape is this one, not a looser `ChartPatient`: `has_allergies` is
+ * clinical history and the endpoint deliberately withholds it. A screen must
+ * therefore say nothing about allergies here rather than imply "none".
+ */
+export interface PatientLookupResult {
+  id: string;
+  health_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string | null;
+  date_of_birth: string | null;
+  sex: string | null;
+  blood_group: string | null;
+}
+
+/** Age in whole years from a `YYYY-MM-DD`, or null when the date is absent. */
+export function ageFromDateOfBirth(dob: string | null | undefined): number | null {
+  if (!dob) return null;
+  const born = new Date(dob);
+  if (Number.isNaN(born.getTime())) return null;
+
+  const now = new Date();
+  let age = now.getFullYear() - born.getFullYear();
+  const monthDelta = now.getMonth() - born.getMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < born.getDate())) age -= 1;
+
+  return age >= 0 && age < 150 ? age : null;
+}
+
+export async function lookupPatientByHealthId(healthId: string): Promise<PatientLookupResult> {
   if (!isPlausibleHealthId(healthId)) {
     throw new Error('A full Health ID is required to look a patient up.');
   }
-  return getData<ChartPatient>(doctorEndpoints.patientLookup, { health_id: normaliseHealthId(healthId) });
+  return getData<PatientLookupResult>(doctorEndpoints.patientLookup, {
+    health_id: normaliseHealthId(healthId),
+  });
 }
 
 export function usePatientLookup(healthId: string | null | undefined) {
@@ -609,13 +886,27 @@ export type AllergySeverity = 'mild' | 'moderate' | 'severe' | 'life_threatening
 export interface ChartAllergy {
   id: string;
   patient_id: string;
-  allergy_type: AllergyType;
+  /**
+   * ALWAYS null on this deployment: `allergy_records` has no type column, so
+   * `MobileDoctorChartController::allergies` hardcodes `null`. Null is "not
+   * recorded" — the server refuses to guess `drug`, and neither may a screen.
+   * `allergyTypeLabel` already takes `string | null | undefined`.
+   */
+  allergy_type: AllergyType | null;
+  /** `allergy_records.substance`. */
   allergen: string;
+  /** `allergy_records.severity` — a non-null column, defaulting to `moderate`. */
   severity: AllergySeverity;
+  /** Not columns on this deployment; always null. */
   reaction: string | null;
   onset_date: string | null;
   notes: string | null;
-  recorded_by: number | null;
+  /**
+   * `allergy_records.provider_id` — a `users.id` UUID string. The column is
+   * NOT nullable, so a row always carries one; the `| null` is kept only so
+   * this field matches every other actor id in the contract.
+   */
+  recorded_by: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -649,7 +940,8 @@ export interface ChartProblem {
   onset_date: string | null;
   status: ProblemStatus;
   notes: string | null;
-  added_by: number | null;
+  /** `problem_lists.provider_id` — a `users.id` UUID string (`foreignUuid`). */
+  added_by: string | null;
   created_at: string | null;
 }
 
@@ -675,7 +967,8 @@ export interface ChartEncounter {
   status: string;
   encounter_date: string | null;
   encounter_time: string | null;
-  doctor_id: number | null;
+  /** `visits.attending_provider_id` — a nullable `users.id` UUID string. */
+  doctor_id: string | null;
   doctor_name: string | null;
   chief_complaint: string | null;
   subjective: string | null;
@@ -718,7 +1011,13 @@ export interface ChartVitals {
   bmi: Decimalish;
   blood_glucose: Decimalish;
   head_circumference: Decimalish;
-  recorded_by: number | null;
+  /**
+   * `triage_vital_signs.recorded_by` — a `users.id` UUID string. Genuinely
+   * null on the legacy `vital_signs` branch, which has no such column and is
+   * serialised as `null` rather than being attributed to someone.
+   */
+  recorded_by: string | null;
+  /** Null on the legacy `vital_signs` branch: that table records no reading time. */
   recorded_at: string | null;
   created_at: string | null;
 }
@@ -736,25 +1035,48 @@ export function useChartVitals(patientId: string | undefined, limit = 20) {
 // ── Scan-bounded lists (prescriptions, diagnoses, orders) ─────────────────
 
 /**
- * A list gathered from the patient's recent encounters, with an honest account
- * of how complete it is. The server walks at most `scan` encounters; `failed`
- * encounters could not be read, `truncated` means older encounters exist.
+ * A list with an honest account of how complete it is.
  *
  * `failed > 0` or `truncated` ⇒ the list is a SUBSET of the record and the UI
  * must say so (`IncompleteNotice`). A quietly short medication list is the
  * same hazard as a quietly stale one.
+ *
+ * ── WHAT THESE FIELDS MEAN ON *THIS* SERVER ───────────────────────────────
+ * The vocabulary comes from OPES, which built these lists by opening the
+ * patient's recent encounters ONE AT A TIME — hence "scanned" and "failed".
+ * The finder has patient-scoped tables and reads them directly
+ * (`MobileDoctorChartController::scanResult`), so there is no fan-out to fail:
+ *
+ *   scanned    source rows read (prescriptions / diagnoses / orders), NOT
+ *              encounters walked.
+ *   failed     ALWAYS 0. Nothing can partially fail. Keep handling it anyway —
+ *              a non-zero value from any deployment still means "incomplete".
+ *   truncated  the read hit SCAN_HARD_CAP (500 source rows), not "older
+ *              encounters exist". Still exactly "this list is a subset".
  */
 export interface ScanResult<T> {
   items: T[];
-  /** Encounters successfully read. */
+  /** Source rows read. */
   scanned: number;
-  /** Encounters that errored and are therefore missing from `items`. */
+  /** Rows that errored and are therefore missing from `items`. Always 0 here. */
   failed: number;
-  /** True when the patient has more encounters than the scan bound covers. */
+  /** True when the server's hard cap cut the list short. */
   truncated: boolean;
 }
 
-/** How many recent encounters the overview asks the server to walk; a section screen goes deeper. */
+/**
+ * ⚠ THESE ARE INERT AGAINST THE DEPLOYED SERVER.
+ *
+ * They are still sent as `?scan=`, but `MobileDoctorChartController` never
+ * reads the parameter — every scan-bounded section is bounded by its own
+ * `SCAN_HARD_CAP` (500) instead. So "the section screen goes deeper" is no
+ * longer true: both screens get the same rows.
+ *
+ * They are kept because they are also part of the react-query cache key, so a
+ * section screen and the overview hold separate cache entries; dropping them
+ * is a cache-invalidation change, not a type fix, and belongs with whoever
+ * owns those screens. Do NOT rely on either constant to bound a list.
+ */
 export const OVERVIEW_ENCOUNTER_SCAN = 4;
 export const SECTION_ENCOUNTER_SCAN = 12;
 
@@ -773,7 +1095,8 @@ export interface ChartPrescription {
   duration: string | null;
   instructions: string | null;
   status: PrescriptionStatus;
-  prescribed_by: number | null;
+  /** `prescriptions.prescribed_by` — a nullable `users.id` UUID string. */
+  prescribed_by: string | null;
   prescribed_by_name: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -790,7 +1113,8 @@ export interface ChartDiagnosis {
   sensitivity_level: string | null;
   add_to_problem_list: boolean;
   notes: string | null;
-  diagnosed_by: number | null;
+  /** `diagnoses.provider_id` — a `users.id` UUID string. */
+  diagnosed_by: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -809,9 +1133,14 @@ export interface ChartOrder {
   priority: 'routine' | 'urgent' | 'stat' | (string & {}) | null;
   clinical_notes: string | null;
   status: OrderStatus;
-  /** The releasing bench's plain-language conclusion, when there is one. */
+  /**
+   * The releasing bench's plain-language conclusion, when there is one.
+   * Always null for `lab` (a laboratory releases values, not a narrative);
+   * for `imaging` it is the radiologist's own `impression`, verbatim.
+   */
   result_summary: string | null;
-  ordered_by: number | null;
+  /** `lab_orders.ordered_by` / `imaging_orders.ordered_by` — a `users.id` UUID string. */
+  ordered_by: string | null;
   ordered_at: string | null;
   created_at: string | null;
 }
@@ -823,6 +1152,7 @@ export interface ChartOrder {
 export interface ChartLabResult {
   id: string;
   clinical_order_id: string;
+  /** The LOINC code — this deployment keeps no local test catalogue id. */
   lab_test_id: string | null;
   analyte: string;
   value: string | null;
@@ -830,7 +1160,8 @@ export interface ChartLabResult {
   reference: string | null;
   flag: string | null;
   is_abnormal: boolean;
-  entered_by: number | null;
+  /** `lab_results.verified_by` — a nullable `users.id` UUID string. */
+  entered_by: string | null;
   entered_by_name: string | null;
   entered_at: string | null;
 }
@@ -967,7 +1298,12 @@ export interface InboxResult {
   reported_at: string | null;
   read_at: string | null;
   acknowledged_at: string | null;
-  acknowledged_by: number | null;
+  /**
+   * `critical_value_alerts.acknowledged_by` /
+   * `critical_value_acknowledgements.acknowledged_by` — both `foreignUuid`
+   * onto `users`, so a `users.id` UUID string, null until acknowledged.
+   */
+  acknowledged_by: string | null;
   acknowledged_by_name: string | null;
   action_route: string | null;
   action_id: string | null;
@@ -1002,15 +1338,27 @@ export type InboxResultContext =
       kind: 'radiology';
       result_id: string;
       test_name: string | null;
+      /**
+       * NOT a column on `radiology_reports`. The server reads it across the
+       * join as `imaging_orders.accession_number` for the report's
+       * `imaging_order_id`, and leaves it null when the report has no order.
+       */
       report_number: string | null;
       report_status: string | null;
+      /**
+       * ALWAYS null: `radiology_reports` records no abnormality flag, so the
+       * server sends null rather than inventing one. A screen must print "not
+       * recorded" — never a reassurance.
+       */
       flag: string | null;
+      /** ALWAYS null: no `technique` column on `radiology_reports` either. */
       technique: string | null;
       findings: string | null;
       impression: string | null;
       recommendation: string | null;
       reported_by_name: string | null;
       reported_at: string | null;
+      /** ALWAYS empty: a report is a narrative, not a panel. */
       analytes: InboxAnalyte[];
     };
 
@@ -1021,26 +1369,57 @@ export interface InboxResultDetail extends InboxResult {
 
 export type InboxFilter = 'all' | 'unacknowledged' | 'critical' | 'acknowledged';
 
+/**
+ * The five figures on `meta.counts`. They are counted over the SAME bounded
+ * window the rows came from, so when `InboxPage.truncated` is true they
+ * describe that window and not the clinician's whole record.
+ */
 export interface InboxCounts {
   all: number;
   unacknowledged: number;
   critical: number;
   acknowledged: number;
+  /** Critical AND unacknowledged — the figure that must never be merged away. */
   critical_pending: number;
 }
 
 export interface InboxPage {
   rows: InboxResult[];
   counts: InboxCounts;
+  /**
+   * TRUE ⇒ THIS INBOX IS A SUBSET OF THE CLINICIAN'S RESULTS, and `counts`
+   * describes the loaded WINDOW, not the record.
+   *
+   * `MobileResultsInboxController::index` assembles rows from a bounded window
+   * of source records (250 lab orders + 250 radiology reports) and reports
+   * `meta.truncated` when either side hit its bound. Same contract as
+   * `ScanResult.truncated` on the chart, and the same obligation: the UI must
+   * SAY SO. A quietly short results inbox is the same hazard as a quietly
+   * stale one, and worse here than on a chart — the row that fell off the end
+   * could be the unacknowledged critical.
+   *
+   * Copy is staged in `lib/i18n/pending/doctor_results.{en,fr}.json` as
+   * `opesDoctor.inbox.truncatedTitle` / `truncatedBody` / `truncatedAction`.
+   */
+  truncated: boolean;
 }
 
 /** `GET /mobile/doctor/results-inbox?filter=` — hard-scoped server-side to the token owner. */
 export async function fetchResultsInbox(filter: InboxFilter = 'unacknowledged'): Promise<InboxPage> {
-  const res = await apiClient.get<{ data: InboxResult[]; meta: { counts: InboxCounts } }>(
-    doctorEndpoints.resultsInbox,
-    { params: { filter: filter === 'all' ? undefined : filter } },
-  );
-  return { rows: res.data.data, counts: res.data.meta.counts };
+  const res = await apiClient.get<{
+    data: InboxResult[];
+    meta: { counts: InboxCounts; filter?: string; truncated?: boolean };
+  }>(doctorEndpoints.resultsInbox, { params: { filter: filter === 'all' ? undefined : filter } });
+
+  return {
+    rows: res.data.data,
+    counts: res.data.meta.counts,
+    // The deployed server always sends `meta.truncated`. Absence means an
+    // older build, and `false` is the deliberate fallback: a completeness
+    // warning shown on every single load would be trained away as noise, and
+    // the notice would then be worthless on the day it is true.
+    truncated: res.data.meta?.truncated === true,
+  };
 }
 
 export function useResultsInbox(filter: InboxFilter = 'unacknowledged', opts: QueryOpts = {}) {
@@ -1109,7 +1488,11 @@ export interface DoctorThread {
   patient_health_id: string | null;
   /** Who this conversation is *with*, from the clinician's seat. */
   counterpart_name: string | null;
-  provider_id: number | null;
+  /**
+   * The clinician on the thread's linked appointment
+   * (`appointments.provider_id`) — a nullable `users.id` UUID string.
+   */
+  provider_id: string | null;
   provider_name: string | null;
   facility_id: string | null;
   facility_name: string | null;
@@ -1133,9 +1516,46 @@ export interface DoctorThreadQuery extends PageQuery {
 
 export type DoctorThreadState = 'unread' | 'archive' | 'reopen';
 
+/**
+ * `GET /mobile/doctor/messages/unread-count` — MESSAGING ONLY.
+ *
+ * ── WHY THERE ARE TWO COUNT TYPES AND NOT ONE ─────────────────────────────
+ * Two controllers register a handler on this exact path.
+ * `MobileDoctorMessagingController::unreadCount` returns the two fields below;
+ * `MobileResultsInboxController::unreadCount` returns the three result fields
+ * in `DoctorResultCounts`. Laravel keeps the FIRST matching route, and
+ * `AppServiceProvider::boot` loads `routes/mobile_doctor_messaging.php` (line
+ * 133) before `routes/mobile_doctor_results.php` (line 138) — so this path
+ * serves the MESSAGING payload, and the results file's own comment
+ * acknowledges the collision and points at `results-inbox/counts` instead.
+ *
+ * These are deliberately NOT merged into one badge number. Criticals are a
+ * distinct clinical fact with a distinct obligation, and folding them into a
+ * generic "unread" total is exactly the collapse the results screen exists to
+ * prevent: a clinician who sees `7` cannot tell six routine results plus one
+ * critical from seven routine ones. Whatever a screen does with these, the
+ * critical figure stays separately visible.
+ */
 export interface DoctorUnreadCounts {
   unread_threads: number;
   unread_messages: number;
+}
+
+/**
+ * `GET /mobile/doctor/results-inbox/counts` — the RESULTS half of the badge,
+ * from `MobileResultsInboxController::unreadCount`.
+ *
+ * Counted over the same bounded window as the inbox itself, so on a truncated
+ * inbox these describe the window rather than the whole record — see
+ * `InboxPage.truncated`.
+ */
+export interface DoctorResultCounts {
+  /** Results with no `acknowledged_at`, critical or not. */
+  unacknowledged_results: number;
+  /** The subset of those that are critical. NEVER fold this into a total. */
+  critical_unacknowledged: number;
+  /** Criticals in the window, acknowledged or not. */
+  critical_total: number;
 }
 
 export function useDoctorThreads(query: DoctorThreadQuery = {}, opts: QueryOpts = {}) {
@@ -1184,6 +1604,12 @@ export function useSetDoctorThreadState() {
   });
 }
 
+/**
+ * The MESSAGING badge. It does not carry result or critical figures — those
+ * are `DoctorResultCounts` at `doctorEndpoints.resultCounts`, and no hook
+ * fetches them yet (the home screen gets the same numbers inside
+ * `DoctorHome.counts`, and the results screen gets them from `InboxCounts`).
+ */
 export function useDoctorUnreadCounts(opts: QueryOpts = {}) {
   return useQuery({
     queryKey: doctorKeys.unread,
@@ -1213,11 +1639,15 @@ export interface ProviderProfile {
   languages: string[];
   qualifications: string[];
   room: string | null;
-  /** Read-only. */
+  /**
+   * Read-only, and ALWAYS null on this deployment: the finder records no
+   * clinician consultation fee, so the server sends null rather than a
+   * plausible figure. A screen must omit the fee, never print `0`.
+   */
   consultation_fee: number | null;
-  /** Read-only; XAF/FCFA on this deployment. */
+  /** Read-only, and always null alongside `consultation_fee` above. */
   currency: string | null;
-  /** Read-only. */
+  /** Read-only — asserted by credentialing, never self-declared. */
   license_status: ProviderLicenseStatus | null;
 }
 

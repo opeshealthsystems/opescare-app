@@ -1,0 +1,69 @@
+{
+  "_comment": "Strings for the consent ledger — 'Who can see my record' (app/privacy/access.tsx and the ledger-backed sections of app/privacy/index.tsx). Registered at runtime by lib/api/consentLedgerQueries.ts with deep=true, overwrite=false, so merging these into lib/i18n/locales/en.json is safe at any time and makes the registration a no-op. 1:1 with consent_ledger.fr.json, same {{placeholders}}. NOTE: every sentence describing a grant's STATE, its BASIS, and the care-relationship explanations comes from the SERVER already translated (lang/{en,fr}/consent_ledger.php) — the hook sends ?lang=, so those are correct in both languages today. Only the chrome below lives here.",
+
+  "consentLedger": {
+    "title": "Who can see my record",
+    "subtitle": "Access to your record, right now",
+
+    "hubCard": "Who can see my record",
+    "hubCardDesc": "Everyone who can open your record right now, and how to stop them",
+
+    "loading": "Checking who has access",
+    "errorTitle": "We could not check your access list",
+    "errorBody": "Your record is not open to anyone new because of this — we simply could not read the list. Try again in a moment.",
+    "retry": "Try again",
+
+    "summaryTitle": "Right now",
+    "statActive": "Active access",
+    "statActiveCaption": "Facilities that can open your record",
+    "statExpiring": "Expiring soon",
+    "statExpiringCaption": "Active access ending within a week",
+    "statEnded": "Ended",
+    "statEndedCaption": "Expired or withdrawn — kept as history",
+    "statOther": "Through your care",
+    "statOtherCaption": "Access that is not consent, and cannot be withdrawn here",
+
+    "activeSection": "Active access",
+    "activeHint": "Each of these can open your record now. You can withdraw any of them.",
+    "activeEmptyTitle": "No facility holds access",
+    "activeEmptyBody": "Nobody currently holds a consent grant over your record. Check the section below — a clinician treating you can still open it without one.",
+
+    "historySection": "History",
+    "historyHint": "Access that has ended. None of these can open your record.",
+    "historyEmptyTitle": "Nothing has ended yet",
+    "historyEmptyBody": "When access expires or you withdraw it, it moves here so you can still see that it existed.",
+
+    "relationshipsSection": "Access through your care",
+    "relationshipsHint": "Not consent grants. Withdrawing consent does not end these.",
+    "relationshipsEmptyTitle": "No care relationship gives access",
+    "relationshipsEmptyBody": "Nobody can open your record through an appointment, a care team, past treatment or an open episode of care.",
+    "notAGrant": "Not a consent grant",
+    "cannotWithdrawHere": "Cannot be withdrawn here",
+
+    "withdraw": "Withdraw access",
+    "keepAccess": "Keep access",
+    "confirmTitle": "Withdraw access",
+    "confirmBody": "{{facility}} will no longer be able to open your record. This takes effect immediately. You can grant access again later if you need to.",
+    "confirmCta": "Withdraw it",
+    "withdrawnNotice": "{{facility}} can no longer open your record.",
+
+    "grantedLabel": "Granted",
+    "expiresLabel": "Expires {{date}}",
+    "endedLabel": "Ended {{date}}",
+    "sinceLabel": "Since {{date}}",
+    "scopeLabel": "What they can see",
+    "scopeUnspecified": "Not specified",
+    "purposeLabel": "Why",
+    "clinicianLabel": "Named clinician",
+    "expiringChip": "Expiring soon",
+    "withdrawnByYou": "You withdrew this",
+    "withdrawnBySomeoneElse": "Withdrawn by someone else",
+
+    "unknownFacility": "Facility not named",
+    "unknownClinician": "Clinician not named",
+    "noClinicianNamed": "No individual clinician is named on this one",
+
+    "truncatedTitle": "This list is not complete",
+    "truncatedBody": "There is more access on your record than fits in one list. The counts above describe what is shown here, not everything there is."
+  }
+}

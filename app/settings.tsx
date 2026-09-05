@@ -86,6 +86,10 @@ const ROUTES = {
   // parent they were written for.
   privacyPolicy: '/legal/privacy',
   terms: '/legal/terms',
+  // Both stores require an in-app way to delete your account when the app
+  // creates them. This screen used to carry a comment saying no such route
+  // existed; it does now.
+  deleteAccount: '/account/delete',
 } as const;
 
 /**
@@ -260,6 +264,26 @@ export default function SettingsScreen() {
                   title={t('settings.account.family')}
                   subtitle={t('settings.account.familyBody')}
                   onPress={() => router.push(ROUTES.family)}
+                  divider
+                />
+                {/*
+                  Last in the group and red, because it is the destructive one.
+                  It opens a disclosure screen, not a confirmation dialog — the
+                  patient reads what is erased, what is de-identified and what
+                  is RETAINED under a statutory duty before anything happens,
+                  and there is a 30-day grace period after that.
+                */}
+                <ListRow
+                  icon="trash"
+                  tint="red"
+                  title={t('accountDeletion.settingsRow', {
+                    defaultValue: 'Close my account',
+                  })}
+                  subtitle={t('accountDeletion.settingsRowBody', {
+                    defaultValue:
+                      'Erase your sign-in and personal details. Your clinical record is kept as the law requires.',
+                  })}
+                  onPress={() => router.push(ROUTES.deleteAccount)}
                 />
               </Card>
             </View>

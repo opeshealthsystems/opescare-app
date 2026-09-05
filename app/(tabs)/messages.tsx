@@ -3,17 +3,43 @@
  * (`UIUX/src/screens/messaging/MessagesScreen.tsx`), laid out as a
  * `ScreenHeader` + search + filter chips + one flush `Card` of `ListRow`s.
  *
- * Opening a thread pushes `/messages/[id]` (app/messages/[id].tsx). Starting
- * a thread from an appointment lives in the compose sheet below and lands on
- * that same route once the server has created the thread.
+ * Opening a thread pushes `/messages/[id]` (app/messages/[id].tsx). Starting a
+ * thread lives in the compose sheet below and lands on that same route once the
+ * server has created it.
  *
  * Every field rendered comes from `MobileMessagingController`:
  *   • threads → id, title, status, priority, thread_type, updated_at,
  *               unread (boolean), last_message{body,is_mine,created_at}
  * The API returns no participant name beyond `title`, no avatar URL and no
  * unread *count*, so avatars are initials and "unread" is a dot, not a number.
+ *
+ * ── Who the compose sheet can address ─────────────────────────────────────
+ * It used to list APPOINTMENTS, because the only way to open a thread was to
+ * name one. A patient with no appointment therefore saw an info strip and no
+ * way forward at all — "Start conversation" led nowhere, which is the bug this
+ * screen was rewritten to fix.
+ *
+ * The sheet now asks the server who this patient may write to
+ * (GET /mobile/messages/recipients) and offers two kinds of recipient, which
+ * are NOT interchangeable:
+ *
+ *   FACILITY (the default tab) — the front desk. Always has somebody behind
+ *     it, so the button always works. Most questions are desk questions:
+ *     opening hours, help rebooking, "have my results come back", "do you
+ *     stock this drug". Sending those to a named doctor makes a clinician's
+ *     inbox unusable.
+ *
+ *   CLINICIAN — only people already looking after this patient. The list comes
+ *     from the patient's own record and the server refuses anybody else
+ *     (403 NO_CLINICAL_RELATIONSHIP), so this is never a directory to browse
+ *     and DM. A clinician the server marks `deliverable: false` is shown, and
+ *     shown as unwritable with the reason, rather than quietly dropped.
+ *
+ * A recipient's reason for being on the list (`basis_label`) is rendered as the
+ * server sent it — already translated, from the same rule that enforces it.
+ * The "not an emergency" line sits above both tabs, always, never behind a tap.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -48,21 +74,36 @@ import {
   useTheme,
   type Palette,
 } from '@/components/opes-ui';
-import { Avatar, ErrorBlock, InfoStrip, LoadingBlock, shortDate } from '@/components/chat';
-import {
-  useAppointmentsForMessaging,
-  useMessageThreads,
-  useStartMessageThread,
-  type MessageThreadSummary,
-} from '@/lib/api/queries';
+import { Avatar, ErrorBlock, LoadingBlock } from '@/components/chat';
+import { useMessageThreads, type MessageThreadSummary } from '@/lib/api/queries';
 import {
   countUnreadThreads,
   filterThreads,
   sortThreadsByActivity,
 } from '@/lib/api/messagingQueries';
+import {
+  useMessageRecipients,
+  useStartThread,
+  type ClinicianRecipient,
+  type FacilityRecipient,
+} from '@/lib/api/messagingRecipients';
+import { registerMessagingRecipientStrings } from '@/lib/i18n/messagingRecipientStrings';
 
 /** Matches the controller's `max:4000` validation rule. */
 const MESSAGE_MAX = 4000;
+
+/** Below this the search box does nothing — the server ignores a 1-char `q`. */
+const SEARCH_MIN = 2;
+
+/** Keystroke settling time before the facility search reaches the server. */
+const SEARCH_DEBOUNCE_MS = 350;
+
+/** Which half of the picker is open. Facility is the default, deliberately. */
+type RecipientKind = 'facility' | 'clinician';
+
+// Renders the compose sheet's copy in both languages before the pending i18n
+// files are merged. Module scope, so it has run before the first paint.
+registerMessagingRecipientStrings();
 
 export default function MessagesScreen() {
   const { t, i18n } = useTranslation();
@@ -73,12 +114,25 @@ export default function MessagesScreen() {
   const [search, setSearch] = useState('');
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
-  const [composeAppointmentId, setComposeAppointmentId] = useState<string | null>(null);
   const [composeBody, setComposeBody] = useState('');
 
+  // Compose state: which tab, which recipient, and the facility search.
+  const [kind, setKind] = useState<RecipientKind>('facility');
+  const [facilityId, setFacilityId] = useState<string | null>(null);
+  const [clinicianId, setClinicianId] = useState<string | null>(null);
+  const [facilitySearch, setFacilitySearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
   const threadsQuery = useMessageThreads();
-  const appointmentsQuery = useAppointmentsForMessaging();
-  const startThread = useStartMessageThread();
+  const startThread = useStartThread();
+
+  // Only asked for while the sheet is open — the inbox itself needs none of it.
+  const recipientsQuery = useMessageRecipients(debouncedSearch, composeOpen);
+
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedSearch(facilitySearch), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [facilitySearch]);
 
   const allThreads = useMemo(() => sortThreadsByActivity(threadsQuery.data ?? []), [threadsQuery.data]);
   const unreadCount = useMemo(() => countUnreadThreads(allThreads), [allThreads]);
@@ -87,28 +141,54 @@ export default function MessagesScreen() {
     return filterThreads(scoped, search);
   }, [allThreads, unreadOnly, search]);
 
-  const contactableAppointments = useMemo(
-    () => (appointmentsQuery.data?.data ?? []).filter((a) => !!a.provider_name),
-    [appointmentsQuery.data],
-  );
+  const facilities = recipientsQuery.data?.facilities ?? [];
+  const clinicians = recipientsQuery.data?.clinicians ?? [];
 
   const openThread = (thread: MessageThreadSummary) =>
     router.push({ pathname: '/messages/[id]', params: { id: String(thread.id), title: thread.title } });
 
   const openCompose = () => {
-    setComposeAppointmentId(null);
+    setKind('facility');
+    setFacilityId(null);
+    setClinicianId(null);
+    setFacilitySearch('');
+    setDebouncedSearch('');
     setComposeBody('');
+    startThread.reset();
     setComposeOpen(true);
   };
 
+  const selectFacility = (id: string) => {
+    setFacilityId(id);
+    setClinicianId(null);
+  };
+
+  const selectClinician = (id: string) => {
+    setClinicianId(id);
+    setFacilityId(null);
+  };
+
+  const recipientId = kind === 'facility' ? facilityId : clinicianId;
+
   const submitCompose = async () => {
     const body = composeBody.trim();
-    if (!body || !composeAppointmentId || startThread.isPending) return;
+    if (!body || startThread.isPending) return;
+
+    // The server rejects a request with no recipient, and would reject one with
+    // two. The button is disabled without one; this is the second belt.
+    const payload =
+      kind === 'facility'
+        ? facilityId && { facility_id: facilityId, body }
+        : clinicianId && { clinician_id: clinicianId, body };
+
+    if (!payload) return;
+
     try {
-      const thread = await startThread.mutateAsync({ appointment_id: composeAppointmentId, body });
+      const thread = await startThread.mutateAsync(payload);
       setComposeOpen(false);
       setComposeBody('');
-      setComposeAppointmentId(null);
+      setFacilityId(null);
+      setClinicianId(null);
       router.push({ pathname: '/messages/[id]', params: { id: String(thread.id), title: thread.title } });
     } catch {
       // startThread.isError renders the inline message below the form
@@ -232,15 +312,26 @@ export default function MessagesScreen() {
       <ComposeSheet
         visible={composeOpen}
         onClose={() => setComposeOpen(false)}
-        appointments={contactableAppointments}
-        loading={appointmentsQuery.isLoading}
-        selectedId={composeAppointmentId}
-        onSelect={setComposeAppointmentId}
+        notice={recipientsQuery.data?.notice}
+        kind={kind}
+        onChangeKind={setKind}
+        facilities={facilities}
+        clinicians={clinicians}
+        loading={recipientsQuery.isLoading}
+        failedToLoad={recipientsQuery.isError}
+        onRetryLoad={() => recipientsQuery.refetch()}
+        facilitySearch={facilitySearch}
+        onChangeFacilitySearch={setFacilitySearch}
+        selectedFacilityId={facilityId}
+        selectedClinicianId={clinicianId}
+        onSelectFacility={selectFacility}
+        onSelectClinician={selectClinician}
         body={composeBody}
         onChangeBody={setComposeBody}
         onSubmit={submitCompose}
         submitting={startThread.isPending}
         failed={startThread.isError}
+        hasRecipient={!!recipientId}
       />
     </SafeAreaView>
   );
@@ -300,43 +391,66 @@ function ThreadRow({
 
 /* ── Compose sheet ────────────────────────────────────────────────────── */
 
-interface ComposeAppointment {
-  id: string;
-  provider_name?: string | null;
-  facility_name?: string | null;
-  appointment_type?: string | null;
-  scheduled_at?: string | null;
-}
-
+/**
+ * Pick a recipient, then write.
+ *
+ * The order is not decoration: "who is this for" is the question the old sheet
+ * could not answer, and it is answered before the keyboard ever opens. The
+ * emergency line sits above the tabs so it is read whichever kind is chosen.
+ */
 function ComposeSheet({
   visible,
   onClose,
-  appointments,
+  notice,
+  kind,
+  onChangeKind,
+  facilities,
+  clinicians,
   loading,
-  selectedId,
-  onSelect,
+  failedToLoad,
+  onRetryLoad,
+  facilitySearch,
+  onChangeFacilitySearch,
+  selectedFacilityId,
+  selectedClinicianId,
+  onSelectFacility,
+  onSelectClinician,
   body,
   onChangeBody,
   onSubmit,
   submitting,
   failed,
+  hasRecipient,
 }: {
   visible: boolean;
   onClose: () => void;
-  appointments: ComposeAppointment[];
+  notice?: string;
+  kind: RecipientKind;
+  onChangeKind: (kind: RecipientKind) => void;
+  facilities: FacilityRecipient[];
+  clinicians: ClinicianRecipient[];
   loading: boolean;
-  selectedId: string | null;
-  onSelect: (id: string) => void;
+  failedToLoad: boolean;
+  onRetryLoad: () => void;
+  facilitySearch: string;
+  onChangeFacilitySearch: (value: string) => void;
+  selectedFacilityId: string | null;
+  selectedClinicianId: string | null;
+  onSelectFacility: (id: string) => void;
+  onSelectClinician: (id: string) => void;
   body: string;
   onChangeBody: (value: string) => void;
   onSubmit: () => void;
   submitting: boolean;
   failed: boolean;
+  hasRecipient: boolean;
 }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const searching = facilitySearch.trim().length >= SEARCH_MIN;
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -355,7 +469,7 @@ function ComposeSheet({
                 <Text style={styles.sheetTitle} accessibilityRole="header">
                   {t('messages.composeTitle')}
                 </Text>
-                <Text style={styles.sheetSubtitle}>{t('messages.composeHelp')}</Text>
+                <Text style={styles.sheetSubtitle}>{t('messagingRecipients.sheetHelp')}</Text>
               </View>
               <TouchableOpacity
                 onPress={onClose}
@@ -373,41 +487,197 @@ function ComposeSheet({
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              <SectionHeader title={t('messages.composeAbout')} variant="overline" />
-              {loading ? (
+              {/* Stated once, above everything, in both tabs. A patient who
+                  reaches for this at 2am has to meet it before the keyboard. */}
+              <View style={styles.emergencyNotice} accessibilityRole="alert">
+                <Icon name="alert-triangle" size={18} color={colors.statusWarning} />
+                <Text style={styles.emergencyNoticeText}>
+                  {notice ?? t('messagingRecipients.notEmergency')}
+                </Text>
+              </View>
+
+              {/* Not `messages.composeAbout` ("What is this about?") — the
+                  question this sheet asks first is who, not what. */}
+              <SectionHeader title={t('messagingRecipients.sheetSection')} variant="overline" />
+
+              <View style={styles.chips}>
+                <Chip
+                  label={t('messagingRecipients.toFacility')}
+                  icon="building"
+                  selected={kind === 'facility'}
+                  onPress={() => onChangeKind('facility')}
+                />
+                <Chip
+                  label={t('messagingRecipients.toClinician')}
+                  icon="stethoscope"
+                  // Deliverable only. A badge counting names the patient cannot
+                  // actually write to is a promise the tab does not keep.
+                  count={clinicians.filter((c) => c.deliverable).length}
+                  selected={kind === 'clinician'}
+                  onPress={() => onChangeKind('clinician')}
+                />
+              </View>
+
+              <Text style={styles.kindHint}>
+                {kind === 'facility'
+                  ? t('messagingRecipients.facilityHint')
+                  : t('messagingRecipients.clinicianHint')}
+              </Text>
+
+              {failedToLoad ? (
+                <ErrorBlock
+                  message={t('messagingRecipients.loadError')}
+                  onRetry={onRetryLoad}
+                  retryLabel={t('messages.retry')}
+                />
+              ) : kind === 'facility' ? (
+                <>
+                  <PillInput
+                    icon={<Icon name="search" size={18} color={colors.blue} />}
+                    placeholder={t('messagingRecipients.facilitySearchPlaceholder')}
+                    value={facilitySearch}
+                    onChangeText={onChangeFacilitySearch}
+                    autoCorrect={false}
+                    returnKeyType="search"
+                    clearButtonMode="while-editing"
+                    accessibilityLabel={t('messagingRecipients.facilitySearchPlaceholder')}
+                  />
+                  {loading ? (
+                    <LoadingBlock />
+                  ) : facilities.length === 0 ? (
+                    <EmptyState
+                      icon={searching ? 'search' : 'building'}
+                      tint="blue"
+                      title={t(
+                        searching
+                          ? 'messagingRecipients.facilitySearchNoneTitle'
+                          : 'messagingRecipients.facilityNoneTitle',
+                      )}
+                      message={t(
+                        searching
+                          ? 'messagingRecipients.facilitySearchNoneBody'
+                          : 'messagingRecipients.facilityNoneBody',
+                      )}
+                    />
+                  ) : (
+                    <Card variant="flush">
+                      {facilities.map((facility, index) => {
+                        const selected = selectedFacilityId === facility.id;
+                        return (
+                          <ListRow
+                            key={facility.id}
+                            icon="building"
+                            tint="blue"
+                            title={facility.name}
+                            // `basis_label` arrives translated from the server —
+                            // the same rule that decides the row is allowed also
+                            // writes the sentence explaining it.
+                            meta={[facility.city, facility.basis_label]}
+                            chevron={false}
+                            divider={index < facilities.length - 1}
+                            onPress={() => onSelectFacility(facility.id)}
+                            style={selected ? styles.rowSelected : undefined}
+                            accessibilityLabel={a11yJoin(
+                              facility.name,
+                              facility.city,
+                              facility.basis_label,
+                              selected ? t('messagingRecipients.selectedA11y') : null,
+                            )}
+                            trailing={
+                              <Icon
+                                name="check-circle"
+                                size={22}
+                                color={selected ? colors.statusNormal : colors.border}
+                                strokeWidth={2}
+                              />
+                            }
+                          />
+                        );
+                      })}
+                    </Card>
+                  )}
+                </>
+              ) : loading ? (
                 <LoadingBlock />
-              ) : appointments.length === 0 ? (
-                <InfoStrip icon="alert-circle" text={t('messages.composeNoAppointments')} />
+              ) : clinicians.length === 0 ? (
+                <EmptyState
+                  icon="stethoscope"
+                  tint="blue"
+                  title={t('messagingRecipients.clinicianNoneTitle')}
+                  message={t('messagingRecipients.clinicianNoneBody')}
+                  actionLabel={t('messagingRecipients.writeToFacilityInstead')}
+                  onAction={() => onChangeKind('facility')}
+                />
               ) : (
                 <Card variant="flush">
-                  {appointments.map((appointment, index) => {
-                    const selected = selectedId === appointment.id;
-                    const name = appointment.provider_name ?? t('messages.careTeam');
+                  {clinicians.map((clinician, index) => {
+                    const selected = selectedClinicianId === clinician.id;
+                    // Authorised but with no inbox that can list the result.
+                    // Shown, and shown as unusable: hiding it would leave the
+                    // patient wondering where a name they know had gone.
+                    const blocked = !clinician.deliverable;
                     return (
                       <ListRow
-                        key={appointment.id}
-                        leading={<Avatar name={appointment.provider_name} size={40} />}
-                        title={name}
+                        key={clinician.id}
+                        leading={<Avatar name={clinician.name} size={40} />}
+                        title={clinician.name}
                         meta={[
-                          appointment.facility_name ?? appointment.appointment_type,
-                          appointment.scheduled_at ? shortDate(appointment.scheduled_at) : null,
+                          clinician.facility_name,
+                          blocked
+                            ? t('messagingRecipients.clinicianUnavailableHint', {
+                                name: clinician.name,
+                                facility: clinician.facility_name ?? t('messages.careTeam'),
+                              })
+                            : clinician.basis_label,
                         ]}
                         chevron={false}
-                        divider={index < appointments.length - 1}
-                        onPress={() => onSelect(appointment.id)}
+                        divider={index < clinicians.length - 1}
+                        onPress={blocked ? undefined : () => onSelectClinician(clinician.id)}
                         style={selected ? styles.rowSelected : undefined}
+                        accessibilityLabel={a11yJoin(
+                          clinician.name,
+                          clinician.facility_name,
+                          blocked
+                            ? t('messagingRecipients.clinicianUnavailable')
+                            : clinician.basis_label,
+                          selected ? t('messagingRecipients.selectedA11y') : null,
+                        )}
                         trailing={
-                          <Icon
-                            name="check-circle"
-                            size={22}
-                            color={selected ? colors.statusNormal : colors.border}
-                            strokeWidth={2}
-                          />
+                          blocked ? (
+                            <StatusBadge
+                              status="unavailable"
+                              tone="neutral"
+                              size="sm"
+                              label={t('messagingRecipients.clinicianUnavailable')}
+                            />
+                          ) : (
+                            <Icon
+                              name="check-circle"
+                              size={22}
+                              color={selected ? colors.statusNormal : colors.border}
+                              strokeWidth={2}
+                            />
+                          )
                         }
                       />
                     );
                   })}
                 </Card>
+              )}
+
+              {/* Every name on the list is real and none of them can be
+                  written to. Without this the tab is a wall: the patient reads
+                  four clinicians they know and has nowhere to go. */}
+              {kind === 'clinician' && clinicians.length > 0 && clinicians.every((c) => !c.deliverable) && (
+                <TouchableOpacity
+                  onPress={() => onChangeKind('facility')}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('messagingRecipients.writeToFacilityInstead')}
+                >
+                  <Text style={styles.switchToFacility}>
+                    {t('messagingRecipients.writeToFacilityInstead')}
+                  </Text>
+                </TouchableOpacity>
               )}
 
               <TextInput
@@ -430,11 +700,15 @@ function ComposeSheet({
                 </View>
               )}
 
+              {!hasRecipient && !!body.trim() && (
+                <Text style={styles.pickPrompt}>{t('messagingRecipients.chooseRecipient')}</Text>
+              )}
+
               <GradientButton
                 label={t('messages.composeSend')}
                 onPress={onSubmit}
                 loading={submitting}
-                disabled={!body.trim() || !selectedId}
+                disabled={!body.trim() || !hasRecipient}
                 icon="none"
               />
             </ScrollView>
@@ -555,6 +829,43 @@ const makeStyles = (colors: Palette) =>
     },
     sheetScroll: { flexGrow: 0 },
     sheetBody: { gap: spacing.sm + 4, paddingBottom: spacing.sm },
+
+    // The standing warning. Warning tint, not the info blue every other strip
+    // uses — this one is the only line on the sheet that is about risk.
+    emergencyNotice: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      padding: spacing.sm + 2,
+      borderRadius: radii.sm + 2,
+      backgroundColor: colors.statusWarningBg,
+    },
+    emergencyNoticeText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textPrimary,
+    },
+    kindHint: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+    pickPrompt: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.xs,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    switchToFacility: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.link,
+      textAlign: 'center',
+      paddingVertical: spacing.sm,
+    },
     composeInput: {
       minHeight: 96,
       borderWidth: 1,

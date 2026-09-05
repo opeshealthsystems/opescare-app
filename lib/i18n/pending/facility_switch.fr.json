@@ -1,0 +1,25 @@
+{
+  "_note": "Catalogue de transition pour le sélecteur d'établissement du clinicien (app/clinician/profile.tsx). Pas encore chargé par lib/i18n/index.ts (ce fichier appartient à un autre périmètre) — fusionner l'objet `opesDoctor` dans lib/i18n/locales/fr.json puis supprimer ce fichier. Les clés `serverErrors` sont les valeurs `error_code` renvoyées par app/Http/Controllers/Api/Mobile/MobileProviderFacilityController.php (libellés dans lang/fr/facility_switch.php) : SetLocale n'est enregistré que sur le groupe de middleware `web`, donc /api/* répond toujours dans la langue par défaut de l'application — `error_code` est ce qui permet au téléphone de le dire dans la langue du clinicien. L'ensemble des clés DOIT rester 1:1 avec facility_switch.en.json.",
+  "opesDoctor": {
+    "facility": {
+      "section": "Établissement",
+      "loading": "Chargement de vos établissements…",
+      "current": "Vous agissez pour",
+      "suspended": "Suspendu",
+      "switching": "Changement…",
+      "rowHint": "Met fin à cette session et en ouvre une dans cet établissement.",
+      "confirmTitle": "Agir pour {{name}} ?",
+      "confirmMessage": "Cette action met fin à votre session actuelle et en ouvre une nouvelle dans {{name}}. Tout ce qui se trouve sur cet appareil — patients, agenda, résultats — sera rechargé pour cet établissement.",
+      "confirmCta": "Changer d'établissement",
+      "confirmCancel": "Rester ici",
+      "refusedTitle": "Établissement inchangé",
+      "refusedNotAssigned": "Vous n'avez plus d'affectation active dans {{name}}. Votre session n'a pas changé.",
+      "refusedSuspended": "{{name}} est suspendu et ne peut pas être utilisé. Votre session n'a pas changé.",
+      "refusedUnknown": "Votre établissement n'a pas pu être changé. Vérifiez votre connexion et rouvrez cet écran pour voir pour quel établissement vous agissez."
+    },
+    "serverErrors": {
+      "FACILITY_NOT_ASSIGNED": "Vous n'avez pas d'affectation active dans cet établissement.",
+      "FACILITY_SUSPENDED": "Cet établissement est suspendu et ne peut pas être utilisé."
+    }
+  }
+}

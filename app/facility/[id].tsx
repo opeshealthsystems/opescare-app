@@ -52,6 +52,7 @@ import {
   useFacilityProviders,
   useFacilitySlots,
   type AppointmentSlotOption,
+  type CareFacilityDetail,
   type CareFacilityHour,
   type CareFacilityService,
   type FacilityProviderSummary,
@@ -88,19 +89,26 @@ import {
  * There is deliberately NO rating, review count, photo, bed count, waiting
  * time, "verified" mark or "last updated" line: the directory carries none of
  * those (`care_facilities.verification_status` is uniformly `unverified`
- * across all 903 rows, so a verification badge would be decoration, not fact).
+ * across every row, so a verification badge would be decoration, not fact).
  * A section with nothing behind it renders an explicit empty state — "this has
  * not been published" — which is a different thing from a load failure, and
  * both are different from "we could not find this facility at all".
  *
- * The honest-bookability rule lives here. Of the 903 listed institutions only
- * **17** are linked to an internal `facilities` row and therefore have
- * appointment slots; `GET /mobile/facilities/{id}/slots` answers
- * `{"facility_id": null, "data": []}` for the other 886. Offering "Book an
- * appointment" on all of them dead-ends the patient in an empty slot picker, so
- * the booking card below reads that response and says which of three situations
- * this facility is in — not connected, connected but nothing open, or bookable
- * right now — and only the last one shows a booking CTA.
+ * ── The two facility registers ───────────────────────────────────────────
+ * This screen reads `care_facilities`, the PUBLIC DIRECTORY: 2 728 active
+ * listings, everything a patient can find and phone. Care actually happens in
+ * `facilities`, the OPERATIONAL TENANT (482 rows) — staff, calendars,
+ * prescriptions and consent are all scoped to it. The join is one nullable
+ * column, `care_facilities.facility_id`, and only 468 listings carry it.
+ *
+ * The honest-bookability rule lives here. `GET /mobile/facilities/{id}` now
+ * states the link directly (`connected`, `facility_id`, `provider_count`,
+ * `open_slot_count`, `connectivity_note`) instead of leaving the screen to
+ * infer it from an empty slots array, and the connectivity card below is the
+ * first thing under the identity block — a patient learns what this place can
+ * do before they scroll to a booking button that would not have worked. The
+ * booking card still reads the live slots response and only offers a CTA when
+ * something is genuinely open.
  *
  * Where the facility is stays an *embedded* map (`FacilityMap`, the finder's
  * in-app map with in-app directions). There is deliberately no external
@@ -361,6 +369,36 @@ function HourRow({
 
 type HourGroup = { context: string | null; rows: CareFacilityHour[] };
 
+/**
+ * `GET /mobile/facilities/{id}`, with the register link it now reports.
+ *
+ * `CareFacilityDetail` in lib/api/queries.ts predates these fields and is
+ * shared with the booking wizard, so the extra shape is declared here. Every
+ * field is optional: against an older API build the connectivity card simply
+ * does not render, rather than rendering a guess.
+ */
+type ConnectedFacilityDetail = CareFacilityDetail & {
+  /** Internal `facilities` id, or null when this listing has no tenant. */
+  facility_id?: string | null;
+  /** `facility_id !== null` — whether care can actually happen here. */
+  connected?: boolean;
+  provider_count?: number;
+  open_slot_count?: number;
+  /** One translated sentence, authored server-side so EN/FR stay in step. */
+  connectivity_note?: string;
+};
+
+/** `GET /mobile/facilities/{id}/providers`, with the reason for an empty list. */
+type FacilityRoster = {
+  facility_id: string | null;
+  data: FacilityProviderSummary[];
+  connected?: boolean;
+  roster_status?: 'not_connected' | 'none_published' | 'published';
+  provider_count?: number;
+  open_slot_count?: number;
+  message?: string;
+};
+
 export default function FacilityDetailScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -377,10 +415,31 @@ export default function FacilityDetailScreen() {
   const providersQuery = useFacilityProviders(facilityId);
   const slotsQuery = useFacilitySlots(facilityId);
 
-  const facility = facilityQuery.data;
-  const providers = providersQuery.data?.data ?? [];
+  const facility = facilityQuery.data as ConnectedFacilityDetail | undefined;
+  const roster = providersQuery.data as FacilityRoster | undefined;
+  const providers = roster?.data ?? [];
   const insurances = facility?.insurances ?? [];
   const services = facility?.services ?? [];
+
+  /**
+   * Is this listing joined to an operational facility?
+   *
+   * Prefer what the detail endpoint states outright; fall back to the roster
+   * response's `facility_id`, which has carried the same fact all along. When
+   * neither is present (an older API) the value is undefined and the
+   * connectivity card is skipped rather than guessed.
+   */
+  const connected: boolean | undefined =
+    facility?.connected ?? (roster ? roster.facility_id !== null : undefined);
+  const rosterStatus =
+    roster?.roster_status ??
+    (roster
+      ? roster.facility_id === null
+        ? 'not_connected'
+        : roster.data.length > 0
+          ? 'published'
+          : 'none_published'
+      : undefined);
 
   const hours = useMemo(
     () =>
@@ -844,6 +903,38 @@ export default function FacilityDetailScreen() {
           </View>
         </Card>
 
+        {/* ── Which register is this listing in? ─────────────────────
+            First thing under the identity block, because it governs every
+            action below it. `connectivity_note` is authored server-side so
+            the EN and FR wording stay in step with the facility_registry
+            language files; the local defaults only cover an older API
+            build that does not send the note. */}
+        {connected !== undefined && (
+          <NoticeBanner
+            tone={connected ? 'normal' : 'pending'}
+            icon={connected ? 'shield-check' : 'building'}
+            title={
+              connected
+                ? t('facilityRegistry.connectedTitle', { defaultValue: 'Connected to OpesCare' })
+                : t('facilityRegistry.directoryOnlyTitle', {
+                    defaultValue: 'Public directory listing',
+                  })
+            }
+            message={
+              facility.connectivity_note ??
+              (connected
+                ? t('facilityRegistry.connectedFallback', {
+                    defaultValue:
+                      'This facility is on OpesCare, so it can publish clinicians and take online bookings.',
+                  })
+                : t('facilityRegistry.directoryOnlyFallback', {
+                    defaultValue:
+                      'This place is in the public directory only. It has not joined OpesCare, so it publishes no clinicians and cannot take an online booking. You can still call it directly.',
+                  }))
+            }
+          />
+        )}
+
         {/* ── Appointments: state of the real slot link ─────────────── */}
         <View>
           <SectionHeader title={t('facility.booking.title')} variant="overline" />
@@ -1048,11 +1139,22 @@ export default function FacilityDetailScreen() {
               />
             </Card>
           ) : providers.length === 0 ? (
+            // Empty for three different reasons, and the patient deserves to
+            // know which. `roster.message` is the server's own translated
+            // sentence; `facility.doctorsSubtitle` is the pre-existing generic
+            // fallback for an API build that does not send one.
             <Card>
               <EmptyState
-                icon="stethoscope"
-                title={t('facility.noDoctors')}
-                message={t('facility.doctorsSubtitle')}
+                icon={rosterStatus === 'not_connected' ? 'building' : 'stethoscope'}
+                tint={rosterStatus === 'not_connected' ? 'amber' : undefined}
+                title={
+                  rosterStatus === 'not_connected'
+                    ? t('facilityRegistry.directoryOnlyTitle', {
+                        defaultValue: 'Public directory listing',
+                      })
+                    : t('facility.noDoctors')
+                }
+                message={roster?.message ?? t('facility.doctorsSubtitle')}
               />
             </Card>
           ) : (

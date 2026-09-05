@@ -1,0 +1,29 @@
+{
+  "_note": "Staging catalogue for push-notification honesty (lib/push/*, app/(auth)/permissions.tsx, lib/api/settingsQueries.ts). lib/i18n/index.ts loads only locales/{en,fr}.json, so lib/push/strings.ts registers this bundle at runtime via i18n.addResourceBundle — see that file before merging. TWO kinds of entry live here. (1) `push.*` are NEW keys: fold them into locales/{en,fr}.json under a top-level `push` object and they keep working unchanged. (2) `corrections.*` REPLACE keys that already exist in locales/{en,fr}.json and are rendered by app/settings.tsx, which this change does not own. `corrections.always` adds settings.device.unavailable, the copy for the new PushRegistrationError member 'unavailable' (app/settings.tsx renders t(`settings.device.${push.error}`), so the key name is load-bearing — do not rename it). `corrections.whenUndeliverable` is applied ONLY while this build genuinely cannot receive a push (no EAS projectId, or web); the moment the owner supplies EAS credentials the original locales/{en,fr}.json wording is used again untouched, so this override retires itself. Key set MUST stay 1:1 with push.fr.json.",
+  "push": {
+    "permissions": {
+      "title": "Notifications",
+      "bodyDeliverable": "Appointment reminders, new results and consent requests, sent to this phone.",
+      "bodyUnavailable": "Reminders, results and consent requests appear in the app's notification centre.",
+      "badgeUnavailable": "In-app only",
+      "action": "Turn on notifications",
+      "noteUnavailable": "This app build cannot deliver alerts to your phone's lock screen yet, so OpesCare does not ask for the notification permission. Nothing is missed — open Notifications inside the app to see everything OpesCare has sent you."
+    }
+  },
+  "corrections": {
+    "always": {
+      "settings": {
+        "device": {
+          "unavailable": "This app build cannot deliver alerts to your phone yet, so this switch cannot be turned on. Everything OpesCare sends still appears in the in-app notification centre."
+        }
+      }
+    },
+    "whenUndeliverable": {
+      "settings": {
+        "device": {
+          "pushBody": "Not available in this build. Alerts appear in the notification centre instead."
+        }
+      }
+    }
+  }
+}

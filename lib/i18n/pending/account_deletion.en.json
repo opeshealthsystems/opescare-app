@@ -1,0 +1,54 @@
+{
+  "_comment": "Client chrome for the account deletion screen (app/account/delete.tsx). Registered at runtime by lib/api/accountDeletionQueries.ts with deep=true, overwrite=false, so folding these into lib/i18n/locales/en.json later is safe and makes the registration a no-op. 1:1 with account_deletion.fr.json, same {{placeholders}}. IMPORTANT: every sentence that states WHAT IS ERASED, WHAT IS KEPT, THE LEGAL BASIS and THE DATES comes from the SERVER already translated (lang/{en,fr}/account_deletion.php) and is rendered verbatim — the screen never authors a promise of its own, so the two can never drift apart. Only navigation chrome, input labels and confirmation prompts live here.",
+
+  "accountDeletion": {
+    "title": "Delete your account",
+    "subtitle": "Close your account and erase your personal details",
+
+    "settingsRow": "Delete account",
+    "settingsRowBody": "Close your account and erase your personal details",
+
+    "loading": "Checking your account",
+    "errorTitle": "We could not load this",
+    "errorBody": "Nothing has been changed. We could not read your account details just now — try again in a moment.",
+    "retry": "Try again",
+
+    "reviewHint": "Read all four sections before you decide. They are not the same thing.",
+    "keptCountsTitle": "What stays on file, in your record today",
+    "retainUntilLabel": "Kept until",
+
+    "confirmHeading": "Confirm it is you",
+    "credentialLabelPassword": "Your password",
+    "credentialLabelPin": "Your PIN",
+    "credentialLabelBoth": "Your password or PIN",
+    "credentialPlaceholder": "Enter it to continue",
+    "confirmLabel": "Type {{phrase}}",
+    "confirmPlaceholder": "{{phrase}}",
+    "reasonLabel": "Why are you leaving? (optional)",
+    "reasonPlaceholder": "This is not required",
+
+    "cta": "Delete my account",
+    "ctaBusy": "Submitting",
+    "keepAccount": "Keep my account",
+
+    "confirmDialogTitle": "Start the countdown?",
+    "confirmDialogMessage": "Your account closes in {{days}} days. Nothing is erased today, and you can cancel any time before then from this screen.",
+    "confirmDialogConfirm": "Start the countdown",
+    "confirmDialogCancel": "Not yet",
+
+    "pendingTitle": "Your account is closing",
+    "stillSignedInTitle": "You are still signed in",
+    "stillSignedInBody": "Deliberately. You need this session to cancel, so we do not lock you out during the wait. Your account works normally until the closing date.",
+    "cancelCta": "Cancel — keep my account",
+    "cancelDialogTitle": "Cancel the closure?",
+    "cancelDialogMessage": "Your account stays exactly as it is. Nothing has been erased, so there is nothing to restore.",
+    "cancelDialogConfirm": "Keep my account",
+    "cancelDialogKeep": "Leave it closing",
+
+    "completedTitle": "This account is closed",
+
+    "noCredentialTitle": "We cannot confirm it is you",
+    "genericErrorTitle": "That did not go through",
+    "genericErrorBody": "Nothing has been changed. Please try again."
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "_comment": "Chrome client de l'écran de suppression de compte (app/account/delete.tsx). Enregistré à l'exécution par lib/api/accountDeletionQueries.ts avec deep=true, overwrite=false : fusionner ces clés dans lib/i18n/locales/fr.json plus tard est sans risque et rend l'enregistrement inopérant. 1:1 avec account_deletion.en.json, mêmes {{placeholders}}. IMPORTANT : toutes les phrases qui énoncent CE QUI EST EFFACÉ, CE QUI EST CONSERVÉ, LA BASE LÉGALE et LES DATES viennent du SERVEUR déjà traduites (lang/{en,fr}/account_deletion.php) et sont affichées telles quelles — l'écran n'écrit jamais de promesse de son cru, les deux ne peuvent donc pas diverger. Seuls la navigation, les libellés de champs et les confirmations vivent ici.",
+
+  "accountDeletion": {
+    "title": "Supprimer votre compte",
+    "subtitle": "Fermez votre compte et effacez vos données personnelles",
+
+    "settingsRow": "Supprimer le compte",
+    "settingsRowBody": "Fermez votre compte et effacez vos données personnelles",
+
+    "loading": "Vérification de votre compte",
+    "errorTitle": "Impossible de charger ces informations",
+    "errorBody": "Rien n'a été modifié. Nous n'avons pas pu lire les détails de votre compte pour le moment — réessayez dans un instant.",
+    "retry": "Réessayer",
+
+    "reviewHint": "Lisez les quatre sections avant de décider. Elles ne disent pas la même chose.",
+    "keptCountsTitle": "Ce qui reste au dossier, aujourd'hui",
+    "retainUntilLabel": "Conservé jusqu'au",
+
+    "confirmHeading": "Confirmez votre identité",
+    "credentialLabelPassword": "Votre mot de passe",
+    "credentialLabelPin": "Votre code PIN",
+    "credentialLabelBoth": "Votre mot de passe ou code PIN",
+    "credentialPlaceholder": "Saisissez-le pour continuer",
+    "confirmLabel": "Tapez {{phrase}}",
+    "confirmPlaceholder": "{{phrase}}",
+    "reasonLabel": "Pourquoi partez-vous ? (facultatif)",
+    "reasonPlaceholder": "Ce n'est pas obligatoire",
+
+    "cta": "Supprimer mon compte",
+    "ctaBusy": "Envoi en cours",
+    "keepAccount": "Garder mon compte",
+
+    "confirmDialogTitle": "Lancer le compte à rebours ?",
+    "confirmDialogMessage": "Votre compte sera fermé dans {{days}} jours. Rien n'est effacé aujourd'hui, et vous pouvez annuler à tout moment d'ici là depuis cet écran.",
+    "confirmDialogConfirm": "Lancer le compte à rebours",
+    "confirmDialogCancel": "Pas encore",
+
+    "pendingTitle": "Votre compte va être fermé",
+    "stillSignedInTitle": "Vous êtes toujours connecté",
+    "stillSignedInBody": "C'est volontaire. Cette session vous est nécessaire pour annuler : nous ne vous bloquons donc pas pendant le délai. Votre compte fonctionne normalement jusqu'à la date de fermeture.",
+    "cancelCta": "Annuler — garder mon compte",
+    "cancelDialogTitle": "Annuler la fermeture ?",
+    "cancelDialogMessage": "Votre compte reste exactement tel quel. Rien n'a été effacé, il n'y a donc rien à restaurer.",
+    "cancelDialogConfirm": "Garder mon compte",
+    "cancelDialogKeep": "Laisser la fermeture en cours",
+
+    "completedTitle": "Ce compte est fermé",
+
+    "noCredentialTitle": "Nous ne pouvons pas vérifier votre identité",
+    "genericErrorTitle": "L'opération n'a pas abouti",
+    "genericErrorBody": "Rien n'a été modifié. Veuillez réessayer."
+  }
+}

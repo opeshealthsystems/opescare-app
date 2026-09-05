@@ -10,11 +10,21 @@
  * locale in step with the patient's stored `preferred_language`.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
-import * as Notifications from 'expo-notifications';
 import { useTranslation } from 'react-i18next';
 import { applyLanguage } from '../i18n';
+import {
+  acquireExpoPushToken,
+  clearPushRegistration,
+  deviceStore,
+  getOrCreateFingerprint,
+  getPushCapability,
+  readPushRegistrationId,
+  registerPushStrings,
+  savePushRegistration,
+  DEVICE_FINGERPRINT_KEY as PUSH_DEVICE_FINGERPRINT_KEY,
+  PUSH_TOKEN_ID_KEY as PUSH_REGISTRATION_ID_KEY,
+  type PushUnavailableReason,
+} from '../push';
 import {
   useMobileSettings,
   useRegisterPushToken,
@@ -22,6 +32,12 @@ import {
   useUpdateMobileSettings,
   type MobileSettings,
 } from './queries';
+
+// The copy for the new `'unavailable'` error member — and the correction to
+// `settings.device.pushBody`, which promises real-time alerts this build
+// cannot deliver — live in `lib/i18n/pending/push.{en,fr}.json`. Registering
+// here rather than in the screen keeps `app/settings.tsx` untouched.
+registerPushStrings();
 
 // ---------------------------------------------------------------------------
 // Device-local storage
@@ -32,56 +48,33 @@ import {
  * registers this device for push during onboarding. Both screens must agree on
  * the device's identity or a handset ends up registered twice under two
  * fingerprints, and Settings shows push as off while the server thinks it is on.
+ *
+ * They used to be *declared* twice — here and in that screen — each with its
+ * own copy of the storage shim and the fingerprint generator, kept in step by
+ * a comment. There is now one implementation, in `lib/push/device.ts`, and
+ * these are re-exports so nothing that imported them from here has to change.
  */
-export const DEVICE_FINGERPRINT_KEY = 'opescare_device_fingerprint';
-export const PUSH_TOKEN_ID_KEY = 'opescare_push_token_id';
-
-const deviceStore =
-  Platform.OS === 'web'
-    ? {
-        get: async (key: string) =>
-          typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null,
-        set: async (key: string, value: string) => {
-          if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
-        },
-        remove: async (key: string) => {
-          if (typeof localStorage !== 'undefined') localStorage.removeItem(key);
-        },
-      }
-    : {
-        get: (key: string) => SecureStore.getItemAsync(key),
-        set: async (key: string, value: string) => {
-          await SecureStore.setItemAsync(key, value);
-        },
-        remove: async (key: string) => {
-          await SecureStore.deleteItemAsync(key);
-        },
-      };
-
-function generateFingerprint(): string {
-  const random = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-  return `${Platform.OS}-${Date.now().toString(36)}-${random}`.slice(0, 128);
-}
-
-async function getOrCreateFingerprint(): Promise<string> {
-  const existing = await deviceStore.get(DEVICE_FINGERPRINT_KEY);
-  if (existing) return existing;
-  const created = generateFingerprint();
-  await deviceStore.set(DEVICE_FINGERPRINT_KEY, created);
-  return created;
-}
-
-function resolvePlatform(): 'ios' | 'android' | 'web' {
-  if (Platform.OS === 'ios') return 'ios';
-  if (Platform.OS === 'android') return 'android';
-  return 'web';
-}
+export const DEVICE_FINGERPRINT_KEY = PUSH_DEVICE_FINGERPRINT_KEY;
+export const PUSH_TOKEN_ID_KEY = PUSH_REGISTRATION_ID_KEY;
 
 // ---------------------------------------------------------------------------
 // Push registration for THIS device
 // ---------------------------------------------------------------------------
 
-export type PushRegistrationError = 'os_denied' | 'register_failed' | 'revoke_failed';
+/**
+ * `'unavailable'` is new: this build cannot receive a push at all, so the
+ * switch cannot be turned on and the reason is not the patient's fault.
+ *
+ * `app/settings.tsx` renders the error as ``t(`settings.device.${push.error}`)``,
+ * so the member name is the translation key. `settings.device.unavailable` is
+ * supplied by `lib/i18n/pending/push.{en,fr}.json` via `registerPushStrings()`
+ * above, which is why that screen needs no edit.
+ */
+export type PushRegistrationError =
+  | 'os_denied'
+  | 'register_failed'
+  | 'revoke_failed'
+  | 'unavailable';
 
 export interface PushRegistration {
   /** True when this device holds a token id from POST /mobile/push-tokens. */
@@ -90,15 +83,36 @@ export interface PushRegistration {
   loading: boolean;
   busy: boolean;
   error: PushRegistrationError | null;
+  /**
+   * False when this build structurally cannot receive a push — no EAS project
+   * id to mint a token against, or the web build. The switch should be
+   * disabled and its subtitle should say so; `setEnabled(true)` refuses with
+   * `error: 'unavailable'` either way, so a caller that ignores this cannot
+   * accidentally register a device that will never be reachable.
+   */
+  available: boolean;
+  /** Why not, when `available` is false. */
+  unavailableReason: PushUnavailableReason | null;
   setEnabled: (next: boolean) => Promise<void>;
   clearError: () => void;
 }
 
 /**
- * Registering a push token while the OS has denied notifications would leave
- * the switch reading "on" for a device that can never receive an alert, so the
- * OS permission is requested first and a denial is reported as a denial rather
- * than being registered anyway.
+ * Push registration for THIS handset.
+ *
+ * **What this used to do, and why it was wrong.** It requested the OS
+ * notification permission and then registered `push_token: fingerprint` — the
+ * device's own randomly generated id, a string no push service has ever heard
+ * of. The switch read "on", the server stored a row, and not one notification
+ * could ever be delivered to it. The comment in this file said as much
+ * ("The app has no FCM/APNs credential yet, so the fingerprint stands in as
+ * the token"), which made it a documented false promise rather than an
+ * oversight.
+ *
+ * It now registers only a token that came out of `acquireExpoPushToken` — a
+ * real `ExponentPushToken[…]` minted by Expo — and when it cannot get one it
+ * registers nothing and says why. The OS permission is requested only on the
+ * path that can act on it.
  *
  * The token id lives on the device (SecureStore natively, localStorage on web)
  * because the backend keys `PushDeviceToken` on patient + fingerprint +
@@ -114,10 +128,23 @@ export function usePushRegistration(): PushRegistration {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<PushRegistrationError | null>(null);
 
+  // Synchronous and constant for the life of the process — see
+  // `lib/push/capability.ts`. Read once so the switch never flashes an
+  // "available" state it then withdraws.
+  const [capability] = useState(getPushCapability);
+
   useEffect(() => {
     let cancelled = false;
-    deviceStore
-      .get(PUSH_TOKEN_ID_KEY)
+
+    // A build that cannot receive a push must never show the switch as on,
+    // whatever this device happens to have stored from an earlier version.
+    if (!capability.deliverable) {
+      setEnabledState(false);
+      setLoading(false);
+      return;
+    }
+
+    readPushRegistrationId()
       .then((id) => {
         if (cancelled) return;
         setEnabledState(!!id);
@@ -129,7 +156,7 @@ export function usePushRegistration(): PushRegistration {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [capability.deliverable]);
 
   const setEnabled = useCallback(
     async (next: boolean) => {
@@ -137,42 +164,40 @@ export function usePushRegistration(): PushRegistration {
       setBusy(true);
       try {
         if (next) {
-          // Ask the OS first. A device whose notifications are blocked cannot
-          // receive push, so registering one would make the switch lie.
-          let granted = false;
-          try {
-            const current = await Notifications.getPermissionsAsync();
-            granted = current.status === 'granted';
-            if (!granted && current.canAskAgain !== false) {
-              const asked = await Notifications.requestPermissionsAsync();
-              granted = asked.status === 'granted';
-            }
-          } catch {
-            // Web and Expo Go can throw here. Fall through and let the
-            // registration attempt itself be the source of truth.
-            granted = true;
-          }
+          // The whole sequence — permission prompt included — lives behind a
+          // build that can actually mint a token. `acquireExpoPushToken`
+          // returns `unavailable` without touching the OS when it cannot, so
+          // no patient is asked to allow notifications this app could not send.
+          const outcome = await acquireExpoPushToken({ requestPermission: true });
 
-          if (!granted) {
+          if (outcome.status === 'unavailable') {
+            setError('unavailable');
+            return;
+          }
+          if (outcome.status === 'permission_denied') {
             setError('os_denied');
+            return;
+          }
+          if (outcome.status !== 'ready') {
+            setError('register_failed');
             return;
           }
 
           const fingerprint = await getOrCreateFingerprint();
           const result = await registerPushToken.mutateAsync({
             device_fingerprint: fingerprint,
-            platform: resolvePlatform(),
-            // The app has no FCM/APNs credential yet, so the fingerprint stands
-            // in as the token. Kept byte-identical to the onboarding screen's
-            // registration so the two never disagree about this device.
-            push_token: fingerprint,
+            platform: outcome.platform,
+            // A genuine `ExponentPushToken[…]`. Nothing else may be sent here:
+            // this field used to carry the device fingerprint, which made the
+            // row unreachable while the switch read "on".
+            push_token: outcome.token,
           });
-          await deviceStore.set(PUSH_TOKEN_ID_KEY, result.token_id);
+          await savePushRegistration(result.token_id);
           setEnabledState(true);
         } else {
           const tokenId = await deviceStore.get(PUSH_TOKEN_ID_KEY);
           if (tokenId) await revokePushToken.mutateAsync(tokenId);
-          await deviceStore.remove(PUSH_TOKEN_ID_KEY);
+          await clearPushRegistration();
           setEnabledState(false);
         }
       } catch {
@@ -189,6 +214,8 @@ export function usePushRegistration(): PushRegistration {
     loading,
     busy,
     error,
+    available: capability.deliverable,
+    unavailableReason: capability.deliverable ? null : capability.reason,
     setEnabled,
     clearError: useCallback(() => setError(null), []),
   };

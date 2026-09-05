@@ -90,6 +90,17 @@ import {
   type ProviderProfile,
   type ProviderProfileEdit,
 } from '@/lib/api/doctorQueries';
+// ── Facility switching ────────────────────────────────────────────────────
+import {
+  facilitySwitchErrorCode,
+  facilitySwitchErrorMessage,
+  isFacilityNotAssigned,
+  isFacilitySuspended,
+  isFacilitySwitchUnavailable,
+  useProviderFacilities,
+  useSwitchProviderFacility,
+  type ProviderFacility,
+} from '@/lib/api/facilitySwitchQueries';
 import { useAuthStore } from '@/lib/store/auth';
 
 /** 404 / 501: this server does not serve the clinician surface yet. */
@@ -245,9 +256,17 @@ export default function DoctorProfileScreen() {
   const update = useUpdateDoctorProfile();
   const logout = useAuthStore((s) => s.logout);
 
+  // The signed-in clinician as the auth store knows them — the one thing on
+  // this screen that always names the facility the TOKEN is scoped to, which
+  // is what actually decides what the rest of the app may read.
+  const provider = useAuthStore((s) => s.provider);
+  const facilitiesQuery = useProviderFacilities(Boolean(provider));
+  const switchFacility = useSwitchProviderFacility();
+
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<EditForm>(() => formFrom(null));
   const [signingOut, setSigningOut] = useState(false);
+  const [switchingTo, setSwitchingTo] = useState<string | null>(null);
 
   const profile = profileQuery.data ?? null;
 
@@ -302,6 +321,91 @@ export default function DoctorProfileScreen() {
       // Stay in edit mode: nothing typed is lost and one more tap retries.
     }
   }, [form, update, dialog, tx, tr]);
+
+  // ── Facility ────────────────────────────────────────────────────────────
+
+  /**
+   * Move the session to another facility.
+   *
+   * Confirmed first, and the confirmation says what actually happens rather
+   * than "are you sure?": the current session ENDS and a new one opens at the
+   * other facility, because that is literally what the server does — it
+   * revokes this token and issues another. A clinician deserves to know that
+   * before they tap it in a corridor.
+   */
+  const runSwitch = useCallback(
+    async (facility: ProviderFacility) => {
+      setSwitchingTo(facility.id);
+      try {
+        await switchFacility.mutateAsync(facility.id);
+        // The mutation cleared every cached query — everything on screen
+        // belonged to the facility just left. Pull this screen's own data back
+        // under the new session.
+        await Promise.all([me.refetch(), profileQuery.refetch(), facilitiesQuery.refetch()]);
+      } catch (e) {
+        // A refusal here is not noise: a posting can be withdrawn between the
+        // list being fetched and this tap, and a suspended facility is a real
+        // answer. Say which, then refresh the list so the screen stops
+        // offering a door that is closed.
+        //
+        // `error_code` is the fallback for a refusal this client does not
+        // recognise by status: SetLocale runs on the `web` middleware group
+        // only, so an /api/* message comes back in the server's default
+        // language whatever the phone asked for — the code is what lets it be
+        // said in the clinician's.
+        const code = facilitySwitchErrorCode(e);
+        const namedByCode = code
+          ? String(t(`opesDoctor.serverErrors.${code}`, { defaultValue: '' }))
+          : '';
+
+        const message = isFacilityNotAssigned(e)
+          ? tx(
+              'facility.refusedNotAssigned',
+              'You no longer have an active posting at {{name}}. Your session has not changed.',
+              { name: facility.name }
+            )
+          : isFacilitySuspended(e)
+            ? tx(
+                'facility.refusedSuspended',
+                '{{name}} is suspended and cannot be used. Your session has not changed.',
+                { name: facility.name }
+              )
+            : namedByCode ||
+              facilitySwitchErrorMessage(
+                e,
+                tx(
+                  'facility.refusedUnknown',
+                  'Your facility could not be changed. Check your connection and open this screen again to see which facility you are acting as.'
+                )
+              );
+
+        dialog.alert(tx('facility.refusedTitle', 'Facility not changed'), message, 'critical');
+        void facilitiesQuery.refetch();
+      } finally {
+        setSwitchingTo(null);
+      }
+    },
+    [switchFacility, me, profileQuery, facilitiesQuery, dialog, tx, t]
+  );
+
+  const confirmSwitch = useCallback(
+    (facility: ProviderFacility) => {
+      if (facility.is_current || facility.status === 'suspended') return;
+
+      dialog.confirm({
+        title: tx('facility.confirmTitle', 'Act as {{name}}?', { name: facility.name }),
+        message: tx(
+          'facility.confirmMessage',
+          'This ends your current session and starts a new one at {{name}}. Everything on this device — patients, diary, results — will reload for that facility.',
+          { name: facility.name }
+        ),
+        confirmLabel: tx('facility.confirmCta', 'Switch facility'),
+        cancelLabel: tx('facility.confirmCancel', 'Stay here'),
+        onConfirm: () => runSwitch(facility),
+      });
+    },
+    [dialog, tx, runSwitch]
+  );
 
   // ── Sign out ────────────────────────────────────────────────────────────
 
@@ -686,6 +790,100 @@ export default function DoctorProfileScreen() {
     );
   }
 
+  // ── Facility section ────────────────────────────────────────────────────
+  //
+  // Rendered from the clinician's REAL postings, so there is never a facility
+  // offered here that the server would then refuse. Three shapes:
+  //
+  //   • server does not serve the endpoint  → nothing at all (no dead control);
+  //   • exactly one posting                 → the facility, named, not tappable
+  //                                           (a switch with one destination is
+  //                                           not a choice);
+  //   • more than one                       → every posting, the current one
+  //                                           badged, the rest tappable.
+  //
+  // A suspended facility is SHOWN and refused rather than hidden: a clinician
+  // who cannot find their second hospital in this list has no way to tell "not
+  // yours" from "temporarily closed".
+
+  const facilityRows = facilitiesQuery.data?.facilities ?? [];
+  const facilitySwitchUnavailable =
+    facilitiesQuery.isError &&
+    facilitiesQuery.data === undefined &&
+    isFacilitySwitchUnavailable(facilitiesQuery.error);
+
+  let facilitySection: React.ReactNode = null;
+  if (provider && !facilitySwitchUnavailable) {
+    if (facilitiesQuery.isPending) {
+      facilitySection = (
+        <Card variant="flush">
+          <LoadingBlock label={tx('facility.loading', 'Loading your facilities…')} />
+        </Card>
+      );
+    } else if (facilityRows.length > 0) {
+      facilitySection = (
+        <Card variant="flush">
+          {facilityRows.map((facility, index) => {
+            const suspended = facility.status === 'suspended';
+            // Nothing is tappable while a switch is in flight: the token is
+            // being replaced, and a second switch started on top of the first
+            // would race two sessions against one token slot.
+            const tappable =
+              facilityRows.length > 1 &&
+              !facility.is_current &&
+              !suspended &&
+              switchingTo === null;
+
+            return (
+              <ListRow
+                key={facility.id}
+                icon="building"
+                tint={facility.is_current ? 'blue' : suspended ? 'red' : 'green'}
+                title={facility.name}
+                meta={[
+                  facility.role_label || facility.role || undefined,
+                  facility.type || undefined,
+                ]}
+                chevron={tappable}
+                onPress={tappable ? () => confirmSwitch(facility) : undefined}
+                divider={index < facilityRows.length - 1}
+                trailing={
+                  facility.is_current ? (
+                    <StatusBadge
+                      status="active"
+                      tone="normal"
+                      label={tx('facility.current', 'Acting as')}
+                      size="sm"
+                    />
+                  ) : suspended ? (
+                    <StatusBadge
+                      status="suspended"
+                      tone="critical"
+                      label={tx('facility.suspended', 'Suspended')}
+                      size="sm"
+                    />
+                  ) : switchingTo === facility.id ? (
+                    <StatusBadge
+                      status="switching"
+                      tone="neutral"
+                      label={tx('facility.switching', 'Switching…')}
+                      size="sm"
+                    />
+                  ) : undefined
+                }
+                accessibilityHint={
+                  tappable
+                    ? tx('facility.rowHint', 'Ends this session and starts one at this facility.')
+                    : undefined
+                }
+              />
+            );
+          })}
+        </Card>
+      );
+    }
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────
 
   const paletteIsOpes = palette === 'opes';
@@ -774,6 +972,14 @@ export default function DoctorProfileScreen() {
                 }
               />
             </Card>
+          </View>
+        )}
+
+        {/* ── Facility — which building this session speaks for ─────────── */}
+        {!!facilitySection && (
+          <View>
+            <SectionHeader title={tx('facility.section', 'Facility')} variant="overline" />
+            {facilitySection}
           </View>
         )}
 

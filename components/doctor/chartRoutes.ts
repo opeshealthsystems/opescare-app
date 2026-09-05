@@ -156,6 +156,25 @@ export const doctorRoutes = {
   thread: (id: string) => `/clinician/messages/${seg(id)}`,
   /** The clinician's own profile and credentials. */
   profile: '/clinician/profile',
+  /**
+   * Write a prescription. Not reachable from chartRoutes before, so the screen
+   * was linked by a literal path.
+   */
+  prescribe: '/clinician/prescribe',
+  /**
+   * Ask a patient for access to their record — the lawful route out of a
+   * NO_CLINICAL_RELATIONSHIP 403. Optionally pre-fills the lookup.
+   */
+  requestAccess: (healthId?: string) =>
+    healthId
+      ? `/clinician/request-access?health_id=${seg(healthId)}`
+      : '/clinician/request-access',
+  /**
+   * Emergency override. Deliberately NOT offered as a fallback when a 403
+   * appears — it opens the emergency profile only, is audited as an override,
+   * and the patient is notified. It must be a decision, not a retry.
+   */
+  breakGlass: '/clinician/break-glass',
 } as const;
 
 /** Where a non-clinician is sent back to — the patient app's home tab. */

@@ -1,0 +1,63 @@
+{
+  "_note": [
+    "PENDING — merge `messagingRecipients` into lib/i18n/locales/en.json alongside the",
+    "identical-keyed fr file, then delete both. Until then app/(tabs)/messages.tsx and",
+    "app/doctor/[id].tsx register this bundle at module load with i18n.addResourceBundle",
+    "(deep merge, no overwrite), so both languages work today and the merge is a no-op.",
+    "",
+    "This is a DELTA. Everything already in the catalogue is reused rather than restated:",
+    "messages.composeCancel / composeMessagePlaceholder / composeSend / charCount /",
+    "sendError / loadError / retry / careTeam, doctor.message* and opesCore.errors.*.",
+    "",
+    "The relationship reasons a recipient carries (\"You have an appointment here\",",
+    "\"On your care team\") are NOT here on purpose: the server sends them already",
+    "translated as `basis_label`, from lang/{en,fr}/messaging_recipients.php. One rule,",
+    "one wording, and the phone cannot drift from what the API enforced."
+  ],
+  "corrections": {
+    "_why": [
+      "Copy ALREADY IN locales/en.json that this change made untrue. Overwrite the",
+      "existing values with these when merging — a false sentence left in the catalogue",
+      "is worse than a missing one, because nothing flags it.",
+      "",
+      "All three said, in different words, that messaging requires an appointment. It",
+      "does not any more: the front desk is always available, and a clinician is",
+      "reachable on any of the five care relationships the server recognises."
+    ],
+    "messages.composeHelp": "Write to a facility's front desk, or to a clinician already looking after you.",
+    "messages.composeNoAppointments": "You have no appointment with an assigned provider yet. The facility's front desk can still answer.",
+    "messages.emptyBody": "Ask a facility's front desk about hours, booking or results — or write to a clinician who is already looking after you.",
+    "doctor.messageNeedsAppointment": "You can write to a clinician once they are looking after you. Until then, the facility's front desk can answer."
+  },
+  "messagingRecipients": {
+    "notEmergency": "Not for emergencies. Messages are read during opening hours — for an emergency, call the facility or go there.",
+    "sheetHelp": "Choose who this goes to.",
+    "sheetSection": "Who is this for?",
+    "toFacility": "Facility",
+    "toClinician": "Clinician",
+    "facilityHint": "The front desk answers opening hours, booking, results and whether a medicine is in stock.",
+    "facilitySearchPlaceholder": "Search a facility by name or city",
+    "facilityNoneTitle": "No facility to write to yet",
+    "facilityNoneBody": "Search for a facility above. Only facilities with a desk that answers messages appear here.",
+    "facilitySearchNoneTitle": "Nothing matches",
+    "facilitySearchNoneBody": "No facility with a messaging desk matches that. Try the town, or a shorter name.",
+    "clinicianHint": "Only clinicians already looking after you.",
+    "clinicianNoneTitle": "No clinician to write to yet",
+    "clinicianNoneBody": "You can write to a clinician once one is looking after you — after an appointment, or once you are on their care team. The facility's front desk can help in the meantime.",
+    "clinicianUnavailable": "Cannot receive messages",
+    "clinicianUnavailableHint": "{{name}} has no inbox for this yet. Write to {{facility}} and the desk will pass it on.",
+    "writeToFacilityInstead": "Write to the facility instead",
+    "chooseRecipient": "Choose a recipient first.",
+    "loadError": "Could not load who you can write to.",
+    "selectedA11y": "Selected",
+    "doctorCheckingAccess": "Checking…",
+    "doctorNoRelationshipTitle": "Not yet",
+    "doctorNoRelationshipBody": "You can write to {{name}} once they are looking after you — book an appointment, and messaging opens with it. Until then the facility's front desk can answer.",
+    "doctorUnreachableTitle": "Cannot be messaged directly",
+    "doctorUnreachableBody": "{{name}} is involved in your care, but has no inbox that can receive this yet. The front desk reads its messages and will pass it on.",
+    "messageFacility": "Message {{facility}}",
+    "messageFrontDesk": "Message the front desk",
+    "facilitySentTitle": "Sent to the front desk",
+    "bookInstead": "Book an appointment"
+  }
+}

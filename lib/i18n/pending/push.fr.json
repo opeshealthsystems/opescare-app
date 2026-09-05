@@ -1,0 +1,29 @@
+{
+  "_note": "Catalogue de transition pour l'honnêteté des notifications push (lib/push/*, app/(auth)/permissions.tsx, lib/api/settingsQueries.ts). lib/i18n/index.ts ne charge que locales/{en,fr}.json : lib/push/strings.ts enregistre donc ce bundle à l'exécution via i18n.addResourceBundle — lire ce fichier avant toute fusion. DEUX types d'entrées. (1) `push.*` sont de NOUVELLES clés : à replier dans locales/{en,fr}.json sous un objet `push` de premier niveau, sans autre changement. (2) `corrections.*` REMPLACENT des clés déjà présentes dans locales/{en,fr}.json et affichées par app/settings.tsx, que ce changement ne possède pas. `corrections.always` ajoute settings.device.unavailable, le texte du nouveau membre 'unavailable' de PushRegistrationError (app/settings.tsx affiche t(`settings.device.${push.error}`) : le nom de la clé est structurel, ne pas le renommer). `corrections.whenUndeliverable` n'est appliqué que tant que cette version ne peut réellement pas recevoir de push (pas d'identifiant de projet EAS, ou web) ; dès que le propriétaire fournit les identifiants EAS, la formulation d'origine de locales/{en,fr}.json reprend telle quelle — cette surcharge se retire donc d'elle-même. L'ensemble des clés DOIT rester identique à celui de push.en.json.",
+  "push": {
+    "permissions": {
+      "title": "Notifications",
+      "bodyDeliverable": "Rappels de rendez-vous, nouveaux résultats et demandes de consentement, envoyés sur ce téléphone.",
+      "bodyUnavailable": "Les rappels, résultats et demandes de consentement apparaissent dans le centre de notifications de l'application.",
+      "badgeUnavailable": "Dans l'application uniquement",
+      "action": "Activer les notifications",
+      "noteUnavailable": "Cette version de l'application ne peut pas encore envoyer d'alertes sur l'écran verrouillé de votre téléphone ; OpesCare ne demande donc pas l'autorisation de notification. Rien n'est perdu — ouvrez Notifications dans l'application pour voir tout ce qu'OpesCare vous a envoyé."
+    }
+  },
+  "corrections": {
+    "always": {
+      "settings": {
+        "device": {
+          "unavailable": "Cette version de l'application ne peut pas encore envoyer d'alertes sur votre téléphone ; ce commutateur ne peut donc pas être activé. Tout ce qu'OpesCare envoie apparaît toujours dans le centre de notifications de l'application."
+        }
+      }
+    },
+    "whenUndeliverable": {
+      "settings": {
+        "device": {
+          "pushBody": "Indisponible dans cette version. Les alertes apparaissent dans le centre de notifications."
+        }
+      }
+    }
+  }
+}

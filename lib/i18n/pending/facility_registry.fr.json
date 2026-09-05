@@ -1,0 +1,20 @@
+{
+  "_comment": "Nouvelles clés pour le travail sur les deux registres d'établissements (app/doctors.tsx, app/facility/[id].tsx). Clés plates en notation pointée, 1:1 avec facility_registry.en.json. À fusionner dans lib/i18n/locales/*.json sous un nouvel espace de noms `facilityRegistry`.",
+  "_context": "care_facilities est l'annuaire public (2728 fiches actives). facilities est le locataire opérationnel (482 lignes). care_facilities.facility_id les relie et seules 468 fiches en portent un : 2260 fiches peuvent donc être trouvées et appelées mais ne pourront jamais publier de soignant ni recevoir de rendez-vous. Ces messages le disent clairement et ne doivent jamais laisser croire qu'une fiche est connectée alors qu'elle ne l'est pas.",
+
+  "facilityRegistry.connectedOnly": "Connectés",
+  "facilityRegistry.connectedOnlyHint": "N’afficher que les établissements pouvant publier des soignants et recevoir des rendez-vous",
+  "facilityRegistry.allListings": "Toutes les fiches",
+  "facilityRegistry.allListingsHint": "Afficher tous les établissements de l’annuaire public, connectés ou non",
+  "facilityRegistry.connectedExplainer": "{{connected}} des {{total}} établissements répertoriés sont connectés à OpesCare. Seuls ceux-ci peuvent publier des soignants ou recevoir un rendez-vous en ligne — les autres restent trouvables et joignables par téléphone.",
+  "facilityRegistry.allExplainer": "Affichage des {{total}} établissements répertoriés. Seuls {{connected}} sont connectés à OpesCare ; les autres peuvent être trouvés et appelés, mais ne publient aucun soignant.",
+  "facilityRegistry.noConnectedMatch": "Aucun établissement connecté ne correspond à cette recherche. Le lieu que vous cherchez figure peut-être dans l’annuaire public — affichez toutes les fiches pour le trouver et l’appeler.",
+  "facilityRegistry.bookableShort": "Réservable",
+  "facilityRegistry.showConnected": "Afficher les établissements connectés",
+  "facilityRegistry.noRosterTitle": "Aucun profil de soignant publié",
+  "facilityRegistry.noRosterBookableBody": "Cet établissement est connecté à OpesCare mais n’a pas publié ses soignants. Son agenda de rendez-vous est ouvert : vous pouvez réserver ici sans choisir de médecin au préalable.",
+  "facilityRegistry.connectedTitle": "Connecté à OpesCare",
+  "facilityRegistry.connectedFallback": "Cet établissement est sur OpesCare : il peut publier des soignants et recevoir des rendez-vous en ligne.",
+  "facilityRegistry.directoryOnlyTitle": "Fiche de l’annuaire public",
+  "facilityRegistry.directoryOnlyFallback": "Cet établissement figure uniquement dans l’annuaire public. Il n’a pas rejoint OpesCare : il ne publie donc aucun soignant et ne peut pas recevoir de rendez-vous en ligne. Vous pouvez toutefois l’appeler directement."
+}

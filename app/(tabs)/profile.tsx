@@ -318,6 +318,17 @@ export default function ProfileScreen() {
       onPress: () => router.push('/(tabs)/messages'),
     },
     {
+      // The pay flow has shipped since MED-001 but nothing linked to it, so it
+      // was reachable by URL only — which on a phone means not at all. This is
+      // the entry point; the screen behind it lists what is owed and what has
+      // been settled, and says plainly when the host is only simulating money.
+      icon: 'receipt',
+      tint: 'green',
+      title: t('profile.payments'),
+      subtitle: t('profile.paymentsDesc'),
+      onPress: () => router.push('/payments'),
+    },
+    {
       // The kit has no "cloud-off" glyph; the lock reads as "an encrypted copy
       // on this device", which is what the row is.
       icon: 'lock',

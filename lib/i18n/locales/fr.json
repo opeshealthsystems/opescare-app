@@ -737,7 +737,9 @@
     "unavailableBody": "Nous n'avons pas pu joindre OpesCare pour charger vos informations. Le reste de l'application fonctionne normalement — vérifiez votre connexion et réessayez.",
     "unavailableRetryHint": "Recharge votre profil",
     "profileStrengthHint_one": "{{count}} information encore manquante",
-    "profileStrengthHint_other": "{{count}} informations encore manquantes"
+    "profileStrengthHint_other": "{{count}} informations encore manquantes",
+    "payments": "Paiements",
+    "paymentsDesc": "Factures des établissements, et ce que vous avez réglé"
   },
   "editProfile": {
     "title": "Modifier le profil",
@@ -6113,6 +6115,19 @@
     "errors": {
       "generic": "Le paiement n'a pas pu être lancé. Veuillez réessayer.",
       "offline": "Vous semblez hors ligne. Reconnectez-vous et réessayez — rien n'a été débité."
+    },
+    "list": {
+      "outstandingLabel": "Reste à payer",
+      "outstandingCount_one": "{{count}} facture impayée",
+      "outstandingCount_other": "{{count}} factures impayées",
+      "tabOutstanding": "Impayées",
+      "tabSettled": "Réglées",
+      "tabAll": "Toutes",
+      "rowHint": "Ouvre cette facture pour que vous puissiez la régler.",
+      "emptyTitle": "Aucune facture pour l’instant",
+      "emptyBody": "Lorsqu’un établissement vous facture des soins, la facture apparaît ici pour que vous puissiez la régler depuis votre téléphone.",
+      "emptyOutstandingTitle": "Rien à payer",
+      "emptyOutstandingBody": "Vous n’avez aucune facture impayée. Tout ce qu’un établissement vous facturera apparaîtra ici."
     }
   },
   "accountDeletion": {

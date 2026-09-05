@@ -1,0 +1,16 @@
+{
+  "_comment": "Strings for the invoice list screen and its entry point. The pay flow's own 47 keys already existed; nothing here duplicates them.",
+  "profile.payments": "Payments",
+  "profile.paymentsDesc": "Bills from facilities, and what you have paid",
+  "payments.list.outstandingLabel": "Outstanding",
+  "payments.list.outstandingCount_one": "{{count}} unpaid bill",
+  "payments.list.outstandingCount_other": "{{count}} unpaid bills",
+  "payments.list.tabOutstanding": "Unpaid",
+  "payments.list.tabSettled": "Settled",
+  "payments.list.tabAll": "All",
+  "payments.list.rowHint": "Opens this bill so you can pay it.",
+  "payments.list.emptyTitle": "No bills yet",
+  "payments.list.emptyBody": "When a facility charges you for care, the bill appears here so you can pay it from your phone.",
+  "payments.list.emptyOutstandingTitle": "Nothing to pay",
+  "payments.list.emptyOutstandingBody": "You have no unpaid bills. Anything a facility charges you will appear here."
+}

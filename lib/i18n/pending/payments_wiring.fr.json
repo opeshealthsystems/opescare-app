@@ -1,0 +1,16 @@
+{
+  "_comment": "Pendant français de payments_wiring.en.json — mêmes clés, mêmes {{placeholders}}.",
+  "profile.payments": "Paiements",
+  "profile.paymentsDesc": "Factures des établissements, et ce que vous avez réglé",
+  "payments.list.outstandingLabel": "Reste à payer",
+  "payments.list.outstandingCount_one": "{{count}} facture impayée",
+  "payments.list.outstandingCount_other": "{{count}} factures impayées",
+  "payments.list.tabOutstanding": "Impayées",
+  "payments.list.tabSettled": "Réglées",
+  "payments.list.tabAll": "Toutes",
+  "payments.list.rowHint": "Ouvre cette facture pour que vous puissiez la régler.",
+  "payments.list.emptyTitle": "Aucune facture pour l’instant",
+  "payments.list.emptyBody": "Lorsqu’un établissement vous facture des soins, la facture apparaît ici pour que vous puissiez la régler depuis votre téléphone.",
+  "payments.list.emptyOutstandingTitle": "Rien à payer",
+  "payments.list.emptyOutstandingBody": "Vous n’avez aucune facture impayée. Tout ce qu’un établissement vous facturera apparaîtra ici."
+}

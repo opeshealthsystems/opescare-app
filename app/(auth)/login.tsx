@@ -68,6 +68,17 @@ const DEMO_ACCOUNTS = [
     clinician: false,
   },
   {
+    // A second patient with a verified identity and the full clinical story
+    // (DemoPatientStorySeeder), so a reviewer sees every state of the Health
+    // ID card and every screen populated without typing anything.
+    key: 'reviewer',
+    icon: 'shield-check',
+    labelKey: 'auth.demoLoginReviewer',
+    email: 'demo.reviewer@opescare.test',
+    password: 'demo1234',
+    clinician: false,
+  },
+  {
     key: 'doctor',
     icon: 'stethoscope',
     labelKey: 'auth.demoLoginDoctor',

@@ -58,10 +58,11 @@
     "invalidEmail": "Entrez un e-mail ou identifiant santé valide",
     "invalidPassword": "Le mot de passe est requis",
     "demoLoginLabel": "Essayer la démo — connexion en un geste",
-    "demoLoginPatient": "Patient de démonstration",
+    "demoLoginPatient": "Patient de démonstration (identité provisoire)",
     "demoLoginDoctor": "Soignant de démonstration (aperçu)",
     "demoDoctorNotice": "Connecté en tant que patient de démonstration, avec les écrans soignant affichés. Les données soignant ne sont pas encore connectées sur ce serveur : ces écrans seront vides.",
-    "clinicianSignInUnavailable": "La connexion clinicien n’est pas encore disponible sur ce serveur."
+    "clinicianSignInUnavailable": "La connexion clinicien n’est pas encore disponible sur ce serveur.",
+    "demoLoginReviewer": "Patient de démonstration — identité vérifiée, dossier complet"
   },
   "signup": {
     "stepIndicator": "Étape {{current}} sur {{total}}",

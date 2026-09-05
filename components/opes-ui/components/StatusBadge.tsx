@@ -114,10 +114,17 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: radii.pill,
     gap: 4,
+    // A pill is a LABEL, not a fixed object: in a row that has run out of
+    // width it has to narrow and let its text wrap, rather than keep its
+    // natural width and run off the edge of the screen. `minWidth: 0` is what
+    // allows that on web, where a flex item's default minimum is its content.
+    flexShrink: 1,
+    minWidth: 0,
   },
   md: { paddingHorizontal: 10, paddingVertical: 5 },
   sm: { paddingHorizontal: 8, paddingVertical: 3 },
   text: {
+    flexShrink: 1,
     fontFamily: typography.fontFamily.semiBold,
     fontSize: typography.size.xs,
     // No textTransform: 'capitalize' — CSS capitalises EVERY word, which is

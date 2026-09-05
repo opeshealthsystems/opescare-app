@@ -36,6 +36,10 @@
  * Nothing here fabricates data: an absent field renders as an absent card.
  */
 
+// Straight from the format module rather than the kit barrel: this is a data
+// module, and the barrel would drag the whole component library (and a
+// components → lib/api → components cycle) in behind one helper.
+import { initialsFrom } from '@/components/opes-ui/format';
 import type { MessageThreadSummary, ThreadMessage } from './queries';
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -191,15 +195,12 @@ export function filterThreads(threads: MessageThreadSummary[], query: string): M
 
 /** Up to two initials for the avatar. `title` is the only human-readable
  * name the threads endpoint returns (the controller writes the provider's
- * name into it when the thread is started). */
+ * name into it when the thread is started).
+ *
+ * The rule itself is the kit's `initialsFrom` — the copy that used to live
+ * here could not strip "Dr." and handed the avatar the leftover dot. */
 export function initialsFor(name: string | null | undefined): string {
-  const parts = (name ?? '')
-    .replace(/\b(dr|prof|mr|mrs|ms|m|mme)\.?\b/gi, ' ')
-    .split(/\s+/)
-    .filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return `${parts[0]![0]}${parts[parts.length - 1]![0]}`.toUpperCase();
+  return initialsFrom(name);
 }
 
 /* ────────────────────────────────────────────────────────────────────────

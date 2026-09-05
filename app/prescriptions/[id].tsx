@@ -912,14 +912,26 @@ function DispensingCard({
       </View>
 
       {/* One segment per line, in the order the prescription lists them, so a
-          segment lines up with the numbered card further down. */}
+          segment lines up with the numbered card further down.
+
+          A segment is only PAINTED once its line has been settled — collected,
+          or cancelled and never coming. A line still outstanding is the track
+          it will be painted over. Every segment used to take its line's status
+          colour, so a prescription with one medicine and nothing collected
+          drew a solid amber bar under the words "0 of 1 collected": a progress
+          bar reading 100% for zero progress. */}
       <View style={styles.bar} importantForAccessibility="no-hide-descendants">
         {items.map((item) => {
-          const tone = lineTone(lineStateOf(item), state.fillable);
+          const lineState = lineStateOf(item);
+          const settled = lineState === 'dispensed' || lineState === 'cancelled';
+          const tone = lineTone(lineState, state.fillable);
           return (
             <View
               key={item.id}
-              style={[styles.barSegment, { backgroundColor: statusMap[tone].fg }]}
+              style={[
+                styles.barSegment,
+                { backgroundColor: settled ? statusMap[tone].fg : colors.border },
+              ]}
             />
           );
         })}

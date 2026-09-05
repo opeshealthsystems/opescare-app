@@ -14,8 +14,21 @@ export type ListRowProps = {
   leading?: React.ReactNode;
 
   title: string;
+  /**
+   * How many lines the title may take before it is truncated. Default 2 — on a
+   * 375px phone a one-line cap clips ordinary labels ("Unread patient
+   * messages", "Hôpital Central de Yaoundé") a few pixels from the end. Pass 1
+   * where a row must stay exactly one line tall.
+   */
+  titleLines?: number;
   /** Second line. Use `meta` for the "Lab Result  •  20 Apr 2024" pattern. */
   subtitle?: string;
+  /**
+   * How many lines the subtitle may take. Default 2; `0` means "as many as it
+   * needs" — for a row whose subtitle is a sentence the reader must finish,
+   * not a metadata line they can skim.
+   */
+  subtitleLines?: number;
   /** Rendered as a middot-joined metadata line. Overrides `subtitle` when set. */
   meta?: (string | undefined | null | false)[];
 
@@ -52,7 +65,9 @@ export function ListRow({
   tint = 'blue',
   leading,
   title,
+  titleLines = 2,
   subtitle,
+  subtitleLines = 2,
   meta,
   value,
   valueColor,
@@ -79,11 +94,14 @@ export function ListRow({
       ) : null)}
 
       <View style={styles.center}>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text style={styles.title} numberOfLines={titleLines > 0 ? titleLines : undefined}>
           {title}
         </Text>
         {!!(metaText ?? subtitle) && (
-          <Text style={styles.subtitle} numberOfLines={2}>
+          <Text
+            style={styles.subtitle}
+            numberOfLines={subtitleLines > 0 ? subtitleLines : undefined}
+          >
             {metaText ?? subtitle}
           </Text>
         )}
@@ -154,8 +172,14 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   trailing: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: 6,
     maxWidth: '45%',
+    // `maxWidth` alone only CLIPS: a trailing badge wider than 45% of the row
+    // kept its natural width and ran off the right edge of the screen ("Cannot
+    // receive messages" on the recipient picker). Shrinking lets the badge
+    // give its own text a narrower box to wrap in instead.
+    flexShrink: 1,
   },
   value: {
     fontFamily: typography.fontFamily.semiBold,

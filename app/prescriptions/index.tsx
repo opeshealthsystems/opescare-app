@@ -510,15 +510,26 @@ function PrescriptionRow({
       {progressLine ? (
         <View style={styles.rxProgress}>
           <View style={styles.bar} importantForAccessibility="no-hide-descendants">
-            {items.map((item) => (
-              <View
-                key={item.id}
-                style={[
-                  styles.barSegment,
-                  { backgroundColor: statusMap[segmentTone(lineStateOf(item), fillable)].fg },
-                ]}
-              />
-            ))}
+            {items.map((item) => {
+              const lineState = lineStateOf(item);
+              // Same rule as the detail screen: a line still outstanding is
+              // the TRACK, not a filled segment. Painting every segment left
+              // "1 of 3 collected" looking like a full bar.
+              const settled = lineState === 'dispensed' || lineState === 'cancelled';
+              return (
+                <View
+                  key={item.id}
+                  style={[
+                    styles.barSegment,
+                    {
+                      backgroundColor: settled
+                        ? statusMap[segmentTone(lineState, fillable)].fg
+                        : colors.border,
+                    },
+                  ]}
+                />
+              );
+            })}
           </View>
           <Text style={styles.rxProgressText}>{progressLine}</Text>
         </View>

@@ -330,6 +330,11 @@ export default function SettingsScreen() {
                   subtitle={t('settings.appearance.body', {
                     defaultValue: 'Switch between the OpesCare brand and the OPES template palette.',
                   })}
+                  // A switch plus its state word leaves this row's text column
+                  // ~136px wide on a 375px phone, where the sentence needs five
+                  // lines. Clamped at two it read "Switch between the OpesCare
+                  // …" — an instruction the reader could not finish.
+                  subtitleLines={0}
                   trailing={
                     <View style={styles.switchWithValue}>
                       <Text style={styles.switchValue} numberOfLines={1}>
@@ -746,7 +751,11 @@ const makeStyles = (colors: Palette) =>
     },
 
     // Switch rows
-    switchWithValue: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    // The state word sits UNDER the switch, not beside it: side by side the
+    // pair is ~114px of a 254px row on a 320px phone, and the description in
+    // the middle column was left with 76px to wrap in. Stacked it is as wide
+    // as its widest half, and the sentence gets the space back.
+    switchWithValue: { alignItems: 'flex-end', gap: 4 },
     switchValue: {
       flexShrink: 1,
       fontFamily: typography.fontFamily.semiBold,

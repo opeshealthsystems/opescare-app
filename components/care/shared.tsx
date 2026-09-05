@@ -54,6 +54,7 @@ import {
   formatLabel,
   formatNumber,
   formatTime,
+  initialsFrom,
   radii,
   spacing,
   statusMap,
@@ -1203,14 +1204,14 @@ export function NoticeBanner({
   );
 }
 
-/** Circular initials avatar — the reference providers have no photos. */
+/**
+ * Circular initials avatar — the reference providers have no photos.
+ *
+ * `initialsFrom` handles the honorific: this used to strip a leading "Dr."
+ * only, so "Prof. Ngo Bell" or a trailing title kept its title's letter.
+ */
 export function ProviderAvatar({ name, size = 56 }: { name: string; size?: number }) {
-  const initials = name
-    .replace(/^Dr\.?\s*/i, '')
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .join('');
+  const initials = initialsFrom(name, '');
   return (
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
       <Text style={[styles.avatarText, { fontSize: size * 0.34 }]}>{initials}</Text>

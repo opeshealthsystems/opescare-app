@@ -28,6 +28,7 @@ import {
   formatDateTime,
   formatTime,
   Icon,
+  initialsFrom,
   radii,
   spacing,
   typography,
@@ -174,16 +175,16 @@ export function dayLabel(iso: string | null | undefined): string {
   return date;
 }
 
-/** Up to two initials for an avatar; honorifics are dropped. */
+/**
+ * Up to two initials for an avatar; honorifics are dropped.
+ *
+ * The rule now lives in the kit (`initialsFrom`) — its own copy of the
+ * honorific regex could not strip "Dr." and left the dot behind as an initial,
+ * so "Dr. Amara Diallo" rendered ".D". Kept as a named export because the chat
+ * screens import it from here.
+ */
 export function initials(name: string | null | undefined): string {
-  const parts = (name ?? '')
-    .replace(/\b(dr|prof|mr|mrs|ms|m|mme)\.?\b/gi, ' ')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return `${parts[0]![0]}${parts[parts.length - 1]![0]}`.toUpperCase();
+  return initialsFrom(name);
 }
 
 // ── Buttons ───────────────────────────────────────────────────────────────

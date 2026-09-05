@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Image, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Image, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { type Palette } from '../theme';
 import { useTheme } from '../ThemeProvider';
 
@@ -60,6 +60,21 @@ export function Watermark() {
 }
 
 /**
+ * The widest a phone layout is allowed to get on a desktop browser, in px.
+ *
+ * Comfortably above the 375px these screens are designed for — nothing is
+ * stretched to fill it — and narrow enough that the result still reads as the
+ * phone app it is.
+ */
+const PHONE_MAX_WIDTH = 520;
+
+/**
+ * Below this window width the app fills the window exactly as it always has:
+ * every phone, and a tablet held in portrait.
+ */
+const CONTAIN_WEB_FROM = 600;
+
+/**
  * The app-wide background: opaque page colour, the faded seal, then the screen.
  *
  * Used as the `screenLayout` of the app's navigators (and around the
@@ -67,22 +82,62 @@ export function Watermark() {
  * paints an opaque `page` fill, which is what keeps stack push/pop transitions
  * clean: each card is opaque, so screens never bleed through one another even
  * though their own root fill is transparent.
+ *
+ * ── AND, ON WEB, IT IS THE PHONE COLUMN ───────────────────────────────────
+ *
+ * This app is a phone app that is also served as a website, and a browser
+ * window is not a phone. Given the whole window the layouts did not become a
+ * desktop design, they just spread thin: at 1280px the bottom tab bar ran the
+ * full 1280px, and the floating Quick Add button — anchored bottom-right of
+ * whatever box contains it — sat on top of the "No upcoming visits" empty
+ * state in the middle of the screen instead of beside the content.
+ *
+ * So on a wide WEB window the ground splits in two: a full-bleed outer view
+ * that fills the window, and this capped, centred column that everything else
+ * renders inside. It has to be here rather than in CSS on the HTML root
+ * because this view is an ancestor of both navigators, and on web every React
+ * Native view is a positioned box — so the tab bars and the FAB, which are
+ * absolutely positioned inside it, are laid out against THIS column and move
+ * with it. It also reaches the two navigator layouts without editing them.
+ *
+ * Native is untouched: `contained` is false off web, so the column is exactly
+ * the full-bleed view it has always been, and the outer view is then an
+ * ordinary `flex: 1` parent painting a colour that is never visible.
  */
 export function AppBackground({ children }: { children: React.ReactNode }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { width } = useWindowDimensions();
+  const contained = Platform.OS === 'web' && width >= CONTAIN_WEB_FROM;
+
   return (
-    <View style={styles.base}>
-      <Watermark />
-      {children}
+    <View style={styles.outer}>
+      <View style={[styles.base, contained && styles.phoneColumn]}>
+        <Watermark />
+        {children}
+      </View>
     </View>
   );
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  /** The window itself. Only ever seen either side of the column, on web. */
+  outer: {
+    flex: 1,
+    backgroundColor: colors.divider,
+  },
   base: {
     flex: 1,
     backgroundColor: colors.page,
+  },
+  /** The phone column on a desktop-width browser window. */
+  phoneColumn: {
+    width: '100%',
+    maxWidth: PHONE_MAX_WIDTH,
+    alignSelf: 'center',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.border,
   },
   layer: {
     position: 'absolute',

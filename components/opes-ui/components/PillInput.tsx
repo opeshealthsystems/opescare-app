@@ -106,9 +106,26 @@ export function PillInput({ icon, isPassword, error, style, ...rest }: Props) {
   );
 }
 
+/**
+ * WHY EVERY BOX HERE CARRIES `minWidth: 0`.
+ *
+ * On web a `<TextInput>` is an `<input>`, and an `<input>` in a flex row keeps
+ * a content-based minimum width (roughly 20 characters) unless it is told
+ * otherwise — `flex: 1` cannot shrink past it. Two of these pills side by side
+ * therefore refused to go below ~210px each: on a 375px phone the prescribing
+ * form's Dose/Frequency and Duration/Quantity rows measured 369px of content
+ * in a 310px card, the right-hand field was clipped off the card, and focusing
+ * it scrolled the left field's own label out of view ("Duration (days)"
+ * rendered as "ation (days)").
+ *
+ * `minWidth: 0` on the wrapper, the pill and the input restores the ordinary
+ * flex behaviour — the field shrinks to the space it is given. Yoga already
+ * treats a flex item's minimum as 0, so this changes nothing on iOS/Android.
+ */
 const makeStyles = (colors: Palette) => StyleSheet.create({
   wrapper: {
     marginBottom: spacing.md,
+    minWidth: 0,
   },
   container: {
     flexDirection: 'row',
@@ -120,6 +137,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     gap: spacing.sm,
+    minWidth: 0,
   },
   containerFocused: {
     borderColor: colors.borderFocus,
@@ -139,6 +157,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   input: {
     flex: 1,
+    minWidth: 0,
     fontFamily: typography.fontFamily.regular,
     fontSize: typography.size.md,
     color: colors.textPrimary,

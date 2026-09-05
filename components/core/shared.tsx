@@ -19,6 +19,7 @@ import {
   Icon,
   PulseLogo,
   iconStroke,
+  initialsFrom,
   radii,
   spacing,
   typography,
@@ -118,12 +119,9 @@ export function Avatar({ name, size = 44, onPress }: { name: string; size?: numb
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const initials = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .join('');
+  // Honorifics are not initials: this used to take the first two whitespace
+  // tokens, so "Dr. Amara Diallo" rendered "DA" instead of "AD".
+  const initials = initialsFrom(name, '');
 
   const body = (
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}>

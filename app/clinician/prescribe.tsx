@@ -129,6 +129,18 @@ const EMPTY_DRAFT = (): PrescriptionDraft => ({
   validity_days: '',
 });
 
+/**
+ * The width one half of a two-column field row asks for, in px.
+ *
+ * It is the BREAKPOINT, not the final width: the cells grow to fill the row
+ * when both fit, and wrap to full width when they do not. 140 puts the break
+ * between the two phone widths that matter — a 375px screen leaves the card
+ * ~310px of content (two 149px columns), a 320px screen leaves ~255px, which
+ * is less than two columns plus the gap, so the pair stacks instead of
+ * squeezing "Duration (days)" into something that cannot show its own label.
+ */
+const PAIR_COLUMN_BASIS = 140;
+
 export default function PrescribeScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -362,12 +374,23 @@ export default function PrescribeScreen() {
   const stepIndex = stage === 'patient' ? 0 : stage === 'compose' ? 1 : 2;
   const showSteps = stage !== 'issued' && stage !== 'written';
 
-  const subtitle =
-    stage === 'issued'
-      ? tx('prescribe.subtitleIssued', 'Issued')
-      : stage === 'written'
-        ? tx('prescribe.subtitleWritten', 'Written by you')
-        : tx('prescribe.subtitle', 'Health ID, medicines, issue');
+  /**
+   * The header names WHERE THE CLINICIAN IS, not what the screen was opened
+   * for. Once the prescription is issued there is nothing left to write, so
+   * "Write a prescription — Issued" is a header describing the wrong screen:
+   * the title becomes the outcome, and the subtitle goes, because the card
+   * underneath already carries the reference and what to do with it.
+   */
+  const issuedStage = stage === 'issued';
+  const title = issuedStage
+    ? tx('prescribe.issuedTitle', 'Prescription issued')
+    : tx('prescribe.title', 'Write a prescription');
+
+  const subtitle = issuedStage
+    ? undefined
+    : stage === 'written'
+      ? tx('prescribe.subtitleWritten', 'Written by you')
+      : tx('prescribe.subtitle', 'Health ID, medicines, issue');
 
   // ── Body per stage ──────────────────────────────────────────────────────
 
@@ -459,7 +482,7 @@ export default function PrescribeScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
       <ScreenHeader
-        title={tx('prescribe.title', 'Write a prescription')}
+        title={title}
         subtitle={subtitle}
         actions={[
           {
@@ -1681,8 +1704,14 @@ const makeStyles = (colors: Palette) =>
       paddingLeft: spacing.sm,
     },
     removeLinkOff: { color: colors.textMuted },
-    pair: { flexDirection: 'row', gap: spacing.sm },
-    pairCell: { flex: 1, minWidth: 0 },
+    // Dose/Frequency and Duration/Quantity. Two columns while both halves can
+    // still hold a legible field, one column below that: `flexBasis` is the
+    // width each half ASKS for, so the pair breaks onto two rows the moment
+    // the card cannot give them both that much. On a 375px phone the card is
+    // ~310px wide and they sit side by side; at 320px it is ~255px and they
+    // stack, which beats two fields too narrow to read what you typed.
+    pair: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    pairCell: { flexGrow: 1, flexShrink: 1, flexBasis: PAIR_COLUMN_BASIS, minWidth: 0 },
     routes: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
 
     // ── Review ────────────────────────────────────────────────────────────

@@ -165,3 +165,60 @@ export function formatLabel(value: string | null | undefined): string {
   const withSpaces = value.replace(/_/g, ' ');
   return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1);
 }
+
+/**
+ * Words that are a TITLE, not a name — dropped before initials are taken.
+ *
+ * Held without a trailing dot, because the tokeniser below splits on
+ * punctuation: "Dr." and "Dr" both arrive here as `dr`. EN and FR both, and the
+ * FR forms matter — this deployment writes "Dr", "Pr", "M.", "Mme".
+ */
+const HONORIFICS = new Set([
+  'dr', 'drs', 'doctor', 'docteur', 'doc',
+  'pr', 'prof', 'professor', 'professeur',
+  'mr', 'mrs', 'ms', 'miss', 'mx', 'sir', 'dame',
+  'm', 'mm', 'mme', 'mlle',
+  'rev', 'fr', 'sr', 'st', 'hon', 'esq',
+]);
+
+/** Whitespace and the punctuation that separates name parts. NOT `-` or `'`. */
+const NAME_SEPARATORS = /[\s.,;:!?()[\]{}"“”«»/\\|_]+/;
+
+/**
+ * Up to two initials for an avatar — "Dr. Amara Diallo" → "AD".
+ *
+ * THE BUG THIS REPLACES. Four screens each carried their own copy of
+ * `name.replace(/\b(dr|prof|…)\.?\b/gi, ' ')`, and that expression cannot
+ * strip "Dr.": `\.?` is optional and the `\b` after it demands a word
+ * boundary, but the character following the dot is a space — two non-word
+ * characters, so there is no boundary there. The engine backtracks, matches
+ * the bare "Dr", and leaves the orphaned dot behind as a token of its own. The
+ * avatar then read ".A" (first two tokens) or ".D" (first and last), and the
+ * doctor whose name every clinician screen shows had a full stop for an
+ * initial.
+ *
+ * So the honorific is no longer pattern-matched out of the middle of a string.
+ * The name is TOKENISED first — on whitespace and on the punctuation that
+ * separates name parts — and whole tokens are then dropped by lookup. Nothing
+ * can be left behind, because punctuation is never part of a token.
+ *
+ * Hyphens and apostrophes stay INSIDE a token, so "Jean-Pierre" and "M'Bala"
+ * are one name part each and contribute one initial, not two.
+ *
+ * A string that is nothing but honorifics ("Dr.") falls back to its raw tokens
+ * rather than to `empty`: something recognisable beats an empty circle.
+ */
+export function initialsFrom(name: string | null | undefined, empty = '?'): string {
+  const tokens = (name ?? '')
+    .split(NAME_SEPARATORS)
+    // A token has to carry a letter or a digit. `-` and `'` are kept inside
+    // names but are not, on their own, a name part.
+    .filter((token) => token.replace(/[-'’]/g, '').length > 0);
+
+  const named = tokens.filter((token) => !HONORIFICS.has(token.toLowerCase()));
+  const parts = named.length > 0 ? named : tokens;
+
+  if (parts.length === 0) return empty;
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]![0]}${parts[parts.length - 1]![0]}`.toUpperCase();
+}

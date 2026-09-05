@@ -285,9 +285,19 @@ export async function resolvePostAuthStatus(): Promise<AuthStatus> {
   }
 }
 
+/**
+ * Where the session PROFILE is, separately from where the SESSION is. A token
+ * can be valid while `/mobile/me` has not answered yet: `loading` while a fetch
+ * is in flight or a retry is scheduled, `error` only when the last attempt
+ * actually failed and nothing further is scheduled, `ready` once `patient` is
+ * filled. Screens show a spinner for `loading` and the retry card for `error`.
+ */
+export type ProfileState = 'idle' | 'loading' | 'ready' | 'error';
+
 interface AuthState {
   status: AuthStatus;
   patient: Patient | null;
+  profileState: ProfileState;
   /**
    * The signed-in clinician, or null. NON-NULL EXACTLY WHEN `patient` IS NULL
    * AND THE STORED TOKEN IS A PROVIDER ONE — the two session kinds share one
@@ -336,6 +346,7 @@ function extractErrorMessage(err: unknown): string {
 export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'booting',
   patient: null,
+  profileState: 'idle',
   provider: null,
   persona: resolvePersona(null),
   pendingPhone: null,
@@ -433,15 +444,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // with `patient` null the greeting reads "—" and the avatar "?" until
         // something fills it. Nothing else re-runs fetchMe, so retry on a
         // backoff until it lands or the session is ended by a 401 elsewhere.
+        //
+        // The backoff never gives up while the session is live: it used to
+        // stop after four tries (~50 s), after which the Profile tab showed
+        // "not loaded" for the rest of the session unless the person tapped
+        // Retry themselves. The wait caps at a minute; a foreground or
+        // reconnect event (see startProfileRecovery) retries immediately.
+        set({ profileState: cached ? 'ready' : 'loading' });
         void (async () => {
-          for (const delayMs of [2_000, 5_000, 15_000, 30_000]) {
+          const delays = [2_000, 5_000, 15_000, 30_000, 60_000];
+          for (let attempt = 0; ; attempt++) {
+            const delayMs = delays[Math.min(attempt, delays.length - 1)];
             await new Promise((resolve) => setTimeout(resolve, delayMs));
             if (get().status !== 'authenticated' || get().patient) return;
             try {
               await get().fetchMe();
               return;
             } catch {
-              // Still unreachable — fall through to the next, longer wait.
+              // Still unreachable — fall through to the next, longer wait,
+              // but let the screen know a retry is pending, not abandoned.
+              if (get().status === 'authenticated' && !get().patient) set({ profileState: 'loading' });
             }
           }
         })();
@@ -568,10 +590,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   fetchMe: async () => {
-    const { data } = await apiClient.get<Patient>(endpoints.me);
-    // The session profile is the only thing a persona could ever be read from,
-    // so it is re-derived on every successful read of it.
-    set({ patient: data, persona: resolvePersona(data, get().provider) });
+    set({ profileState: 'loading' });
+    try {
+      const { data } = await apiClient.get<Patient>(endpoints.me);
+      // The session profile is the only thing a persona could ever be read from,
+      // so it is re-derived on every successful read of it.
+      set({ patient: data, profileState: 'ready', persona: resolvePersona(data, get().provider) });
+    } catch (err) {
+      // Keep whatever profile we already had (a cached copy is better than
+      // none); only the FRESHNESS failed. `error` is what the screens key on.
+      set({ profileState: 'error' });
+      throw err;
+    }
   },
 
   fetchProviderMe: async () => {

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
@@ -61,8 +61,23 @@ export default function ProfileScreen() {
   const patient = useAuthStore((s) => s.patient);
   const logout = useAuthStore((s) => s.logout);
   const authStatus = useAuthStore((s) => s.status);
+  const profileState = useAuthStore((s) => s.profileState);
   const fetchMe = useAuthStore((s) => s.fetchMe);
   const [retrying, setRetrying] = useState(false);
+
+  // Opening this tab is itself a reason to try again: if the boot-time fetch
+  // failed (no signal, a deploy in progress), the person should not have to
+  // find a Retry button — the screen asks for the profile the moment it is
+  // looked at, and the store's own backoff keeps asking in the background.
+  useFocusEffect(
+    useCallback(() => {
+      if (authStatus === 'authenticated' && !patient && profileState !== 'loading') {
+        fetchMe().catch(() => {
+          // The state machine already records the failure; the retry card shows it.
+        });
+      }
+    }, [authStatus, patient, profileState, fetchMe]),
+  );
 
   // Powers the "Dependents" tile. Real GET /mobile/family — the same query key
   // the Family screen uses, so opening either one warms the other's cache.
@@ -174,7 +189,10 @@ export default function ProfileScreen() {
      * — the tab bar was the only way out. It now says what happened and hands
      * back the two moves that exist: try again, or sign out and back in.
      */
-    const stillBooting = authStatus === 'booting' || retrying;
+    // A spinner while the session boots, while a fetch is in flight, and while
+    // the store still has a retry scheduled; the retry card only once the last
+    // attempt has actually failed with nothing further pending.
+    const stillBooting = authStatus === 'booting' || retrying || profileState !== 'error';
     return (
       <SafeAreaView style={styles.screen} edges={['top']}>
         <ScreenHeader title={t('profile.title')} subtitle={t('profile.subtitle')} showBack={false} />
@@ -375,7 +393,17 @@ export default function ProfileScreen() {
           <View style={styles.heroTop}>
             <View style={styles.avatarWrap}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initials}</Text>
+                {patient.photo_url ? (
+                  <Image
+                    source={{ uri: patient.photo_url }}
+                    style={[styles.avatar, { position: 'absolute', top: 0, left: 0 }]}
+                    resizeMode="cover"
+                    accessibilityIgnoresInvertColors
+                    alt=""
+                  />
+                ) : (
+                  <Text style={styles.avatarText}>{initials}</Text>
+                )}
               </View>
               {isVerified ? (
                 <View style={styles.avatarBadge}>

@@ -275,7 +275,13 @@ export default function HomeScreen() {
         <BrandHeader
           onBell={() => router.push('/notifications')}
           bellBadge={unreadCount}
-          right={<Avatar name={displayName} onPress={() => router.push('/(tabs)/profile')} />}
+          right={
+            <Avatar
+              name={displayName}
+              uri={patient?.photo_url}
+              onPress={() => router.push('/(tabs)/profile')}
+            />
+          }
         />
 
         <ScrollView

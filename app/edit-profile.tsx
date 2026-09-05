@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import * as ImagePicker from 'expo-image-picker';
+import { Avatar } from '@/components/core/shared';
 import {
   Card,
   Chip,
@@ -18,13 +20,14 @@ import {
   radii,
   spacing,
   typography,
+  useDialog,
   useTheme,
   type IconName,
   type Palette,
   type StatusTone,
 } from '@/components/opes-ui';
 import { useAuthStore } from '../lib/store/auth';
-import { useUpdateMyProfile } from '../lib/api/profileQueries';
+import { useRemoveMyPhoto, useUpdateMyProfile, useUploadMyPhoto } from '../lib/api/profileQueries';
 
 const SEX_OPTIONS = ['male', 'female'] as const;
 type SexOption = (typeof SEX_OPTIONS)[number];
@@ -33,6 +36,40 @@ const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const
 function extractErrorMessage(err: unknown, fallback: string): string {
   const anyErr = err as any;
   return anyErr?.response?.data?.message ?? fallback;
+}
+
+/** One of the pill buttons under the photo: choose / take / remove. */
+function PhotoAction({
+  styles,
+  colors,
+  icon,
+  label,
+  onPress,
+  disabled = false,
+  destructive = false,
+}: {
+  styles: ReturnType<typeof makeStyles>;
+  colors: Palette;
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  destructive?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      style={[styles.photoAction, destructive && styles.photoActionDestructive, disabled && styles.photoActionOff]}
+    >
+      <Icon name={icon} size={15} color={destructive ? colors.statusCritical : colors.blue} />
+      <Text style={[styles.photoActionText, destructive && styles.photoActionDestructiveText]}>{label}</Text>
+    </TouchableOpacity>
+  );
 }
 
 /** Edit Profile — PATCH /mobile/me. The only place a patient can correct
@@ -55,6 +92,11 @@ export default function EditProfileScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const patient = useAuthStore((s) => s.patient);
   const updateProfile = useUpdateMyProfile();
+  const uploadPhoto = useUploadMyPhoto();
+  const removePhoto = useRemoveMyPhoto();
+  const dialog = useDialog();
+  const [photoMessage, setPhotoMessage] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null);
+  const photoBusy = uploadPhoto.isPending || removePhoto.isPending;
 
   const savedEmergency = patient?.emergency_contact ?? null;
 
@@ -196,6 +238,66 @@ export default function EditProfileScreen() {
     setFormError(null);
   };
 
+  /**
+   * The photo on the Health ID card. Picked with expo-image-picker (a file
+   * chooser on web, the library or camera on a phone), cropped square by the
+   * picker, then POSTed to /mobile/me/photo, which re-encodes and stores it
+   * privately and answers with a signed link. Permission refusals and upload
+   * failures are said in words under the buttons, never swallowed.
+   */
+  const pickPhoto = async (source: 'library' | 'camera') => {
+    setPhotoMessage(null);
+    try {
+      const permission =
+        source === 'camera'
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setPhotoMessage({ text: t('editProfile.photoPermission'), tone: 'error' });
+        return;
+      }
+      const options: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      };
+      const result =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync(options)
+          : await ImagePicker.launchImageLibraryAsync(options);
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      await uploadPhoto.mutateAsync({
+        uri: asset.uri,
+        mimeType: asset.mimeType ?? null,
+        fileName: asset.fileName ?? null,
+      });
+      setPhotoMessage({ text: t('editProfile.photoSaved'), tone: 'ok' });
+    } catch (err) {
+      setPhotoMessage({ text: extractErrorMessage(err, t('editProfile.photoFailed')), tone: 'error' });
+    }
+  };
+
+  const confirmRemovePhoto = () => {
+    dialog.confirm({
+      title: t('editProfile.photoRemoveConfirmTitle'),
+      message: t('editProfile.photoRemoveConfirmBody'),
+      confirmLabel: t('editProfile.photoRemove'),
+      cancelLabel: t('opesCore.components.goBack'),
+      destructive: true,
+      onConfirm: async () => {
+        setPhotoMessage(null);
+        try {
+          await removePhoto.mutateAsync();
+          setPhotoMessage({ text: t('editProfile.photoRemoved'), tone: 'ok' });
+        } catch (err) {
+          setPhotoMessage({ text: extractErrorMessage(err, t('editProfile.photoFailed')), tone: 'error' });
+        }
+      },
+    });
+  };
+
   const initials =
     `${patient?.first_name?.[0] ?? ''}${patient?.last_name?.[0] ?? ''}`.toUpperCase() || '?';
   const displayName = [patient?.first_name, patient?.last_name].filter(Boolean).join(' ');
@@ -217,12 +319,10 @@ export default function EditProfileScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Identity anchor — who this form is editing */}
+        {/* Identity anchor — who this form is editing, and their photo */}
         <Card>
           <View style={styles.identity}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials}</Text>
-            </View>
+            <Avatar name={displayName || initials} size={72} uri={patient?.photo_url} />
             <View style={styles.identityBody}>
               <Text style={styles.identityName} numberOfLines={1}>
                 {displayName || '—'}
@@ -230,8 +330,56 @@ export default function EditProfileScreen() {
               <Text style={styles.identityId} numberOfLines={1}>
                 {t('editProfile.healthIdLabel')} · {patient?.health_id ?? '—'}
               </Text>
+              <Text style={styles.photoHint} numberOfLines={1}>
+                {patient?.photo_url ? t('editProfile.photoTitle') : t('editProfile.photoNone')}
+              </Text>
             </View>
           </View>
+          <Text style={styles.photoDesc}>{t('editProfile.photoDesc')}</Text>
+          <View style={styles.photoActions}>
+            <PhotoAction
+              styles={styles}
+              colors={colors}
+              icon="image"
+              label={t('editProfile.photoChange')}
+              onPress={() => void pickPhoto('library')}
+              disabled={photoBusy}
+            />
+            {Platform.OS !== 'web' ? (
+              <PhotoAction
+                styles={styles}
+                colors={colors}
+                icon="camera"
+                label={t('editProfile.photoTake')}
+                onPress={() => void pickPhoto('camera')}
+                disabled={photoBusy}
+              />
+            ) : null}
+            {patient?.photo_url ? (
+              <PhotoAction
+                styles={styles}
+                colors={colors}
+                icon="trash"
+                label={t('editProfile.photoRemove')}
+                onPress={confirmRemovePhoto}
+                disabled={photoBusy}
+                destructive
+              />
+            ) : null}
+          </View>
+          {photoBusy ? (
+            <View style={styles.photoStatus} accessibilityRole="progressbar" accessibilityLabel={t('editProfile.photoUploading')}>
+              <ActivityIndicator size="small" color={colors.blue} />
+              <Text style={styles.photoStatusText}>{t('editProfile.photoUploading')}</Text>
+            </View>
+          ) : photoMessage ? (
+            <Text
+              style={[styles.photoStatusText, photoMessage.tone === 'error' && { color: statusMap.critical.fg }]}
+              accessibilityRole={photoMessage.tone === 'error' ? 'alert' : 'text'}
+            >
+              {photoMessage.text}
+            </Text>
+          ) : null}
         </Card>
 
         {/* ── Personal details ─────────────────────────────────────────── */}
@@ -507,6 +655,46 @@ const makeStyles = (colors: Palette) =>
       fontFamily: typography.fontFamily.bold,
       fontSize: typography.size.md,
       color: colors.blue,
+    },
+    photoHint: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+    photoDesc: {
+      marginTop: spacing.sm + 4,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
+    photoActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm + 4 },
+    photoAction: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: radii.pill,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    photoActionText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      color: colors.blue,
+    },
+    photoActionDestructive: { borderColor: colors.statusCriticalBg, backgroundColor: colors.statusCriticalBg },
+    photoActionDestructiveText: { color: colors.statusCritical },
+    photoActionOff: { opacity: 0.5 },
+    photoStatus: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+    photoStatusText: {
+      marginTop: spacing.sm,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
     },
     identityBody: { flex: 1, minWidth: 0, gap: 2 },
     identityName: {

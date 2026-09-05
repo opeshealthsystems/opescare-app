@@ -22,6 +22,8 @@ export const endpoints = {
   resetPassword: '/mobile/auth/reset-password',
 
   me: '/mobile/me',
+  /** POST multipart `photo` to set, DELETE to remove. */
+  mePhoto: '/mobile/me/photo',
   timeline: '/mobile/timeline',
   healthIdCard: '/mobile/health-id-card',
   generateTemporaryQr: '/mobile/qr/temporary',

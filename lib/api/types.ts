@@ -16,6 +16,8 @@ export interface Patient {
   blood_group: string | null;
   address: string | null;
   emergency_contact: EmergencyContact | null;
+  /** Short-lived signed link to the patient's own photo, or null when none is set. */
+  photo_url: string | null;
   status: string;
   allergies_count: number;
   conditions_count: number;
@@ -83,6 +85,8 @@ export interface HealthIdCard {
   sex: string | null;
   dob: string | null;
   blood_type: string | null;
+  /** Short-lived signed link to the patient's own photo, or null when none is set. */
+  photo_url?: string | null;
   qr_payload: string;
   status: string;
 }

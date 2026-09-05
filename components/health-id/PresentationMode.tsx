@@ -209,7 +209,7 @@ export function PresentationMode({
             <Art source={HEALTH_ID_ART.cornerMarkers} style={FILL} resizeMode="stretch" opacity={0.55} />
             <View style={styles.holderTop}>
               <View style={styles.avatarRing}>
-                <Avatar name={name} size={40} />
+                <Avatar name={name} size={40} uri={model.photoUrl} />
               </View>
               <View style={styles.holderText}>
                 <View style={styles.holderNameRow}>

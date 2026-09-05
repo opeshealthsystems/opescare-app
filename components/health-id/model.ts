@@ -19,6 +19,8 @@ export type CredentialModel = {
   bloodType: string | null;
   qrPayload: string | null;
   statusKey: string | null;
+  /** Signed link to the holder's own photo; null → initials avatar. */
+  photoUrl: string | null;
   /** Set only for the on-device copy: when it was captured. */
   capturedAt: string | null;
 };
@@ -89,6 +91,7 @@ export function modelFromLive(card: HealthIdCard): CredentialModel {
     bloodType: presentOrNull(card.blood_type),
     qrPayload: card.qr_payload,
     statusKey: (card.status ?? '').toLowerCase() || null,
+    photoUrl: card.photo_url ?? null,
     capturedAt: null,
   };
 }
@@ -102,6 +105,9 @@ export function modelFromCache(profile: OfflineEmergencyProfile): CredentialMode
     bloodType: presentOrNull(profile.blood_group),
     qrPayload: null,
     statusKey: null,
+    // The on-device copy never stores the photo link: it expires, and the
+    // copy exists for the radio-off case where it could not be fetched anyway.
+    photoUrl: null,
     capturedAt: profile.captured_at,
   };
 }

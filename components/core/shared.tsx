@@ -12,8 +12,8 @@
  * RECORD" wordmark is replaced by "OpesCare" over the app's own tagline
  * (`auth.tagline`); the layout, mark and rhythm are the kit's.
  */
-import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import {
   Icon,
@@ -114,18 +114,48 @@ export function BrandHeader({ onBack, onBell, bellBadge = 0, right, tagline }: B
 
 // ── Avatar ────────────────────────────────────────────────────────────────
 
-/** Circular initials avatar — there is no photo endpoint, so a stock face would be a fabrication. */
-export function Avatar({ name, size = 44, onPress }: { name: string; size?: number; onPress?: () => void }) {
+/**
+ * Circular avatar: the person's own photo when they have set one (`uri`, the
+ * short-lived signed link from /mobile/me), otherwise their initials. Never a
+ * stock face — that would be a fabrication on a health credential. A link that
+ * fails to load (expired signature, offline) falls back to the initials rather
+ * than a broken image.
+ */
+export function Avatar({
+  name,
+  size = 44,
+  onPress,
+  uri,
+}: {
+  name: string;
+  size?: number;
+  onPress?: () => void;
+  uri?: string | null;
+}) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   // Honorifics are not initials: this used to take the first two whitespace
   // tokens, so "Dr. Amara Diallo" rendered "DA" instead of "AD".
   const initials = initialsFrom(name, '');
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  useEffect(() => setFailedUri(null), [uri]);
+  const showPhoto = !!uri && failedUri !== uri;
 
   const body = (
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={[styles.avatarText, { fontSize: size * 0.36 }]}>{initials || '—'}</Text>
+      {showPhoto ? (
+        <Image
+          source={{ uri: uri as string }}
+          style={{ width: size, height: size, borderRadius: size / 2 }}
+          resizeMode="cover"
+          accessibilityIgnoresInvertColors
+          onError={() => setFailedUri(uri as string)}
+          alt=""
+        />
+      ) : (
+        <Text style={[styles.avatarText, { fontSize: size * 0.36 }]}>{initials || '—'}</Text>
+      )}
     </View>
   );
 

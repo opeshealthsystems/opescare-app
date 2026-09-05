@@ -821,7 +821,20 @@
     "save": "Save changes",
     "saved": "Profile updated successfully.",
     "savedContactRemoved": "Profile updated. Emergency contact removed.",
-    "saveFailed": "Couldn't save your changes. Please try again."
+    "saveFailed": "Couldn't save your changes. Please try again.",
+    "photoTitle": "Your photo",
+    "photoDesc": "Shown on your Health ID card and to the care team you share it with. A clear, recent photo of your face helps a desk confirm it is you.",
+    "photoChange": "Choose a photo",
+    "photoTake": "Take a photo",
+    "photoRemove": "Remove photo",
+    "photoUploading": "Saving your photo…",
+    "photoSaved": "Photo saved.",
+    "photoRemoved": "Photo removed.",
+    "photoFailed": "We could not save that photo. Try a smaller JPEG or PNG.",
+    "photoPermission": "OpesCare needs permission to use your photos or camera. You can allow it in your device settings.",
+    "photoNone": "No photo yet",
+    "photoRemoveConfirmTitle": "Remove your photo?",
+    "photoRemoveConfirmBody": "Your Health ID card will show your initials instead."
   },
   "settings": {
     "title": "Settings",

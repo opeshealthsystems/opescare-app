@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Avatar } from '@/components/core/shared';
 import {
   Card,
   EmptyState,
@@ -209,9 +210,7 @@ export default function SettingsScreen() {
             accessibilityLabel={t('settings.account.viewProfile')}
           >
             <View style={styles.identity}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initials}</Text>
-              </View>
+              <Avatar name={fullName || initials} size={48} uri={patient.photo_url} />
               <View style={styles.identityBody}>
                 <Text style={styles.identityName} numberOfLines={1}>
                   {fullName}

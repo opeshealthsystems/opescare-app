@@ -179,7 +179,7 @@ export function SecureCredentialCard({
           </View>
 
           <View style={styles.holderRow}>
-            <Avatar name={name} size={40} />
+            <Avatar name={name} size={40} uri={model.photoUrl} />
             <View style={styles.holderText}>
               <Text style={styles.holderName} numberOfLines={1}>
                 {name}

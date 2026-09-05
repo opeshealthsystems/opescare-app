@@ -1,4 +1,5 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Platform } from 'react-native';
 import { apiClient } from './client';
 import { endpoints } from './endpoints';
 import { useAuthStore } from '../store/auth';
@@ -43,6 +44,63 @@ export function useUpdateMyProfile() {
       (await apiClient.patch<Patient>(endpoints.me, input)).data,
     onSuccess: (patient) => {
       useAuthStore.setState({ patient });
+    },
+  });
+}
+
+/** What the image picker hands back, on either platform. */
+export interface PickedPhoto {
+  uri: string;
+  mimeType?: string | null;
+  fileName?: string | null;
+}
+
+/**
+ * POST /mobile/me/photo (multipart `photo`). On web the picker's `uri` is a
+ * blob/data URL that has to be turned into a Blob first; on native a
+ * `{uri, name, type}` triple is what fetch/axios can stream. The response is
+ * the new signed link, written into the session profile so every avatar in
+ * the app updates at once; the Health ID card query is invalidated because
+ * it carries its own copy of the link.
+ */
+export function useUploadMyPhoto() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (photo: PickedPhoto) => {
+      const form = new FormData();
+      const type = photo.mimeType || 'image/jpeg';
+      const name = photo.fileName || `photo.${type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg'}`;
+      if (Platform.OS === 'web') {
+        const blob = await (await fetch(photo.uri)).blob();
+        form.append('photo', blob, name);
+      } else {
+        form.append('photo', { uri: photo.uri, name, type } as unknown as Blob);
+      }
+      const { data } = await apiClient.post<{ photo_url: string | null }>(endpoints.mePhoto, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data.photo_url;
+    },
+    onSuccess: (photoUrl) => {
+      const patient = useAuthStore.getState().patient;
+      if (patient) useAuthStore.setState({ patient: { ...patient, photo_url: photoUrl } });
+      void queryClient.invalidateQueries({ queryKey: ['health-id-card'] });
+    },
+  });
+}
+
+/** DELETE /mobile/me/photo — back to initials everywhere. */
+export function useRemoveMyPhoto() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      await apiClient.delete(endpoints.mePhoto);
+      return null;
+    },
+    onSuccess: () => {
+      const patient = useAuthStore.getState().patient;
+      if (patient) useAuthStore.setState({ patient: { ...patient, photo_url: null } });
+      void queryClient.invalidateQueries({ queryKey: ['health-id-card'] });
     },
   });
 }

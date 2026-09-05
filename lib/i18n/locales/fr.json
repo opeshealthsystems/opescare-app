@@ -821,7 +821,20 @@
     "save": "Enregistrer les modifications",
     "saved": "Profil mis à jour avec succès.",
     "savedContactRemoved": "Profil mis à jour. Contact d'urgence supprimé.",
-    "saveFailed": "Impossible d’enregistrer vos modifications. Veuillez réessayer."
+    "saveFailed": "Impossible d’enregistrer vos modifications. Veuillez réessayer.",
+    "photoTitle": "Votre photo",
+    "photoDesc": "Affichée sur votre carte Identifiant Santé et auprès de l’équipe soignante avec qui vous la partagez. Une photo nette et récente de votre visage aide un accueil à vous reconnaître.",
+    "photoChange": "Choisir une photo",
+    "photoTake": "Prendre une photo",
+    "photoRemove": "Retirer la photo",
+    "photoUploading": "Enregistrement de votre photo…",
+    "photoSaved": "Photo enregistrée.",
+    "photoRemoved": "Photo retirée.",
+    "photoFailed": "Impossible d’enregistrer cette photo. Essayez un JPEG ou PNG plus léger.",
+    "photoPermission": "OpesCare a besoin de l’autorisation d’accéder à vos photos ou à l’appareil photo. Vous pouvez l’accorder dans les réglages de votre appareil.",
+    "photoNone": "Pas encore de photo",
+    "photoRemoveConfirmTitle": "Retirer votre photo ?",
+    "photoRemoveConfirmBody": "Votre carte Identifiant Santé affichera vos initiales à la place."
   },
   "settings": {
     "title": "Paramètres",

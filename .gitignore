@@ -42,3 +42,7 @@ yarn-error.*
 
 # Expo web export — the built copy is deployed from apps/api-laravel/public/app
 dist-web/
+
+# Design exports dropped into the working tree are reference material, not app code.
+/Health ID retuned/
+/UIUX/

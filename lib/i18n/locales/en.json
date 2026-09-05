@@ -563,7 +563,9 @@
     "insuranceStatus": {
       "active": "Active",
       "expired": "Expired"
-    }
+    },
+    "phoneNotListed": "No phone number listed",
+    "phoneNotListedHint": "This facility has not published a phone number, so calling is not available from here."
   },
   "doctor": {
     "title": "Clinician",

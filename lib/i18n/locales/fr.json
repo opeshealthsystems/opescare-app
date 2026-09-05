@@ -563,7 +563,9 @@
     "insuranceStatus": {
       "active": "Active",
       "expired": "Expirée"
-    }
+    },
+    "phoneNotListed": "Aucun numéro de téléphone publié",
+    "phoneNotListedHint": "Cet établissement n’a pas publié de numéro de téléphone ; l’appel n’est donc pas possible depuis cette fiche."
   },
   "doctor": {
     "title": "Praticien",

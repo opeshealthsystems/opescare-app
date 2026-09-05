@@ -96,10 +96,25 @@ const ROUTE_FILTER: Record<string, InboxFilter> = {
   all: 'all',
 };
 
-/** 404 / 501: this server does not serve the clinician surface yet. */
+/**
+ * "This server does not serve the clinician surface yet" — as opposed to any
+ * other failure.
+ *
+ * A bare status check is no longer enough now that `/mobile/doctor/*` is
+ * served: the inbox answers 404 for a result that is not this clinician's, and
+ * telling them "not available on this server yet" when the real answer is
+ * "expired session" or "not your result" sends them to the wrong fix. Laravel's
+ * unknown-API-route handler is the discriminator — it answers
+ * `{"error_code":"ENDPOINT_NOT_FOUND"}`, which no controller in this slice
+ * ever returns.
+ */
 function isNotServed(e: unknown): boolean {
-  const status = axios.isAxiosError(e) ? e.response?.status : undefined;
-  return status === 404 || status === 501;
+  if (!axios.isAxiosError(e)) return false;
+  const status = e.response?.status;
+  if (status === 501) return true;
+  if (status !== 404) return false;
+  const body = e.response?.data as { error_code?: string; message?: string } | undefined;
+  return body?.error_code === 'ENDPOINT_NOT_FOUND' || !body?.message;
 }
 
 export default function ResultsInboxScreen() {
@@ -166,6 +181,12 @@ export default function ResultsInboxScreen() {
     body = <LoadingBlock label={tx('inbox.loading', 'Loading your inbox…')} />;
   } else if (inbox.isError && inbox.data === undefined) {
     const notServed = isNotServed(inbox.error);
+    // An expired clinician session, a withdrawn role and a dead network are
+    // three different problems with three different fixes. `describeFailure`
+    // already names each one in both languages — the title was being thrown
+    // away and replaced with a generic "something went wrong", which tells a
+    // clinician nothing about how to reach their results.
+    const failure = describeFailure(inbox.error);
     body = (
       <EmptyState
         icon={notServed ? 'flask' : 'alert-circle'}
@@ -173,7 +194,7 @@ export default function ResultsInboxScreen() {
         title={
           notServed
             ? tx('shared.notServedTitle', 'Not available on this server yet')
-            : tr('opesCore.errors.unknownTitle')
+            : failure.title
         }
         message={
           notServed
@@ -181,7 +202,7 @@ export default function ResultsInboxScreen() {
                 'shared.notServedResults',
                 'Results awaiting your acknowledgement will appear here once the clinician service is enabled for this app.'
               )
-            : describeFailure(inbox.error).message
+            : failure.message
         }
         actionLabel={tr('opesCore.common.retry')}
         onAction={() => void refetch()}

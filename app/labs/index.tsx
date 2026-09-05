@@ -13,9 +13,10 @@
  *    directory (`/care-map`) for "find a laboratory".
  *  - `@react-navigation/native` → expo-router; `useUnread` → none (the bell
  *    simply opens `/notifications`).
- *  - The Finder backend does not serve `/mobile/labs*` yet. Every hook
- *    failure (404 included) renders a kit `EmptyState` — never a crash, never
- *    an endless spinner, never invented rows.
+ *  - Every hook failure (404 included) renders a kit `EmptyState` — never a
+ *    crash, never an endless spinner, never invented rows. The backend serves
+ *    these routes now (routes/mobile_labs.php); a 404 means a deployment that
+ *    has not loaded them, which is a different message from "no results".
  */
 import React, { useCallback, useMemo } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -77,6 +78,7 @@ const SHARED_DEFAULTS: Record<string, string> = {
   'opesDiagnostics.flag.abnormal': 'Abnormal',
   'opesDiagnostics.flag.critical': 'Critical',
   'opesDiagnostics.flag.pending': 'Awaiting results',
+  'opesDiagnostics.flag.unflagged': 'Not recorded',
   'opesDiagnostics.a11y.resultRow': '{{analyte}}, {{value}}. {{range}}. {{status}}',
   'opesDiagnostics.a11y.historyRow': '{{date}}, {{value}}. {{range}}. {{status}}',
   'opesDiagnostics.a11y.latestResult': '{{analyte}}, latest result {{value}} on {{date}}. {{range}}. {{status}}',
@@ -110,6 +112,24 @@ export function useLabsT() {
     [t]
   );
   return { t, tx, tr };
+}
+
+/**
+ * A result's flag, as a patient reads it.
+ *
+ * `flagLabel` in `components/diagnostics/shared` knows normal / low / high /
+ * abnormal / critical / pending and falls through to `titleCase(flag)` for
+ * anything else — which would print a raw English "Unflagged" to a French
+ * reader. `unflagged` is the server's honest "nobody compared this value to
+ * anything" state, so it is translated here and rendered as "Not recorded"
+ * rather than being allowed to read as a result.
+ *
+ * It must NEVER be collapsed into "Normal": a value with no reference range is
+ * not a value inside one.
+ */
+export function resultFlagLabel(flag: string, tx: Tx, tr: Translate): string {
+  if (flag === 'unflagged') return tx('flag.unflagged', 'Not recorded');
+  return flagLabel(flag, tr);
 }
 
 export default function LabsDashboardScreen() {
@@ -293,7 +313,7 @@ export default function LabsDashboardScreen() {
                   trailing={
                     <StatusBadge
                       status={o.overall_flag}
-                      label={flagLabel(o.overall_flag, tr)}
+                      label={resultFlagLabel(o.overall_flag, tx, tr)}
                       tone={toneForFlag(o.overall_flag)}
                       size="sm"
                     />

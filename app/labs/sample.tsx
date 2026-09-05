@@ -24,7 +24,7 @@
  * instructions. No endpoint carries them, and the app must not invent clinical
  * preparation advice — the "before you go" strip says who does hold it.
  *
- * The Finder backend does not serve `/mobile/labs*` yet: a failed read renders
+ * A failed read renders
  * the kit `EmptyState` (`LabsUnavailable`), never a crash or an endless spinner.
  */
 import React, { useCallback, useMemo } from 'react';

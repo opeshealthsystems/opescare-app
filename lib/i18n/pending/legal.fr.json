@@ -1,0 +1,104 @@
+{
+  "legal": {
+    "privacy": {
+      "title": "Politique de confidentialité",
+      "updated": "Dernière mise à jour le {{date}}",
+      "lede": "OpesCare Finder détient des informations médicales vous concernant. Cette page explique, en termes simples, ce que l'application collecte, qui peut y accéder et ce que vous pouvez faire à ce sujet. Elle décrit ce que l'application fait réellement aujourd'hui — et non ce qu'elle pourrait faire plus tard.",
+
+      "collectTitle": "Ce que nous collectons",
+      "collectIdentity": "Les informations d'identité et de contact que vous nous communiquez : vos nom et prénom, votre date de naissance, votre sexe, votre numéro de téléphone, votre adresse e-mail, votre adresse postale, ainsi que le nom et le numéro de téléphone de la personne à prévenir en cas d'urgence que vous désignez. Si vous inscrivez une personne à charge, nous collectons les mêmes informations la concernant.",
+      "collectHealth": "Les informations de santé contenues dans votre dossier OpesCare : votre identifiant santé, votre groupe sanguin, vos allergies, vos diagnostics et pathologies, vos vaccinations, vos ordonnances, vos demandes et résultats d'analyses, vos signes vitaux, vos plans de soins, vos orientations, vos rendez-vous et les documents cliniques qui vous sont délivrés.",
+      "collectUsage": "Les demandes que vous effectuez dans l'application : prises et annulations de rendez-vous, réservations de médicaments, demandes de sang, demandes d'analyses, messages adressés à votre équipe soignante, tickets d'assistance, ainsi que toute note ou tout motif rédigé librement que vous y saisissez.",
+      "collectDevice": "Un identifiant d'appareil que l'application génère elle-même — une chaîne aléatoire, et non le numéro de série de votre matériel ni un identifiant publicitaire. Il nous sert uniquement à rattacher un enregistrement de notifications et une autorisation d'accès hors ligne à cet appareil.",
+
+      "locationTitle": "Localisation",
+      "locationWhen": "L'application ne demande votre position que pendant que vous l'utilisez, et uniquement sur les écrans qui en ont besoin. Elle ne vous suit jamais en arrière-plan.",
+      "locationBlood": "Dans le Localisateur de sang, vos coordonnées sont transmises à notre serveur afin qu'il puisse classer les banques de sang selon la distance réelle qui vous en sépare. C'est le seul cas où votre position précise quitte l'appareil.",
+      "locationMap": "Sur la Carte des soins, vos coordonnées restent sur l'appareil. Elles servent à trier les établissements proches et à calculer leur distance. L'application convertit votre position en un nom de ville et n'envoie que ce nom de ville pour filtrer l'annuaire.",
+      "locationDecline": "Vous pouvez refuser entièrement la localisation. Les deux écrans se rabattent alors sur une ville que vous choisissez dans une liste, et tout le reste continue de fonctionner.",
+
+      "useTitle": "Pourquoi nous les utilisons",
+      "useCare": "Pour vous offrir, ainsi qu'aux soignants que vous autorisez, une vue unique et fiable de votre dossier de santé dans tous les établissements que vous fréquentez, afin que vos soins ne repartent pas de zéro à chaque porte.",
+      "useOperate": "Pour faire fonctionner les services que vous demandez : trouver des médicaments et du sang disponibles, prendre rendez-vous, délivrer votre identifiant santé et vous remettre les copies de votre dossier que vous exportez.",
+      "useSafety": "Pour préserver la sécurité et la traçabilité de la plateforme : vous authentifier, prévenir les abus et consigner qui a consulté votre dossier afin que vous puissiez le vérifier.",
+      "useLegal": "Pour respecter les obligations applicables aux dossiers de santé dans le pays où vos soins sont dispensés.",
+
+      "neverTitle": "Ce que nous ne faisons jamais",
+      "neverSell": "Nous ne vendons pas vos informations personnelles ou de santé, et ne l'avons jamais fait.",
+      "neverAds": "Nous n'utilisons pas vos informations à des fins publicitaires, et l'application ne contient aucune publicité.",
+      "neverTrack": "L'application ne contient aucun service d'analyse d'audience, de suivi, d'attribution ou de remontée de plantages. Elle communique avec un seul serveur — le nôtre — et avec aucune autre société. Rien de ce que vous faites dans l'application n'est transmis à un tiers.",
+
+      "sharingTitle": "Qui d'autre peut consulter votre dossier",
+      "sharingConsent": "Un établissement de santé ou un soignant ne consulte votre dossier que dans les limites d'un consentement que vous avez accordé. Vous acceptez ou refusez chaque demande dans l'application, vous pouvez voir tous les consentements actifs et vous pouvez en révoquer n'importe lequel à tout moment.",
+      "sharingLogs": "Chaque consultation est journalisée. Confidentialité › Journal d'accès vous indique qui a ouvert votre dossier, quand, depuis où et dans quel but déclaré — y compris en cas d'accès d'urgence.",
+      "sharingPrescription": "Lorsque vous partagez une ordonnance avec une pharmacie, l'application crée un lien limité et temporaire qui n'affiche que cette ordonnance. Vous pouvez le révoquer avant son expiration.",
+      "sharingFamily": "Si vous invitez un proche, il ne voit que ce que le niveau d'accès que vous avez choisi autorise. Vous pouvez retirer cet accès.",
+
+      "storageTitle": "Comment elles sont conservées",
+      "storageTransit": "Tout ce que l'application transmet circule via une connexion HTTPS chiffrée.",
+      "storageDevice": "Sur votre téléphone, votre jeton de session et toute copie hors ligne de votre dossier sont conservés dans le coffre sécurisé du système d'exploitation — le Trousseau iOS ou le Keystore Android — chiffré au repos et lié au déverrouillage de votre appareil.",
+      "storageOffline": "L'accès hors ligne est désactivé tant que vous ne l'activez pas, et il ne conserve que les catégories que vous approuvez : vos données d'identité, vos rendez-vous à venir, vos médicaments, vos allergies et un profil d'urgence. Vous pouvez effacer cette copie de l'appareil à tout moment dans Paramètres › Accès hors ligne. L'autorisation elle-même expire d'elle-même sous 24 heures.",
+      "storageWeb": "Si vous utilisez OpesCare dans un navigateur web plutôt que dans l'application installée, le stockage du navigateur n'offre aucun chiffrement au repos. L'application vous en avertit avant d'y enregistrer quoi que ce soit.",
+
+      "rightsTitle": "Vos droits",
+      "rightsSee": "Consulter votre dossier : chaque section clinique de l'application contient vos propres données, présentées intégralement.",
+      "rightsExport": "En obtenir une copie : Paramètres › Télécharger mes dossiers exporte votre dossier au format PDF ou sous forme de bundle FHIR R4 que vous pouvez remettre à tout autre système.",
+      "rightsCorrect": "Le corriger : si une information de votre dossier est erronée, Confidentialité › Demandes de données permet de soumettre une demande de correction visant l'entrée concernée. Les dossiers cliniques ne sont jamais écrasés en silence — une correction est consignée comme un amendement, ce qui rend l'historique digne de confiance.",
+      "rightsRevoke": "Retirer votre consentement : révoquez l'accès de n'importe quel établissement depuis l'écran Confidentialité, à tout moment et sans avoir à vous justifier.",
+      "rightsDelete": "Supprimer votre compte : l'application ne peut pas encore le faire pour vous. Écrivez-nous à l'adresse ci-dessous depuis l'adresse associée à votre compte : nous le fermerons et supprimerons les données personnelles que la loi ne nous oblige pas à conserver. Les dossiers médicaux qu'un établissement est légalement tenu de conserver le restent chez cet établissement, et nous vous indiquerons lesquels.",
+
+      "childrenTitle": "Enfants et personnes à charge",
+      "childrenBody": "L'application est destinée aux adultes. Un parent ou un tuteur peut détenir le dossier d'une personne à charge via la fonction Famille, et est responsable des informations de cet enfant dans l'application. Nous ne permettons pas sciemment à un enfant de créer lui-même un compte.",
+
+      "changesTitle": "Modifications de cette politique",
+      "changesBody": "Si nous modifions ce que nous collectons ou l'usage que nous en faisons, nous mettrons à jour cette page ainsi que la date qui y figure et — lorsque le changement est important — nous vous en informerons dans l'application avant son entrée en vigueur.",
+
+      "contactTitle": "Nous contacter",
+      "contactBody": "Pour toute question sur cette politique, ou toute demande concernant vos données — y compris la suppression de votre compte :"
+    },
+
+    "terms": {
+      "title": "Conditions d'utilisation",
+      "updated": "Dernière mise à jour le {{date}}",
+      "lede": "Ces conditions encadrent votre utilisation de l'application OpesCare Finder. Les deux premières sections sont les plus importantes pour votre sécurité — lisez-les même si vous ne lisez rien d'autre.",
+
+      "emergencyTitle": "Cette application ne remplace pas les secours",
+      "emergencyBody": "Si vous êtes en situation d'urgence médicale, arrêtez-vous et appelez le numéro d'urgence local ou rendez-vous au service d'urgence le plus proche. N'utilisez pas cette application pour demander de l'aide urgente. Les messages, les demandes de rendez-vous et les demandes de sang ne font pas l'objet d'une surveillance continue et peuvent ne pas être vus à temps.",
+
+      "adviceTitle": "Elle ne donne pas d'avis médical",
+      "adviceBody": "OpesCare Finder vous présente des informations issues de votre dossier de santé et des établissements de l'annuaire national. Elle ne pose pas de diagnostic, ne traite pas et ne vous dit pas quoi faire concernant votre santé. Rien dans l'application ne remplace une consultation auprès d'un soignant qualifié, et aucun résultat, aucune valeur ni aucun indicateur affiché ici ne doit être suivi d'effet sans une telle consultation.",
+      "adviceResults": "Les résultats d'analyses et les signes vitaux sont affichés tels que votre établissement les a communiqués. Une valeur de référence ou un marqueur hors norme est une annotation propre au laboratoire, et non une interprétation de ce que cela signifie pour vous.",
+
+      "accountTitle": "Votre compte",
+      "accountTruthful": "Vous devez fournir des informations d'identité exactes. Votre identifiant santé est délivré sur cette base, et un dossier rattaché à des informations erronées représente un danger pour vous : il peut placer les allergies ou le groupe sanguin d'une autre personne sous les yeux de celui qui vous soigne.",
+      "accountSecurity": "Gardez pour vous votre mot de passe, votre code PIN et vos codes à usage unique. Quiconque se connecte à votre place peut lire l'intégralité de votre dossier médical. Prévenez-nous immédiatement si vous pensez qu'une autre personne y a accès.",
+      "accountOne": "Un compte appartient à une seule personne. Utilisez la fonction Famille pour détenir le dossier d'une personne à charge plutôt que de partager un identifiant.",
+      "accountClosing": "Vous pouvez fermer votre compte à tout moment en nous écrivant. L'application ne peut pas encore le faire pour vous ; la Politique de confidentialité explique ce qu'il advient de vos données à cette occasion.",
+
+      "availabilityTitle": "Stocks, disponibilité et réservations",
+      "availabilityReported": "Les stocks de médicaments, la disponibilité du sang et les créneaux de rendez-vous sont communiqués à OpesCare par les pharmacies, les banques de sang et les établissements eux-mêmes. Nous publions ce qu'ils nous indiquent, avec l'heure de la dernière mise à jour. Nous ne détenons pas les stocks et nous ne pouvons pas garantir qu'un article affiché comme disponible le sera encore à votre arrivée. Appelez avant de vous déplacer lorsque cela compte.",
+      "availabilityReservation": "Une réservation est une demande adressée à une pharmacie, et non un achat. L'application n'encaisse aucun paiement. Vous payez directement la pharmacie, sur place.",
+      "availabilityBlood": "OpesCare n'encaisse aucun paiement pour le sang, et une demande de sang déposée ici est une demande adressée à une banque de sang — ce n'est pas la garantie que des unités vous seront réservées.",
+      "availabilityAppointment": "Un rendez-vous pris dans l'application est confirmé par l'établissement, et les règles propres à cet établissement en matière de retard, d'annulation et de frais s'appliquent.",
+
+      "recordTitle": "Votre dossier",
+      "recordSource": "Votre dossier est rédigé par les soignants et les établissements qui vous prennent en charge. OpesCare le transporte entre eux ; il n'en est pas l'auteur.",
+      "recordAmend": "Les entrées cliniques ne sont jamais écrasées en silence. Si une information est erronée, vous pouvez soumettre une demande de correction visant cette entrée, et la modification est consignée comme un amendement dont l'historique reste intact. C'est ce qui rend le dossier fiable.",
+      "recordConsent": "Vous décidez qui consulte votre dossier. L'accès est accordé par votre consentement, limité à ce que ce consentement couvre, et journalisé afin que vous puissiez le vérifier.",
+
+      "acceptableTitle": "Usage acceptable",
+      "acceptableBody": "N'utilisez pas l'application pour usurper l'identité d'autrui, pour accéder à un dossier qui n'est ni le vôtre ni légitimement partagé avec vous, pour déposer de fausses demandes de sang ou de médicaments, ou pour perturber le service pour les autres. Ne tentez pas de contourner, de sonder ou de compromettre sa sécurité. Nous pouvons suspendre un compte qui le ferait.",
+
+      "liabilityTitle": "Disponibilité et limites",
+      "liabilityUptime": "Nous nous efforçons de maintenir le service disponible, mais nous ne garantissons pas qu'il sera ininterrompu ou exempt d'erreurs. La maintenance, les pannes de réseau et les systèmes des établissements auxquels nous sommes reliés peuvent tous l'interrompre.",
+      "liabilityThird": "Lorsque l'application affiche une information fournie par un établissement, une pharmacie, une banque de sang ou un laboratoire, c'est à cette partie qu'incombe la responsabilité de son exactitude.",
+      "liabilityExtent": "Dans les limites permises par la loi, nous ne sommes pas responsables des préjudices résultant de votre confiance en une information affichée par l'application lorsque cette information provient d'un tiers, ni de votre utilisation de l'application en lieu et place de soins médicaux professionnels.",
+
+      "changesTitle": "Modifications",
+      "changesBody": "Nous pouvons mettre à jour ces conditions. Le cas échéant, nous modifierons la date figurant en haut de cette page et vous informerons dans l'application avant l'entrée en vigueur d'un changement important. Continuer à utiliser l'application après cette date vaut acceptation des conditions mises à jour.",
+
+      "contactTitle": "Nous contacter",
+      "contactBody": "Pour toute question sur ces conditions :"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "_comment": "New/changed labs keys from the /mobile/labs backend work. Flat dotted keys, 1:1 with labs.fr.json. Merge into lib/i18n/locales/*.json. These are ONLY the keys this change introduces — the rest of the opesDiagnostics namespace is being migrated separately, so nothing already in flight is duplicated here.",
+
+  "opesDiagnostics.flag.unflagged": "Not recorded",
+  "opesDiagnostics.flag.pending": "Awaiting results",
+  "opesDiagnostics.a11y.statusUnflagged": "No comparison with a usual range was given",
+  "opesDiagnostics.a11y.rangeNone": "Usual range: {{noRange}}",
+  "opesDiagnostics.report.noRange": "Not provided",
+  "opesDiagnostics.report.unflaggedNote": "“Not recorded” means the laboratory published no usual range for that test, so this result has not been compared with one. It is not the same as a normal result.",
+  "opesDiagnostics.report.noPdfTitle": "No signed PDF on file",
+  "opesDiagnostics.report.noPdfBody": "The laboratory has not attached a document to this order. Everything it did release is shown above.",
+  "opesDiagnostics.request.unknownTest": "That test is not on any laboratory’s published list. Choose a test from the catalogue.",
+  "opesDiagnostics.request.notAnOrder": "This is a request, not a laboratory order. A clinician has to approve it before the test is carried out."
+}

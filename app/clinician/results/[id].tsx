@@ -67,10 +67,37 @@ import {
 import { categoryLabel, fmtReported } from '@/components/doctor/shared';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
 
-/** 404 / 501: this server does not serve the clinician surface yet. */
+/**
+ * "This server does not serve the clinician surface yet" — as opposed to any
+ * other failure.
+ *
+ * `/mobile/doctor/results-inbox/{id}` is served now, and it answers 404 with a
+ * message for a result that is not in this clinician's inbox — out of their
+ * facility, not their order, or withdrawn. That is a real answer about a real
+ * result and must not be dressed up as a missing feature. Laravel's
+ * unknown-API-route handler is the discriminator: it answers
+ * `{"error_code":"ENDPOINT_NOT_FOUND"}`, which this slice never returns.
+ */
 function isNotServed(e: unknown): boolean {
-  const status = axios.isAxiosError(e) ? e.response?.status : undefined;
-  return status === 404 || status === 501;
+  if (!axios.isAxiosError(e)) return false;
+  const status = e.response?.status;
+  if (status === 501) return true;
+  if (status !== 404) return false;
+  const body = e.response?.data as { error_code?: string; message?: string } | undefined;
+  return body?.error_code === 'ENDPOINT_NOT_FOUND' || !body?.message;
+}
+
+/**
+ * The server's own sentence, when it sent one.
+ *
+ * On a 404 the API says which of "not yours / not here / gone" applies, in the
+ * clinician's language. Replacing that with a generic classification would
+ * throw away the only specific thing anyone knows about the failure.
+ */
+function serverMessage(e: unknown): string | null {
+  if (!axios.isAxiosError(e)) return null;
+  const body = e.response?.data as { message?: string } | undefined;
+  return typeof body?.message === 'string' && body.message !== '' ? body.message : null;
 }
 
 /** Failure copy for a write, saying plainly when the outcome is unknown. */
@@ -228,6 +255,11 @@ export default function ResultDetailScreen() {
     body = <LoadingBlock label={tx('result.loading', 'Loading this result…')} />;
   } else if (detail.isError && detail.data === undefined) {
     const notServed = isNotServed(detail.error);
+    // An expired clinician session, a result that is not theirs and a dead
+    // network are three different problems with three different fixes.
+    // `describeFailure` names each in both languages; the server's own 404
+    // sentence is more specific still, so it wins when there is one.
+    const failure = describeFailure(detail.error);
     body = (
       <EmptyState
         icon={notServed ? 'flask' : 'alert-circle'}
@@ -235,7 +267,7 @@ export default function ResultDetailScreen() {
         title={
           notServed
             ? tx('shared.notServedTitle', 'Not available on this server yet')
-            : tr('opesCore.errors.unknownTitle')
+            : failure.title
         }
         message={
           notServed
@@ -243,7 +275,7 @@ export default function ResultDetailScreen() {
                 'shared.notServedResult',
                 'This result cannot be opened until the clinician service is enabled for this app.'
               )
-            : describeFailure(detail.error).message
+            : (serverMessage(detail.error) ?? failure.message)
         }
         actionLabel={tr('opesCore.common.retry')}
         onAction={() => void refetch()}

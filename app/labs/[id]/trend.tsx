@@ -17,7 +17,7 @@
  *    `/labs`; the action tiles open `/labs/[id]` and `/labs/[id]/report`;
  *    "Message" opens the Messages tab.
  *
- * The Finder backend does not serve `/mobile/labs*` yet: a failed read renders
+ * A failed read renders
  * the kit `EmptyState` (`LabsUnavailable`), never a crash or an endless spinner.
  * Nothing is interpolated or invented — the chart plots only the points the
  * server sent.
@@ -51,7 +51,6 @@ import {
   TableRow,
   colorForFlag,
   errorMessage,
-  flagLabel,
   flagSpoken,
   fmtDate,
   rangeSpoken,
@@ -67,7 +66,7 @@ import {
   useLabTrend,
   type LabTrend,
 } from '@/lib/api/labsQueries';
-import { LabsUnavailable, useLabsT, type Tx } from '../index';
+import { LabsUnavailable, resultFlagLabel, useLabsT, type Tx } from '../index';
 
 function columns(tx: Tx): TableColumn[] {
   return [
@@ -337,7 +336,7 @@ export default function LabResultTrendScreen() {
               </Text>
               <StatusBadge
                 status={flag}
-                label={flagLabel(flag, tr)}
+                label={resultFlagLabel(flag, tx, tr)}
                 tone={toneForFlag(flag)}
                 icon={isCritical ? 'alert-circle' : undefined}
                 style={styles.latestBadge}
@@ -409,7 +408,7 @@ export default function LabResultTrendScreen() {
                       />
                     ) : (
                       <Text style={[styles.flagText, { color: colorForFlag(p.flag) }]} numberOfLines={1}>
-                        {flagLabel(p.flag, tr)}
+                        {resultFlagLabel(p.flag, tx, tr)}
                       </Text>
                     ),
                 },

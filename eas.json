@@ -1,7 +1,8 @@
 {
   "cli": {
     "version": ">= 13.0.0",
-    "appVersionSource": "local"
+    "//": "appVersionSource is REMOTE because this project has a dynamic config (app.config.js). EAS cannot write an auto-incremented buildNumber/versionCode back through a dynamic config, so `local` + `autoIncrement` is not a usable combination here. Remote keeps the counters on EAS; `version` in app.json stays the marketing version you bump by hand.",
+    "appVersionSource": "remote"
   },
   "build": {
     "local-api": {
@@ -24,13 +25,17 @@
       }
     },
     "production": {
+      "//": "STORE BUILD. The demo flags below are pinned OFF on purpose: a plain `.env` in the project root is NOT gitignored (only `.env*.local` is) and Expo inlines every EXPO_PUBLIC_* value at bundle time, so a developer's leftover `.env` would otherwise ship the demo sign-in menu and the clinician-preview override to the App Store. An explicit '0' here always wins.",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://finder.opescare.cloud/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://finder.opescare.cloud/api",
+        "EXPO_PUBLIC_DEMO_LOGINS": "0",
+        "EXPO_PUBLIC_DOCTOR_PERSONA": "0"
       }
     }
   },
   "submit": {
+    "//": "Left empty deliberately. Filling this in requires the owner's Apple Developer and Google Play accounts (ascAppId, appleTeamId, the Play service-account JSON) — credentials no agent should hold. See docs/STORE_SUBMISSION.md, runbook steps 1-4.",
     "production": {}
   }
 }

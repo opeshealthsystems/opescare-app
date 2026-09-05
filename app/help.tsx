@@ -233,11 +233,13 @@ export default function HelpScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <ScreenHeader
-        title={t('help.title')}
-        subtitle={t('help.subtitle')}
-        onBack={() => router.back()}
-      />
+      {/* No `onBack`: the kit falls back to the app-wide handler registered in
+          app/_layout.tsx (`canGoBack() ? back() : replace('/(tabs)/home')`).
+          Passing `() => router.back()` here OVERRODE that with a call that is
+          a silent no-op when there is no stack to pop — and Help is reached
+          without one every time it is opened from a notification or a deep
+          link, leaving a chevron that does nothing. */}
+      <ScreenHeader title={t('help.title')} subtitle={t('help.subtitle')} />
 
       <ScrollView
         contentContainerStyle={styles.content}

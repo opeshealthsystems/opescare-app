@@ -1,0 +1,15 @@
+{
+  "opesDoctor": {
+    "section": {
+      "indexAllergies": "Toutes les allergies consignées, au complet",
+      "indexDiagnoses": "La liste des problèmes et les diagnostics codés lors des dernières visites",
+      "indexEncounters": "Chaque visite avec son subjectif, son objectif, son évaluation et son plan",
+      "indexImaging": "Les demandes d’imagerie et les résultats rapportés",
+      "indexLabs": "Les demandes d’analyses et les valeurs validées par le laboratoire",
+      "indexMedications": "Les prescriptions en cours et passées, avec la dose et la voie d’administration",
+      "indexVitals": "Chaque relevé, comparé aux plages habituelles du dossier",
+      "itemisedNotServed": "Le détail analyte par analyte n’est pas encore disponible sur ce serveur. La demande, et le résultat rapporté ci-dessus, sont complets — seule la ventilation valeur par valeur manque.",
+      "noOrdersOthers": "Rien de ce type n’a été demandé lors des {{scan}} dernières consultations, bien que {{count}} autres demandes aient été enregistrées."
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "_readme": [
+    "PENDING — not loaded by lib/i18n/index.ts. Merge into lib/i18n/locales/en.json",
+    "under `opesDoctor`, together with the identical-keyed fr file, then delete both.",
+    "",
+    "This is a DELTA, not a catalogue. Everything the clinician messaging + profile",
+    "slice needed at ship time was already in the locale files — including the",
+    "i18next plural forms messages.waiting_one/_other and",
+    "profile.experienceYears_one/_other, and a whole photo vocabulary",
+    "(profile.photo, changePhoto, addPhoto, photoFailedTitle, photoCheckHint).",
+    "The refined 'missing route vs refused conversation' branch in messages.tsx",
+    "and messages/[id].tsx reuses opesCore.errors.* rather than adding keys.",
+    "",
+    "Two things are left, and `corrections` is the important half.",
+    "",
+    "1. `corrections` — copy already in the catalogue that the SERVER has since",
+    "   made untrue. Overwrite the existing values with these.",
+    "",
+    "     profile.photoDesktopOnly currently says the photo can only be changed",
+    "     from the desktop system. That was true when it was written and is not",
+    "     any more: POST /api/mobile/doctor/profile/photo is live, validated and",
+    "     rate-limited. The string is not referenced by any screen today, so",
+    "     nothing on screen is wrong yet — but the next person to wire a photo",
+    "     control would reach for it and ship a false statement.",
+    "",
+    "     profile.photoInvalid says 'smaller than 5 MB'. The server's cap is",
+    "     4 MB (max:4096 KB), so the app would be promising an allowance the",
+    "     API refuses. The number here matches the server.",
+    "",
+    "2. `additions` — the only genuinely new keys: picking a source, and the two",
+    "   refusals the server can give that no existing string covers.",
+    "     photoNotAnImage       <- PHOTO_NOT_AN_IMAGE (422): the bytes are not a",
+    "                              JPEG/PNG/WebP, whatever the file was named or",
+    "                              what Content-Type the client claimed.",
+    "     photoDimensionsTooBig <- PHOTO_DIMENSIONS_REJECTED (422): a small file",
+    "                              that decodes to an enormous image.",
+    "",
+    "Why the photo control is not built: the app bundles no image picker, and",
+    "adding expo-image-picker is a package.json change — package.json is shared",
+    "with the other agents working this repo. app/clinician/profile.tsx already",
+    "renders an existing photo_url; only the control to change it is missing."
+  ],
+  "corrections": {
+    "opesDoctor": {
+      "profile": {
+        "photoDesktopOnly": "You can change your photo here, or from the OpesCare desktop system.",
+        "photoInvalid": "Choose a JPEG, PNG or WebP image smaller than 4 MB."
+      }
+    }
+  },
+  "additions": {
+    "opesDoctor": {
+      "profile": {
+        "photoTakeNew": "Take a photo",
+        "photoFromLibrary": "Choose from library",
+        "photoUploading": "Uploading your photo…",
+        "photoUpdated": "Your photo has been updated.",
+        "photoNotAnImage": "That file is not an image. Choose a JPEG, PNG or WebP photo.",
+        "photoDimensionsTooBig": "That photo is too big to process. Choose one no larger than 6000 pixels on its longest side.",
+        "photoPermissionTitle": "Permission needed",
+        "photoPermissionBody": "Allow access to your camera or photo library to change your profile photo."
+      }
+    }
+  }
+}

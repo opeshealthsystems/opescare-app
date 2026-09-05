@@ -26,7 +26,7 @@
  * only ever the server's own `ref_low` / `ref_high` / `reference`; where the
  * laboratory sent none the row says "Not provided" rather than implying one.
  *
- * The Finder backend does not serve `/mobile/labs*` yet: a failed read renders
+ * A failed read renders
  * the kit `EmptyState` (`LabsUnavailable`), never a crash or an endless spinner.
  */
 import React, { useCallback, useMemo, useState } from 'react';
@@ -67,7 +67,6 @@ import {
   TableRow,
   colorForFlag,
   errorMessage,
-  flagLabel,
   fmtDate,
   fmtDateTime,
   referenceRange,
@@ -82,7 +81,7 @@ import {
   type LabReportDocument,
   type PortalLabResult,
 } from '@/lib/api/labsQueries';
-import { LabsUnavailable, useLabsT, type Tx } from '../index';
+import { LabsUnavailable, resultFlagLabel, useLabsT, type Tx } from '../index';
 
 function columns(tx: Tx): TableColumn[] {
   return [
@@ -103,8 +102,16 @@ function reportDate(order: LabOrderDetail): string | null {
   return stamps.length ? stamps[stamps.length - 1] : null;
 }
 
+/**
+ * The results the laboratory actually placed outside a range.
+ *
+ * `unflagged` is excluded deliberately. It means no range existed to compare
+ * the value against, so it is neither inside nor outside one; counting it here
+ * would put "1 result is outside the usual range" on a report where nothing of
+ * the sort was found — an alarm raised by the absence of data.
+ */
 function offRange(results: PortalLabResult[]): PortalLabResult[] {
-  return results.filter((r) => r.flag !== 'normal');
+  return results.filter((r) => r.flag !== 'normal' && r.flag !== 'unflagged');
 }
 
 /**
@@ -196,7 +203,7 @@ export default function LabReportFullScreen() {
               r.ref_low,
               r.ref_high,
               r.reference ?? NO_RANGE
-            )}) — ${flagLabel(r.flag, tr)}`
+            )}) — ${resultFlagLabel(r.flag, tx, tr)}`
         ),
         order.clinical_notes ?? order.result_summary ?? '',
       ].filter(Boolean);
@@ -387,7 +394,7 @@ export default function LabReportFullScreen() {
                           />
                         ) : (
                           <Text style={[styles.flagText, { color: colorForFlag(r.flag) }]} numberOfLines={1}>
-                            {flagLabel(r.flag, tr)}
+                            {resultFlagLabel(r.flag, tx, tr)}
                           </Text>
                         ),
                     },
@@ -401,6 +408,17 @@ export default function LabReportFullScreen() {
                   { noRange: NO_RANGE }
                 )}
               </Text>
+              {/* Only when a result actually carries the state — an explanation
+                  for something not on the page is just noise. */}
+              {results.some((r) => r.flag === 'unflagged') && (
+                <Text style={styles.rangeNote}>
+                  {tx(
+                    'report.unflaggedNote',
+                    '“{{label}}” means the laboratory published no usual range for that test, so this result has not been compared with one. It is not the same as a normal result.',
+                    { label: tx('flag.unflagged', 'Not recorded') }
+                  )}
+                </Text>
+              )}
             </>
           )}
         </Card>

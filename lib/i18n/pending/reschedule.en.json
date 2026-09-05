@@ -1,0 +1,60 @@
+{
+  "_note": "Flat dotted keys for the appointment reschedule flow, pending a merge into lib/i18n/locales/en.json. Paired 1:1 with reschedule.fr.json. Reuses existing keys where they already exist: appointments.book.spotsLeft, opesCare.slots.morning/afternoon/evening, appointments.retry.",
+
+  "appointments.reschedule.cta": "Reschedule",
+  "appointments.reschedule.close": "Close",
+  "appointments.reschedule.panelTitle": "Choose a new time",
+  "appointments.reschedule.panelIntro": "Pick another time at {{facility}}. You keep your current appointment until the new one is confirmed.",
+  "appointments.reschedule.loading": "Loading available times…",
+  "appointments.reschedule.loadError": "We could not load the available times.",
+
+  "appointments.reschedule.currentBadge": "Current",
+  "appointments.reschedule.currentTime": "You are booked for {{when}}",
+  "appointments.reschedule.currentSlotHint": "This is your current time.",
+
+  "appointments.reschedule.noSlotsTitle": "No other times available",
+  "appointments.reschedule.noSlotsBody": "This facility has no other open times right now. Your appointment on {{when}} is unchanged.",
+  "appointments.reschedule.emptyDayTitle": "Nothing open on this day",
+  "appointments.reschedule.emptyDayBody": "Choose another date, or jump to the next opening.",
+  "appointments.reschedule.jumpToNext": "Next opening: {{when}}",
+  "appointments.reschedule.backToFirstDay": "Back to the earliest date",
+
+  "appointments.reschedule.selectPrompt": "Select a new time to continue",
+  "appointments.reschedule.selectedSlot": "{{time}} · {{minutes}} min",
+  "appointments.reschedule.slotA11y": "{{start}} to {{end}}",
+  "appointments.reschedule.review": "Review the change",
+  "appointments.reschedule.moving": "Moving your appointment…",
+
+  "appointments.reschedule.confirmTitle": "Move this appointment?",
+  "appointments.reschedule.confirmBody": "Current time: {{from}}\nNew time: {{to}}\n\nThe two are swapped in one step. If someone takes the new time first, you keep the appointment you already have.",
+  "appointments.reschedule.confirmYes": "Move appointment",
+  "appointments.reschedule.confirmNo": "Keep current time",
+
+  "appointments.reschedule.successTitle": "Appointment moved",
+  "appointments.reschedule.successBody": "Moved from {{from}} to {{to}}.",
+
+  "appointments.reschedule.failedTitle": "Your appointment was not moved",
+  "appointments.reschedule.keptOriginal": "You still have your original appointment on {{when}}. Nothing was released.",
+  "appointments.reschedule.keptOriginalUnknownTime": "Your original appointment has not been changed. Nothing was released.",
+  "appointments.reschedule.unconfirmed": "We could not confirm whether the change went through. Refresh this screen to check before trying again.",
+
+  "appointments.reschedule.errNotFound": "This appointment could not be found.",
+  "appointments.reschedule.errCancelled": "This appointment was cancelled, so it can no longer be moved. Book a new appointment instead.",
+  "appointments.reschedule.errCompleted": "This appointment has already taken place, so it can no longer be moved.",
+  "appointments.reschedule.errNoShow": "This appointment was recorded as a missed visit, so it can no longer be moved. Book a new appointment instead.",
+  "appointments.reschedule.errCheckedIn": "You are already checked in, so this appointment can no longer be moved. Please speak to the reception desk.",
+  "appointments.reschedule.errAlreadyMoved": "This appointment has already been moved. Open the replacement appointment to change it again.",
+  "appointments.reschedule.errNotAllowed": "This appointment can no longer be moved.",
+  "appointments.reschedule.errInPast": "This appointment is in the past, so it can no longer be moved.",
+  "appointments.reschedule.errSlotGone": "That time is no longer offered.",
+  "appointments.reschedule.errSameSlot": "That is the time you are already booked for. Choose a different one.",
+  "appointments.reschedule.errWrongFacility": "That time belongs to a different facility. To change facility, cancel this appointment and book a new one.",
+  "appointments.reschedule.errSlotUnavailable": "That time is no longer available.",
+  "appointments.reschedule.errFacilityClosed": "This facility is not accepting appointments at the moment.",
+  "appointments.reschedule.errSlotTaken": "Someone took that time first.",
+  "appointments.reschedule.errRejected": "That time was refused. Please choose another.",
+  "appointments.reschedule.errAuth": "Please sign in again to move this appointment.",
+  "appointments.reschedule.errServer": "Something went wrong at our end.",
+  "appointments.reschedule.errNetwork": "We could not reach OpesCare.",
+  "appointments.reschedule.errUnknown": "We could not move this appointment."
+}

@@ -1,0 +1,72 @@
+{
+  "payments": {
+    "title": "Pay",
+    "invoiceTitle": "Invoice",
+    "loading": "Loading invoice…",
+    "loadError": "This invoice could not be loaded.",
+    "notFound": "Invoice not found",
+    "notFoundBody": "This invoice does not exist, or it belongs to another account.",
+    "retry": "Try again",
+
+    "amountLabel": "Amount to pay",
+    "reference": "Reference {{reference}}",
+    "dueBy": "Pay before {{date}}",
+
+    "demoBanner": "Demo host — no money will move",
+    "demoBannerBody": "This device is talking to a demonstration server. The payment below is simulated end to end: no Mobile Money account is contacted and no funds are transferred.",
+
+    "chooseMethod": "How would you like to pay?",
+    "methodHint": "You will get a prompt on your phone to approve the payment.",
+    "numberLabel": "Mobile Money number",
+    "numberPlaceholder": "6XX XX XX XX",
+    "numberHelp": "The number registered to the {{method}} account you are paying from.",
+    "numberInvalid": "Enter a valid Cameroonian mobile number.",
+    "prefixWarning": "That number does not look like a {{method}} number. You can still continue if you have moved it to {{method}}.",
+
+    "confirmTitle": "Confirm payment",
+    "confirmBody": "{{amount}} will be requested from {{number}} through {{method}}.",
+    "payAction": "Pay {{amount}}",
+    "cancel": "Cancel",
+    "back": "Back",
+
+    "pendingTitle": "Check your phone",
+    "pendingBody": "Approve the {{amount}} payment request on {{number}} with your {{method}} PIN.",
+    "pendingWaiting": "Waiting for confirmation…",
+    "pendingElapsed": "{{seconds}}s",
+    "pendingLeaveHint": "Keep this screen open. It updates on its own as soon as the payment is confirmed.",
+
+    "successTitle": "Payment received",
+    "successBody": "{{amount}} was paid for {{description}}.",
+    "successPaidAt": "Paid {{date}}",
+    "receiptMethod": "Paid with",
+    "receiptNumber": "From",
+    "receiptReference": "Reference",
+    "done": "Done",
+
+    "failedTitle": "Payment not completed",
+    "tryAgain": "Try again",
+    "tryAnotherNumber": "Use another number",
+
+    "expiredTitle": "The request expired",
+    "expiredBody": "The payment request was not approved in time. Nothing was charged.",
+
+    "alreadyPaidTitle": "Already paid",
+    "alreadyPaidBody": "This invoice was settled on {{date}}. Nothing more is owed.",
+
+    "status": {
+      "pending": "Awaiting payment",
+      "paid": "Paid",
+      "failed": "Payment failed",
+      "expired": "Expired",
+      "refunded": "Refunded"
+    },
+
+    "unavailableTitle": "Payments are unavailable",
+    "unavailableBody": "Mobile Money payments cannot be taken right now. Please try again later.",
+
+    "errors": {
+      "generic": "The payment could not be started. Please try again.",
+      "offline": "You appear to be offline. Connect and try again — nothing was charged."
+    }
+  }
+}

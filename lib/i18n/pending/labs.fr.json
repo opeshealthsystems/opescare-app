@@ -1,0 +1,14 @@
+{
+  "_comment": "Clés labs nouvelles/modifiées issues du travail sur l'API /mobile/labs. Clés à points, à plat, 1:1 avec labs.en.json. À fusionner dans lib/i18n/locales/*.json. Uniquement les clés introduites par ce changement — le reste de l'espace de noms opesDiagnostics est migré séparément.",
+
+  "opesDiagnostics.flag.unflagged": "Non renseigné",
+  "opesDiagnostics.flag.pending": "Résultats en attente",
+  "opesDiagnostics.a11y.statusUnflagged": "Aucune comparaison avec une plage habituelle n’a été fournie",
+  "opesDiagnostics.a11y.rangeNone": "Plage habituelle : {{noRange}}",
+  "opesDiagnostics.report.noRange": "Non communiquée",
+  "opesDiagnostics.report.unflaggedNote": "« Non renseigné » signifie que le laboratoire n’a publié aucune plage habituelle pour cet examen : ce résultat n’a donc été comparé à rien. Ce n’est pas la même chose qu’un résultat normal.",
+  "opesDiagnostics.report.noPdfTitle": "Aucun PDF signé au dossier",
+  "opesDiagnostics.report.noPdfBody": "Le laboratoire n’a joint aucun document à cette prescription. Tout ce qu’il a publié figure ci-dessus.",
+  "opesDiagnostics.request.unknownTest": "Cet examen ne figure sur la liste publiée d’aucun laboratoire. Choisissez un examen dans le catalogue.",
+  "opesDiagnostics.request.notAnOrder": "Ceci est une demande, pas une prescription d’analyse. Un clinicien doit l’approuver avant que l’examen soit réalisé."
+}

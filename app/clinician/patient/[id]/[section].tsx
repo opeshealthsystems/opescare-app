@@ -35,12 +35,29 @@
  * own and are printed verbatim — this app holds reference bands for vital
  * signs only and never derives one for a lab analyte.
  *
- * Backend gap: the finder serves no `/mobile/doctor/*` route yet, so every
- * hook here 404s today and each section renders an honest "not available on
- * this server yet" `EmptyState` with a retry.
+ * ── WHAT THE SERVER NOW ANSWERS, AND WHAT IT STILL DOES NOT ───────────────
+ *
+ * The finder serves the seven chart sections
+ * (`/api/mobile/doctor/patients/{id}/…`, `MobileDoctorChartController`, behind
+ * `auth.provider`). It does NOT serve `/mobile/doctor/orders/{id}/results`,
+ * which is a different slice — so an order card shows the order and the
+ * bench's `result_summary`, then says plainly that the value-by-value
+ * breakdown is not available on this server yet. That sentence is about the
+ * SERVER; it is never allowed to read as a claim about the patient's results.
+ *
+ * A 403 from a section is a REAL answer: the server opens a chart only for a
+ * clinician with a care relationship to that patient and refuses everyone
+ * else. `isDoctorApiUnavailable` (foundation-owned) still folds 403 in with
+ * 404, so a refusal currently renders through the same "not available on this
+ * server yet" `EmptyState`; the response body carries
+ * `error_code: NO_CLINICAL_RELATIONSHIP` for the day those are told apart.
+ *
+ * Every section opened here writes an `access_logs` row on the server, tagged
+ * with the data category this screen actually asked for.
  *
  * i18n: `opesDoctor.section.*` is in the locales; anything this port needed
- * beyond it carries an English `defaultValue`. Locale files are not edited here.
+ * beyond it carries an English `defaultValue` and is staged for translation in
+ * `lib/i18n/pending/doctor_chart.{en,fr}.json`. Locale files are not edited here.
  */
 import { useCallback, useMemo } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -1017,10 +1034,26 @@ function OrderCard({
       )}
 
       {results.isError && results.data === undefined ? (
-        <Text style={styles.failed}>
-          {tx('section.itemisedFailed', 'Itemised results could not be loaded. {{error}}', {
-            error: describeFailure(results.error).message,
-          })}
+        /*
+          Two different silences, told apart.
+
+          The chart sections ARE served now (`/mobile/doctor/patients/{id}/…`),
+          but the per-order analyte endpoint `/mobile/doctor/orders/{id}/results`
+          is not part of that slice and this server does not answer it. A 404
+          there is a statement about the SERVER; any other failure is a
+          statement about this READ. Both are said out loud, and neither is
+          ever allowed to render as "no values were released", which would be a
+          statement about the PATIENT.
+        */
+        <Text style={isNotServed(results.error) ? styles.note : styles.failed}>
+          {isNotServed(results.error)
+            ? tx(
+                'section.itemisedNotServed',
+                'Itemised analyte values are not available on this server yet. The order, and any reported result above, are complete — only the value-by-value breakdown is missing.'
+              )
+            : tx('section.itemisedFailed', 'Itemised results could not be loaded. {{error}}', {
+                error: describeFailure(results.error).message,
+              })}
         </Text>
       ) : results.isPending ? (
         <Text style={styles.note}>

@@ -102,10 +102,28 @@ const EMPTY: Record<Folder, { title: [string, string]; message: [string, string]
   },
 };
 
-/** 404 / 501: this server does not serve the clinician surface yet. */
+/**
+ * 501, or a 404 that means the ROUTE is missing — this server does not serve
+ * the clinician surface yet.
+ *
+ * A bare 404 is no longer proof of that. Now that `/mobile/doctor/messages/*`
+ * is served, the same status also comes back for a conversation the server
+ * REFUSED — one rooted at another facility, or one this clinician does not
+ * participate in — and answering that with "not available on this server yet"
+ * would be a lie about their own inbox.
+ *
+ * The two are distinguishable on the wire and always have been: the API's
+ * global handler answers a missing route with `error_code: 'ENDPOINT_NOT_FOUND'`,
+ * while the messaging controller answers a refused thread with
+ * `error_code: 'NOT_FOUND'`. Only the first is a missing backend.
+ */
 function isNotServed(e: unknown): boolean {
-  const status = axios.isAxiosError(e) ? e.response?.status : undefined;
-  return status === 404 || status === 501;
+  if (!axios.isAxiosError(e)) return false;
+  const status = e.response?.status;
+  if (status === 501) return true;
+  if (status !== 404) return false;
+  const code = (e.response?.data as { error_code?: string } | undefined)?.error_code;
+  return code !== 'NOT_FOUND';
 }
 
 /**
@@ -212,7 +230,9 @@ export default function DoctorMessagesScreen() {
         title={
           notServed
             ? tx('shared.notServedTitle', 'Not available on this server yet')
-            : tr('opesCore.errors.unknownTitle')
+            : // describeFailure already names the failure in the reader's
+              // language; don't flatten every failure into "unknown".
+              describeFailure(threads.error).title
         }
         message={
           notServed

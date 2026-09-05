@@ -1,0 +1,23 @@
+{
+  "_note": "Catalogue de transition pour la tranche « agenda clinicien ». Pas encore chargé par lib/i18n/index.ts (fichier appartenant à un autre agent) — fusionner l’objet `opesDoctor` dans lib/i18n/locales/fr.json puis supprimer ce fichier. Les clés sont les valeurs `error_code` renvoyées par le serveur (app/Http/Controllers/Api/Mobile/MobileDoctorScheduleController.php, formulation dans lang/fr/doctor_schedule.php). Elles existent côté client parce que SetLocale n’est enregistré que sur le groupe de middleware `web` : les refus /api/* ignorent Accept-Language et répondent toujours dans la locale par défaut de l’application ; `error_code` est ce qui permet au téléphone de le dire dans la langue du clinicien. L’ensemble des clés doit rester 1:1 avec doctor_schedule.en.json.",
+  "opesDoctor": {
+    "serverErrors": {
+      "APPOINTMENT_NOT_FOUND": "Rendez-vous introuvable.",
+      "REQUEST_NOT_FOUND": "Demande de rendez-vous introuvable.",
+      "PROVIDER_NOT_FOUND": "Compte clinicien introuvable.",
+      "NOT_CHECK_IN_ELIGIBLE": "Seul un rendez-vous réservé ou confirmé peut être enregistré à l’arrivée.",
+      "ALREADY_CHECKED_IN": "L’arrivée de ce rendez-vous est déjà enregistrée.",
+      "ALREADY_NO_SHOW": "Ce rendez-vous est déjà marqué comme absence.",
+      "NOT_NO_SHOW_ELIGIBLE": "Seul un rendez-vous réservé, confirmé ou arrivé peut être marqué comme absence.",
+      "ALREADY_CANCELLED": "Ce rendez-vous est déjà annulé.",
+      "APPOINTMENT_CLOSED": "Ce rendez-vous est clos et ne peut plus être modifié.",
+      "NOT_PENDING": "Cette demande de rendez-vous a déjà été tranchée.",
+      "UNSUPPORTED_STATUS": "Ce rendez-vous ne peut pas passer à ce statut.",
+      "CANCEL_FAILED": "Le rendez-vous n’a pas pu être annulé. Veuillez réessayer.",
+      "CHECK_IN_FAILED": "L’arrivée n’a pas pu être enregistrée. Veuillez réessayer.",
+      "NO_SHOW_FAILED": "L’absence n’a pas pu être enregistrée. Veuillez réessayer.",
+      "RESCHEDULE_FAILED": "Le rendez-vous n’a pas pu être déplacé. Veuillez réessayer.",
+      "DECISION_FAILED": "La décision n’a pas pu être enregistrée. Veuillez réessayer."
+    }
+  }
+}

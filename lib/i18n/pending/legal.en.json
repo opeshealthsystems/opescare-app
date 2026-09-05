@@ -1,0 +1,104 @@
+{
+  "legal": {
+    "privacy": {
+      "title": "Privacy Policy",
+      "updated": "Last updated {{date}}",
+      "lede": "OpesCare Finder holds medical information about you. This page explains, in plain words, what the app collects, who can see it, and what you can do about it. It describes what the app actually does today — not what it might do later.",
+
+      "collectTitle": "What we collect",
+      "collectIdentity": "Identity and contact details you give us: your name, date of birth, sex, phone number, email address, postal address, and the name and phone number of the emergency contact you nominate. If you register a dependent, we collect the same details for them.",
+      "collectHealth": "Health information held in your OpesCare record: your Health ID, blood group, allergies, diagnoses and conditions, immunisations, prescriptions, laboratory orders and results, vital signs, care plans, referrals, appointments, and clinical documents issued to you.",
+      "collectUsage": "Requests you make in the app: appointment bookings and cancellations, medicine reservations, blood requests, laboratory test requests, messages you send to your care team, support tickets, and any free-text note or reason you type into them.",
+      "collectDevice": "A device identifier the app generates for itself — a random string, not your hardware serial number and not an advertising ID. It lets us tie a notification registration and an offline-access authorisation to this handset, and nothing else.",
+
+      "locationTitle": "Location",
+      "locationWhen": "The app asks for location only while you are using it, and only on the screens that need it. It never tracks you in the background.",
+      "locationBlood": "In Blood Finder, your coordinates are sent to our server so it can rank blood banks by real distance from you. This is the only place your precise position leaves the device.",
+      "locationMap": "On the Care Map, your coordinates stay on the device. They are used to sort nearby facilities and to work out how far away each one is. The app converts your position into a city name and sends only that city name to filter the directory.",
+      "locationDecline": "You can decline location entirely. Both screens then fall back to a city you choose from a list, and everything else in them keeps working.",
+
+      "useTitle": "Why we use it",
+      "useCare": "To give you and the clinicians you authorise a single, accurate view of your health record across the facilities you visit, so your care does not restart from nothing at every door.",
+      "useOperate": "To operate the features you ask for: finding medicines and blood in stock, booking appointments, issuing your Health ID, and delivering the copies of your record that you export.",
+      "useSafety": "To keep the platform safe and accountable: authenticating you, preventing abuse, and recording who opened your record so you can audit it.",
+      "useLegal": "To meet obligations that apply to health records under the law of the country where your care is delivered.",
+
+      "neverTitle": "What we never do",
+      "neverSell": "We do not sell your personal or health information, and we never have.",
+      "neverAds": "We do not use your information for advertising, and the app carries no advertising.",
+      "neverTrack": "The app contains no analytics, tracking, attribution or crash-reporting service of any kind. It talks to one server — ours — and to no other company. Nothing you do in the app is reported to a third party.",
+
+      "sharingTitle": "Who else can see your record",
+      "sharingConsent": "A health facility or clinician sees your record only within a consent you granted. You approve or refuse each request in the app, you can see every consent that is currently active, and you can revoke any of them at any time.",
+      "sharingLogs": "Every access is logged. Privacy › Access log shows you who opened your record, when, from where, and for what stated purpose — including any emergency access.",
+      "sharingPrescription": "When you share a prescription with a pharmacy, the app creates a limited, expiring link that shows that prescription and nothing else. You can revoke it before it expires.",
+      "sharingFamily": "If you invite a family member, they see only what the access level you chose allows. You can withdraw that access.",
+
+      "storageTitle": "How it is stored",
+      "storageTransit": "Everything the app sends travels over an encrypted HTTPS connection.",
+      "storageDevice": "On your phone, your session token and any offline copy of your record are held in the operating system's secure store — the iOS Keychain or the Android Keystore — which is encrypted at rest and tied to your device unlock.",
+      "storageOffline": "Offline access is off until you switch it on, and it stores only the categories you approve: your demographics, upcoming appointments, medications, allergies, and an emergency profile. You can erase that copy from the device at any time in Settings › Offline access. The authorisation itself expires on its own within 24 hours.",
+      "storageWeb": "If you use OpesCare in a web browser rather than the installed app, browser storage offers no encryption at rest. The app warns you before it stores anything there.",
+
+      "rightsTitle": "Your rights",
+      "rightsSee": "See your record: every clinical section in the app is your own data, shown to you in full.",
+      "rightsExport": "Take a copy: Settings › Download my records exports your record as a PDF or as a FHIR R4 bundle you can hand to any other system.",
+      "rightsCorrect": "Correct it: if something in your record is wrong, Privacy › Data requests raises a correction request against the specific entry. Clinical records are never silently overwritten — a correction is recorded as an amendment, which is what makes the history trustworthy.",
+      "rightsRevoke": "Withdraw consent: revoke any facility's access from the Privacy screen, at any time, without giving a reason.",
+      "rightsDelete": "Delete your account: the app cannot yet do this for you. Email us at the address below from the address on your account and we will close it and delete the personal data we are not legally required to retain. Medical records that a facility is obliged by law to keep are retained by that facility, and we will tell you which ones those are.",
+
+      "childrenTitle": "Children and dependents",
+      "childrenBody": "The app is intended for adults. A parent or guardian may hold a dependent's record through the Family feature, and is responsible for that child's information in the app. We do not knowingly let a child create an account for themselves.",
+
+      "changesTitle": "Changes to this policy",
+      "changesBody": "If we change what we collect or what we do with it, we will update this page and the date shown at the top of it, and — where the change is significant — tell you in the app before it takes effect.",
+
+      "contactTitle": "Contact us",
+      "contactBody": "Questions about this policy, or a request about your data — including deleting your account — go to:"
+    },
+
+    "terms": {
+      "title": "Terms of Service",
+      "updated": "Last updated {{date}}",
+      "lede": "These terms cover your use of the OpesCare Finder app. The first two sections are the ones that matter most to your safety — please read them even if you read nothing else.",
+
+      "emergencyTitle": "This app is not emergency care",
+      "emergencyBody": "If you are having a medical emergency, stop and call your local emergency number or go to the nearest emergency department. Do not use this app to seek urgent help. Messages, appointment requests and blood requests are not monitored continuously and may not be seen in time.",
+
+      "adviceTitle": "It does not give medical advice",
+      "adviceBody": "OpesCare Finder shows you information from your health record and from the facilities in the national directory. It does not diagnose, treat, or tell you what to do about your health. Nothing in the app replaces a consultation with a qualified clinician, and no result, value or flag shown here should be acted on without one.",
+      "adviceResults": "Laboratory results and vital signs are shown as your facility reported them. A reference range or an out-of-range marker is a laboratory's own annotation, not an interpretation of what it means for you.",
+
+      "accountTitle": "Your account",
+      "accountTruthful": "You must give accurate identity details. Your Health ID is issued against them, and a record attached to wrong details is a danger to you: it can put someone else's allergies or blood group in front of the person treating you.",
+      "accountSecurity": "Keep your password, PIN and one-time codes to yourself. Anyone who signs in as you can read your entire medical record. Tell us immediately if you think someone else has access.",
+      "accountOne": "One account belongs to one person. Use the Family feature to hold a dependent's record rather than sharing a login.",
+      "accountClosing": "You may close your account at any time by writing to us. The app cannot yet close it for you; the Privacy Policy explains what happens to your data when you do.",
+
+      "availabilityTitle": "Stock, availability and bookings",
+      "availabilityReported": "Medicine stock, blood availability and appointment slots are reported to OpesCare by the pharmacies, blood banks and facilities themselves. We publish what they tell us, with the time it was last updated. We do not hold the stock, and we cannot guarantee that an item shown as available still is when you arrive. Call ahead when it matters.",
+      "availabilityReservation": "A reservation is a request to a pharmacy, not a purchase. The app takes no payment. You pay the pharmacy directly, at the pharmacy.",
+      "availabilityBlood": "OpesCare takes no payment for blood, and a blood request placed here is a request to a blood bank — it is not a guarantee that units will be held for you.",
+      "availabilityAppointment": "An appointment booked in the app is confirmed by the facility, and the facility's own rules on lateness, cancellation and fees apply.",
+
+      "recordTitle": "Your record",
+      "recordSource": "Your record is written by the clinicians and facilities that treat you. OpesCare carries it between them; it does not author it.",
+      "recordAmend": "Clinical entries are never silently overwritten. If something is wrong, you can raise a correction request against that entry, and the change is recorded as an amendment with its history intact. That is what makes the record safe to rely on.",
+      "recordConsent": "You control who sees your record. Access is granted by your consent, is limited to what that consent covers, and is logged so you can check it.",
+
+      "acceptableTitle": "Acceptable use",
+      "acceptableBody": "Do not use the app to impersonate anyone, to access a record that is not yours or lawfully shared with you, to place false blood or medicine requests, or to disrupt the service for others. Do not attempt to break, probe or circumvent its security. We may suspend an account that does.",
+
+      "liabilityTitle": "Availability and limits",
+      "liabilityUptime": "We work to keep the service available, but we do not promise it will be uninterrupted or error-free. Maintenance, network failures and the systems of the facilities we connect to can all interrupt it.",
+      "liabilityThird": "Where the app shows information supplied by a facility, a pharmacy, a blood bank or a laboratory, that party is responsible for its accuracy.",
+      "liabilityExtent": "To the extent the law allows, we are not liable for loss arising from your reliance on information the app displays where that information came from a third party, or from your use of the app in place of professional medical care.",
+
+      "changesTitle": "Changes",
+      "changesBody": "We may update these terms. When we do, we will change the date at the top of this page, and tell you in the app before a significant change takes effect. Continuing to use the app after that means you accept the updated terms.",
+
+      "contactTitle": "Contact us",
+      "contactBody": "Questions about these terms:"
+    }
+  }
+}

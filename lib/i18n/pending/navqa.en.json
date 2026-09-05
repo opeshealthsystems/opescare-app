@@ -1,0 +1,13 @@
+{
+  "profile": {
+    "unavailableTitle": "Your profile has not loaded",
+    "unavailableBody": "We could not reach OpesCare to load your details. Everything else in the app still works — check your connection and try again.",
+    "unavailableRetryHint": "Fetches your profile again"
+  },
+  "settings": {
+    "about": {
+      "privacyPolicyBody": "What we collect, who can see it, and your rights over it.",
+      "termsBody": "The rules this app runs by, and what it does not do."
+    }
+  }
+}

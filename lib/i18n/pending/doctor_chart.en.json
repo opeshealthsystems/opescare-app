@@ -1,0 +1,15 @@
+{
+  "opesDoctor": {
+    "section": {
+      "indexAllergies": "Every recorded allergy, in full",
+      "indexDiagnoses": "The problem list and diagnoses coded at recent visits",
+      "indexEncounters": "Each visit with its subjective, objective, assessment and plan",
+      "indexImaging": "Imaging orders and their reported findings",
+      "indexLabs": "Laboratory orders and the values the bench released",
+      "indexMedications": "Active and past prescriptions, with dose and route",
+      "indexVitals": "Every recording, against the record’s usual ranges",
+      "itemisedNotServed": "Itemised analyte values are not available on this server yet. The order, and any reported result above, are complete — only the value-by-value breakdown is missing.",
+      "noOrdersOthers": "Nothing of this kind was ordered in the {{scan}} most recent encounters, though {{count}} other orders were placed."
+    }
+  }
+}

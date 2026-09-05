@@ -1,0 +1,60 @@
+{
+  "_note": "Clés plates pour le report de rendez-vous, en attente de fusion dans lib/i18n/locales/fr.json. Appariées 1:1 avec reschedule.en.json. Réutilise les clés existantes lorsque c'est possible : appointments.book.spotsLeft, opesCare.slots.morning/afternoon/evening, appointments.retry.",
+
+  "appointments.reschedule.cta": "Reporter",
+  "appointments.reschedule.close": "Fermer",
+  "appointments.reschedule.panelTitle": "Choisir un nouvel horaire",
+  "appointments.reschedule.panelIntro": "Choisissez un autre horaire à {{facility}}. Vous conservez votre rendez-vous actuel jusqu'à la confirmation du nouveau.",
+  "appointments.reschedule.loading": "Chargement des horaires disponibles…",
+  "appointments.reschedule.loadError": "Impossible de charger les horaires disponibles.",
+
+  "appointments.reschedule.currentBadge": "Actuel",
+  "appointments.reschedule.currentTime": "Vous êtes inscrit pour le {{when}}",
+  "appointments.reschedule.currentSlotHint": "C'est votre horaire actuel.",
+
+  "appointments.reschedule.noSlotsTitle": "Aucun autre horaire disponible",
+  "appointments.reschedule.noSlotsBody": "Cet établissement n'a aucun autre horaire ouvert pour le moment. Votre rendez-vous du {{when}} reste inchangé.",
+  "appointments.reschedule.emptyDayTitle": "Rien d'ouvert ce jour-là",
+  "appointments.reschedule.emptyDayBody": "Choisissez une autre date ou passez à la prochaine ouverture.",
+  "appointments.reschedule.jumpToNext": "Prochaine ouverture : {{when}}",
+  "appointments.reschedule.backToFirstDay": "Revenir à la première date",
+
+  "appointments.reschedule.selectPrompt": "Sélectionnez un nouvel horaire pour continuer",
+  "appointments.reschedule.selectedSlot": "{{time}} · {{minutes}} min",
+  "appointments.reschedule.slotA11y": "De {{start}} à {{end}}",
+  "appointments.reschedule.review": "Vérifier le changement",
+  "appointments.reschedule.moving": "Déplacement de votre rendez-vous…",
+
+  "appointments.reschedule.confirmTitle": "Déplacer ce rendez-vous ?",
+  "appointments.reschedule.confirmBody": "Horaire actuel : {{from}}\nNouvel horaire : {{to}}\n\nLes deux sont échangés en une seule opération. Si quelqu'un prend le nouvel horaire avant vous, vous conservez le rendez-vous que vous avez déjà.",
+  "appointments.reschedule.confirmYes": "Déplacer le rendez-vous",
+  "appointments.reschedule.confirmNo": "Garder l'horaire actuel",
+
+  "appointments.reschedule.successTitle": "Rendez-vous déplacé",
+  "appointments.reschedule.successBody": "Déplacé du {{from}} au {{to}}.",
+
+  "appointments.reschedule.failedTitle": "Votre rendez-vous n'a pas été déplacé",
+  "appointments.reschedule.keptOriginal": "Vous conservez votre rendez-vous initial du {{when}}. Rien n'a été libéré.",
+  "appointments.reschedule.keptOriginalUnknownTime": "Votre rendez-vous initial n'a pas été modifié. Rien n'a été libéré.",
+  "appointments.reschedule.unconfirmed": "Impossible de confirmer si le changement a été enregistré. Actualisez cet écran pour vérifier avant de réessayer.",
+
+  "appointments.reschedule.errNotFound": "Ce rendez-vous est introuvable.",
+  "appointments.reschedule.errCancelled": "Ce rendez-vous a été annulé, il ne peut donc plus être déplacé. Veuillez prendre un nouveau rendez-vous.",
+  "appointments.reschedule.errCompleted": "Ce rendez-vous a déjà eu lieu, il ne peut donc plus être déplacé.",
+  "appointments.reschedule.errNoShow": "Ce rendez-vous a été enregistré comme visite manquée, il ne peut donc plus être déplacé. Veuillez prendre un nouveau rendez-vous.",
+  "appointments.reschedule.errCheckedIn": "Vous êtes déjà enregistré, ce rendez-vous ne peut donc plus être déplacé. Veuillez vous adresser à l'accueil.",
+  "appointments.reschedule.errAlreadyMoved": "Ce rendez-vous a déjà été déplacé. Ouvrez le rendez-vous de remplacement pour le modifier à nouveau.",
+  "appointments.reschedule.errNotAllowed": "Ce rendez-vous ne peut plus être déplacé.",
+  "appointments.reschedule.errInPast": "Ce rendez-vous appartient au passé, il ne peut donc plus être déplacé.",
+  "appointments.reschedule.errSlotGone": "Cet horaire n'est plus proposé.",
+  "appointments.reschedule.errSameSlot": "C'est l'horaire pour lequel vous êtes déjà inscrit. Veuillez en choisir un autre.",
+  "appointments.reschedule.errWrongFacility": "Cet horaire appartient à un autre établissement. Pour changer d'établissement, annulez ce rendez-vous et prenez-en un nouveau.",
+  "appointments.reschedule.errSlotUnavailable": "Cet horaire n'est plus disponible.",
+  "appointments.reschedule.errFacilityClosed": "Cet établissement n'accepte pas de rendez-vous pour le moment.",
+  "appointments.reschedule.errSlotTaken": "Quelqu'un a pris cet horaire avant vous.",
+  "appointments.reschedule.errRejected": "Cet horaire a été refusé. Veuillez en choisir un autre.",
+  "appointments.reschedule.errAuth": "Veuillez vous reconnecter pour déplacer ce rendez-vous.",
+  "appointments.reschedule.errServer": "Une erreur est survenue de notre côté.",
+  "appointments.reschedule.errNetwork": "Impossible de joindre OpesCare.",
+  "appointments.reschedule.errUnknown": "Impossible de déplacer ce rendez-vous."
+}

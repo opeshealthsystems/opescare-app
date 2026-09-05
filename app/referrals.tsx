@@ -8,10 +8,18 @@
  * actually carries, and the clinician's notes as a soft notice. An open case
  * closes with the reference's "Next steps" rows, each wired to a real route.
  *
- * A referral is authored by a clinician, never by the patient: there is no
- * mobile write endpoint (the source screen's "accept" / reminder writes have
- * no counterpart here), so for any patient who has not been referred the
- * empty state explains who creates one and what happens to it.
+ * A referral is authored by a clinician, never by the patient. What the patient
+ * CAN do is ASK: `/referrals/request` files a request
+ * (`POST /mobile/referral-requests`) that a clinician must act on before any
+ * referral exists.
+ *
+ * Those requests appear here, but in their OWN section, below the issued
+ * referrals, under their own heading, each carrying a "Request" chip and the
+ * API's own `status_detail` sentence. They are never merged into the referrals
+ * list: a request drawn as a card among referrals is a patient believing they
+ * have been referred when nobody has referred them. The two come from two
+ * different hooks over two different endpoints, so no code path here can
+ * concatenate them.
  */
 import { useMemo, type ReactNode } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -45,6 +53,11 @@ import {
   type ReferralStatus,
   type ReferralUrgency,
 } from '@/lib/api/queries';
+import {
+  useReferralRequests,
+  type ReferralRequest,
+  type ReferralRequestStatus,
+} from '@/lib/api/patientWriteQueries';
 
 /**
  * Patient-facing tone for the referral lifecycle. `sent` is a live case the
@@ -74,12 +87,26 @@ const URGENCY_TINT: Record<ReferralUrgency, Tint> = {
 
 const OPEN_STATUSES: ReferralStatus[] = ['sent', 'accepted'];
 
+/**
+ * Tone for a REQUEST's lifecycle. `accepted` is the only one a referral exists
+ * behind, and it is the only one that reads as done; everything else reads as
+ * waiting, closed or withdrawn — never as "you have been referred".
+ */
+const REQUEST_TONE: Record<ReferralRequestStatus, StatusTone> = {
+  submitted: 'pending',
+  under_review: 'pending',
+  accepted: 'normal',
+  declined: 'neutral',
+  withdrawn: 'neutral',
+};
+
 export default function ReferralsScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const online = useIsOnline();
   const query = useReferrals();
+  const requestsQuery = useReferralRequests();
 
   const state = asyncStateOf(query, {
     offline: !online,
@@ -114,8 +141,157 @@ export default function ReferralsScreen() {
             );
           }}
         </AsyncBoundary>
+
+        {/*
+          Requests the patient made. Rendered OUTSIDE the boundary above so
+          they show whether or not the patient has any issued referrals — and
+          rendered under their own heading, never inside that list.
+        */}
+        <ReferralRequestsSection requests={requestsQuery.data?.data ?? []} />
+
+        <WhatYouCanDo />
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/* -------------------------------------------------- requests (not referrals) */
+
+/**
+ * The patient's own requests. Every card leads with a "Request" chip and the
+ * status badge, then the API's `status_detail` — the sentence that says, in
+ * plain language, that no referral exists yet.
+ */
+function ReferralRequestsSection({ requests }: { requests: ReferralRequest[] }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
+
+  if (requests.length === 0) return null;
+
+  return (
+    <>
+      <SectionHeader
+        title={t('patientWrites.referralRequest.listTitle', { defaultValue: 'Your referral requests' })}
+        style={s.sectionAfterCard}
+      />
+      <NoticeBanner
+        icon="info"
+        tone="pending"
+        message={t('patientWrites.referralRequest.listSubtitle', {
+          defaultValue: 'Requests you sent. These are not referrals.',
+        })}
+      />
+      {requests.map((request) => (
+        <Card key={request.id} variant="flush">
+          <View style={s.cardTop}>
+            <View style={s.requestChip}>
+              <Icon name="send" size={12} strokeWidth={2} color={colors.tintAmber} />
+              <Text style={[s.requestChipText, { color: colors.tintAmber }]}>
+                {t('patientWrites.referralRequest.notAReferralTitle', {
+                  defaultValue: 'This is a request, not a referral',
+                })}
+              </Text>
+            </View>
+            <StatusBadge
+              status={request.status}
+              tone={REQUEST_TONE[request.status] ?? 'neutral'}
+              label={request.status_label}
+            />
+          </View>
+
+          <View style={s.rows}>
+            {request.requested_specialty_label ? (
+              <InfoRow
+                icon="person-search"
+                tint="blue"
+                label={t('patientWrites.referralRequest.requestedLabel', { defaultValue: 'You asked for' })}
+                value={request.requested_specialty_label}
+                divider
+              />
+            ) : null}
+            <InfoRow
+              icon="alert-circle"
+              tint="amber"
+              label={t('patientWrites.referralRequest.urgencyCaveatTitle', {
+                defaultValue: 'How urgent it feels to you',
+              })}
+              value={request.reported_urgency_label}
+              divider
+            />
+            <InfoRow
+              icon="document-text"
+              tint="blue"
+              label={t('patientWrites.referralRequest.yourWordsLabel', { defaultValue: 'In your words' })}
+              value={request.reason}
+              divider
+            />
+            <InfoRow
+              icon="id-card"
+              tint="purple"
+              label={t('patientWrites.referralRequest.referenceLabel', { defaultValue: 'Reference' })}
+              value={request.reference}
+              divider
+            />
+            <InfoRow
+              icon="calendar"
+              tint="green"
+              label={t('patientWrites.referralRequest.sentAtLabel', { defaultValue: 'Sent' })}
+              value={formatDate(request.submitted_at, '')}
+            />
+          </View>
+
+          <View style={s.inset}>
+            <NoticeBanner icon="info" tone="pending" message={request.status_detail} />
+          </View>
+        </Card>
+      ))}
+    </>
+  );
+}
+
+/* ---------------------------------------------------------- what you can do */
+
+/**
+ * The two write paths a patient owns, wired to real routes.
+ *
+ * "Log a reading" sits here because it is the evidence a referral request is
+ * built on — a fortnight of home blood pressures is what turns "I feel unwell"
+ * into something a clinician can act on. Its natural home is also the vitals
+ * card on the home screen; see the hand-off note in the pull request.
+ */
+function WhatYouCanDo() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const { colors } = useTheme();
+  const s = useMemo(() => makeStyles(colors), [colors]);
+
+  return (
+    <>
+      <SectionHeader
+        title={t('patientWrites.common.whatYouCanDo', { defaultValue: 'What you can do' })}
+        style={s.sectionAfterCard}
+      />
+      <Card variant="flush">
+        <ListRow
+          icon="send"
+          tint="purple"
+          title={t('patientWrites.referralRequest.openCta', { defaultValue: 'Ask for a referral' })}
+          subtitle={t('patientWrites.referralRequest.openCtaSubtitle', {
+            defaultValue: 'Tell a clinician why you think you need to see a specialist',
+          })}
+          onPress={() => router.push('/referrals/request')}
+          divider
+        />
+        <ListRow
+          icon="heart-pulse"
+          tint="blue"
+          title={t('patientWrites.vitals.title', { defaultValue: 'Log a reading' })}
+          subtitle={t('patientWrites.vitals.subtitle', { defaultValue: 'A measurement you took yourself' })}
+          onPress={() => router.push('/vitals/log')}
+        />
+      </Card>
+    </>
   );
 }
 
@@ -248,7 +424,26 @@ function EmptyReferrals() {
           <StepRow key={step.title} icon={step.icon} title={step.title} body={step.body} divider={i < steps.length - 1} />
         ))}
       </Card>
-      <NoticeBanner icon="info" tone="pending" title={t('referrals.emptyCalloutTitle')} message={t('referrals.emptyCalloutBody')} />
+      {/*
+        The shipped copy for `referrals.emptyCallout*` reads "You cannot raise
+        a referral yourself. Discuss it at your next appointment." That was true
+        when this screen had no write path; it is now false, and it would sit
+        directly above a button that does exactly what it says cannot be done.
+        Rather than edit the shared locale files, the callout points at this
+        feature's own keys, which say the accurate thing: you cannot write a
+        referral, but you can ask for one.
+      */}
+      <NoticeBanner
+        icon="info"
+        tone="pending"
+        title={t('patientWrites.referralRequest.emptyCalloutTitle', {
+          defaultValue: 'Referrals are written for you',
+        })}
+        message={t('patientWrites.referralRequest.emptyCalloutBody', {
+          defaultValue:
+            'You cannot write a referral yourself — but you can ask for one, and a clinician will decide.',
+        })}
+      />
     </>
   );
 }
@@ -304,6 +499,26 @@ const makeStyles = (colors: Palette) =>
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.md,
       color: colors.textPrimary,
+    },
+
+    // Outlined, amber, `send` glyph — deliberately unlike the filled status
+    // badges the issued referrals wear, so a request never reads as one.
+    requestChip: {
+      flexShrink: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: colors.tintAmber,
+      backgroundColor: 'transparent',
+    },
+    requestChipText: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
     },
 
     rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },

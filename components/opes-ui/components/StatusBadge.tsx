@@ -6,10 +6,52 @@ import { formatLabel } from '../format';
 import { Icon, IconName } from './Icon';
 
 const NORMAL = ['completed', 'confirmed', 'active', 'paid', 'success', 'dispensed', 'normal', 'verified', 'taken', 'resolved', 'approved'];
-const CRITICAL = ['cancelled', 'canceled', 'failed', 'overdue', 'expired', 'critical', 'abnormal', 'high', 'declined', 'missed'];
-const WARNING = ['pending_payment', 'partial', 'due', 'low', 'warning', 'refill', 'attention', 'draft'];
+const CRITICAL = ['cancelled', 'canceled', 'failed', 'overdue', 'expired', 'critical', 'abnormal', 'high', 'declined', 'missed', 'voided', 'entered_in_error', 'reversed'];
+const WARNING = ['pending_payment', 'partial', 'due', 'low', 'warning', 'refill', 'attention', 'draft', 'amended'];
 const PENDING = ['scheduled', 'pending', 'upcoming', 'in_progress', 'ordered', 'issued', 'processing', 'requested'];
 const INFO = ['rescheduled', 'referred', 'archived', 'info'];
+
+/**
+ * RETRACTION VOCABULARY — why `voided` / `entered_in_error` / `reversed` are
+ * CRITICAL and `amended` is WARNING.
+ *
+ * A clinical record on this platform is never overwritten or deleted: it is
+ * amended, voided, reversed, or marked entered-in-error. Those four verbs are
+ * the only ways a record stops being true, and until now this map knew none of
+ * them — every one fell through to `'neutral'`, the same grey a merely lapsed
+ * item gets. A prescription the prescriber TOOK BACK rendered exactly like one
+ * that had simply run its course: a safety-legibility failure on a medication
+ * list, not a styling nit.
+ *
+ * The three retractions are `critical` because the record must not be acted
+ * on. `amended` is only `warning` — the record still stands, it was revised
+ * after the fact, so it wants attention rather than alarm.
+ *
+ * These tones are not invented here. They are what the screens that could not
+ * wait for this fix already do by hand, lifted into the one shared map:
+ * `components/meds/shared.tsx` (`RETRACTED_STATUSES` → 'critical', with a
+ * comment naming this exact gap), `app/prescriptions/index.tsx` (`headerTone`:
+ * retracted → critical, `amended` → warning) and
+ * `components/prescriptions/status.tsx` (`isRetracted` → the danger skin).
+ *
+ * `entered_in_error` covers FHIR's `entered-in-error` as well: the normalizer
+ * below folds spaces and hyphens to underscores before the lookup.
+ *
+ * DELIBERATELY NOT ADDED
+ *  - `revoked` — the only screen that shows it is `app/privacy/index.tsx`, for
+ *    a consent the PATIENT withdrew on purpose, and it passes an explicit
+ *    `tone="neutral"` for that reason. Turning the shared default red would
+ *    tell a patient their own considered choice was an error.
+ *  - `inactive` / `stopped` / `closed` — "ended", not "taken back". Neutral is
+ *    the right answer for them, and that contrast is what makes the
+ *    retractions above legible.
+ *
+ * `active` stays in NORMAL. It is tempting to move it — an ACTIVE allergy or
+ * problem is not good news — but in this app `active` overwhelmingly means
+ * "live and usable": a fillable prescription, a granted consent, a valid
+ * licence, offline mode switched on. Re-toning it would break those four to
+ * fix a case whose screens already pass an explicit tone.
+ */
 
 /** Map a raw domain status string onto a semantic tone. */
 export function toneForStatus(status: string): StatusTone {

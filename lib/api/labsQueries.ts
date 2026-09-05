@@ -2,20 +2,23 @@
  * Labs / diagnostics data layer — additive companion to `lib/api/queries.ts`.
  *
  * ┌─────────────────────────────────────────────────────────────────────────┐
- * │ BACKEND STATUS (checked 2026-09-04)                                     │
+ * │ BACKEND STATUS (checked 2026-09-05)                                     │
  * │                                                                         │
- * │ The OpesCare Finder backend (finder.opescare.cloud) serves NO           │
- * │ `/mobile/labs*` route today. `MobileLabController` was removed when     │
- * │ this fork was trimmed to the finder feature set (commit 1185f26), and  │
- * │ `routes/` in opescare-finder contains no lab route at all. Every hook   │
- * │ in this module therefore resolves to a react-query ERROR state (HTTP    │
- * │ 404) against the live server until that controller is restored.        │
+ * │ SERVED. The finder backend now answers every path below —               │
+ * │ `MobileLabController` (list / summary / detail / report / trend) and    │
+ * │ `MobileLabRequestController` (catalogue / request / collection), wired  │
+ * │ through `routes/mobile_labs.php`. The unavailable state below is KEPT:  │
+ * │ a deployment that has not loaded that route file still answers 404, and │
+ * │ "this server does not serve labs" is a different message from "you      │
+ * │ have no results yet".                                                   │
  * │                                                                         │
- * │ Nothing here fabricates a result: no fixtures, no fallback payloads,    │
- * │ no invented reference ranges, no "demo" series. The screens must render │
- * │ the error / unavailable state — `isLabsUnavailable(error)` is the fast  │
- * │ path for "the server does not serve this yet", and the retry policy    │
- * │ never re-tries a 4xx, so that state appears on the first response.      │
+ * │ Nothing here or on the server fabricates a result: no fixtures, no      │
+ * │ fallback payloads, no invented reference ranges, no synthesised series. │
+ * │ Where the laboratory published no range and the platform holds none the │
+ * │ server returns `ref_low` / `ref_high` / `reference` as null and the     │
+ * │ flag `unflagged`, and the screens print "Not recorded" — never a        │
+ * │ number, and never "Normal". The retry policy never re-tries a 4xx, so   │
+ * │ the unavailable state appears on the first response.                    │
  * └─────────────────────────────────────────────────────────────────────────┘
  *
  * The contract is the OPES `src/api/diagnostics.ts` module — the typed shapes
@@ -81,11 +84,25 @@ export const LABS_ENDPOINTS = {
 // Types — the OPES diagnostics contract (labs subset), exported for the screens
 // ---------------------------------------------------------------------------
 
-/** Reference-range flag on a single analyte result. */
-export type ResultFlag = 'normal' | 'low' | 'high' | 'abnormal' | 'critical';
+/**
+ * Reference-range flag on a single analyte result.
+ *
+ * `unflagged` is the honest third state and it is NOT a synonym for normal:
+ * the laboratory published no flag with the value AND no reference range
+ * exists for that analyte, sex and age band anywhere, so nothing compared the
+ * result to anything. It renders as "Not recorded". Treating it as normal
+ * would have the app assert a clinical judgement nobody made.
+ */
+export type ResultFlag = 'normal' | 'low' | 'high' | 'abnormal' | 'critical' | 'unflagged';
 
-/** Roll-up of an order's results. Never `low`/`high` — those are per analyte. */
-export type OverallFlag = 'normal' | 'abnormal' | 'critical';
+/**
+ * Roll-up of an order's results. Never `low`/`high` — those are per analyte.
+ *
+ * `pending` is an order with no released results at all; `unflagged` is an
+ * order whose results were all released without anything to compare them to.
+ * Both are distinct from `normal` for the same reason `unflagged` is above.
+ */
+export type OverallFlag = 'normal' | 'abnormal' | 'critical' | 'pending' | 'unflagged';
 
 export type LabOrderStatus = 'ordered' | 'in_progress' | 'completed' | 'cancelled';
 
@@ -123,7 +140,8 @@ export interface PortalLabOrder {
   status: LabOrderStatus;
   result_summary: string | null;
   ordered_at: string | null;
-  encounter_id: string;
+  /** The visit the panel was ordered against. Null when it was raised outside one. */
+  encounter_id: string | null;
   overall_flag: OverallFlag;
   result_count: number;
   results: PortalLabResult[];
@@ -147,7 +165,10 @@ export interface LabTrend {
   unit: string | null;
   ref_low: number | null;
   ref_high: number | null;
-  latest: PortalLabResult;
+  /** Null when the patient has no result for this analyte at all — the server
+   *  answers 200 with an empty series rather than a 404, which the app would
+   *  read as "this server does not serve labs". */
+  latest: PortalLabResult | null;
   direction: 'up' | 'down' | 'flat';
   change_percent: number | null;
   min: number;
@@ -208,7 +229,13 @@ export interface LabReportDocument {
   file_type: string | null;
   file_size: number | null;
   created_at: string | null;
-  /** Bearer-authenticated — pass the token as an Authorization header. */
+  /**
+   * A SHORT-LIVED SIGNED URL (15 minutes), not a bearer-authenticated one:
+   * the report screen hands it to the system browser, which carries no
+   * Authorization header. It names one order for one patient and the server
+   * re-checks the signature, the patient, the order and the file before
+   * streaming. Treat it as a capability — never share or persist it.
+   */
   download_url: string;
 }
 

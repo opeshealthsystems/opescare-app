@@ -1,0 +1,12 @@
+{
+  "_note": "Fichier de préparation pour la boîte de résultats. Ces clés ne sont PAS chargées à l'exécution — lib/i18n/index.ts n'importe que locales/en.json et locales/fr.json. Fusionner cet objet dans opesDoctor.inbox de locales/fr.json (et son jumeau .en.json dans locales/en.json) une fois le blocage levé, puis supprimer ce fichier.",
+  "_blocked_on": "lib/api/doctorQueries.ts (partagé, hors périmètre de ce lot). GET /mobile/doctor/results-inbox renvoie désormais meta.truncated en plus de meta.counts, mais fetchResultsInbox() l'écarte : elle ne renvoie que { rows, counts }. Tant que InboxPage ne porte pas `truncated: boolean` et que fetchResultsInbox ne transmet pas `res.data.meta.truncated`, app/clinician/results.tsx ne peut pas savoir qu'il affiche une boîte partielle.",
+  "_why_it_matters": "L'endpoint charge une fenêtre bornée (250 demandes de laboratoire + 250 comptes rendus d'imagerie). Au-delà, la liste est un SOUS-ENSEMBLE des résultats du clinicien et les compteurs décrivent la fenêtre, pas le dossier. Une boîte silencieusement incomplète est aussi dangereuse qu'une boîte silencieusement périmée : la ligne tombée hors de la fenêtre peut être le résultat critique non accusé.",
+  "opesDoctor": {
+    "inbox": {
+      "truncatedTitle": "Affichage de vos résultats les plus récents",
+      "truncatedBody": "Vous avez plus de résultats que cette liste ne peut en charger d'un coup. Les compteurs ci-dessus décrivent ce qui est chargé, pas l'ensemble de votre dossier — ouvrez la boîte de résultats sur un poste de travail pour tout voir.",
+      "truncatedAction": "Ouvrir sur un poste de travail"
+    }
+  }
+}

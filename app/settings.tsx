@@ -79,6 +79,13 @@ const ROUTES = {
   referrals: '/referrals',
   offlineAccess: '/offline-access',
   help: '/help',
+  // `app/legal/privacy.tsx` and `app/legal/terms.tsx` shipped with no entry
+  // point anywhere in the app — `scripts/nav-audit.mjs` reported both as
+  // orphans. Both screens' own back handler is
+  // `router.canGoBack() ? back() : replace('/settings')`, so this is the
+  // parent they were written for.
+  privacyPolicy: '/legal/privacy',
+  terms: '/legal/terms',
 } as const;
 
 /**
@@ -182,11 +189,13 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <ScreenHeader
-        title={t('settings.title')}
-        subtitle={t('settings.subtitle')}
-        onBack={() => router.back()}
-      />
+      {/* No `onBack`: the kit falls back to the app-wide handler registered in
+          app/_layout.tsx (`canGoBack() ? back() : replace('/(tabs)/home')`).
+          Passing `() => router.back()` here OVERRODE that with a call that is
+          a silent no-op when there is no stack to pop — and Settings is
+          reached without one every time, from the Notification Center's empty
+          state, from a deep link, or from a cold start on this URL. */}
+      <ScreenHeader title={t('settings.title')} subtitle={t('settings.subtitle')} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Identity — who these settings belong to, straight from the session. */}
@@ -220,26 +229,19 @@ export default function SettingsScreen() {
           </Card>
         ) : null}
 
-        {query.isLoading ? (
-          <Card>
-            <View style={styles.loading}>
-              <ActivityIndicator color={colors.blue} />
-              <Text style={styles.loadingText}>{t('opesCore.common.loading')}</Text>
-            </View>
-          </Card>
-        ) : query.isError || !settings ? (
-          <Card variant="flush">
-            <EmptyState
-              icon="alert-circle"
-              tint="red"
-              title={t('settings.loadError')}
-              message={t('settings.loadErrorBody')}
-              actionLabel={t('settings.retry')}
-              onAction={() => query.refetch()}
-            />
-          </Card>
-        ) : (
-          <>
+        {/* Everything below is rendered unconditionally.
+            GET /mobile/settings feeds ONE group — the notification toggles —
+            but its failure used to replace the whole screen with a retry card,
+            taking Privacy, Consent, Access logs, Data requests, Help and
+            Offline access down with it. Settings is the hub those live behind,
+            so a failed preferences fetch became a dead end for six features
+            that never needed the call. The load/error/retry states now live
+            inside the group that actually depends on them.
+
+            The fragment below is what the removed ternary's branch left
+            behind. It is kept rather than unwrapped so this diff stays a
+            behaviour change and not a 250-line re-indent. */}
+        <>
             {/* ── Account ─────────────────────────────────────────────── */}
             <View>
               <SectionHeader title={t('settings.group.account')} variant="overline" />
@@ -323,25 +325,45 @@ export default function SettingsScreen() {
             {/* ── Notifications ───────────────────────────────────────── */}
             <View>
               <SectionHeader title={t('settings.group.notifications')} variant="overline" />
-              <Card variant="flush">
-                {NOTIFICATION_PREFERENCE_KEYS.map((key, index) => {
-                  const meta = PREFERENCE_META[key];
-                  return (
-                    <ToggleRow
-                      key={key}
-                      icon={meta.icon}
-                      tint={meta.tint}
-                      title={t(meta.labelKey)}
-                      subtitle={t(meta.bodyKey)}
-                      value={readPreference(settings, key)}
-                      onChange={(next) => toggle(key, next)}
-                      busy={pendingKey === key}
-                      unknownLabel={t('settings.notifications.unavailable')}
-                      divider={index < NOTIFICATION_PREFERENCE_KEYS.length - 1}
-                    />
-                  );
-                })}
-              </Card>
+              {query.isLoading ? (
+                <Card>
+                  <View style={styles.loading}>
+                    <ActivityIndicator color={colors.blue} />
+                    <Text style={styles.loadingText}>{t('opesCore.common.loading')}</Text>
+                  </View>
+                </Card>
+              ) : query.isError || !settings ? (
+                <Card variant="flush">
+                  <EmptyState
+                    icon="alert-circle"
+                    tint="red"
+                    title={t('settings.loadError')}
+                    message={t('settings.loadErrorBody')}
+                    actionLabel={t('settings.retry')}
+                    onAction={() => query.refetch()}
+                  />
+                </Card>
+              ) : (
+                <Card variant="flush">
+                  {NOTIFICATION_PREFERENCE_KEYS.map((key, index) => {
+                    const meta = PREFERENCE_META[key];
+                    return (
+                      <ToggleRow
+                        key={key}
+                        icon={meta.icon}
+                        tint={meta.tint}
+                        title={t(meta.labelKey)}
+                        subtitle={t(meta.bodyKey)}
+                        value={readPreference(settings, key)}
+                        onChange={(next) => toggle(key, next)}
+                        busy={pendingKey === key}
+                        unknownLabel={t('settings.notifications.unavailable')}
+                        divider={index < NOTIFICATION_PREFERENCE_KEYS.length - 1}
+                      />
+                    );
+                  })}
+                </Card>
+              )}
 
               {prefsError ? (
                 <InlineNotice
@@ -469,6 +491,31 @@ export default function SettingsScreen() {
                   onPress={() => router.push(ROUTES.help)}
                   divider
                 />
+                {/* The two legal documents. `legal.*` lives in
+                    lib/i18n/pending/legal.{en,fr}.json and is not loaded by
+                    lib/i18n/index.ts yet, so every string here carries a
+                    defaultValue and starts reading correctly the moment those
+                    keys land. */}
+                <ListRow
+                  icon="shield"
+                  tint="blue"
+                  title={t('legal.privacy.title', { defaultValue: 'Privacy Policy' })}
+                  subtitle={t('settings.about.privacyPolicyBody', {
+                    defaultValue: 'What we collect, who can see it, and your rights over it.',
+                  })}
+                  onPress={() => router.push(ROUTES.privacyPolicy)}
+                  divider
+                />
+                <ListRow
+                  icon="document-text"
+                  tint="blue"
+                  title={t('legal.terms.title', { defaultValue: 'Terms of Service' })}
+                  subtitle={t('settings.about.termsBody', {
+                    defaultValue: 'The rules this app runs by, and what it does not do.',
+                  })}
+                  onPress={() => router.push(ROUTES.terms)}
+                  divider
+                />
                 <ListRow
                   icon="info"
                   tint="blue"
@@ -490,8 +537,7 @@ export default function SettingsScreen() {
               title={t('settings.assurance.title')}
               body={t('settings.assurance.body')}
             />
-          </>
-        )}
+        </>
       </ScrollView>
     </SafeAreaView>
   );

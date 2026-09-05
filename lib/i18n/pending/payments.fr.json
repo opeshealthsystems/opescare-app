@@ -1,0 +1,72 @@
+{
+  "payments": {
+    "title": "Payer",
+    "invoiceTitle": "Facture",
+    "loading": "Chargement de la facture…",
+    "loadError": "Cette facture n'a pas pu être chargée.",
+    "notFound": "Facture introuvable",
+    "notFoundBody": "Cette facture n'existe pas, ou elle appartient à un autre compte.",
+    "retry": "Réessayer",
+
+    "amountLabel": "Montant à payer",
+    "reference": "Référence {{reference}}",
+    "dueBy": "À payer avant le {{date}}",
+
+    "demoBanner": "Serveur de démonstration — aucun argent ne sera débité",
+    "demoBannerBody": "Cet appareil est connecté à un serveur de démonstration. Le paiement ci-dessous est entièrement simulé : aucun compte Mobile Money n'est contacté et aucun fonds n'est transféré.",
+
+    "chooseMethod": "Comment souhaitez-vous payer ?",
+    "methodHint": "Vous recevrez une demande sur votre téléphone pour valider le paiement.",
+    "numberLabel": "Numéro Mobile Money",
+    "numberPlaceholder": "6XX XX XX XX",
+    "numberHelp": "Le numéro rattaché au compte {{method}} depuis lequel vous payez.",
+    "numberInvalid": "Saisissez un numéro de téléphone camerounais valide.",
+    "prefixWarning": "Ce numéro ne ressemble pas à un numéro {{method}}. Vous pouvez continuer si vous l'avez porté vers {{method}}.",
+
+    "confirmTitle": "Confirmer le paiement",
+    "confirmBody": "{{amount}} seront demandés au {{number}} via {{method}}.",
+    "payAction": "Payer {{amount}}",
+    "cancel": "Annuler",
+    "back": "Retour",
+
+    "pendingTitle": "Consultez votre téléphone",
+    "pendingBody": "Validez la demande de paiement de {{amount}} sur le {{number}} avec votre code {{method}}.",
+    "pendingWaiting": "En attente de confirmation…",
+    "pendingElapsed": "{{seconds}} s",
+    "pendingLeaveHint": "Gardez cet écran ouvert. Il se met à jour tout seul dès que le paiement est confirmé.",
+
+    "successTitle": "Paiement reçu",
+    "successBody": "{{amount}} ont été payés pour {{description}}.",
+    "successPaidAt": "Payé le {{date}}",
+    "receiptMethod": "Payé avec",
+    "receiptNumber": "Depuis",
+    "receiptReference": "Référence",
+    "done": "Terminé",
+
+    "failedTitle": "Paiement non abouti",
+    "tryAgain": "Réessayer",
+    "tryAnotherNumber": "Utiliser un autre numéro",
+
+    "expiredTitle": "La demande a expiré",
+    "expiredBody": "La demande de paiement n'a pas été validée à temps. Rien n'a été débité.",
+
+    "alreadyPaidTitle": "Déjà payée",
+    "alreadyPaidBody": "Cette facture a été réglée le {{date}}. Il n'y a plus rien à payer.",
+
+    "status": {
+      "pending": "En attente de paiement",
+      "paid": "Payée",
+      "failed": "Paiement échoué",
+      "expired": "Expirée",
+      "refunded": "Remboursée"
+    },
+
+    "unavailableTitle": "Paiements indisponibles",
+    "unavailableBody": "Les paiements Mobile Money ne peuvent pas être acceptés pour le moment. Réessayez plus tard.",
+
+    "errors": {
+      "generic": "Le paiement n'a pas pu être lancé. Veuillez réessayer.",
+      "offline": "Vous semblez hors ligne. Reconnectez-vous et réessayez — rien n'a été débité."
+    }
+  }
+}

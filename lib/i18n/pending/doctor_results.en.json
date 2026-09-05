@@ -1,0 +1,12 @@
+{
+  "_note": "Staging file for the results-inbox slice. These keys are NOT loaded at runtime — lib/i18n/index.ts imports locales/en.json and locales/fr.json only. Merge this object into opesDoctor.inbox in locales/en.json (and the .fr.json twin into locales/fr.json) when the blocker below is lifted, then delete this file.",
+  "_blocked_on": "lib/api/doctorQueries.ts (shared, not owned by this slice). GET /mobile/doctor/results-inbox now returns meta.truncated alongside meta.counts, but fetchResultsInbox() drops it: it returns { rows, counts } only. Until InboxPage carries `truncated: boolean` and fetchResultsInbox passes `res.data.meta.truncated` through, app/clinician/results.tsx cannot see that it is holding a partial inbox, so these strings have nothing to render against. Every other opesDoctor key these two screens use is already in the shipped catalogue in both languages.",
+  "_why_it_matters": "The endpoint loads a bounded window of source rows (250 lab orders + 250 radiology reports). Beyond that the list is a SUBSET of the clinician's results and the counts describe the window, not the record. A quietly short results inbox is the same hazard as a quietly stale one, and worse here than on a chart: the row that fell off the end could be the unacknowledged critical.",
+  "opesDoctor": {
+    "inbox": {
+      "truncatedTitle": "Showing your most recent results",
+      "truncatedBody": "You have more results than this list can load at once. The counts above describe what is loaded, not your whole record — open the results inbox on a workstation to see everything.",
+      "truncatedAction": "Open on a workstation"
+    }
+  }
+}

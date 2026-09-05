@@ -22,7 +22,7 @@
  *  - Priority stays `routine | urgent | stat` — the `LabPriority` union, not a
  *    server-sent option list, because that union IS the contract.
  *
- * The Finder backend does not serve `/mobile/labs*` yet: the catalogue read
+ * The catalogue read
  * degrades to the kit `EmptyState` (`LabsUnavailable`) and the form stays
  * disabled, never a crash, never an endless spinner, never an invented test.
  */

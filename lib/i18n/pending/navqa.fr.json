@@ -1,0 +1,13 @@
+{
+  "profile": {
+    "unavailableTitle": "Votre profil n'a pas été chargé",
+    "unavailableBody": "Nous n'avons pas pu joindre OpesCare pour charger vos informations. Le reste de l'application fonctionne normalement — vérifiez votre connexion et réessayez.",
+    "unavailableRetryHint": "Recharge votre profil"
+  },
+  "settings": {
+    "about": {
+      "privacyPolicyBody": "Ce que nous collectons, qui peut le consulter et vos droits sur ces données.",
+      "termsBody": "Les règles de fonctionnement de l'application, et ce qu'elle ne fait pas."
+    }
+  }
+}

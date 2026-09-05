@@ -1,10 +1,11 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  EmptyState,
   Icon,
   ListRow,
   ScreenHeader,
@@ -56,6 +57,9 @@ export default function ProfileScreen() {
   const dialog = useDialog();
   const patient = useAuthStore((s) => s.patient);
   const logout = useAuthStore((s) => s.logout);
+  const authStatus = useAuthStore((s) => s.status);
+  const fetchMe = useAuthStore((s) => s.fetchMe);
+  const [retrying, setRetrying] = useState(false);
 
   // Powers the "Dependents" tile. Real GET /mobile/family — the same query key
   // the Family screen uses, so opening either one warms the other's cache.
@@ -134,14 +138,84 @@ export default function ProfileScreen() {
 
   const goEditProfile = useCallback(() => router.push('/edit-profile'), [router]);
 
+  // Pull the profile again by hand. `fetchMe` throws on failure; the catch is
+  // what keeps a second failed attempt from unmounting the retry button.
+  const retryProfile = useCallback(async () => {
+    setRetrying(true);
+    try {
+      await fetchMe();
+    } catch {
+      // Still unreachable. The state below is unchanged and offers the retry
+      // again — saying "it failed twice" adds nothing the screen is not
+      // already showing.
+    } finally {
+      setRetrying(false);
+    }
+  }, [fetchMe]);
+
   if (!patient) {
+    /**
+     * NO PROFILE. Two different situations, and they must not look the same.
+     *
+     * `booting` is the ordinary one: the session is still resolving and the
+     * profile is seconds away. A spinner is the honest answer.
+     *
+     * Authenticated WITHOUT a profile is not a loading state — it is where an
+     * offline cold start lands when there is no cached demographic record
+     * (see the `isNetworkError` branch of `bootstrap()` in lib/store/auth.ts:
+     * the token is kept, the session is authenticated, and `fetchMe` is
+     * retried on a 2s/5s/15s/30s backoff). After roughly a minute that backoff
+     * gives up for good and NOTHING re-runs it from this screen. This branch
+     * used to render the same spinner in that case, so the Profile tab became
+     * a permanent spinner with no explanation, no retry and no forward action
+     * — the tab bar was the only way out. It now says what happened and hands
+     * back the two moves that exist: try again, or sign out and back in.
+     */
+    const stillBooting = authStatus === 'booting' || retrying;
     return (
       <SafeAreaView style={styles.screen} edges={['top']}>
         <ScreenHeader title={t('profile.title')} subtitle={t('profile.subtitle')} showBack={false} />
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.blue} />
-          <Text style={styles.loadingText}>{t('profile.loading')}</Text>
-        </View>
+        {stillBooting ? (
+          <View style={styles.centered}>
+            <ActivityIndicator color={colors.blue} />
+            <Text style={styles.loadingText}>{t('profile.loading')}</Text>
+          </View>
+        ) : (
+          <ScrollView contentContainerStyle={styles.content}>
+            <Card variant="flush">
+              <EmptyState
+                icon="alert-circle"
+                tint="amber"
+                title={t('profile.unavailableTitle', {
+                  defaultValue: 'Your profile has not loaded',
+                })}
+                message={t('profile.unavailableBody', {
+                  defaultValue:
+                    'We could not reach OpesCare to load your details. Everything else in the app still works — check your connection and try again.',
+                })}
+                actionLabel={t('opesCore.common.retry')}
+                onAction={() => void retryProfile()}
+                actionHint={t('profile.unavailableRetryHint', {
+                  defaultValue: 'Fetches your profile again',
+                })}
+              />
+            </Card>
+
+            <TouchableOpacity
+              style={styles.signOut}
+              activeOpacity={0.8}
+              onPress={confirmSignOut}
+              disabled={dialog.busy}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.signOut')}
+              accessibilityState={{ disabled: dialog.busy }}
+            >
+              <Icon name="logout" size={18} color={colors.statusCritical} />
+              <Text style={styles.signOutText}>{t('profile.signOut')}</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        )}
+        {dialog.element}
       </SafeAreaView>
     );
   }

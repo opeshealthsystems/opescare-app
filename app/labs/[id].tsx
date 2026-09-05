@@ -10,7 +10,7 @@
  * the PDF / share tiles open `/labs/[id]/report`, "Contact" and "Send to
  * Doctor" open the Messages tab.
  *
- * The Finder backend does not serve `/mobile/labs*` yet: a failed read renders
+ * A failed read renders
  * the kit `EmptyState` (`LabsUnavailable`), never a crash or an endless spinner.
  */
 import React, { useCallback, useMemo } from 'react';
@@ -44,7 +44,6 @@ import {
   errorMessage,
   fmtDate,
   fmtDateTime,
-  flagLabel,
   referenceRange,
   resultRowSpoken,
   titleCase,
@@ -56,7 +55,7 @@ import {
   type LabOrderDetail,
   type PortalLabResult,
 } from '@/lib/api/labsQueries';
-import { LabsUnavailable, useLabsT, type Tx } from './index';
+import { LabsUnavailable, resultFlagLabel, useLabsT, type Tx } from './index';
 
 function columns(tx: Tx): TableColumn[] {
   return [
@@ -313,7 +312,7 @@ export default function LabResultDetailScreen() {
                           />
                         ) : (
                           <Text style={[styles.flagText, { color: colorForFlag(r.flag) }]} numberOfLines={1}>
-                            {flagLabel(r.flag, tr)}
+                            {resultFlagLabel(r.flag, tx, tr)}
                           </Text>
                         ),
                     },

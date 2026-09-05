@@ -17,14 +17,25 @@
  * The payload carries no facility / provider ids and no coordinates, so there
  * is no facility or provider link and no map here — and no external maps
  * link, by design.
+ *
+ * **Reschedule** (POST …/reschedule) is the second real mutation on this
+ * screen. It exists because the only way out of an appointment a patient
+ * cannot make used to be `cancel`, which releases the slot to everyone else
+ * and leaves the patient holding nothing. The server performs the move as one
+ * transaction — new slot claimed, old one released, under row locks — so a
+ * refusal is genuinely harmless, and the refusal body carries the appointment
+ * as it still stands. `ReschedulePanel` below shows the patient exactly that:
+ * on failure it names the time they still hold rather than claiming
+ * "nothing changed".
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  Chip,
   EmptyState,
   GradientButton,
   Icon,
@@ -72,10 +83,42 @@ import {
   useStartMessageThread,
   type AppointmentDetail,
 } from '@/lib/api/queries';
+import {
+  canRescheduleStatus,
+  rescheduleCodeKey,
+  rescheduleFailure,
+  useRescheduleAppointment,
+  useRescheduleOptions,
+  type RescheduleSlotOption,
+} from '@/lib/api/rescheduleQueries';
+// The booking wizard already decided how a slot window is split into days and
+// read as a clinic diary. Reusing those four helpers is what keeps the
+// reschedule picker and the booking picker showing the same times the same way.
+import {
+  daysCoveredBySlots,
+  firstSlotAfterDay,
+  groupSlotsByPeriod,
+  localDateKey,
+  slotDurationMinutes,
+  slotsOnDay,
+} from '@/lib/api/bookingQueries';
 
 const BOOK_ROUTE = '/appointments/book';
 const MESSAGES_ROUTE = '/(tabs)/messages';
 const MESSAGE_MAX = 2000;
+
+/** Icons for the three parts of a clinic day, matching the booking wizard's. */
+const PERIOD_ICON: Record<string, IconName> = {
+  morning: 'sun',
+  afternoon: 'sun',
+  evening: 'moon',
+};
+
+/** "Mon 14 Sep · 09:30" — the one time format the reschedule copy uses. */
+function whenLabel(iso: string | null | undefined): string {
+  if (!iso) return '';
+  return `${formatDateLong(iso)} · ${formatTime(iso)}`;
+}
 
 /**
  * The catalogue's pre-visit list minus its cancellation-fee line: the Finder
@@ -106,6 +149,9 @@ export default function AppointmentDetailScreen() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeBody, setComposeBody] = useState('');
   const [messageSent, setMessageSent] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  /** Set once a move succeeds, so the banner can name both times. */
+  const [justRescheduled, setJustRescheduled] = useState<{ from: string; to: string } | null>(null);
 
   const goBook = () => router.push(BOOK_ROUTE);
   const goMessages = () => router.push(MESSAGES_ROUTE);
@@ -205,6 +251,19 @@ export default function AppointmentDetailScreen() {
             onOpenMessages={goMessages}
             onCancel={askCancel}
             onBook={goBook}
+            rescheduleOpen={rescheduleOpen}
+            justRescheduled={justRescheduled}
+            onToggleReschedule={() => {
+              // Re-opening the picker after a successful move clears the
+              // success banner: the "moved from X to Y" line would otherwise
+              // describe the previous move while the patient plans the next.
+              setJustRescheduled(null);
+              setRescheduleOpen((v) => !v);
+            }}
+            onRescheduled={(from, to) => {
+              setJustRescheduled({ from, to });
+              setRescheduleOpen(false);
+            }}
             tintMap={tintMap}
             colors={colors}
             t={t}
@@ -237,6 +296,10 @@ function DetailBody({
   onOpenMessages,
   onCancel,
   onBook,
+  rescheduleOpen,
+  justRescheduled,
+  onToggleReschedule,
+  onRescheduled,
   tintMap,
   colors,
   t,
@@ -258,6 +321,10 @@ function DetailBody({
   onOpenMessages: () => void;
   onCancel: () => void;
   onBook: () => void;
+  rescheduleOpen: boolean;
+  justRescheduled: { from: string; to: string } | null;
+  onToggleReschedule: () => void;
+  onRescheduled: (from: string, to: string) => void;
   tintMap: ReturnType<typeof useTheme>['tintMap'];
   colors: Palette;
   t: TFunction;
@@ -269,6 +336,9 @@ function DetailBody({
   const relative = relativeDayLabel(t, a.scheduled_at);
   const canCancel = canCancelStatus(a.status);
   const upcoming = isUpcomingStatus(a.status);
+  // A pre-check only: it decides whether to offer the button. The server
+  // re-decides on the options call and again under a row lock on the write.
+  const canReschedule = canRescheduleStatus(a.status);
   const canMessage = !!a.provider_name;
   // Surfaced whenever the API sends them, not only when status === 'cancelled':
   // a facility can record a cancellation reason against a row whose status has
@@ -309,6 +379,14 @@ function DetailBody({
   return (
     <>
       {/* State banners — the one for the action just performed comes first. */}
+      {justRescheduled ? (
+        <NoticeBanner
+          icon="calendar-check"
+          tone="normal"
+          title={t('appointments.reschedule.successTitle')}
+          message={t('appointments.reschedule.successBody', justRescheduled)}
+        />
+      ) : null}
       {justCancelled ? (
         <NoticeBanner icon="check-circle" tone="normal" message={t('appointments.detail.cancelSuccess')} />
       ) : a.status === 'cancelled' ? (
@@ -529,7 +607,31 @@ function DetailBody({
         </View>
       ) : null}
 
-      {/* Actions */}
+      {/* Reschedule — the picker, open in place rather than on another route so
+          the patient can still see the appointment they are moving. */}
+      {rescheduleOpen && canReschedule ? (
+        <ReschedulePanel
+          appointment={a}
+          styles={styles}
+          colors={colors}
+          t={t}
+          onClose={onToggleReschedule}
+          onRescheduled={onRescheduled}
+        />
+      ) : null}
+
+      {/* Actions. Reschedule sits above Cancel deliberately: it is the
+          non-destructive way out of "I cannot make this time", and offering it
+          first is what stops a patient releasing a slot they did not need to. */}
+      {canReschedule ? (
+        <CareButton
+          label={rescheduleOpen ? t('appointments.reschedule.close') : t('appointments.reschedule.cta')}
+          icon={rescheduleOpen ? 'chevron-up' : 'refresh'}
+          variant="secondary"
+          onPress={onToggleReschedule}
+        />
+      ) : null}
+
       {canCancel ? (
         <CareButton
           label={t('opesCare.detail.cancelCta')}
@@ -550,6 +652,305 @@ function DetailBody({
         {uiT('components.loadedAt', { when: fmtLastLoaded(loadedAt, uiT) })}
       </Text>
     </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * The reschedule picker.
+ *
+ * Self-contained: it owns its query, its selection, its mutation and its own
+ * confirm sheet, and reports upward only when a move actually lands. That keeps
+ * the failure story in one place, which matters more here than anywhere else on
+ * this screen — a patient who tries to move an appointment and sees an error
+ * needs to know, in the same breath, that they still hold the original.
+ *
+ * Times are grouped the way the booking wizard groups them, by reusing its
+ * helpers. `slotsOnDay` / `groupSlotsByPeriod` return the narrower
+ * `AppointmentSlotOption`, so each returned slot is looked back up by id to
+ * recover `is_current` — reuse of the logic without re-declaring it.
+ */
+function ReschedulePanel({
+  appointment: a,
+  styles,
+  colors,
+  t,
+  onClose,
+  onRescheduled,
+}: {
+  appointment: AppointmentDetail;
+  styles: Styles;
+  colors: Palette;
+  t: TFunction;
+  onClose: () => void;
+  onRescheduled: (from: string, to: string) => void;
+}) {
+  const dialog = useDialog();
+  const { data, isLoading, isError, refetch } = useRescheduleOptions(a.id, true);
+  const mutation = useRescheduleAppointment();
+
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [selected, setSelected] = useState<RescheduleSlotOption | null>(null);
+  /** Survives the confirm sheet closing, so the reason stays readable. */
+  const [failure, setFailure] = useState<{ reason: string; kept: string } | null>(null);
+
+  const slots = useMemo(() => data?.slots ?? [], [data]);
+  const byId = useMemo(() => new Map(slots.map((s) => [s.id, s])), [slots]);
+
+  const days = useMemo(
+    () => Array.from(daysCoveredBySlots(slots)).sort(),
+    [slots],
+  );
+
+  // Land on the first day that has anything, and re-land if the window shifts
+  // under a refetch (a slot filling can empty the day the patient was on).
+  useEffect(() => {
+    if (days.length === 0) {
+      setSelectedDay(null);
+    } else if (!selectedDay || !days.includes(selectedDay)) {
+      setSelectedDay(days[0]);
+    }
+  }, [days, selectedDay]);
+
+  const daySlots = useMemo(
+    () => (selectedDay ? slotsOnDay(slots, selectedDay) : []),
+    [slots, selectedDay],
+  );
+
+  const groups = useMemo(
+    () =>
+      groupSlotsByPeriod(daySlots).map((group) => ({
+        period: group.period,
+        slots: group.slots.map((s) => byId.get(s.id)).filter((s): s is RescheduleSlotOption => !!s),
+      })),
+    [daySlots, byId],
+  );
+
+  const nextAhead = useMemo(
+    () => (selectedDay ? firstSlotAfterDay(slots, selectedDay) : null),
+    [slots, selectedDay],
+  );
+
+  const currentWhen = whenLabel(data?.current.scheduled_at ?? a.scheduled_at);
+
+  const confirmMove = (slot: RescheduleSlotOption) => {
+    const from = currentWhen;
+    const to = whenLabel(slot.starts_at);
+
+    dialog.confirm({
+      title: t('appointments.reschedule.confirmTitle'),
+      // Both times, spelled out. A confirm that says only "are you sure?" is
+      // the one a patient taps through and then finds the wrong day booked.
+      message: t('appointments.reschedule.confirmBody', { from, to }),
+      confirmLabel: t('appointments.reschedule.confirmYes'),
+      cancelLabel: t('appointments.reschedule.confirmNo'),
+      onConfirm: async () => {
+        setFailure(null);
+        try {
+          await mutation.mutateAsync({ id: a.id, appointment_slot_id: slot.id });
+          onRescheduled(from, to);
+        } catch (error) {
+          const result = rescheduleFailure(error);
+          const reason = t(`appointments.reschedule.${result.key}`);
+          // What the patient still holds, taken from the server's own answer
+          // rather than assumed. A dropped connection is the one case where
+          // the outcome is genuinely unknown, and it says so.
+          const kept =
+            result.key === 'errNetwork'
+              ? t('appointments.reschedule.unconfirmed')
+              : result.appointment?.scheduled_at
+                ? t('appointments.reschedule.keptOriginal', {
+                    when: whenLabel(result.appointment.scheduled_at),
+                  })
+                : t('appointments.reschedule.keptOriginalUnknownTime');
+
+          setFailure({ reason, kept });
+          // Opening a sheet from inside the action keeps it on screen after the
+          // confirm closes — the kit Dialog's documented behaviour.
+          dialog.alert(t('appointments.reschedule.failedTitle'), `${reason}\n\n${kept}`, 'critical');
+          // The window is stale by definition once a slot has been refused.
+          void refetch();
+          setSelected(null);
+        }
+      },
+    });
+  };
+
+  return (
+    <View>
+      <SectionHeader title={t('appointments.reschedule.panelTitle')} variant="overline" />
+      <Card>
+        {isLoading ? (
+          <LoadingBlock label={t('appointments.reschedule.loading')} />
+        ) : isError || !data ? (
+          <View style={styles.reschedStack}>
+            <NoticeBanner icon="alert-circle" tone="critical" message={t('appointments.reschedule.loadError')} />
+            <CareButton
+              label={t('appointments.retry')}
+              icon="refresh"
+              variant="secondary"
+              onPress={() => {
+                void refetch();
+              }}
+            />
+          </View>
+        ) : !data.can_reschedule ? (
+          // The server already knows this appointment cannot move. Say why here
+          // rather than letting the patient pick a time and then be refused.
+          <NoticeBanner
+            icon="alert-circle"
+            tone="warning"
+            title={t('appointments.reschedule.failedTitle')}
+            message={t(`appointments.reschedule.${rescheduleCodeKey(data.blocked_reason?.error_code)}`)}
+          />
+        ) : slots.filter((s) => !s.is_current).length === 0 ? (
+          <NoticeBanner
+            icon="clock"
+            tone="warning"
+            title={t('appointments.reschedule.noSlotsTitle')}
+            message={t('appointments.reschedule.noSlotsBody', { when: currentWhen })}
+          />
+        ) : (
+          <View style={styles.reschedStack}>
+            <NoticeBanner
+              icon="info"
+              tone="pending"
+              message={t('appointments.reschedule.panelIntro', {
+                facility: data.current.facility_name ?? a.facility_name ?? '',
+              })}
+            />
+
+            <Text style={styles.reschedCurrent}>
+              {t('appointments.reschedule.currentTime', { when: currentWhen })}
+            </Text>
+
+            {failure ? (
+              <NoticeBanner
+                icon="alert-circle"
+                tone="critical"
+                title={failure.reason}
+                message={failure.kept}
+              />
+            ) : null}
+
+            {/* Date strip */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.reschedRow}>
+              {days.map((day) => (
+                <Chip
+                  key={day}
+                  label={formatDate(`${day}T12:00:00`)}
+                  selected={day === selectedDay}
+                  onPress={() => {
+                    setSelectedDay(day);
+                    setSelected(null);
+                  }}
+                />
+              ))}
+            </ScrollView>
+
+            {/* Times for the chosen day */}
+            {groups.length === 0 ? (
+              <View style={styles.reschedStack}>
+                <NoticeBanner
+                  icon="clock"
+                  tone="warning"
+                  title={t('appointments.reschedule.emptyDayTitle')}
+                  message={t('appointments.reschedule.emptyDayBody')}
+                />
+                {nextAhead ? (
+                  <CareButton
+                    label={t('appointments.reschedule.jumpToNext', { when: formatDate(nextAhead.starts_at) })}
+                    icon="calendar-check"
+                    variant="secondary"
+                    onPress={() => {
+                      setSelectedDay(localDateKey(nextAhead.starts_at));
+                      setSelected(null);
+                    }}
+                  />
+                ) : (
+                  <CareButton
+                    label={t('appointments.reschedule.backToFirstDay')}
+                    icon="calendar"
+                    variant="secondary"
+                    onPress={() => {
+                      setSelectedDay(days[0] ?? null);
+                      setSelected(null);
+                    }}
+                  />
+                )}
+              </View>
+            ) : (
+              groups.map((group) => (
+                <View key={group.period}>
+                  <View style={styles.reschedBucketHead}>
+                    <Icon name={PERIOD_ICON[group.period] ?? 'clock'} size={16} color={colors.textSecondary} />
+                    <Text style={styles.reschedBucketLabel}>{t(`opesCare.slots.${group.period}`)}</Text>
+                  </View>
+                  <View style={styles.reschedGrid}>
+                    {group.slots.map((slot) => {
+                      const start = formatTime(slot.starts_at);
+                      const scarce = !slot.is_current && slot.available_count <= 1;
+                      return (
+                        <Chip
+                          key={slot.id}
+                          label={
+                            slot.is_current
+                              ? `${start} · ${t('appointments.reschedule.currentBadge')}`
+                              : scarce
+                                ? `${start} · ${t('appointments.book.spotsLeft', { count: slot.available_count })}`
+                                : start
+                          }
+                          icon={slot.is_current ? 'calendar-check' : scarce ? 'alert-circle' : undefined}
+                          selected={selected?.id === slot.id}
+                          // No onPress on the current slot: the kit renders an
+                          // unpressable chip as text, which is exactly right —
+                          // it is a marker, not an option.
+                          onPress={slot.is_current ? undefined : () => setSelected(slot)}
+                          accessibilityLabel={t('appointments.reschedule.slotA11y', {
+                            start,
+                            end: formatTime(slot.ends_at),
+                          })}
+                          accessibilityHint={
+                            slot.is_current ? t('appointments.reschedule.currentSlotHint') : undefined
+                          }
+                          style={styles.reschedChip}
+                        />
+                      );
+                    })}
+                  </View>
+                </View>
+              ))
+            )}
+
+            <Text style={styles.reschedSelected}>
+              {selected
+                ? t('appointments.reschedule.selectedSlot', {
+                    time: whenLabel(selected.starts_at),
+                    minutes: slotDurationMinutes(selected) ?? '—',
+                  })
+                : t('appointments.reschedule.selectPrompt')}
+            </Text>
+
+            <GradientButton
+              label={mutation.isPending ? t('appointments.reschedule.moving') : t('appointments.reschedule.review')}
+              onPress={() => selected && confirmMove(selected)}
+              disabled={!selected || mutation.isPending}
+              loading={mutation.isPending}
+              icon="none"
+            />
+            <CareButton
+              label={t('appointments.reschedule.close')}
+              icon="close"
+              variant="ghost"
+              onPress={onClose}
+            />
+          </View>
+        )}
+      </Card>
+
+      {dialog.element}
+    </View>
   );
 }
 
@@ -717,6 +1118,29 @@ const makeStyles = (colors: Palette) =>
     },
 
     hair: { height: 1, backgroundColor: colors.divider },
+
+    // ── Reschedule picker ────────────────────────────────────────────────
+    reschedStack: { gap: spacing.sm + 2 },
+    reschedCurrent: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    reschedRow: { gap: spacing.sm, paddingVertical: 2 },
+    reschedBucketHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm },
+    reschedBucketLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      color: colors.textSecondary,
+    },
+    reschedGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    reschedChip: { minWidth: 92, justifyContent: 'center' },
+    reschedSelected: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.link,
+      textAlign: 'center',
+    },
 
     instruction: {
       flexDirection: 'row',

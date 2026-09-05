@@ -1,0 +1,136 @@
+{
+  "patientWrites": {
+    "common": {
+      "close": "Fermer",
+      "cancel": "Annuler",
+      "retry": "Réessayer",
+      "optional": "Facultatif",
+      "required": "Obligatoire",
+      "loading": "Chargement",
+      "whatYouCanDo": "Ce que vous pouvez faire",
+      "unavailableTitle": "Indisponible pour le moment",
+      "unavailableBody": "Votre dossier n'a pas pu être joint. Rien de ce que vous avez saisi n'est perdu : réessayez dans un instant."
+    },
+
+    "vitals": {
+      "title": "Enregistrer une mesure",
+      "subtitle": "Une mesure que vous avez prise vous-même",
+
+      "notClinicalTitle": "C'est votre propre mesure",
+      "notClinicalBody": "Tout ce que vous enregistrez ici est marqué comme enregistré par vous. C'est conservé à part des mesures prises dans un établissement, et un soignant fait la différence entre les deux.",
+
+      "measureLabel": "Qu'avez-vous mesuré ?",
+      "unitLabel": "Unité",
+      "contextLabel": "À quel moment ?",
+      "whenLabel": "Heure de la mesure",
+      "whenNow": "À l'instant",
+      "deviceLabel": "Avec quel appareil ?",
+      "devicePlaceholder": "ex. tensiomètre Omron",
+      "noteLabel": "Quelque chose à noter ?",
+      "notePlaceholder": "ex. assis, après cinq minutes de repos",
+
+      "rangeHint": "Valeurs acceptées : de {{min}} à {{max}} {{unit}}",
+      "submit": "Enregistrer cette mesure",
+      "submitting": "Enregistrement",
+
+      "savedTitle": "Mesure enregistrée",
+      "savedBody": "{{value}} {{unit}} figure maintenant dans votre carnet, marqué comme enregistré par vous.",
+
+      "refusedTitle": "Non enregistré",
+      "refusedBody": "Rien n'a été enregistré. Voici ce qu'il faut corriger :",
+
+      "seekCareTitle": "Contactez un soignant",
+
+      "yourLogTitle": "Enregistré par vous",
+      "yourLogCount": "{{count}} mesure que vous avez enregistrée",
+      "yourLogCount_other": "{{count}} mesures que vous avez enregistrées",
+      "yourLogEmptyTitle": "Vous n'avez encore rien enregistré",
+      "yourLogEmptyBody": "Les mesures que vous prenez chez vous apparaissent ici, séparément de celles prises dans un établissement.",
+
+      "facilityTitle": "Mesuré dans un établissement",
+      "facilitySubtitle": "Pris par le personnel soignant ou un laboratoire",
+      "provenanceFacility": "Mesuré dans un établissement",
+      "provenanceFacilityBody": "Prise par le personnel soignant lors d'une consultation.",
+      "provenanceLab": "Résultat de laboratoire",
+      "provenanceLabBody": "Produit par un laboratoire à partir d'un prélèvement.",
+      "facilityEmptyTitle": "Aucune mesure d'établissement au dossier",
+      "facilityEmptyBody": "Les mesures prises lors d'une consultation apparaîtront ici. Rien n'est affiché tant qu'il n'y en a pas.",
+
+      "measuredWith": "Mesuré avec {{device}}",
+      "takenAt": "Pris {{when}}",
+      "voidedLabel": "Retiré",
+
+      "voidCta": "Retirer cette mesure",
+      "voidTitle": "Retirer cette mesure ?",
+      "voidBody": "Elle reste dans votre historique comme retirée : rien ne disparaît discrètement de votre dossier. Vous pourrez ensuite enregistrer une mesure corrigée.",
+      "voidConfirm": "La retirer",
+      "voidedTitle": "Mesure retirée",
+      "voidedBody": "Elle ne compte plus comme une mesure actuelle."
+    },
+
+    "referralRequest": {
+      "title": "Demander une orientation",
+      "subtitle": "Un clinicien examine cette demande avant toute suite",
+
+      "notAReferralTitle": "C'est une demande, pas une orientation",
+
+      "openCta": "Demander une orientation",
+      "openCtaSubtitle": "Expliquez à un clinicien pourquoi vous pensez devoir voir un spécialiste",
+
+      "stepSpecialty": "Qui",
+      "stepReason": "Pourquoi",
+      "stepUrgency": "Quand",
+
+      "specialtyLabel": "Qui souhaitez-vous voir ?",
+      "specialtyHint": "Choisissez le plus proche, ou décrivez-le avec vos mots.",
+      "specialtyPlaceholder": "ex. un spécialiste du coeur",
+
+      "reasonLabel": "Pourquoi pensez-vous en avoir besoin ?",
+      "reasonHint": "Ce que vous ressentez et ce qui a changé. Un clinicien le lira.",
+      "reasonPlaceholder": "Décrivez vos symptômes et depuis quand vous les avez",
+      "reasonTooShort": "Écrivez un peu plus, pour qu'un clinicien puisse comprendre.",
+      "reasonCount": "{{count}} sur {{max}} caractères",
+
+      "durationLabel": "Depuis combien de temps ?",
+      "urgencyLabel": "À quel point cela vous semble-t-il urgent ?",
+
+      "phoneLabel": "Un numéro pour vous joindre",
+      "phonePlaceholder": "ex. 6XX XX XX XX",
+      "noteLabel": "Autre chose à signaler à un clinicien ?",
+      "notePlaceholder": "Facultatif",
+
+      "submit": "Envoyer la demande",
+      "submitting": "Envoi",
+
+      "sentTitle": "Demande envoyée",
+      "sentBody": "Votre demande ({{reference}}) est entre les mains d'un clinicien. Vous n'êtes pas encore orienté : vous verrez le résultat dans vos orientations.",
+      "viewRequests": "Voir mes demandes",
+
+      "refusedTitle": "Non envoyée",
+      "refusedBody": "Rien n'a été envoyé. Voici ce qu'il faut corriger :",
+
+      "listTitle": "Vos demandes d'orientation",
+      "listSubtitle": "Les demandes que vous avez envoyées. Ce ne sont pas des orientations.",
+      "listCount": "{{count}} demande",
+      "listCount_other": "{{count}} demandes",
+      "emptyCalloutTitle": "Les orientations sont rédigées pour vous",
+      "emptyCalloutBody": "Vous ne pouvez pas rédiger une orientation vous-même, mais vous pouvez en demander une : c'est un clinicien qui décide.",
+      "emptyTitle": "Vous n'avez pas demandé d'orientation",
+      "emptyBody": "Si vous pensez devoir voir un spécialiste, vous pouvez demander à un clinicien de l'envisager.",
+
+      "referenceLabel": "Référence",
+      "requestedLabel": "Vous avez demandé",
+      "sentAtLabel": "Envoyée",
+      "reviewedAtLabel": "Examinée",
+      "yourWordsLabel": "Avec vos mots",
+      "urgencyCaveatTitle": "L'urgence telle que vous la ressentez",
+
+      "withdrawCta": "Retirer cette demande",
+      "withdrawTitle": "Retirer cette demande ?",
+      "withdrawBody": "Elle reste dans votre historique comme retirée. Un clinicien l'a peut-être déjà lue. Vous pourrez en envoyer une nouvelle plus tard.",
+      "withdrawConfirm": "La retirer",
+      "withdrawnTitle": "Demande retirée",
+      "withdrawnBody": "Elle n'aura pas de suite."
+    }
+  }
+}

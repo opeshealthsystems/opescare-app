@@ -1,0 +1,136 @@
+{
+  "patientWrites": {
+    "common": {
+      "close": "Close",
+      "cancel": "Cancel",
+      "retry": "Try again",
+      "optional": "Optional",
+      "required": "Required",
+      "loading": "Loading",
+      "whatYouCanDo": "What you can do",
+      "unavailableTitle": "This is not available right now",
+      "unavailableBody": "We could not reach your record. Nothing you typed has been lost — try again in a moment."
+    },
+
+    "vitals": {
+      "title": "Log a reading",
+      "subtitle": "A measurement you took yourself",
+
+      "notClinicalTitle": "This is your own reading",
+      "notClinicalBody": "Anything you log here is marked as recorded by you. It is kept separate from measurements taken at a facility, and a health worker can tell the two apart.",
+
+      "measureLabel": "What did you measure?",
+      "unitLabel": "Unit",
+      "contextLabel": "When did you take it?",
+      "whenLabel": "Time of the reading",
+      "whenNow": "Just now",
+      "deviceLabel": "What did you measure with?",
+      "devicePlaceholder": "e.g. Omron home cuff",
+      "noteLabel": "Anything worth noting?",
+      "notePlaceholder": "e.g. sitting, after five minutes of rest",
+
+      "rangeHint": "Accepted range: {{min}} to {{max}} {{unit}}",
+      "submit": "Save this reading",
+      "submitting": "Saving",
+
+      "savedTitle": "Reading saved",
+      "savedBody": "{{value}} {{unit}} is now in your own log, marked as recorded by you.",
+
+      "refusedTitle": "Not saved",
+      "refusedBody": "Nothing was saved. Here is what needs fixing:",
+
+      "seekCareTitle": "Please contact a health worker",
+
+      "yourLogTitle": "Recorded by you",
+      "yourLogCount": "{{count}} reading you recorded",
+      "yourLogCount_other": "{{count}} readings you recorded",
+      "yourLogEmptyTitle": "You have not logged anything yet",
+      "yourLogEmptyBody": "Readings you take at home appear here, kept separate from what a facility measured.",
+
+      "facilityTitle": "Measured at a facility",
+      "facilitySubtitle": "Taken by health staff or a laboratory",
+      "provenanceFacility": "Measured at a facility",
+      "provenanceFacilityBody": "Taken by health staff during a visit.",
+      "provenanceLab": "Laboratory result",
+      "provenanceLabBody": "Produced by a laboratory from a sample.",
+      "facilityEmptyTitle": "No facility measurements on record",
+      "facilityEmptyBody": "Readings taken during a visit will appear here. Nothing is shown until one is recorded.",
+
+      "measuredWith": "Measured with {{device}}",
+      "takenAt": "Taken {{when}}",
+      "voidedLabel": "Removed",
+
+      "voidCta": "Remove this reading",
+      "voidTitle": "Remove this reading?",
+      "voidBody": "It stays in your history as removed, so nothing quietly disappears from your record. You can log a corrected reading afterwards.",
+      "voidConfirm": "Remove it",
+      "voidedTitle": "Reading removed",
+      "voidedBody": "It no longer counts as a current reading."
+    },
+
+    "referralRequest": {
+      "title": "Ask for a referral",
+      "subtitle": "A clinician reviews this before anything happens",
+
+      "notAReferralTitle": "This is a request, not a referral",
+
+      "openCta": "Ask for a referral",
+      "openCtaSubtitle": "Tell a clinician why you think you need to see a specialist",
+
+      "stepSpecialty": "Who",
+      "stepReason": "Why",
+      "stepUrgency": "How soon",
+
+      "specialtyLabel": "Who would you like to see?",
+      "specialtyHint": "Pick the closest one, or describe it in your own words.",
+      "specialtyPlaceholder": "e.g. a heart specialist",
+
+      "reasonLabel": "Why do you think you need this?",
+      "reasonHint": "What you are feeling, and what has changed. A clinician reads this.",
+      "reasonPlaceholder": "Describe your symptoms and how long you have had them",
+      "reasonTooShort": "Please write a little more, so a clinician can understand.",
+      "reasonCount": "{{count}} of {{max}} characters",
+
+      "durationLabel": "How long has this been going on?",
+      "urgencyLabel": "How urgent does it feel to you?",
+
+      "phoneLabel": "A number to reach you on",
+      "phonePlaceholder": "e.g. 6XX XX XX XX",
+      "noteLabel": "Anything else a clinician should know?",
+      "notePlaceholder": "Optional",
+
+      "submit": "Send this request",
+      "submitting": "Sending",
+
+      "sentTitle": "Request sent",
+      "sentBody": "Your request ({{reference}}) is with a clinician. You have not been referred yet — you will see the outcome in your referrals.",
+      "viewRequests": "See my requests",
+
+      "refusedTitle": "Not sent",
+      "refusedBody": "Nothing was sent. Here is what needs fixing:",
+
+      "listTitle": "Your referral requests",
+      "listSubtitle": "Requests you sent. These are not referrals.",
+      "listCount": "{{count}} request",
+      "listCount_other": "{{count}} requests",
+      "emptyCalloutTitle": "Referrals are written for you",
+      "emptyCalloutBody": "You cannot write a referral yourself — but you can ask for one, and a clinician will decide.",
+      "emptyTitle": "You have not asked for a referral",
+      "emptyBody": "If you think you need to see a specialist, you can ask a clinician to consider it.",
+
+      "referenceLabel": "Reference",
+      "requestedLabel": "You asked for",
+      "sentAtLabel": "Sent",
+      "reviewedAtLabel": "Reviewed",
+      "yourWordsLabel": "In your words",
+      "urgencyCaveatTitle": "How urgent it feels to you",
+
+      "withdrawCta": "Withdraw this request",
+      "withdrawTitle": "Withdraw this request?",
+      "withdrawBody": "It stays in your history as withdrawn. A clinician may already have read it. You can send a new request later.",
+      "withdrawConfirm": "Withdraw it",
+      "withdrawnTitle": "Request withdrawn",
+      "withdrawnBody": "Nothing further will happen with it."
+    }
+  }
+}

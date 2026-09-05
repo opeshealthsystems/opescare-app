@@ -1,0 +1,23 @@
+{
+  "_note": "Staging catalogue for the clinician schedule slice. Not loaded by lib/i18n/index.ts yet (that file is owned elsewhere) — merge the `opesDoctor` object into lib/i18n/locales/en.json and delete this file. Keys are the `error_code` values returned by the server (app/Http/Controllers/Api/Mobile/MobileDoctorScheduleController.php, wording in lang/en/doctor_schedule.php). They exist client-side because SetLocale is registered on the `web` middleware group only, so /api/* refusals ignore Accept-Language and always answer in the application default locale; `error_code` is what lets the phone say it in the clinician's language. Key set MUST stay 1:1 with doctor_schedule.fr.json.",
+  "opesDoctor": {
+    "serverErrors": {
+      "APPOINTMENT_NOT_FOUND": "Appointment not found.",
+      "REQUEST_NOT_FOUND": "Appointment request not found.",
+      "PROVIDER_NOT_FOUND": "Clinician account not found.",
+      "NOT_CHECK_IN_ELIGIBLE": "Only a booked or confirmed appointment can be checked in.",
+      "ALREADY_CHECKED_IN": "This appointment is already checked in.",
+      "ALREADY_NO_SHOW": "This appointment is already marked as a no-show.",
+      "NOT_NO_SHOW_ELIGIBLE": "Only a booked, confirmed or arrived appointment can be marked as a no-show.",
+      "ALREADY_CANCELLED": "This appointment is already cancelled.",
+      "APPOINTMENT_CLOSED": "This appointment is closed and can no longer be changed.",
+      "NOT_PENDING": "This appointment request has already been decided.",
+      "UNSUPPORTED_STATUS": "That status is not one this appointment can move to.",
+      "CANCEL_FAILED": "The appointment could not be cancelled. Please try again.",
+      "CHECK_IN_FAILED": "The check-in could not be recorded. Please try again.",
+      "NO_SHOW_FAILED": "The no-show could not be recorded. Please try again.",
+      "RESCHEDULE_FAILED": "The appointment could not be moved. Please try again.",
+      "DECISION_FAILED": "The decision could not be recorded. Please try again."
+    }
+  }
+}

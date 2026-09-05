@@ -27,21 +27,37 @@
  *
  * ── COMPLETENESS AND STALENESS ────────────────────────────────────────────
  *
- * There is no patient-level prescriptions or orders endpoint, so those lists
- * are assembled by walking the most recent encounters
- * (`OVERVIEW_ENCOUNTER_SCAN`). When that scan is partial `IncompleteNotice`
- * says the list is a subset — a quietly short medication list is the same
- * class of hazard as a quietly stale one — and `ChartBoundary` renders the
- * kit's `StaleNotice` whenever a refresh fails over data already on screen.
+ * The medication and order lists arrive inside the contract's `ScanResult`
+ * envelope, and `IncompleteNotice` speaks up whenever that envelope says the
+ * list is a subset of the record — a quietly short medication list is the same
+ * class of hazard as a quietly stale one. `ChartBoundary` renders the kit's
+ * `StaleNotice` whenever a refresh fails over data already on screen.
  *
- * Backend gap: the finder serves no `/mobile/doctor/*` route yet, so every
- * hook here 404s today. Identity is the chart's spine, so a failure with
- * nothing behind it renders ONE honest `EmptyState` for the whole screen
- * rather than five stacked error cards — and never a spinner that never ends.
+ * ── WHAT THE SERVER NOW ANSWERS ───────────────────────────────────────────
+ *
+ * The finder serves `/api/mobile/doctor/patients/{id}` and its seven sections
+ * (`MobileDoctorChartController`, behind `auth.provider`). Two consequences
+ * for this screen:
+ *
+ *   • A 403 is a REAL answer, not a missing route. The server opens a chart
+ *     only for a clinician with a care relationship to that patient — on their
+ *     schedule, their own clinical act, an episode at their own facility, or a
+ *     consent grant — and refuses everyone else. `isDoctorApiUnavailable`
+ *     (foundation-owned) still folds 403 in with 404, so a refusal reads today
+ *     as "not available on this server yet"; the response body carries
+ *     `error_code: NO_CLINICAL_RELATIONSHIP` for the day those are split.
+ *   • Every section read is a disclosure, and the server records each one in
+ *     `access_logs`. Opening this screen writes three rows — one per
+ *     independent load — which is exactly why the three are kept independent.
+ *
+ * Identity is the chart's spine, so a failure with nothing behind it renders
+ * ONE honest `EmptyState` for the whole screen rather than five stacked error
+ * cards — and never a spinner that never ends.
  *
  * i18n: `opesDoctor.chart.*` and `opesDoctor.section.title.*` are in the
  * locales; anything this port needed beyond them carries an English
- * `defaultValue`. Locale files are not edited here.
+ * `defaultValue` and is staged for translation in
+ * `lib/i18n/pending/doctor_chart.{en,fr}.json`. Locale files are not edited here.
  */
 import { useCallback, useMemo } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';

@@ -13,8 +13,10 @@ import {
   type ViewToken,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { apiClient } from '../../lib/api/client';
+import { endpoints } from '../../lib/api/endpoints';
 import { Screen } from '../../components/ui/Screen';
 import { FacilityMap } from '@/components/map/FacilityMap';
 import {
@@ -68,18 +70,17 @@ import {
   type AppointmentSlotOption,
   type CareFacilitySummary,
   type FacilityProviderSummary,
+  type PaginatedFacilities,
 } from '../../lib/api/queries';
 import {
   bookingErrorKey,
   daysCoveredBySlots,
   firstSlotAfterDay,
-  flattenFacilityPages,
   groupSlotsByPeriod,
   localDateKey,
   slotDurationMinutes,
   slotsOnDay,
   useFacilityBookability,
-  useInfiniteFacilities,
   UNKNOWN_BOOKABILITY,
   type FacilityBookability,
   type SlotPeriod,
@@ -176,6 +177,77 @@ const HORIZON_DAYS = 14;
 /** Hard ceiling on concurrent bookability probes — one request each, no batch endpoint. */
 const MAX_PROBES = 60;
 const REASON_MAX_LENGTH = 1000;
+
+// ── Which slice of the register the picker offers ──────────────────────────
+
+/**
+ * The first step is "choose a facility" and the flow it starts is a BOOKING,
+ * so it opens on the facilities that can actually take one.
+ *
+ * It used to open on the whole directory — 2 728 listings, connected ones
+ * first — and then discover, one card at a time, that a listing had no
+ * calendar behind it. On the live register EVERY connected listing is a
+ * pharmacy, so the booking wizard's first page was pharmacies offered as
+ * places to book an appointment. The endpoint now answers the real question
+ * directly (`?bookable=1` — linked AND holding an open, future, not-yet-full
+ * slot) and its `registry` block carries the honest denominator, so the empty
+ * case can state a fact instead of looking like a failed search.
+ *
+ * The wider slices stay one tap away and are never substituted silently: a
+ * connected facility with no published calendar can still be worth a call, and
+ * the whole directory is still findable.
+ */
+type BookingScope = 'bookable' | 'connected' | 'all';
+
+const BOOKING_SCOPE_PARAMS: Record<BookingScope, Record<string, number>> = {
+  bookable: { bookable: 1 },
+  connected: { connected: 1 },
+  all: {},
+};
+
+/** Register-wide totals, exactly as `GET /mobile/facilities` reports them. */
+type RegistryTotals = {
+  directory_total: number;
+  connected_total: number;
+  bookable_total: number;
+  with_providers_total: number;
+};
+
+/**
+ * One page of the directory. `registry` is optional at the type level so an
+ * older API build shows no denominator rather than a wrong one.
+ */
+type DirectoryPage = PaginatedFacilities & { registry?: RegistryTotals };
+
+/**
+ * The facility picker's list, narrowed to one slice of the register.
+ *
+ * A local hook rather than a widened `useInfiniteFacilities`: that one is
+ * shared with the care map, whose question is "what is near me?" and not "what
+ * can I book?". The query key stays distinct for the same reason — sharing it
+ * would serve the map a bookable-only directory.
+ */
+function useBookingDirectory(params: { q?: string; type?: string; scope: BookingScope }) {
+  return useInfiniteQuery({
+    queryKey: ['facilities', 'booking-directory', params.q ?? '', params.type ?? '', params.scope],
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) =>
+      (
+        await apiClient.get<DirectoryPage>(endpoints.facilities, {
+          params: {
+            ...(params.q ? { q: params.q } : {}),
+            ...(params.type ? { type: params.type } : {}),
+            ...BOOKING_SCOPE_PARAMS[params.scope],
+            page: pageParam,
+          },
+        })
+      ).data,
+    getNextPageParam: (last) =>
+      last.pagination.current_page < last.pagination.last_page
+        ? last.pagination.current_page + 1
+        : undefined,
+  });
+}
 
 // ── formatting ────────────────────────────────────────────────────────────
 
@@ -501,6 +573,8 @@ export default function BookAppointmentScreen() {
   const [searchInput, setSearchInput] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<FacilityType | ''>('');
+  // Opens on the facilities that can actually take a booking. See BookingScope.
+  const [scope, setScope] = useState<BookingScope>('bookable');
   const [selectedFacility, setSelectedFacility] = useState<BookingFacility | null>(null);
 
   // The clinician filter is held as an id, not an object: a deep link knows the
@@ -519,26 +593,29 @@ export default function BookAppointmentScreen() {
   const [reason, setReason] = useState('');
   const [bookedAppointment, setBookedAppointment] = useState<AppointmentDetail | null>(null);
 
-  const facilitiesQuery = useInfiniteFacilities({
+  const facilitiesQuery = useBookingDirectory({
     q: appliedSearch || undefined,
     type: typeFilter || undefined,
+    scope,
   });
-  const facilities = useMemo(
-    () => flattenFacilityPages(facilitiesQuery.data?.pages),
+  const facilities = useMemo<CareFacilitySummary[]>(
+    () => (facilitiesQuery.data?.pages ?? []).flatMap((page) => page.data),
     [facilitiesQuery.data],
   );
   const totalFacilities = facilitiesQuery.data?.pages[0]?.pagination.total ?? 0;
+  /** The honest denominator, straight from the response. Never computed here. */
+  const registry = facilitiesQuery.data?.pages[0]?.registry;
 
   // Bookability is probed only for cards that have actually been on screen —
   // one request each, and there is no batch endpoint to do better.
   const [probeIds, setProbeIds] = useState<string[]>([]);
   const probeIdsRef = useRef<Set<string>>(new Set());
-  // A new search or type filter is a new result set; keeping the old ids would
-  // burn the probe budget on facilities that are no longer on the list.
+  // A new search, type filter or register slice is a new result set; keeping
+  // the old ids would burn the probe budget on facilities no longer listed.
   useEffect(() => {
     probeIdsRef.current = new Set();
     setProbeIds([]);
-  }, [appliedSearch, typeFilter]);
+  }, [appliedSearch, typeFilter, scope]);
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     const additions = viewableItems
       .map((token) => (token.item as CareFacilitySummary | undefined)?.id)
@@ -851,6 +928,48 @@ export default function BookAppointmentScreen() {
               accessibilityLabel={t('appointments.book.searchPlaceholder')}
             />
 
+            {/* WHAT a facility can do, before WHAT KIND it is: a pharmacy that
+                holds an open slot is a better answer to "book an appointment"
+                than a hospital that holds none. Counts are the server's own. */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipStrip}
+              contentContainerStyle={styles.chipStripContent}
+            >
+              <Chip
+                icon="calendar-check"
+                label={t('discovery.scope.bookable', { defaultValue: 'Bookable' })}
+                count={registry?.bookable_total}
+                selected={scope === 'bookable'}
+                onPress={() => setScope('bookable')}
+                accessibilityHint={t('discovery.scope.bookableHint', {
+                  defaultValue: 'Show only facilities with an appointment slot open right now',
+                })}
+              />
+              <Chip
+                icon="shield-check"
+                label={t('facilityRegistry.connectedOnly', { defaultValue: 'Connected' })}
+                count={registry?.connected_total}
+                selected={scope === 'connected'}
+                onPress={() => setScope('connected')}
+                accessibilityHint={t('facilityRegistry.connectedOnlyHint', {
+                  defaultValue:
+                    'Show only facilities that can publish clinicians and take bookings',
+                })}
+              />
+              <Chip
+                icon="grid"
+                label={t('facilityRegistry.allListings', { defaultValue: 'All listings' })}
+                count={registry?.directory_total}
+                selected={scope === 'all'}
+                onPress={() => setScope('all')}
+                accessibilityHint={t('facilityRegistry.allListingsHint', {
+                  defaultValue: 'Show every facility in the public directory, connected or not',
+                })}
+              />
+            </ScrollView>
+
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -876,10 +995,38 @@ export default function BookAppointmentScreen() {
             </ScrollView>
 
             {/* Only a fraction of the directory is connected to scheduling; say
-                so once, plainly, instead of letting the patient discover it one
-                dead end at a time. */}
+                so once, plainly, with the register's own numbers, instead of
+                letting the patient discover it one dead end at a time. */}
             <View style={styles.block}>
-              <NoticeBanner icon="info" tone="pending" message={t('appointments.book.bookabilityNote')} />
+              <NoticeBanner
+                icon="info"
+                tone={scope === 'bookable' && (registry?.bookable_total ?? 0) > 0 ? 'normal' : 'pending'}
+                message={
+                  registry
+                    ? scope === 'bookable'
+                      ? t('discovery.explainer.bookable', {
+                          bookable: registry.bookable_total,
+                          connected: registry.connected_total,
+                          total: registry.directory_total,
+                          defaultValue:
+                            '{{bookable}} of {{total}} listed facilities have an appointment slot open right now. {{connected}} are connected to OpesCare; the rest of the directory can still be found and called.',
+                        })
+                      : scope === 'connected'
+                        ? t('facilityRegistry.connectedExplainer', {
+                            connected: registry.connected_total,
+                            total: registry.directory_total,
+                            defaultValue:
+                              '{{connected}} of {{total}} listed facilities are connected to OpesCare. Only these can publish clinicians or take an online booking — the rest can still be found and called.',
+                          })
+                        : t('facilityRegistry.allExplainer', {
+                            connected: registry.connected_total,
+                            total: registry.directory_total,
+                            defaultValue:
+                              'Showing all {{total}} listed facilities. Only {{connected}} are connected to OpesCare; the others can be found and called, but publish no clinicians.',
+                          })
+                    : t('appointments.book.bookabilityNote')
+                }
+              />
             </View>
           </View>
 
@@ -961,24 +1108,72 @@ export default function BookAppointmentScreen() {
                 ) : null
               }
               ListEmptyComponent={
-                <EmptyCard
-                  icon="search"
-                  title={t('appointments.book.searchEmptyTitle')}
-                  message={t('appointments.book.searchEmptyBody')}
-                >
-                  {appliedSearch || typeFilter ? (
+                /* An empty BOOKABLE list is almost never an empty directory —
+                   it is the register saying nobody has opened a calendar. Say
+                   that, and offer the wider slice as a deliberate choice; the
+                   old copy read as a failed search and sent the patient back
+                   to the search box that was never the problem. */
+                scope === 'bookable' ? (
+                  <EmptyCard
+                    icon="calendar"
+                    tint="amber"
+                    title={t('discovery.empty.bookableTitle', {
+                      defaultValue: 'No open appointment slots right now',
+                    })}
+                    message={
+                      appliedSearch || typeFilter
+                        ? t('discovery.empty.bookableFilteredBody', {
+                            defaultValue:
+                              'No facility matching those filters has an appointment slot open. Widen to the connected facilities — you can call them to arrange a visit — or clear the filters.',
+                          })
+                        : t('discovery.empty.bookableBody', {
+                            connected: registry?.connected_total ?? 0,
+                            defaultValue:
+                              'No facility on OpesCare has an appointment slot open at the moment, so there is nothing to book online yet. {{connected}} facilities are connected and can be called directly.',
+                          })
+                    }
+                  >
                     <CareButton
-                      label={t('appointments.book.clearFilters')}
-                      icon="close"
+                      label={t('facilityRegistry.connectedOnly', { defaultValue: 'Connected' })}
+                      icon="shield-check"
                       variant="secondary"
-                      onPress={() => {
-                        setSearchInput('');
-                        setAppliedSearch('');
-                        setTypeFilter('');
-                      }}
+                      onPress={() => setScope('connected')}
                     />
-                  ) : null}
-                </EmptyCard>
+                  </EmptyCard>
+                ) : (
+                  <EmptyCard
+                    icon="search"
+                    title={t('appointments.book.searchEmptyTitle')}
+                    message={
+                      scope === 'connected'
+                        ? t('facilityRegistry.noConnectedMatch', {
+                            defaultValue:
+                              'No connected facility matches that search. The place you are looking for may still be in the public directory — show all listings to find and call it.',
+                          })
+                        : t('appointments.book.searchEmptyBody')
+                    }
+                  >
+                    {scope === 'connected' ? (
+                      <CareButton
+                        label={t('facilityRegistry.allListings', { defaultValue: 'All listings' })}
+                        icon="grid"
+                        variant="secondary"
+                        onPress={() => setScope('all')}
+                      />
+                    ) : appliedSearch || typeFilter ? (
+                      <CareButton
+                        label={t('appointments.book.clearFilters')}
+                        icon="close"
+                        variant="secondary"
+                        onPress={() => {
+                          setSearchInput('');
+                          setAppliedSearch('');
+                          setTypeFilter('');
+                        }}
+                      />
+                    ) : null}
+                  </EmptyCard>
+                )
               }
             />
           )}

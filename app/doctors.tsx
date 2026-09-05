@@ -152,24 +152,53 @@ type FacilityRoster = FacilityProvidersResponse & {
 };
 
 /**
+ * How wide a slice of the register the picker is showing.
+ *
+ * This screen is called "Find a doctor", so it opens on the only slice that
+ * can answer that question. It used to open on `connected` — every listing
+ * with a tenant behind it — and that is a materially different question. On
+ * the live register every single connected listing is a pharmacy, so page one
+ * of the doctor finder was twenty pharmacies, each labelled "None listed", and
+ * a patient reasonably concluded the feature was broken. It was not broken; it
+ * was answering "who has signed up?" when they had asked "who has a doctor?".
+ *
+ *   clinicians  — `?with_providers=1`. Facilities publishing at least one
+ *                 clinician a patient can be seen by. THE DEFAULT.
+ *   connected   — `?connected=1`. On OpesCare, but may publish no clinician.
+ *   all         — the whole public directory: findable and callable, no more.
+ *
+ * All three are one tap apart and every count below is the server's own, so
+ * narrowing the default hides nothing. If no facility publishes a clinician,
+ * the screen says exactly that, with the number — it does not quietly widen to
+ * a list that does not answer the question.
+ */
+type DirectoryScope = 'clinicians' | 'connected' | 'all';
+
+const SCOPE_PARAMS: Record<DirectoryScope, Record<string, number>> = {
+  clinicians: { with_providers: 1 },
+  connected: { connected: 1 },
+  all: {},
+};
+
+/**
  * The directory, filtered to what the patient asked for.
  *
  * Replaces `useInfiniteFacilities` + a per-row providers probe: the counts the
  * badges need now ride on the rows themselves, so a page of 20 costs one
  * request rather than 21. The query key is deliberately distinct from the
  * booking wizard's (`['facilities', 'infinite', …]`) because the parameters
- * differ — sharing it would serve the wizard a connected-only list.
+ * differ — sharing it would serve the wizard a clinicians-only list.
  */
-function useRegistryDirectory(params: { q?: string; connectedOnly: boolean }) {
+function useRegistryDirectory(params: { q?: string; scope: DirectoryScope }) {
   return useInfiniteQuery({
-    queryKey: ['facility-registry', 'directory', params.q ?? '', params.connectedOnly] as const,
+    queryKey: ['facility-registry', 'directory', params.q ?? '', params.scope] as const,
     initialPageParam: 1,
     queryFn: async ({ pageParam }) =>
       (
         await apiClient.get<DirectoryPage>(endpoints.facilities, {
           params: {
             ...(params.q ? { q: params.q } : {}),
-            ...(params.connectedOnly ? { connected: 1 } : {}),
+            ...SCOPE_PARAMS[params.scope],
             page: pageParam,
           },
         })
@@ -244,10 +273,10 @@ export default function FindDoctorScreen() {
   const [facilityInput, setFacilityInput] = useState('');
   const [facilitySearch, setFacilitySearch] = useState('');
 
-  // Opens on the listings that can actually publish a clinician. This is a
-  // filter, not a fiction: the "All listings" chip is one tap away and shows
-  // the full register, each row still labelled with what it can do.
-  const [connectedOnly, setConnectedOnly] = useState(true);
+  // Opens on the listings that actually publish a clinician — the question
+  // this screen exists to answer. A filter, not a fiction: the other two chips
+  // are one tap away and every row stays labelled with what it can do.
+  const [scope, setScope] = useState<DirectoryScope>('clinicians');
 
   // Step 2 — clinicians inside the chosen facility
   const [providerInput, setProviderInput] = useState(params.q ?? '');
@@ -271,7 +300,7 @@ export default function FindDoctorScreen() {
   // ── Directory ────────────────────────────────────────────────────────────
   const facilitiesQuery = useRegistryDirectory({
     q: facilitySearch || undefined,
-    connectedOnly,
+    scope,
   });
   const facilities = useMemo<RegistryFacility[]>(
     () => (facilitiesQuery.data?.pages ?? []).flatMap((page) => page.data),
@@ -416,11 +445,21 @@ export default function FindDoctorScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Chip
+          icon="stethoscope"
+          label={t('discovery.scope.clinicians', { defaultValue: 'With doctors' })}
+          count={registry?.with_providers_total}
+          selected={scope === 'clinicians'}
+          onPress={() => setScope('clinicians')}
+          accessibilityHint={t('discovery.scope.cliniciansHint', {
+            defaultValue: 'Show only facilities that publish at least one clinician',
+          })}
+        />
+        <Chip
           icon="shield-check"
           label={t('facilityRegistry.connectedOnly', { defaultValue: 'Connected' })}
           count={registry?.connected_total}
-          selected={connectedOnly}
-          onPress={() => setConnectedOnly(true)}
+          selected={scope === 'connected'}
+          onPress={() => setScope('connected')}
           accessibilityHint={t('facilityRegistry.connectedOnlyHint', {
             defaultValue: 'Show only facilities that can publish clinicians and take bookings',
           })}
@@ -429,8 +468,8 @@ export default function FindDoctorScreen() {
           icon="grid"
           label={t('facilityRegistry.allListings', { defaultValue: 'All listings' })}
           count={registry?.directory_total}
-          selected={!connectedOnly}
-          onPress={() => setConnectedOnly(false)}
+          selected={scope === 'all'}
+          onPress={() => setScope('all')}
           accessibilityHint={t('facilityRegistry.allListingsHint', {
             defaultValue: 'Show every facility in the public directory, connected or not',
           })}
@@ -438,6 +477,45 @@ export default function FindDoctorScreen() {
       </ScrollView>
     </View>
   );
+
+  /**
+   * The state of the register in one sentence, chosen by the slice on screen.
+   * Every number in it is the server's `registry` block — nothing here counts
+   * anything itself, and nothing is shown at all when that block is absent
+   * (an older API), because a made-up denominator is worse than none.
+   */
+  const registryExplainer = (r: RegistryTotals): string => {
+    if (scope === 'clinicians') {
+      return r.with_providers_total > 0
+        ? t('discovery.explainer.clinicians', {
+            clinicians: r.with_providers_total,
+            connected: r.connected_total,
+            total: r.directory_total,
+            defaultValue:
+              '{{clinicians}} of {{total}} listed facilities publish a clinician you can look up by name. {{connected}} more are connected to OpesCare but have not published their staff — you can still book those, or call any listing.',
+          })
+        : t('discovery.explainer.noClinicians', {
+            connected: r.connected_total,
+            total: r.directory_total,
+            defaultValue:
+              'No facility has published a clinician profile yet, so there is no doctor to look up by name. {{connected}} of {{total}} listings are connected to OpesCare and may still take a booking; the rest can be found and called.',
+          });
+    }
+    if (scope === 'connected') {
+      return t('facilityRegistry.connectedExplainer', {
+        connected: r.connected_total,
+        total: r.directory_total,
+        defaultValue:
+          '{{connected}} of {{total}} listed facilities are connected to OpesCare. Only these can publish clinicians or take an online booking — the rest can still be found and called.',
+      });
+    }
+    return t('facilityRegistry.allExplainer', {
+      connected: r.connected_total,
+      total: r.directory_total,
+      defaultValue:
+        'Showing all {{total}} listed facilities. Only {{connected}} are connected to OpesCare; the others can be found and called, but publish no clinicians.',
+    });
+  };
 
   const renderFacilityPicker = () => (
     <>
@@ -475,23 +553,14 @@ export default function FindDoctorScreen() {
           number here would be worse than none. */}
       {!!registry && (
         <NoticeBanner
-          tone={connectedOnly ? 'normal' : 'pending'}
-          icon="info"
-          message={
-            connectedOnly
-              ? t('facilityRegistry.connectedExplainer', {
-                  connected: registry.connected_total,
-                  total: registry.directory_total,
-                  defaultValue:
-                    '{{connected}} of {{total}} listed facilities are connected to OpesCare. Only these can publish clinicians or take an online booking — the rest can still be found and called.',
-                })
-              : t('facilityRegistry.allExplainer', {
-                  connected: registry.connected_total,
-                  total: registry.directory_total,
-                  defaultValue:
-                    'Showing all {{total}} listed facilities. Only {{connected}} are connected to OpesCare; the others can be found and called, but publish no clinicians.',
-                })
+          // Amber whenever the slice on screen cannot fully answer "who is my
+          // doctor?" — no published clinician anywhere, or a wider slice whose
+          // rows are not all usable.
+          tone={
+            scope === 'clinicians' && registry.with_providers_total > 0 ? 'normal' : 'pending'
           }
+          icon="info"
+          message={registryExplainer(registry)}
         />
       )}
 
@@ -504,36 +573,62 @@ export default function FindDoctorScreen() {
         />
       ) : facilities.length === 0 ? (
         <Card>
+          {/* An empty list is an ANSWER, and which answer depends entirely on
+              the slice that was asked for. Saying "no results" and quietly
+              widening to a list of pharmacies is how this screen came to lie
+              in the first place — so each case states its own fact and offers
+              the next slice explicitly, as something the patient chooses. */}
           <EmptyState
-            icon="building"
+            icon={scope === 'clinicians' ? 'person-search' : 'building'}
             tint="amber"
-            title={t('appointments.book.searchEmptyTitle')}
-            message={
-              connectedOnly
-                ? t('facilityRegistry.noConnectedMatch', {
-                    defaultValue:
-                      'No connected facility matches that search. The place you are looking for may still be in the public directory — show all listings to find and call it.',
+            title={
+              scope === 'clinicians'
+                ? t('discovery.empty.cliniciansTitle', {
+                    defaultValue: 'No clinician profiles published yet',
                   })
-                : t('appointments.book.searchEmptyBody')
+                : t('appointments.book.searchEmptyTitle')
             }
-            // An empty CONNECTED list is usually not an empty directory. The
-            // way out is the wider filter, not a cleared search.
+            message={
+              scope === 'clinicians'
+                ? facilitySearch
+                  ? t('discovery.empty.cliniciansSearchBody', {
+                      defaultValue:
+                        'No facility matching that search publishes a clinician you can look up by name. Widen to the connected facilities — those can still take a booking — or to every listing, which you can find and call.',
+                    })
+                  : t('discovery.empty.cliniciansBody', {
+                      connected: registry?.connected_total ?? 0,
+                      defaultValue:
+                        'Not one facility on OpesCare has published its clinicians, so there is no doctor to search for by name. {{connected}} facilities are connected and may still take a booking; every listing in the directory can be found and called.',
+                    })
+                : scope === 'connected'
+                  ? t('facilityRegistry.noConnectedMatch', {
+                      defaultValue:
+                        'No connected facility matches that search. The place you are looking for may still be in the public directory — show all listings to find and call it.',
+                    })
+                  : t('appointments.book.searchEmptyBody')
+            }
+            // The way out of an empty narrow slice is the next wider one, not a
+            // cleared search — the search usually was not the problem.
             actionLabel={
-              connectedOnly
-                ? t('facilityRegistry.allListings', { defaultValue: 'All listings' })
-                : facilitySearch
-                  ? t('appointments.book.clearSearch')
-                  : undefined
+              scope === 'clinicians'
+                ? t('facilityRegistry.connectedOnly', { defaultValue: 'Connected' })
+                : scope === 'connected'
+                  ? t('facilityRegistry.allListings', { defaultValue: 'All listings' })
+                  : facilitySearch
+                    ? t('appointments.book.clearSearch')
+                    : undefined
             }
             onAction={
-              connectedOnly
-                ? () => setConnectedOnly(false)
-                : facilitySearch
-                  ? () => {
-                      setFacilityInput('');
-                      setFacilitySearch('');
-                    }
-                  : undefined
+              scope === 'clinicians'
+                ? () => setScope('connected')
+                : scope === 'connected'
+                  ? () => setScope('all')
+                  : facilitySearch
+                    ? () => {
+                        setFacilityInput('');
+                        setFacilitySearch('');
+                      }
+                    : undefined
             }
           />
         </Card>
@@ -619,7 +714,7 @@ export default function FindDoctorScreen() {
             variant="secondary"
             icon="shield-check"
             onPress={() => {
-              setConnectedOnly(true);
+              setScope('connected');
               changeFacility();
             }}
           />

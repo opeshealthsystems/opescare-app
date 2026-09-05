@@ -1,0 +1,21 @@
+{
+  "_comment": "Nouvelles clés pour la correction de la découverte (app/doctors.tsx, app/appointments/book.tsx). Clés plates en notation pointée, 1:1 avec discovery.en.json. À fusionner dans lib/i18n/locales/*.json sous un nouvel espace de noms `discovery`. Tant que la fusion n'est pas faite, chaque appel passe le même anglais en `defaultValue` : l'anglais est donc déjà correct et le français retombe sur l'anglais — c'est la fusion qui active le français.",
+  "_context": "« Trouver un médecin » s'ouvrait sur ?connected=1 et « Prendre rendez-vous » sur tout l'annuaire. Dans le registre réel, chaque fiche connectée est une pharmacie et aucune n'a de créneau ouvert : la première page du chercheur de médecins affichait donc vingt pharmacies marquées « Aucun soignant », et l'assistant de réservation proposait des pharmacies comme réservables. Les deux écrans s'ouvrent désormais sur la tranche qui répond à leur question — ?with_providers=1 et ?bookable=1 — et ces messages sont ce qu'ils disent quand cette tranche est vide. Tous les nombres proviennent du bloc `registry` du serveur. Aucun message ne doit laisser croire qu'un établissement publie un soignant, ou peut être réservé, alors que ce n'est pas le cas.",
+
+  "discovery.scope.clinicians": "Avec médecins",
+  "discovery.scope.cliniciansHint": "N’afficher que les établissements publiant au moins un soignant",
+  "discovery.scope.bookable": "Réservables",
+  "discovery.scope.bookableHint": "N’afficher que les établissements ayant un créneau de rendez-vous ouvert maintenant",
+
+  "discovery.explainer.clinicians": "{{clinicians}} des {{total}} établissements répertoriés publient un soignant que vous pouvez chercher par son nom. {{connected}} autres sont connectés à OpesCare mais n’ont pas publié leur personnel — vous pouvez tout de même y réserver, ou appeler n’importe quelle fiche.",
+  "discovery.explainer.noClinicians": "Aucun établissement n’a encore publié de profil de soignant : il n’y a donc pas de médecin à chercher par son nom. {{connected}} des {{total}} fiches sont connectées à OpesCare et peuvent encore accepter un rendez-vous ; les autres restent trouvables et joignables par téléphone.",
+  "discovery.explainer.bookable": "{{bookable}} des {{total}} établissements répertoriés ont un créneau de rendez-vous ouvert en ce moment. {{connected}} sont connectés à OpesCare ; le reste de l’annuaire reste trouvable et joignable par téléphone.",
+
+  "discovery.empty.cliniciansTitle": "Aucun profil de soignant publié pour l’instant",
+  "discovery.empty.cliniciansBody": "Aucun établissement sur OpesCare n’a publié ses soignants : il n’y a donc pas de médecin à chercher par son nom. {{connected}} établissements sont connectés et peuvent encore accepter un rendez-vous ; toutes les fiches de l’annuaire peuvent être trouvées et appelées.",
+  "discovery.empty.cliniciansSearchBody": "Aucun établissement correspondant à cette recherche ne publie de soignant que vous puissiez chercher par son nom. Élargissez aux établissements connectés — ils peuvent encore accepter un rendez-vous — ou à toutes les fiches, que vous pouvez trouver et appeler.",
+
+  "discovery.empty.bookableTitle": "Aucun créneau de rendez-vous ouvert actuellement",
+  "discovery.empty.bookableBody": "Aucun établissement sur OpesCare n’a de créneau de rendez-vous ouvert pour le moment : il n’y a donc encore rien à réserver en ligne. {{connected}} établissements sont connectés et peuvent être appelés directement.",
+  "discovery.empty.bookableFilteredBody": "Aucun établissement correspondant à ces filtres n’a de créneau ouvert. Élargissez aux établissements connectés — vous pouvez les appeler pour convenir d’une visite — ou effacez les filtres."
+}

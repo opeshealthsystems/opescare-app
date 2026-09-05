@@ -1,0 +1,21 @@
+{
+  "_comment": "New keys for the discovery fix (app/doctors.tsx, app/appointments/book.tsx). Flat dotted keys, 1:1 with discovery.fr.json. Merge into lib/i18n/locales/*.json under a new `discovery` namespace. Until merged, every call site passes the same English as `defaultValue`, so EN is already correct and FR falls back to EN — merging is what turns FR on.",
+  "_context": "\"Find a doctor\" opened on ?connected=1 and \"Book an appointment\" opened on the whole directory. On the live register every connected listing is a pharmacy and none has an open slot, so page one of the doctor finder was twenty pharmacies marked \"None listed\" and the booking wizard offered pharmacies as bookable. Both screens now open on the slice that answers the question they ask — ?with_providers=1 and ?bookable=1 — and these strings are what they say when that slice is empty. Every number in them is the server's own `registry` block. None of them may imply a facility publishes a clinician, or can be booked, when it cannot.",
+
+  "discovery.scope.clinicians": "With doctors",
+  "discovery.scope.cliniciansHint": "Show only facilities that publish at least one clinician",
+  "discovery.scope.bookable": "Bookable",
+  "discovery.scope.bookableHint": "Show only facilities with an appointment slot open right now",
+
+  "discovery.explainer.clinicians": "{{clinicians}} of {{total}} listed facilities publish a clinician you can look up by name. {{connected}} more are connected to OpesCare but have not published their staff — you can still book those, or call any listing.",
+  "discovery.explainer.noClinicians": "No facility has published a clinician profile yet, so there is no doctor to look up by name. {{connected}} of {{total}} listings are connected to OpesCare and may still take a booking; the rest can be found and called.",
+  "discovery.explainer.bookable": "{{bookable}} of {{total}} listed facilities have an appointment slot open right now. {{connected}} are connected to OpesCare; the rest of the directory can still be found and called.",
+
+  "discovery.empty.cliniciansTitle": "No clinician profiles published yet",
+  "discovery.empty.cliniciansBody": "Not one facility on OpesCare has published its clinicians, so there is no doctor to search for by name. {{connected}} facilities are connected and may still take a booking; every listing in the directory can be found and called.",
+  "discovery.empty.cliniciansSearchBody": "No facility matching that search publishes a clinician you can look up by name. Widen to the connected facilities — those can still take a booking — or to every listing, which you can find and call.",
+
+  "discovery.empty.bookableTitle": "No open appointment slots right now",
+  "discovery.empty.bookableBody": "No facility on OpesCare has an appointment slot open at the moment, so there is nothing to book online yet. {{connected}} facilities are connected and can be called directly.",
+  "discovery.empty.bookableFilteredBody": "No facility matching those filters has an appointment slot open. Widen to the connected facilities — you can call them to arrange a visit — or clear the filters."
+}

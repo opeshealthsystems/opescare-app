@@ -20,8 +20,42 @@ import { useAuthStore } from '../lib/store/auth';
 import { AppUpdateGate } from '../components/AppUpdateGate';
 import { initOfflineMode } from '../lib/offline';
 import { OfflineBanner } from '../components/offline/OfflineBanner';
+import { enableScreens } from 'react-native-screens';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+/**
+ * Make a blurred tab screen actually leave the page on the web build.
+ *
+ * A tab navigator keeps every screen you have visited MOUNTED — that is the
+ * point of tabs, and on native it is invisible, because react-native-screens
+ * detaches the blurred ones. On web it was not invisible at all:
+ *
+ *   react-native-screens/core.js:  let ENABLE_SCREENS = isNativePlatformSupported
+ *
+ * which is `Platform.OS === 'ios' | 'android' | 'windows'` — false here. So
+ * `screensEnabled()` returned false, and the `MaybeScreen` wrapper inside the
+ * bottom-tab navigator (expo-router/build/react-navigation/bottom-tabs/views/
+ * ScreenFallback.js) fell back to a plain `<View>` that applies NOTHING but
+ * `position: absolute; z-index: -1`. The blurred screen therefore stayed in the
+ * DOM at full size, laid out, hit-testable and keyboard-focusable — merely
+ * painted behind the focused one. Two clinician screens really were rendering
+ * at once: Today on top, and whichever screen you had come from underneath it,
+ * its inputs and buttons still reachable at their real coordinates.
+ *
+ * `enableScreens()` flips that flag. On web it does nothing else — it returns
+ * before touching UIManager on any non-native platform — and `screensEnabled()`
+ * is consulted in exactly two files in the whole navigation stack, both of them
+ * this same tab/drawer fallback. With it true, the wrapper is
+ * react-native-screens' own web `Screen`, which sets `hidden` and
+ * `display: none` on a screen whose activityState is inactive. One flag, and a
+ * blurred tab is gone rather than merely behind.
+ *
+ * Native is unaffected: `enableScreens(true)` is already the default there.
+ */
+if (Platform.OS === 'web') {
+  enableScreens(true);
+}
 
 // The OPES ScreenHeader is navigation-agnostic; give it one app-wide back
 // action so headers without an explicit onBack still show a working chevron.
@@ -122,17 +156,41 @@ export default function RootLayout() {
     // `.length === 0` is rejected as an impossible comparison at compile time
     // even though it is exactly what the root route yields at runtime.
     const atRootIndex = (segments as readonly string[]).length === 0;
+    // `app/clinician/…` — the clinician half of the app. A URL that already
+    // names a screen in here is an ANSWER to "where does this session belong",
+    // not a question, so nothing below may overrule it.
+    const inClinicianArea = segments[0] === 'clinician';
+
     if (status !== 'authenticated' && !inAuthGroup) {
+      // Signed out. Every route is sign-in, clinician URLs included.
       router.replace('/(auth)/welcome');
-    } else if (status === 'authenticated' && (inAuthGroup || atRootIndex)) {
-      // Where an authenticated session belongs is a property of the session, not
-      // of how fast a navigation settles. `enterClinicianArea` used to flip to
-      // 'authenticated' in the same tick as router.replace(), but replace() is
-      // async: this effect still saw the (auth) group and replaced the clinician
-      // route with /(tabs)/home. Reading `provider` here makes the destination
-      // correct regardless of ordering.
-      router.replace(provider ? '/clinician/home' : '/(tabs)/home');
+      return;
     }
+
+    if (status !== 'authenticated') return;
+
+    // ── Where an authenticated session belongs ───────────────────────────
+    // A property of the SESSION, not of how fast a navigation settles. This is
+    // now the only code that decides it; `lib/store/auth.ts` used to redirect
+    // as well, and its copy of the decision ran on every cold start and threw
+    // away whatever route the user had actually opened.
+    if (provider) {
+      // A clinician bearer token is refused by every patient endpoint, so a
+      // clinician left on a patient screen collects 401s until the
+      // session-expired handler ends a perfectly good session. Move them,
+      // wherever they are — but only if they are not already in their own half
+      // of the app, because inside it the URL is the user's own choice:
+      // /clinician/schedule stays /clinician/schedule, on a deep link, a
+      // bookmark, a refresh, or a restored history entry.
+      if (!inClinicianArea) router.replace('/clinician/home');
+      return;
+    }
+
+    // A patient session. `/` and `(auth)` are the two places it must not
+    // linger; anywhere else — including `/clinician/…`, where the gate in
+    // app/clinician/_layout.tsx renders WrongAppScreen instead of any
+    // clinician screen — is a route it asked for and is allowed to keep.
+    if (inAuthGroup || atRootIndex) router.replace('/(tabs)/home');
   }, [status, segments, router, provider]);
 
   return (

@@ -201,8 +201,10 @@ async function dropSessionOfOtherKind(next: SessionKind): Promise<void> {
  * index), so nothing bounces back out.
  *
  * Only for the preview, whose session is an ordinary PATIENT token — the tabs
- * mounting for a frame on the way through costs nothing there. A real provider
- * session uses `enterClinicianArea` below, which cannot afford that frame.
+ * mounting for a frame on the way through costs nothing there, because a
+ * patient token is exactly what those screens expect. A real provider session
+ * needs no equivalent: the guard reads `provider` and routes it straight into
+ * the clinician area (see `enterClinicianArea` below).
  *
  * Exported because the login screen mints the preview session itself, the same
  * way `resolvePostAuthStatus` is exported for signup.
@@ -214,25 +216,32 @@ export function routeToClinicianArea(): void {
 }
 
 /**
- * Land a REAL provider session on the clinician area — and never, not even for
- * one frame, on the patient tabs.
+ * Open a REAL provider session.
  *
- * That frame is not cosmetic. If `app/_layout.tsx` sees an authenticated
- * session in the `(auth)` group it replaces to `/(tabs)/home`; the patient tabs
- * mount, their queries fire at `/mobile/*` carrying the PROVIDER bearer token,
- * every one comes back 401, and the session-expired handler in `client.ts`
- * signs the clinician out of an entirely valid session.
+ * IT DOES NOT NAVIGATE, AND THAT IS THE POINT.
  *
- * So the navigation goes first, behind the one status that effect ignores
- * outright ('booting' → it returns immediately), and 'authenticated' is set
- * only once the router is already inside `/clinician`. React 18+ batches all
- * three into a single render, so in practice the intermediate status is never
- * even observed — but if it ever were, every intermediate state it could see is
- * one the effect declines to act on.
+ * It used to call `router.replace('/clinician/home')` unconditionally. That was
+ * right for the case it was written for — a clinician tapping Sign in on
+ * `/(auth)/login` — and wrong for the other one. `bootstrap()` calls it too, on
+ * EVERY cold start, and on the web build every route is a real, refreshable
+ * URL: opening `/clinician/schedule` restored the session and then immediately
+ * replaced the deep-linked route with `/clinician/home`. Bookmarks did not
+ * work, a refresh lost your place, the address bar described a screen that was
+ * not on it — and the schedule the router had already resolved stayed mounted
+ * underneath the one that replaced it. The route the user asked for is not
+ * this function's to discard.
+ *
+ * WHERE an authenticated session belongs is decided in exactly one place, the
+ * guard in `app/_layout.tsx`. That guard reads `provider`, so it never sends a
+ * clinician through the patient tabs — which is what this redirect was really
+ * protecting against, and it matters: the patient tabs fire `/mobile/*` with
+ * whatever bearer token is in storage, a provider token collects a wall of
+ * 401s, and the session-expired handler at the bottom of this file would end
+ * an entirely valid clinician session. The guard moves a clinician out of the
+ * patient app from anywhere, and leaves them alone inside `/clinician/…` —
+ * including on the route they deep-linked to.
  */
 function enterClinicianArea(setState: (partial: Partial<AuthState>) => void): void {
-  setState({ status: 'booting' });
-  router.replace('/clinician/home');
   setState({ status: 'authenticated' });
 }
 

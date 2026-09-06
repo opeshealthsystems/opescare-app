@@ -57,10 +57,19 @@ export const endpoints = {
 
   referrals: '/mobile/referrals',
 
+  // Family / dependents — App\Http\Controllers\Api\Mobile\MobileFamilyController.
+  // `familyMember` takes a family_links.id. A dependent's RECORDS are read
+  // through the ordinary endpoints above with the X-OpesCare-Dependent header
+  // (lib/api/familyQueries.ts `dependentHeaders`), never a different path.
   family: '/mobile/family',
   familyInvitations: '/mobile/family/invitations',
-  familyMember: (id: string) => `/mobile/family/members/${id}`,
-  familyInvitation: (id: string) => `/mobile/family/invitations/${id}`,
+  familyMember: (id: string) => `/mobile/family/members/${encodeURIComponent(id)}`,
+  familyInvitation: (id: string) => `/mobile/family/invitations/${encodeURIComponent(id)}`,
+  familyIncomingInvitations: '/mobile/family/invitations/incoming',
+  acceptFamilyInvitation: (id: string) =>
+    `/mobile/family/invitations/${encodeURIComponent(id)}/accept`,
+  declineFamilyInvitation: (id: string) =>
+    `/mobile/family/invitations/${encodeURIComponent(id)}/decline`,
 
   consentRequests: '/mobile/consent-requests',
   approveConsent: (id: string) => `/mobile/consent-requests/${id}/approve`,

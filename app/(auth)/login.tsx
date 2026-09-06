@@ -81,6 +81,11 @@ const DEMO_ACCOUNTS = [
   // Children: the boy and girl anatomical holograms on a real credential.
   { key: 'boy', icon: 'baby', labelKey: 'auth.demoLoginBoy', email: 'demo.boy@opescare.test', password: 'demo1234', clinician: false },
   { key: 'girl', icon: 'baby', labelKey: 'auth.demoLoginGirl', email: 'demo.girl@opescare.test', password: 'demo1234', clinician: false },
+  // Family: the guardian who holds both children's links (full access), and
+  // the older person whose son sees her record read-only — the two sides of
+  // app/family. Seeded by the backend's DemoFamilySeeder.
+  { key: 'guardian', icon: 'users', labelKey: 'auth.demoLoginGuardian', email: 'demo.guardian@opescare.test', password: 'demo1234', clinician: false },
+  { key: 'grandmother', icon: 'person', labelKey: 'auth.demoLoginGrandmother', email: 'demo.grandmother@opescare.test', password: 'demo1234', clinician: false },
   {
     key: 'doctor',
     icon: 'stethoscope',

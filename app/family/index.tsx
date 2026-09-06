@@ -24,47 +24,67 @@ import {
   SegmentedTabs,
   StatusBadge,
   formatDate,
-  initialsFrom,
-  radii,
   spacing,
   typography,
   useDialog,
   useTheme,
   type IconName,
   type Palette,
-  type StatusTone,
 } from '@/components/opes-ui';
+import { Avatar } from '@/components/core/shared';
 import {
-  useCancelFamilyInvitation,
-  useFamilyInvitations,
+  AccessBadge,
+  LoadingCard,
+  Notice,
+  relationshipLabelOf,
+  accessLabelOf,
+} from '@/components/family/shared';
+import { titleCase } from '@/components/health-id/model';
+import {
+  apiErrorMessage,
+  classifyInviteContact,
+  dependentIdentity,
+  isDependentAdult,
+  isFamilyNotServed,
+  useAcceptInvitation,
+  useCancelInvitation,
+  useDeclineInvitation,
   useFamilyMembers,
-  useRegisterDependent,
-  useSendFamilyInvitation,
-  type FamilyInvitation,
-} from '../../lib/api/queries';
+  useIncomingInvitations,
+  useInviteAdult,
+  useOutgoingInvitations,
+  useRegisterChild,
+} from '@/lib/api/familyQueries';
+import type { FamilyIncomingInvitation, FamilyOutgoingInvitation } from '@/lib/api/types';
 
 /**
- * Family & Caregivers — linked members + invitations, in the OPES layout.
+ * Family & Caregivers — the guardian's circle, in the OPES layout.
  *
- * GET /mobile/family (active + pending links), GET/POST
- * /mobile/family/invitations, DELETE /mobile/family/invitations/{id}.
- * Backend: App\Http\Controllers\Api\Mobile\MobileFamilyController.
+ * Data: GET /mobile/family (links I hold), GET /mobile/family/invitations
+ * (invitations I sent), GET /mobile/family/invitations/incoming (invitations
+ * addressed to me — the older relative's side), POST /mobile/family (add a
+ * child), POST /mobile/family/invitations (invite an adult), DELETE
+ * /mobile/family/invitations/{id}, POST …/{id}/accept|decline. Backend:
+ * App\Http\Controllers\Api\Mobile\MobileFamilyController.
  *
- * Presentation only in this pass: `ScreenHeader`, a care-circle summary
- * `Card`, overline `SectionHeader`s over `Card variant="flush"` lists of
- * `ListRow`s, `StatusBadge` for the invitation and access-level state,
- * `GradientButton` to submit, kit `EmptyState`s and the kit `Dialog` for the
- * cancel-invitation confirm. Every query, mutation, validation rule and error
- * string the previous version had is still here.
+ * Two genuinely different ways in, kept as a deliberate choice rather than one
+ * blob of fields:
+ *  - **Add a child** — under 18, in my care. Mints a real Patient + Health ID
+ *    and links it to me at once. A DOB of 18+ is refused by the server
+ *    (422 `dependent_is_adult`) and the screen turns that into the invite path.
+ *  - **Invite an adult** — someone who already holds a Health ID. Found by the
+ *    exact Health ID, email or phone; they accept from their own account.
+ *    Defaults to read-only, with both levels explained in plain words.
  *
- * Two genuinely different actions share this screen, so they stay a deliberate
- * choice rather than a segmented control over one blob of fields: inviting an
- * *existing* OpesCare patient by contact, and registering a brand-new
- * dependent (which mints a real Patient + Health ID).
+ * Every member row opens app/family/[id].tsx — the dependent's card + records.
+ * The avatar (photo or initials) is the identity representation here; the
+ * anatomical hologram appears only inside the credential card on that screen.
  *
- * The cancel confirmation moved from `Alert.alert` to the kit `Dialog`:
- * `Alert.alert` is a no-op on react-native-web, so on the web build the
- * confirmation — and therefore the cancellation — never happened at all.
+ * `relationship` is MY role toward THEM ("I am their parent") — the web
+ * portal's definition, so the two surfaces store the same word.
+ *
+ * The cancel confirmation is the kit `Dialog`: `Alert.alert` is a no-op on
+ * react-native-web, so a confirm there never happened at all.
  */
 
 const RELATIONSHIP_OPTIONS = [
@@ -80,6 +100,7 @@ const RELATIONSHIP_OPTIONS = [
 
 type Relationship = (typeof RELATIONSHIP_OPTIONS)[number];
 
+// patients.sex on the server is constrained to these two; the payload type keeps 'other' for older servers.
 const SEX_OPTIONS = ['male', 'female'] as const;
 type SexOption = (typeof SEX_OPTIONS)[number];
 const SEX_LABEL_KEYS: Record<SexOption, string> = {
@@ -87,18 +108,8 @@ const SEX_LABEL_KEYS: Record<SexOption, string> = {
   female: 'family.sexFemale',
 };
 
-/** Access level → badge tone. `full` is the strongest grant, so it reads as
- * the "active/complete" tone; `view_only` is the weakest and stays neutral. */
-const ACCESS_TONE: Record<string, StatusTone> = {
-  full: 'normal',
-  guardian: 'pending',
-  view_only: 'neutral',
-};
-
-function extractErrorMessage(err: unknown, fallback: string): string {
-  const anyErr = err as any;
-  return anyErr?.response?.data?.message ?? fallback;
-}
+const ACCESS_OPTIONS = ['read_only', 'full'] as const;
+type AccessOption = (typeof ACCESS_OPTIONS)[number];
 
 /** Turns raw digit entry into "YYYY-MM-DD" as the guardian types, without a
  * date-picker dependency this screen isn't allowed to add — mirrors
@@ -123,11 +134,6 @@ function isValidPastDate(value: string): boolean {
   return date.getTime() < todayUtc;
 }
 
-/** One rule for initials app-wide — titles and punctuation are not initials. */
-function initialsOf(name: string): string {
-  return initialsFrom(name);
-}
-
 type Mode = 'invite' | 'register';
 
 export default function FamilyScreen() {
@@ -138,44 +144,61 @@ export default function FamilyScreen() {
   const dialog = useDialog();
 
   const membersQuery = useFamilyMembers();
-  const invitationsQuery = useFamilyInvitations();
-  const sendInvitation = useSendFamilyInvitation();
-  const cancelInvitation = useCancelFamilyInvitation();
-  const registerDependent = useRegisterDependent();
+  const outgoingQuery = useOutgoingInvitations();
+  const incomingQuery = useIncomingInvitations();
+  const inviteAdult = useInviteAdult();
+  const cancelInvitation = useCancelInvitation();
+  const registerChild = useRegisterChild();
+  const acceptInvitation = useAcceptInvitation();
+  const declineInvitation = useDeclineInvitation();
 
   const [mode, setMode] = useState<Mode | null>(null);
-  const [contact, setContact] = useState('');
-  const [relationship, setRelationship] = useState<Relationship>('parent');
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
+  /** Set when the server refused a registration because the person is 18+. */
+  const [adultRefused, setAdultRefused] = useState(false);
 
-  // Register-a-dependent form (POST /mobile/family — a brand-new Patient with
-  // no account of their own, e.g. a child), distinct from the invite-by-contact
-  // form which links an *existing* OpesCare patient.
-  const [depFullName, setDepFullName] = useState('');
+  // Invite-an-adult form (POST /mobile/family/invitations).
+  const [contact, setContact] = useState('');
+  const [relationship, setRelationship] = useState<Relationship>('child');
+  const [inviteAccess, setInviteAccess] = useState<AccessOption>('read_only');
+
+  // Add-a-child form (POST /mobile/family — a brand-new Patient with no
+  // account of their own).
+  const [depFirstName, setDepFirstName] = useState('');
+  const [depLastName, setDepLastName] = useState('');
   const [depDob, setDepDob] = useState('');
   const [depSex, setDepSex] = useState<SexOption | null>(null);
-  const [depRelationship, setDepRelationship] = useState<Relationship>('child');
+  const [depRelationship, setDepRelationship] = useState<Relationship>('parent');
   const [depBloodGroup, setDepBloodGroup] = useState('');
-  const [depPhone, setDepPhone] = useState('');
+  const [depAccess, setDepAccess] = useState<AccessOption>('full');
 
   const members = useMemo(
-    () => (membersQuery.data ?? []).filter((m) => !m.is_pending && m.patient),
+    () =>
+      (membersQuery.data ?? []).filter(
+        (m) => !m.is_pending && m.status !== 'pending_invite' && m.patient,
+      ),
     [membersQuery.data],
   );
-  const invitations = invitationsQuery.data ?? [];
+  const invitations = outgoingQuery.data ?? [];
+  // A server without the incoming route answers 404: that is "no section",
+  // not "no invitations" — and never an error banner over the whole screen.
+  const incomingUnavailable = incomingQuery.isError && isFamilyNotServed(incomingQuery.error);
+  const incoming = incomingUnavailable ? [] : incomingQuery.data ?? [];
 
-  const refreshing = membersQuery.isRefetching || invitationsQuery.isRefetching;
+  const refreshing = membersQuery.isRefetching || outgoingQuery.isRefetching;
   const initialLoading =
     (membersQuery.isLoading && !membersQuery.data) ||
-    (invitationsQuery.isLoading && !invitationsQuery.data);
-  const hasLoadError = membersQuery.isError || invitationsQuery.isError;
+    (outgoingQuery.isLoading && !outgoingQuery.data);
+  const hasLoadError = membersQuery.isError || outgoingQuery.isError;
 
   const onRefresh = useCallback(() => {
     membersQuery.refetch();
-    invitationsQuery.refetch();
-  }, [membersQuery, invitationsQuery]);
+    outgoingQuery.refetch();
+    incomingQuery.refetch();
+  }, [membersQuery, outgoingQuery, incomingQuery]);
 
   const closeForm = useCallback(() => {
     setMode(null);
@@ -186,31 +209,54 @@ export default function FamilyScreen() {
     setMode(next);
     setFormError(null);
     setSuccessMessage(null);
+    setAdultRefused(false);
   }, []);
 
-  const handleSendInvitation = async () => {
+  /** The 18+ refusal hands the typed relationship over to the invite form. */
+  const switchToInvite = useCallback(() => {
+    setRelationship(depRelationship);
+    setInviteAccess('read_only');
+    setAdultRefused(false);
+    openForm('invite');
+  }, [depRelationship, openForm]);
+
+  const handleInviteAdult = async () => {
     setFormError(null);
     setSuccessMessage(null);
     if (!contact.trim()) {
       setFormError(t('family.contactRequired'));
       return;
     }
+    if (classifyInviteContact(contact) === null) {
+      setFormError(t('family.contactInvalid'));
+      return;
+    }
     try {
-      await sendInvitation.mutateAsync({ contact: contact.trim(), relationship });
+      await inviteAdult.mutateAsync({
+        contact: contact.trim(),
+        relationship,
+        access_level: inviteAccess,
+      });
       setContact('');
-      setRelationship('parent');
+      setRelationship('child');
+      setInviteAccess('read_only');
       setMode(null);
       setSuccessMessage(t('family.invitationSent'));
     } catch (err) {
-      setFormError(extractErrorMessage(err, t('family.invitationFailed')));
+      setFormError(apiErrorMessage(err, t('family.invitationFailed')));
     }
   };
 
-  const handleRegisterDependent = async () => {
+  const handleRegisterChild = async () => {
     setFormError(null);
     setSuccessMessage(null);
-    if (!depFullName.trim()) {
-      setFormError(t('family.fullNameRequired'));
+    setAdultRefused(false);
+    if (!depFirstName.trim()) {
+      setFormError(t('family.firstNameRequired'));
+      return;
+    }
+    if (!depLastName.trim()) {
+      setFormError(t('family.lastNameRequired'));
       return;
     }
     if (!isValidPastDate(depDob)) {
@@ -222,29 +268,37 @@ export default function FamilyScreen() {
       return;
     }
     try {
-      await registerDependent.mutateAsync({
-        full_name: depFullName.trim(),
+      await registerChild.mutateAsync({
+        first_name: depFirstName.trim(),
+        last_name: depLastName.trim(),
         date_of_birth: depDob,
         sex: depSex,
         relationship: depRelationship,
-        ...(depBloodGroup.trim() ? { blood_group: depBloodGroup.trim() } : {}),
-        ...(depPhone.trim() ? { phone: depPhone.trim() } : {}),
+        access_level: depAccess,
+        ...(depBloodGroup.trim() ? { blood_group: depBloodGroup.trim().toUpperCase() } : {}),
       });
-      setDepFullName('');
+      setDepFirstName('');
+      setDepLastName('');
       setDepDob('');
       setDepSex(null);
-      setDepRelationship('child');
+      setDepRelationship('parent');
       setDepBloodGroup('');
-      setDepPhone('');
+      setDepAccess('full');
       setMode(null);
       setSuccessMessage(t('family.dependentRegistered'));
     } catch (err) {
-      setFormError(extractErrorMessage(err, t('family.dependentRegisterFailed')));
+      if (isDependentAdult(err)) {
+        // Not an error the guardian can fix by retyping: the person is an
+        // adult, and an adult is invited, not registered.
+        setAdultRefused(true);
+        return;
+      }
+      setFormError(apiErrorMessage(err, t('family.dependentRegisterFailed')));
     }
   };
 
   const handleCancelInvitation = useCallback(
-    (invitation: FamilyInvitation) => {
+    (invitation: FamilyOutgoingInvitation) => {
       dialog.confirm({
         title: t('family.cancelInviteTitle'),
         message: t('family.cancelInviteBody', { contact: invitation.contact }),
@@ -261,7 +315,7 @@ export default function FamilyScreen() {
             // instead of a message the patient can read.
             dialog.alert(
               t('family.error'),
-              extractErrorMessage(err, t('family.cancelInviteFailed')),
+              apiErrorMessage(err, t('family.cancelInviteFailed')),
               'critical',
             );
           } finally {
@@ -273,7 +327,69 @@ export default function FamilyScreen() {
     [cancelInvitation, dialog, t],
   );
 
+  const decideIncoming = useCallback(
+    async (invitation: FamilyIncomingInvitation, decision: 'accept' | 'decline') => {
+      setDecidingId(invitation.id);
+      setSuccessMessage(null);
+      try {
+        if (decision === 'accept') {
+          await acceptInvitation.mutateAsync(invitation.id);
+          setSuccessMessage(t('family.incoming.accepted'));
+        } else {
+          await declineInvitation.mutateAsync(invitation.id);
+          setSuccessMessage(t('family.incoming.declined'));
+        }
+      } catch (err) {
+        dialog.alert(t('family.error'), apiErrorMessage(err, t('family.incoming.failed')), 'critical');
+      } finally {
+        setDecidingId(null);
+      }
+    },
+    [acceptInvitation, declineInvitation, dialog, t],
+  );
+
   const fieldIcon = (name: IconName) => <Icon name={name} size={18} color={colors.blue} />;
+
+  const contactKind = classifyInviteContact(contact);
+  const contactIcon: IconName =
+    contactKind === 'health_id' ? 'id-card' : contactKind === 'phone' ? 'phone' : 'mail';
+
+  const accessOptions = ACCESS_OPTIONS.map((key) => ({ key, label: accessLabelOf(t, key) }));
+
+  const relationshipChips = (value: Relationship, onChange: (next: Relationship) => void) => (
+    <>
+      <Text style={styles.fieldLabel}>{t('family.relationshipHint')}</Text>
+      <View style={styles.chipWrap}>
+        {RELATIONSHIP_OPTIONS.map((option) => (
+          <Chip
+            key={option}
+            label={t(`family.relationships.${option}`)}
+            selected={value === option}
+            onPress={() => onChange(option)}
+            accessibilityLabel={`${t('family.relationshipLabel')} ${t(
+              `family.relationships.${option}`,
+            )}`}
+          />
+        ))}
+      </View>
+    </>
+  );
+
+  const accessPicker = (value: AccessOption, onChange: (next: AccessOption) => void) => (
+    <>
+      <Text style={styles.fieldLabel}>{t('family.accessLevelLabel')}</Text>
+      <SegmentedTabs
+        variant="pill"
+        value={value}
+        onChange={(key) => onChange(key === 'full' ? 'full' : 'read_only')}
+        options={accessOptions}
+        style={styles.pickerTight}
+      />
+      <Text style={styles.helpText}>
+        {value === 'full' ? t('family.access.fullExplain') : t('family.access.readOnlyExplain')}
+      </Text>
+    </>
+  );
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -331,6 +447,77 @@ export default function FamilyScreen() {
           />
         ) : null}
 
+        {/* ── Invitations addressed to me (the dependent's side) ────────── */}
+        {incoming.length > 0 ? (
+          <View>
+            <SectionHeader title={t('family.incoming.title')} variant="overline" />
+            <Card variant="flush">
+              <Text style={styles.cardIntro}>{t('family.incoming.explain')}</Text>
+              {incoming.map((invitation, index) => {
+                const busy = decidingId === invitation.id;
+                const guardian =
+                  (invitation.guardian_name ?? '').trim() || t('family.incoming.unknownGuardian');
+                return (
+                  <View key={invitation.id}>
+                    <ListRow
+                      leading={<Avatar name={guardian} size={40} />}
+                      title={guardian}
+                      meta={[
+                        relationshipLabelOf(t, invitation.relationship),
+                        t('family.incoming.requested', {
+                          access: accessLabelOf(t, invitation.access_level),
+                        }),
+                        invitation.expires_at
+                          ? t('family.expiresOn', {
+                              date: formatDate(invitation.expires_at, t('opesCore.common.none')),
+                            })
+                          : undefined,
+                      ]}
+                      chevron={false}
+                      divider={false}
+                    />
+                    <View style={styles.decisionRow}>
+                      <TouchableOpacity
+                        onPress={() => void decideIncoming(invitation, 'decline')}
+                        disabled={busy}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('family.incoming.decline')}
+                        accessibilityState={{ disabled: busy, busy }}
+                        style={[styles.decisionButton, styles.decisionDecline, busy && styles.busy]}
+                      >
+                        <Icon name="close" size={16} color={colors.statusCritical} />
+                        <Text style={[styles.decisionText, { color: colors.statusCritical }]}>
+                          {t('family.incoming.decline')}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => void decideIncoming(invitation, 'accept')}
+                        disabled={busy}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('family.incoming.accept')}
+                        accessibilityState={{ disabled: busy, busy }}
+                        style={[styles.decisionButton, styles.decisionAccept, busy && styles.busy]}
+                      >
+                        {busy ? (
+                          <ActivityIndicator size="small" color={colors.textOnBrand} />
+                        ) : (
+                          <Icon name="check" size={16} color={colors.textOnBrand} />
+                        )}
+                        <Text style={[styles.decisionText, { color: colors.textOnBrand }]}>
+                          {t('family.incoming.accept')}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    {index < incoming.length - 1 ? <View style={styles.rowDivider} /> : null}
+                  </View>
+                );
+              })}
+            </Card>
+          </View>
+        ) : null}
+
         {/* ── Add someone to the circle ─────────────────────────────────── */}
         <View>
           <SectionHeader title={t('family.addTitle')} variant="overline" />
@@ -339,19 +526,19 @@ export default function FamilyScreen() {
             <Card variant="flush">
               <Text style={styles.cardIntro}>{t('family.addDesc')}</Text>
               <ListRow
-                icon="person-search"
-                tint="blue"
-                title={t('family.optionInviteTitle')}
-                subtitle={t('family.optionInviteDesc')}
-                onPress={() => openForm('invite')}
+                icon="baby"
+                tint="purple"
+                title={t('family.addChildTitle')}
+                subtitle={t('family.addChildDesc')}
+                onPress={() => openForm('register')}
                 divider
               />
               <ListRow
-                icon="baby"
-                tint="purple"
-                title={t('family.optionRegisterTitle')}
-                subtitle={t('family.optionRegisterDesc')}
-                onPress={() => openForm('register')}
+                icon="person-search"
+                tint="blue"
+                title={t('family.inviteAdultTitle')}
+                subtitle={t('family.inviteAdultDesc')}
+                onPress={() => openForm('invite')}
               />
             </Card>
           ) : (
@@ -371,12 +558,10 @@ export default function FamilyScreen() {
                 </View>
                 <View style={styles.formHeadText}>
                   <Text style={styles.formTitle}>
-                    {mode === 'invite'
-                      ? t('family.optionInviteTitle')
-                      : t('family.optionRegisterTitle')}
+                    {mode === 'invite' ? t('family.inviteAdultTitle') : t('family.addChildTitle')}
                   </Text>
                   <Text style={styles.formBody}>
-                    {mode === 'invite' ? t('family.tabInviteHint') : t('family.tabRegisterHint')}
+                    {mode === 'invite' ? t('family.inviteHint') : t('family.registerHint')}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -393,31 +578,20 @@ export default function FamilyScreen() {
 
               {mode === 'invite' ? (
                 <View style={styles.formBodyWrap}>
-                  <Text style={styles.fieldLabel}>{t('family.contactLabel')}</Text>
+                  <Text style={styles.fieldLabel}>{t('family.contactLabelFull')}</Text>
                   <PillInput
-                    icon={fieldIcon(contact.includes('@') ? 'mail' : 'phone')}
-                    placeholder={t('family.contactPlaceholder')}
+                    icon={fieldIcon(contactIcon)}
+                    placeholder={t('family.contactPlaceholderFull')}
                     value={contact}
                     onChangeText={setContact}
                     autoCapitalize="none"
-                    keyboardType="email-address"
-                    accessibilityLabel={t('family.contactLabel')}
+                    autoCorrect={false}
+                    keyboardType="default"
+                    accessibilityLabel={t('family.contactLabelFull')}
                   />
 
-                  <Text style={styles.fieldLabel}>{t('family.relationshipLabel')}</Text>
-                  <View style={styles.chipWrap}>
-                    {RELATIONSHIP_OPTIONS.map((option) => (
-                      <Chip
-                        key={option}
-                        label={t(`family.relationships.${option}`)}
-                        selected={relationship === option}
-                        onPress={() => setRelationship(option)}
-                        accessibilityLabel={`${t('family.relationshipLabel')} ${t(
-                          `family.relationships.${option}`,
-                        )}`}
-                      />
-                    ))}
-                  </View>
+                  {relationshipChips(relationship, setRelationship)}
+                  {accessPicker(inviteAccess, setInviteAccess)}
 
                   {formError ? (
                     <Notice tone="critical" icon="alert-triangle" text={formError} spaced />
@@ -425,22 +599,32 @@ export default function FamilyScreen() {
 
                   <GradientButton
                     label={t('family.sendInvite')}
-                    onPress={() => void handleSendInvitation()}
-                    loading={sendInvitation.isPending}
+                    onPress={() => void handleInviteAdult()}
+                    loading={inviteAdult.isPending}
                     icon="none"
                     style={styles.submit}
                   />
                 </View>
               ) : (
                 <View style={styles.formBodyWrap}>
-                  <Text style={styles.fieldLabel}>{t('family.fullNameLabel')}</Text>
+                  <Text style={styles.fieldLabel}>{t('family.firstNameLabel')}</Text>
                   <PillInput
                     icon={fieldIcon('person')}
-                    placeholder={t('family.fullNamePlaceholder')}
-                    value={depFullName}
-                    onChangeText={setDepFullName}
+                    placeholder={t('family.firstNamePlaceholder')}
+                    value={depFirstName}
+                    onChangeText={setDepFirstName}
                     autoCapitalize="words"
-                    accessibilityLabel={t('family.fullNameLabel')}
+                    accessibilityLabel={t('family.firstNameLabel')}
+                  />
+
+                  <Text style={styles.fieldLabel}>{t('family.lastNameLabel')}</Text>
+                  <PillInput
+                    icon={fieldIcon('person')}
+                    placeholder={t('family.lastNamePlaceholder')}
+                    value={depLastName}
+                    onChangeText={setDepLastName}
+                    autoCapitalize="words"
+                    accessibilityLabel={t('family.lastNameLabel')}
                   />
 
                   <Text style={styles.fieldLabel}>{t('family.dateOfBirth')}</Text>
@@ -458,7 +642,9 @@ export default function FamilyScreen() {
                   <SegmentedTabs
                     variant="pill"
                     value={depSex ?? ''}
-                    onChange={(key) => setDepSex(key === 'female' ? 'female' : 'male')}
+                    onChange={(key) =>
+                      setDepSex(key === 'female' ? 'female' : 'male')
+                    }
                     options={SEX_OPTIONS.map((option) => ({
                       key: option,
                       label: t(SEX_LABEL_KEYS[option]),
@@ -466,20 +652,7 @@ export default function FamilyScreen() {
                     style={styles.picker}
                   />
 
-                  <Text style={styles.fieldLabel}>{t('family.relationshipLabel')}</Text>
-                  <View style={styles.chipWrap}>
-                    {RELATIONSHIP_OPTIONS.map((option) => (
-                      <Chip
-                        key={option}
-                        label={t(`family.relationships.${option}`)}
-                        selected={depRelationship === option}
-                        onPress={() => setDepRelationship(option)}
-                        accessibilityLabel={`${t('family.relationshipLabel')} ${t(
-                          `family.relationships.${option}`,
-                        )}`}
-                      />
-                    ))}
-                  </View>
+                  {relationshipChips(depRelationship, setDepRelationship)}
 
                   <Text style={styles.fieldLabel}>{t('family.bloodGroupLabel')}</Text>
                   <PillInput
@@ -491,18 +664,22 @@ export default function FamilyScreen() {
                     accessibilityLabel={t('family.bloodGroupLabel')}
                   />
 
-                  <Text style={styles.fieldLabel}>{t('family.phoneLabel')}</Text>
-                  <PillInput
-                    icon={fieldIcon('phone')}
-                    placeholder={t('family.phonePlaceholder')}
-                    value={depPhone}
-                    onChangeText={setDepPhone}
-                    keyboardType="phone-pad"
-                    accessibilityLabel={t('family.phoneLabel')}
-                  />
+                  {accessPicker(depAccess, setDepAccess)}
 
                   {/* This creates a real patient record — the warning stays. */}
                   <Notice tone="warning" icon="baby" text={t('family.registerNotice')} spaced />
+
+                  {adultRefused ? (
+                    <View style={styles.adultBlock}>
+                      <Notice tone="info" icon="info" text={t('family.adultBody')} />
+                      <GradientButton
+                        label={t('family.adultAction')}
+                        onPress={switchToInvite}
+                        icon="none"
+                        style={styles.submit}
+                      />
+                    </View>
+                  ) : null}
 
                   {formError ? (
                     <Notice tone="critical" icon="alert-triangle" text={formError} spaced />
@@ -510,8 +687,8 @@ export default function FamilyScreen() {
 
                   <GradientButton
                     label={t('family.registerDependent')}
-                    onPress={() => void handleRegisterDependent()}
-                    loading={registerDependent.isPending}
+                    onPress={() => void handleRegisterChild()}
+                    loading={registerChild.isPending}
                     icon="none"
                     style={styles.submit}
                   />
@@ -537,43 +714,31 @@ export default function FamilyScreen() {
                 tint="blue"
                 title={t('family.linkedMembers')}
                 message={t('family.noMembers')}
-                actionLabel={t('family.optionInviteTitle')}
-                onAction={() => openForm('invite')}
+                actionLabel={t('family.addChildTitle')}
+                onAction={() => openForm('register')}
               />
             </Card>
           ) : (
             <Card variant="flush">
               {members.map((member, index) => {
-                const name = member.patient?.full_name ?? '—';
-                const relationshipLabel = t(`family.relationships.${member.relationship}`, {
-                  defaultValue: member.relationship,
-                });
-                const ageLabel =
-                  member.patient?.age != null
-                    ? t('family.age', { age: member.patient.age })
-                    : undefined;
-                const healthId = member.patient?.health_id
-                  ? `${t('family.healthIdLabel')} ${member.patient.health_id}`
+                const who = dependentIdentity(member);
+                const name = who.name || t('family.member.title');
+                const ageLabel = who.age != null ? t('family.age', { age: who.age }) : undefined;
+                const statusLabel = who.statusKey
+                  ? t(`healthId.statusValues.${who.statusKey}`, {
+                      defaultValue: titleCase(who.statusKey),
+                    })
                   : undefined;
-                const accessLabel = t(`family.accessLevels.${member.access_level}`, {
-                  defaultValue: member.access_level,
-                });
                 return (
                   <ListRow
                     key={member.id}
-                    leading={<Avatar initials={initialsOf(name)} />}
+                    leading={<Avatar name={name} size={40} uri={who.photoUrl} />}
                     title={name}
-                    meta={[relationshipLabel, ageLabel, healthId]}
+                    meta={[relationshipLabelOf(t, member.relationship), ageLabel, statusLabel]}
                     divider={index < members.length - 1}
-                    chevron={false}
-                    trailing={
-                      <StatusBadge
-                        status={member.access_level}
-                        tone={ACCESS_TONE[member.access_level] ?? 'neutral'}
-                        label={accessLabel}
-                        size="sm"
-                      />
-                    }
+                    onPress={() => router.push(`/family/${member.id}`)}
+                    accessibilityHint={t('family.viewMemberHint')}
+                    trailing={<AccessBadge level={member.access_level} />}
                   />
                 );
               })}
@@ -581,7 +746,7 @@ export default function FamilyScreen() {
           )}
         </View>
 
-        {/* ── Pending invitations ───────────────────────────────────────── */}
+        {/* ── Invitations I sent ────────────────────────────────────────── */}
         <View>
           <SectionHeader title={t('family.pendingInvitations')} variant="overline" />
           {initialLoading ? (
@@ -599,9 +764,6 @@ export default function FamilyScreen() {
             <Card variant="flush">
               {invitations.map((invitation, index) => {
                 const busy = cancellingId === invitation.id;
-                const relationshipLabel = t(`family.relationships.${invitation.relationship}`, {
-                  defaultValue: invitation.relationship,
-                });
                 const expires = t('family.expiresOn', {
                   date: formatDate(invitation.expires_at, t('opesCore.common.none')),
                 });
@@ -611,7 +773,7 @@ export default function FamilyScreen() {
                     icon="clock"
                     tint="amber"
                     title={invitation.contact}
-                    meta={[relationshipLabel, expires]}
+                    meta={[relationshipLabelOf(t, invitation.relationship), expires]}
                     divider={index < invitations.length - 1}
                     chevron={false}
                     trailing={
@@ -630,7 +792,7 @@ export default function FamilyScreen() {
                           accessibilityRole="button"
                           accessibilityLabel={t('family.cancelInviteConfirm')}
                           accessibilityState={{ disabled: busy, busy }}
-                          style={[styles.cancelButton, busy && styles.cancelButtonBusy]}
+                          style={[styles.cancelButton, busy && styles.busy]}
                         >
                           {busy ? (
                             <ActivityIndicator size="small" color={colors.statusCritical} />
@@ -663,75 +825,6 @@ function SummaryStat({ label, value }: { label: string; value: string }) {
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
-  );
-}
-
-/** Initials disc, used as the `leading` slot of a member row. */
-function Avatar({ initials }: { initials: string }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  return (
-    <View style={styles.avatar}>
-      <Text style={styles.avatarText}>{initials}</Text>
-    </View>
-  );
-}
-
-/** Tinted inline notice, optionally with a retry affordance. */
-function Notice({
-  tone,
-  icon,
-  text,
-  actionLabel,
-  onAction,
-  spaced,
-}: {
-  tone: StatusTone;
-  icon: IconName;
-  text: string;
-  actionLabel?: string;
-  onAction?: () => void;
-  /** Adds the bottom gap needed when the notice sits inside a form card. */
-  spaced?: boolean;
-}) {
-  const { colors, statusMap } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  const skin = statusMap[tone];
-  return (
-    <View
-      style={[styles.notice, spaced && styles.noticeSpaced, { backgroundColor: skin.bg }]}
-      accessibilityRole="alert"
-      accessibilityLiveRegion="polite"
-    >
-      <Icon name={icon} size={16} color={skin.fg} />
-      <Text style={[styles.noticeText, { color: skin.fg }]}>{text}</Text>
-      {actionLabel && onAction ? (
-        <TouchableOpacity
-          onPress={onAction}
-          hitSlop={8}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel={actionLabel}
-          style={styles.noticeAction}
-        >
-          <Text style={[styles.noticeActionText, { color: skin.fg }]}>{actionLabel}</Text>
-        </TouchableOpacity>
-      ) : null}
-    </View>
-  );
-}
-
-/** Placeholder while the two family queries resolve. */
-function LoadingCard({ label }: { label: string }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  return (
-    <Card>
-      <View style={styles.loading} accessibilityLiveRegion="polite">
-        <ActivityIndicator color={colors.blue} />
-        <Text style={styles.loadingText}>{label}</Text>
-      </View>
-    </Card>
   );
 }
 
@@ -835,6 +928,14 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.sm,
       color: colors.textPrimary,
     },
+    helpText: {
+      marginTop: -spacing.xs,
+      marginBottom: spacing.md,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+    },
     chipWrap: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -842,22 +943,11 @@ const makeStyles = (colors: Palette) =>
       marginBottom: spacing.md,
     },
     picker: { marginBottom: spacing.md },
+    pickerTight: { marginBottom: spacing.sm },
     submit: { marginTop: spacing.sm },
+    adultBlock: { marginBottom: spacing.md, gap: spacing.xs },
 
     // Rows
-    avatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.primarySoft,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    avatarText: {
-      fontFamily: typography.fontFamily.bold,
-      fontSize: typography.size.sm,
-      color: colors.blue,
-    },
     inviteTrailing: { alignItems: 'flex-end', gap: spacing.sm },
     cancelButton: {
       width: 32,
@@ -867,47 +957,29 @@ const makeStyles = (colors: Palette) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    cancelButtonBusy: { opacity: 0.5 },
+    busy: { opacity: 0.5 },
+    rowDivider: { height: 1, backgroundColor: colors.divider, marginHorizontal: spacing.md },
 
-    // Notices
-    notice: {
+    // Incoming decision buttons
+    decisionRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.md,
+    },
+    decisionButton: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.sm,
-      padding: spacing.sm + 4,
-      borderRadius: radii.md,
-    },
-    /** Inside a form card the notice needs its own gap; the screen's
-     *  ScrollView already supplies one between top-level blocks. */
-    noticeSpaced: { marginBottom: spacing.md },
-    noticeText: {
-      flex: 1,
-      minWidth: 0,
-      fontFamily: typography.fontFamily.medium,
-      fontSize: typography.size.sm,
-      lineHeight: typography.lineHeight.sm,
-    },
-    noticeAction: {
-      borderRadius: radii.pill,
-      paddingHorizontal: spacing.sm + 4,
-      paddingVertical: spacing.xs,
-      backgroundColor: colors.surface,
-    },
-    noticeActionText: {
-      fontFamily: typography.fontFamily.semiBold,
-      fontSize: typography.size.xs,
-    },
-
-    // Loading
-    loading: {
-      alignItems: 'center',
       justifyContent: 'center',
-      gap: spacing.sm,
-      paddingVertical: spacing.md,
+      gap: 6,
+      minHeight: 40,
+      borderRadius: 20,
     },
-    loadingText: {
-      fontFamily: typography.fontFamily.regular,
+    decisionDecline: { backgroundColor: colors.statusCriticalBg },
+    decisionAccept: { backgroundColor: colors.blue },
+    decisionText: {
+      fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.sm,
-      color: colors.textSecondary,
     },
   });

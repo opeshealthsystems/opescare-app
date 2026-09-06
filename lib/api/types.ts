@@ -181,3 +181,166 @@ export interface Immunization {
 export interface ImmunizationsResponse {
   immunizations: Immunization[];
 }
+
+// ── Family / dependents ──────────────────────────────────────────────────────
+// Backend: App\Http\Controllers\Api\Mobile\MobileFamilyController + the
+// X-OpesCare-Dependent act-as context. Additive: nothing above is renamed.
+
+/** Canonical access levels. Legacy links may still carry `view_only` /
+ * `guardian` from the older mobile vocabulary; treat anything but `full` as
+ * read-only in the UI. */
+export type FamilyAccessLevel = 'full' | 'read_only' | (string & {});
+
+export type FamilyLinkStatus =
+  | 'active'
+  | 'pending_invite'
+  | 'revoked'
+  | 'expired'
+  | 'cancelled'
+  | 'declined'
+  | (string & {});
+
+/** Guardian's role toward the dependent ("I am their parent"). */
+export type FamilyRelationship =
+  | 'parent'
+  | 'grandparent'
+  | 'spouse'
+  | 'sibling'
+  | 'caregiver'
+  | 'legal_guardian'
+  | 'child'
+  | 'other'
+  | (string & {});
+
+/**
+ * The patient block on a family link. Carries the SAME field names as
+ * `HealthIdCard` (health_id, display_name, sex, dob, blood_type, photo_url,
+ * status, qr_payload) so `modelFromLive()` can render the dependent's
+ * credential — plus the older list-shape names (`full_name`,
+ * `date_of_birth`, `age`) a not-yet-upgraded server still sends. Read through
+ * `dependentIdentity()` in familyQueries.ts, never field by field.
+ */
+export interface FamilyDependentPatient {
+  id: string;
+  health_id: string | null;
+  display_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  /** YYYY-MM-DD */
+  dob?: string | null;
+  sex?: string | null;
+  blood_type?: string | null;
+  photo_url?: string | null;
+  /** Identity status, as /mobile/health-id-card (`verified`, `provisional`, …). */
+  status?: string | null;
+  /** Null on a read-only link — the dependent's QR is not handed out. */
+  qr_payload?: string | null;
+  // Older list shape (pre-contract), kept so the list never goes blank.
+  full_name?: string | null;
+  date_of_birth?: string | null;
+  age?: number | null;
+}
+
+/** One row of GET /mobile/family. */
+export interface FamilyMemberLink {
+  id: string;
+  relationship: FamilyRelationship;
+  access_level: FamilyAccessLevel;
+  status: FamilyLinkStatus;
+  is_pending?: boolean;
+  created_at?: string | null;
+  /** Set once the dependent turns 18: the link lapses at this instant unless they keep it. */
+  age_transition_expires_at?: string | null;
+  patient: FamilyDependentPatient | null;
+  // A server that flattens the dependent's card fields onto the row.
+  sex?: string | null;
+  dob?: string | null;
+  photo_url?: string | null;
+}
+
+export interface FamilyLinkDetail {
+  id: string;
+  relationship: FamilyRelationship;
+  access_level: FamilyAccessLevel;
+  status: FamilyLinkStatus;
+  created_at: string | null;
+  age_transition_expires_at: string | null;
+}
+
+export interface FamilyImmunization {
+  id: string;
+  vaccine_name: string;
+  vaccine_code: string | null;
+  dose_number: number | null;
+  administered_at: string | null;
+  status: string;
+}
+
+export interface FamilyUpcomingAppointment {
+  id: string;
+  starts_at: string | null;
+  facility_name: string | null;
+  provider_name: string | null;
+  status: string;
+  appointment_type: string | null;
+}
+
+export interface FamilyRecordsSummary {
+  allergies: number;
+  diagnoses: number;
+  active_prescriptions: number;
+  lab_results: number;
+  immunizations: number;
+  last_visit_at: string | null;
+}
+
+/** GET /mobile/family/members/{linkId} → `data`. */
+export interface FamilyMemberDetail {
+  link: FamilyLinkDetail;
+  patient: FamilyDependentPatient;
+  immunizations: FamilyImmunization[];
+  upcoming_appointments: FamilyUpcomingAppointment[];
+  records_summary: FamilyRecordsSummary | null;
+}
+
+/** GET /mobile/family/invitations — invitations THIS user sent. */
+export interface FamilyOutgoingInvitation {
+  id: string;
+  contact: string;
+  relationship: FamilyRelationship;
+  method?: string;
+  sent_at: string | null;
+  expires_at: string | null;
+}
+
+/** GET /mobile/family/invitations/incoming — invitations addressed TO this user. */
+export interface FamilyIncomingInvitation {
+  id: string;
+  guardian_name: string | null;
+  relationship: FamilyRelationship;
+  access_level: FamilyAccessLevel;
+  created_at: string | null;
+  expires_at: string | null;
+}
+
+/** POST /mobile/family — register a child (under 18). */
+export interface RegisterChildPayload {
+  first_name: string;
+  last_name: string;
+  /** YYYY-MM-DD */
+  date_of_birth: string;
+  sex: 'male' | 'female' | 'other';
+  blood_group?: string;
+  relationship: FamilyRelationship;
+  access_level?: 'full' | 'read_only';
+}
+
+/** POST /mobile/family/invitations — invite an existing patient (an adult).
+ * Exactly one of health_id / email / phone. */
+export interface InviteAdultPayload {
+  health_id?: string;
+  email?: string;
+  phone?: string;
+  relationship: FamilyRelationship;
+  access_level: 'full' | 'read_only';
+}

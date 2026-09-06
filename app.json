@@ -63,7 +63,9 @@
       "blockedPermissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -91,7 +93,8 @@
         "expo-image-picker",
         {
           "photosPermission": "OpesCare uses your photo library so you can put your own photo on your Health ID card.",
-          "cameraPermission": "OpesCare uses the camera so you can take the photo for your Health ID card."
+          "cameraPermission": "OpesCare uses the camera so you can take the photo for your Health ID card.",
+          "microphonePermission": false
         }
       ],
       [
@@ -117,7 +120,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "OpesCare uses the camera so a clinician can scan a patient's Health ID code."
+          "cameraPermission": "OpesCare uses the camera so a clinician can scan a patient's Health ID code.",
+          "recordAudioAndroid": false
         }
       ]
     ],

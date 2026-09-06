@@ -61,7 +61,13 @@ export type PushTokenOutcome =
   | { status: 'ready'; token: string; platform: PushPlatform }
   | { status: 'unavailable'; reason: PushUnavailableReason }
   | { status: 'permission_denied'; canAskAgain: boolean }
-  | { status: 'failed' };
+  /**
+   * `code` is expo-notifications' `CodedError.code` when there was one
+   * (`ERR_NOTIFICATIONS_NETWORK_ERROR`, `ERR_NOTIFICATIONS_SERVER_ERROR`,
+   * `ERR_NOTIF_DEVICE_ID`, …) — diagnostic only; no screen branches on it.
+   * The runbook's troubleshooting table is keyed on these.
+   */
+  | { status: 'failed'; code?: string };
 
 function toPermissionState(status: string | undefined): PushPermissionState {
   if (status === 'granted') return 'granted';
@@ -92,11 +98,9 @@ let foregroundConfigured = false;
  * centre's own (`GET /mobile/notifications`), and a second, separately-drifting
  * number on the launcher icon is worse than none.
  *
- * NOTE FOR THE OWNER: this is called on the token-acquisition path, which
- * covers the session in which a device registers. A cold start does not call
- * it, so once push is genuinely enabled `app/_layout.tsx` should call
- * `configurePushForegroundPresentation()` once at boot. That file is not
- * touched here.
+ * Called from two places: here on the token-acquisition path, and by
+ * `startPushListeners()` (`lib/push/handler.ts`) the moment a session becomes
+ * authenticated, which covers a cold start. Idempotent, so both are safe.
  */
 export function configurePushForegroundPresentation(): void {
   if (foregroundConfigured) return;
@@ -174,7 +178,21 @@ export async function acquireExpoPushToken(
     configurePushForegroundPresentation();
 
     return { status: 'ready', token: data, platform: resolvePushPlatform() };
-  } catch {
-    return { status: 'failed' };
+  } catch (error) {
+    const code =
+      error && typeof error === 'object' && typeof (error as { code?: unknown }).code === 'string'
+        ? (error as { code: string }).code
+        : undefined;
+    if (__DEV__) {
+      // The patient sees "could not register — try again from Settings"; the
+      // developer needs the actual reason. The usual ones, in the order they
+      // are met: no FCM/APNs credentials uploaded to EAS (server error from
+      // exp.host), a simulator (no device token), offline (network error).
+      console.warn(
+        `[push] token request failed${code ? ` (${code})` : ''}:`,
+        error instanceof Error ? error.message : error,
+      );
+    }
+    return code ? { status: 'failed', code } : { status: 'failed' };
   }
 }

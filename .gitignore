@@ -30,8 +30,20 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# local env files — EAS_PROJECT_ID and GOOGLE_SERVICES_JSON live in .env, and
+# Expo inlines every EXPO_PUBLIC_* value it finds there at bundle time, so a
+# committed .env would ship one developer's flags to everyone. Only the
+# documented template is tracked.
+.env
+.env.*
+!.env.example
+
+# push credentials — never committed; see docs/push-delivery-runbook.md
+google-services.json
+GoogleService-Info.plist
+*-firebase-adminsdk-*.json
+*service-account*.json
+AuthKey_*.p8
 
 # typescript
 *.tsbuildinfo

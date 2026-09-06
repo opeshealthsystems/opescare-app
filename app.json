@@ -20,7 +20,10 @@
           "en",
           "fr"
         ],
-        "CFBundleAllowMixedLocalizations": true
+        "CFBundleAllowMixedLocalizations": true,
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -67,11 +70,6 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
       "output": "single"
-    },
-    "notification": {
-      "icon": "./assets/notification-icon.png",
-      "color": "#0F4C81",
-      "iosDisplayInForeground": true
     },
     "plugins": [
       "expo-router",

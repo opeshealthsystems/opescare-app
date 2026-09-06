@@ -14,6 +14,11 @@
  *    is true for the LAN dev profile and false for finder.opescare.cloud.
  *
  * 2. `extra.router.sitemap` — see below.
+ *
+ * 3. `extra.eas.projectId` and `android.googleServicesFile` — the two values
+ *    push delivery needs and which this repository must not contain. Both come
+ *    from the environment; see "Push delivery" below and
+ *    docs/push-delivery-runbook.md.
  */
 
 /**
@@ -40,15 +45,146 @@
  */
 const sitemapEnabled = process.env.EXPO_PUBLIC_ENABLE_SITEMAP === '1';
 
+/*
+ * ── Push delivery ──────────────────────────────────────────────────────────
+ *
+ * An Expo push token is minted against an EAS project id, and on Android the
+ * device half of that token comes from Firebase Cloud Messaging, which needs
+ * the project's `google-services.json` compiled into the APK. Neither value
+ * is written into this repository:
+ *
+ *   EAS_PROJECT_ID        the UUID `eas init` prints. Not a secret, but it is
+ *                         the OWNER's project — a fork must never build
+ *                         against the source app's project, which is why
+ *                         app.json carries a comment where the id would be.
+ *                         Locally: `.env` (gitignored). On EAS: a project
+ *                         environment variable in every environment.
+ *
+ *   GOOGLE_SERVICES_JSON  path to google-services.json. Locally: a path
+ *                         outside the repo, or `./google-services.json`
+ *                         (gitignored). On EAS: a FILE environment variable —
+ *                         EAS writes the file to a temp path and puts that
+ *                         path in the variable, so this config never sees the
+ *                         content.
+ *
+ * FAIL LOUDLY, NEVER FAKE. There is no placeholder id and no stub JSON: a
+ * fabricated value would produce a build that installs, asks the patient for
+ * the notification permission, and then never receives anything — the exact
+ * false promise lib/push/capability.ts exists to end. So:
+ *
+ *   - EAS_PROJECT_ID absent  → locally, the config has no projectId and the
+ *                              app honestly reports "not deliverable";
+ *                              on an EAS build worker (EAS_BUILD=true) the
+ *                              config REFUSES, because eas-cli would have
+ *                              refused anyway and this message is clearer.
+ *   - EAS_PROJECT_ID malformed / the nil UUID → refuse, always.
+ *   - GOOGLE_SERVICES_JSON set but the file is missing → refuse, always.
+ *   - Android EAS build with no GOOGLE_SERVICES_JSON → refuse, unless
+ *     OPESCARE_BUILD_WITHOUT_PUSH=1 says that build is not meant to push.
+ *
+ * `eas init` cannot write into a dynamic config, so it prints the id instead
+ * of saving it; that is expected here. A literal `extra.eas.projectId` in
+ * app.json is still honoured (the env var wins) so a hand-written value also
+ * works — it just goes through the same validation.
+ */
+const fs = require('fs');
+const path = require('path');
+
+const RUNBOOK = 'docs/push-delivery-runbook.md';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+
+const onEasBuildWorker = process.env.EAS_BUILD === 'true';
+const easBuildPlatform = process.env.EAS_BUILD_PLATFORM ?? null; // 'android' | 'ios' on a worker
+const easBuildProfile = process.env.EAS_BUILD_PROFILE ?? null;
+
+function refuse(message) {
+  throw new Error(`[app.config.js] ${message}\nSee ${RUNBOOK}.`);
+}
+
+function trimmed(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+/** The EAS project id, validated — or null when none is configured. */
+function resolveEasProjectId(config) {
+  const fromEnv = trimmed(process.env.EAS_PROJECT_ID);
+  const fromConfig = trimmed(config.extra?.eas?.projectId);
+  const candidate = fromEnv ?? fromConfig;
+  const source = fromEnv ? 'EAS_PROJECT_ID' : 'app.json extra.eas.projectId';
+
+  if (candidate) {
+    if (!UUID_PATTERN.test(candidate)) {
+      refuse(
+        `${source} is "${candidate}", which is not an EAS project id. ` +
+          'It must be the UUID that `eas init` printed (8-4-4-4-12 hex).',
+      );
+    }
+    if (candidate.toLowerCase() === NIL_UUID) {
+      refuse(`${source} is the nil UUID — a placeholder, not a project. Run \`eas init\` and use the id it prints.`);
+    }
+    return candidate;
+  }
+
+  if (onEasBuildWorker) {
+    refuse(
+      `EAS_PROJECT_ID is not set on this EAS build (profile: ${easBuildProfile ?? 'unknown'}). ` +
+        'Push tokens cannot be minted without it. Create it as an EAS environment variable for ' +
+        'development, preview AND production (runbook step 2), then rebuild.',
+    );
+  }
+
+  return null;
+}
+
+/** Path to google-services.json, validated — or null when none is configured. */
+function resolveGoogleServicesFile() {
+  const configured = trimmed(process.env.GOOGLE_SERVICES_JSON);
+
+  if (configured) {
+    const absolute = path.isAbsolute(configured) ? configured : path.resolve(__dirname, configured);
+    if (!fs.existsSync(absolute)) {
+      refuse(
+        `GOOGLE_SERVICES_JSON points to "${configured}" but no file exists there. ` +
+          'Locally, download google-services.json from the Firebase console (runbook step 3); ' +
+          'on EAS, create GOOGLE_SERVICES_JSON as a FILE environment variable so EAS writes the file and sets the path.',
+      );
+    }
+    // A relative path is what app.json expects; keep it relative when it was given so.
+    return configured;
+  }
+
+  if (onEasBuildWorker && easBuildPlatform === 'android' && process.env.OPESCARE_BUILD_WITHOUT_PUSH !== '1') {
+    refuse(
+      `This is an EAS Android build (profile: ${easBuildProfile ?? 'unknown'}) and GOOGLE_SERVICES_JSON is not set, ` +
+        'so the APK would have no Firebase configuration and could never receive a push. ' +
+        'Create GOOGLE_SERVICES_JSON as an EAS FILE environment variable (runbook step 3) — or, for a build that ' +
+        'deliberately does not need push, set OPESCARE_BUILD_WITHOUT_PUSH=1 in that profile.',
+    );
+  }
+
+  return null;
+}
+
 module.exports = ({ config }) => {
   const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
   const needsCleartext = apiBaseUrl.startsWith('http://');
+
+  const easProjectId = resolveEasProjectId(config);
+  const googleServicesFile = resolveGoogleServicesFile();
+
+  // Keep the fork's explanatory "//" comment while there is no id; drop it the
+  // moment there is one, so `expo config` shows exactly what the app will see.
+  const easExtra = easProjectId
+    ? { projectId: easProjectId }
+    : { ...(config.extra?.eas ?? {}) };
 
   return {
     ...config,
     android: {
       ...config.android,
       ...(needsCleartext ? { usesCleartextTraffic: true } : {}),
+      ...(googleServicesFile ? { googleServicesFile } : {}),
     },
     extra: {
       ...config.extra,
@@ -59,6 +195,7 @@ module.exports = ({ config }) => {
         ...config.extra?.router,
         sitemap: sitemapEnabled,
       },
+      eas: easExtra,
     },
   };
 };

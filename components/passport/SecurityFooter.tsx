@@ -25,6 +25,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Art } from '@/components/health-id/Layers';
 import { HEALTH_ID_ART, HEALTH_ID_INDICATORS } from '@/components/health-id/assets';
+import { Barcode } from './Barcode';
 import { passportColors as c } from './tokens';
 
 type CredentialStatus = 'ACTIVE' | 'PROVISIONAL' | 'SUSPENDED' | 'REVOKED' | 'EXPIRED';
@@ -85,9 +86,11 @@ export function SecurityFooter({
 
         <View style={styles.middle}>
           <Text style={styles.secure}>{t('passport.secure')}</Text>
-          <Text style={styles.meta} numberOfLines={1}>
-            {healthId ?? t('passport.not_recorded', { defaultValue: '' })}
-          </Text>
+          {healthId ? (
+            <Text style={styles.meta} numberOfLines={1}>
+              {healthId}
+            </Text>
+          ) : null}
 
           {/* When the record moved, and when this copy was drawn. */}
           {updated ? (
@@ -118,6 +121,14 @@ export function SecurityFooter({
         </View>
       </View>
 
+      {/* A real Code 128 of the Health ID: hospital scanners read barcodes
+          where they may not read QR, and the approved design puts one here. */}
+      {healthId ? (
+        <View style={styles.barcodeRow}>
+          <Barcode value={healthId} width={170} height={30} />
+        </View>
+      ) : null}
+
       <Text style={styles.microtext} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
         {t('passport.microtext', { page: pageNumber, total: totalPages })}
       </Text>
@@ -139,5 +150,6 @@ const styles = StyleSheet.create({
   stateText: { fontSize: 8, fontWeight: '900', color: c.teal, textAlign: 'center', letterSpacing: 0.3 },
   // Microtext is meant to be small, not clipped: it sizes to fit the line so
   // the page number at its end survives on a narrow phone.
+  barcodeRow: { marginTop: 12, alignItems: 'center' },
   microtext: { marginTop: 10, fontSize: 6, color: c.muted, letterSpacing: 0.4, textAlign: 'center' },
 });

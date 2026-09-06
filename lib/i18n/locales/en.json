@@ -7582,11 +7582,21 @@
         "suspended": "Suspended",
         "revoked": "Revoked",
         "expired": "Expired"
+      },
+      "sex": {
+        "male": "Male",
+        "female": "Female"
       }
     },
     "demoPill": "DEMONSTRATION ACCOUNT — NOT A LIVE CREDENTIAL",
     "updatedAt": "Record updated {{when}}",
     "drawnAt": "This copy drawn {{when}}",
-    "microtext": "OPESCARE SECURE • AUTHENTIC • VERIFIABLE • CONSENT-AWARE • AUDITED • PAGE {{page}} OF {{total}}"
+    "microtext": "OPESCARE SECURE • AUTHENTIC • VERIFIABLE • CONSENT-AWARE • AUDITED • PAGE {{page}} OF {{total}}",
+    "mastheadSub": "A SAFER, HEALTHIER AFRICA",
+    "holderLabel": "HOLDER",
+    "healthIdLabel": "Health ID",
+    "dobLabel": "Date of birth",
+    "sexLabel": "Sex",
+    "footBand": "OPESCARE HEALTH PASSPORT"
   }
 }

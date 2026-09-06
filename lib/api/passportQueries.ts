@@ -67,6 +67,8 @@ export type PassportSummary = {
   status: 'ACTIVE' | 'PROVISIONAL' | 'SUSPENDED' | 'REVOKED' | 'EXPIRED';
   health_id: string | null;
   display_name: string | null;
+  date_of_birth?: string | null;
+  sex?: string | null;
   last_updated_at: string | null;
   total_pages: number;
   /** True when this is a demonstration account, so the page can say so. */

@@ -7583,11 +7583,21 @@
         "suspended": "Suspendu",
         "revoked": "Révoqué",
         "expired": "Expiré"
+      },
+      "sex": {
+        "male": "Masculin",
+        "female": "Féminin"
       }
     },
     "demoPill": "COMPTE DE DÉMONSTRATION — PAS UN JUSTIFICATIF RÉEL",
     "updatedAt": "Dossier mis à jour {{when}}",
     "drawnAt": "Copie établie {{when}}",
-    "microtext": "OPESCARE SECURE • AUTHENTIQUE • VÉRIFIABLE • SOUMIS AU CONSENTEMENT • AUDITÉ • PAGE {{page}} SUR {{total}}"
+    "microtext": "OPESCARE SECURE • AUTHENTIQUE • VÉRIFIABLE • SOUMIS AU CONSENTEMENT • AUDITÉ • PAGE {{page}} SUR {{total}}",
+    "mastheadSub": "UNE AFRIQUE PLUS SÛRE ET EN MEILLEURE SANTÉ",
+    "holderLabel": "TITULAIRE",
+    "healthIdLabel": "Identifiant Santé",
+    "dobLabel": "Date de naissance",
+    "sexLabel": "Sexe",
+    "footBand": "PASSEPORT DE SANTÉ OPESCARE"
   }
 }

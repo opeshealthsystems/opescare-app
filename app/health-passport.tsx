@@ -36,6 +36,7 @@ import {
   Card,
   EmptyState,
   Icon,
+  PulseLogo,
   ScreenHeader,
   spacing,
   typography,
@@ -43,6 +44,7 @@ import {
 import { CareButton, LoadingBlock, describeFailure } from '@/components/care/shared';
 import { PassportPageBody } from '@/components/passport/PassportPage';
 import { passportIcon } from '@/components/passport/assets';
+import { FootBand, HolderStrip, PageKicker, PassportRail } from '@/components/passport/PageFurniture';
 import { SecurityFooter } from '@/components/passport/SecurityFooter';
 import { SecuritySubstrate } from '@/components/passport/substrate';
 import { passportColors as c, passportRadius as r } from '@/components/passport/tokens';
@@ -129,20 +131,38 @@ export default function HealthPassportScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={[styles.canvas, isCover && styles.canvasCover]}>
           {isCover ? null : <SecuritySubstrate />}
+          {isCover ? null : <PassportRail />}
 
-          {isCover ? null : <View style={styles.topMeta}>
-            <View style={{ gap: 3 }}>
-              <Text style={styles.docLabel}>{t('passport.documentLabel')}</Text>
-              <Text style={styles.microLabel}>{stateLabel.toUpperCase()}</Text>
+          {isCover ? null : (
+            <View style={styles.masthead}>
+              <View style={styles.mastLeft}>
+                <View style={styles.mastLogo}>
+                  <PulseLogo size={16} />
+                </View>
+                <View style={{ flexShrink: 1 }}>
+                  <Text style={styles.mastBrand} numberOfLines={1}>
+                    Opes<Text style={styles.mastBrandAccent}>Care</Text>
+                  </Text>
+                  <Text style={styles.mastBrandSub} numberOfLines={1}>
+                    {t('passport.mastheadSub')}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.mastRight}>
+                <Text style={styles.mastTitle} numberOfLines={1}>
+                  {t('passport.documentLabel')}
+                </Text>
+                <Text style={styles.mastPage}>
+                  {t('passport.pageWord')} {String(current?.number ?? 1).padStart(2, '0')}/{total}
+                </Text>
+              </View>
             </View>
-            <View style={styles.pageBadge}>
-              <Text style={styles.pageSmall}>{t('passport.pageWord')}</Text>
-              <Text style={styles.pageBig}>
-                {current?.number ?? 1}
-                <Text style={styles.pageSlash}>/{total}</Text>
-              </Text>
-            </View>
-          </View>}
+          )}
+          {isCover ? null : (
+            <Text style={styles.taglineStrip} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+              {t('passport.tagline')}
+            </Text>
+          )}
 
           {/* The demo pill the package's shell carries — shown ONLY when the
               account really is a demonstration one. On a real record it would
@@ -157,6 +177,9 @@ export default function HealthPassportScreen() {
           {isCover ? null : <View style={styles.rule} />}
 
           {isCover ? null : <View style={styles.titleRow}>
+            <View style={styles.pageChip}>
+              <Text style={styles.pageChipText}>{String(current?.number ?? 1).padStart(2, '0')}</Text>
+            </View>
             <View style={styles.titleIcon}>
               {/* The page's own mark, drawn for these thirty pages. */}
               <Image
@@ -168,9 +191,18 @@ export default function HealthPassportScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.pageTitle}>{current?.title}</Text>
-              {current?.subtitle ? <Text style={styles.pageSubtitle}>{current.subtitle}</Text> : null}
+              {current?.subtitle ? <PageKicker text={current.subtitle} /> : null}
             </View>
           </View>}
+
+          {isCover ? null : (
+            <HolderStrip
+              name={summary.data?.display_name}
+              healthId={summary.data?.health_id}
+              dateOfBirth={summary.data?.date_of_birth}
+              sex={summary.data?.sex}
+            />
+          )}
 
           {page.isPending ? (
             <View style={styles.centre}>
@@ -208,6 +240,8 @@ export default function HealthPassportScreen() {
             pageNumber={current?.number ?? 1}
             totalPages={total}
           />}
+
+          {isCover ? null : <FootBand />}
         </View>
 
         {/* The passport reads the record; presenting identity is the card. */}
@@ -307,7 +341,10 @@ const styles = StyleSheet.create({
     borderRadius: r.xl,
     borderWidth: 1,
     borderColor: c.border,
-    padding: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
+    paddingLeft: 24, // clears the bound edge
+    paddingRight: 16,
     minHeight: 600,
   },
   topMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
@@ -377,6 +414,30 @@ const styles = StyleSheet.create({
   num: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EDF4F9' },
   numText: { fontSize: 11, fontWeight: '900', color: c.primary },
   titleGlyph: { width: 24, height: 24 },
+  masthead: {
+    marginLeft: -24, marginRight: -16, marginTop: -16, paddingHorizontal: 14, paddingVertical: 10,
+    backgroundColor: c.primaryDark, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+  },
+  mastLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  mastLogo: {
+    width: 26, height: 26, borderRadius: 13, backgroundColor: '#FFFFFF',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  mastBrand: { fontSize: 13, fontWeight: '900', color: '#FFFFFF' },
+  mastBrandAccent: { color: '#7FD8E8' },
+  mastBrandSub: { fontSize: 6, fontWeight: '800', letterSpacing: 1.1, color: 'rgba(255,255,255,0.7)' },
+  mastRight: { alignItems: 'flex-end' },
+  mastTitle: { fontSize: 9.5, fontWeight: '900', letterSpacing: 1.1, color: '#FFFFFF' },
+  mastPage: { fontSize: 8, fontWeight: '800', letterSpacing: 1, color: '#9FD4EA', marginTop: 2 },
+  taglineStrip: {
+    marginLeft: -24, marginRight: -16, paddingVertical: 4, backgroundColor: c.primaryLight,
+    fontSize: 7.5, fontWeight: '800', letterSpacing: 1.2, color: c.primary, textAlign: 'center',
+  },
+  pageChip: {
+    minWidth: 34, height: 34, borderRadius: 9, backgroundColor: c.primary,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6,
+  },
+  pageChipText: { fontSize: 15, fontWeight: '900', color: '#FFFFFF' },
   rowGlyph: { width: 20, height: 20 },
   rowNum: { width: 20, fontSize: 10, fontWeight: '900', color: c.muted, textAlign: 'center' },
   rowTitle: { fontSize: 12.5, fontWeight: '800', color: c.text },

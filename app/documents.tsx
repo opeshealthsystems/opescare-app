@@ -462,11 +462,17 @@ function PreviewPanel({
                 </Text>
               </View>
             </View>
-            <Text style={s.previewDesc}>{t('opesDocs.preview.documentDesc')}</Text>
+            <Text style={s.previewDesc}>
+              {doc.download_url ? t('documents.onDemandDesc') : t('opesDocs.preview.documentDesc')}
+            </Text>
             <View style={s.chip}>
               <Icon name="shield-check" size={16} color={colors.link} />
               <Text style={s.chipText}>
-                {verified ? t('opesDocs.preview.verifiedDocument') : t('opesDocs.preview.awaitingVerification')}
+                {doc.download_url
+                  ? t('documents.onDemandChip')
+                  : verified
+                    ? t('opesDocs.preview.verifiedDocument')
+                    : t('opesDocs.preview.awaitingVerification')}
               </Text>
             </View>
           </View>

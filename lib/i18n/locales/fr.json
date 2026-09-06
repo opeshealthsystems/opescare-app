@@ -989,7 +989,9 @@
     "manageAccess": "Gérer les accès",
     "download": "Télécharger",
     "downloadSub": "Généré à partir de votre dossier au moment du téléchargement. Rien n’est archivé.",
-    "onDemandBadge": "Généré au téléchargement"
+    "onDemandBadge": "Généré au téléchargement",
+    "onDemandDesc": "Généré à partir de votre dossier de santé au moment du téléchargement : il est donc toujours à jour.",
+    "onDemandChip": "Vérifié au moment du téléchargement"
   },
   "referrals": {
     "title": "Références",

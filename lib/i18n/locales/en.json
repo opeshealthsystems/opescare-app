@@ -989,7 +989,9 @@
     "manageAccess": "Manage access",
     "download": "Download",
     "downloadSub": "Built from your record when you download it. Nothing is stored.",
-    "onDemandBadge": "Made on download"
+    "onDemandBadge": "Made on download",
+    "onDemandDesc": "Built from your health record at the moment you download it, so it is always current.",
+    "onDemandChip": "Verified when you download it"
   },
   "referrals": {
     "title": "Referrals",

@@ -50,11 +50,18 @@ immunisation records, discharge summaries and certificates all download as PDFs.
 Each is generated at the moment you tap Download, from the record as it stands —
 nothing is stored on a server waiting to go stale.
 
-**Consent, from both sides.** Sign in as the doctor and open two different
-demo patients. One has granted the hospital consent and their record opens in
-full. The other has not: you see their identity, allergies and current medicines
-— the things that stop a clinician harming them — and the chart offers to ask
-for the rest. Then sign in as that patient and watch the request arrive.
+**Consent, from both sides.** Sign in as the doctor and look up these two
+Health IDs in turn:
+
+| Health ID | What you should see |
+|---|---|
+| `CM-HID-LG7T-H5LP-XA57` | The full chart. This patient has granted the hospital consent. |
+| `CM-HID-L6GN-55N7-HB9Y` | Identity, allergies and current medicines only. This patient has not consented, so the rest of the chart offers to ask them. |
+
+The masked one is **not** a bug and not an empty record. Those three things are
+what a clinician needs in order not to harm someone, and they stay visible on
+purpose; everything that is history rather than safety waits for the patient to
+say yes. Then sign in as the patient and watch the request arrive.
 
 **Switching to a dependent.** As the guardian, switch to a child. As the
 grandmother, notice what is refused.

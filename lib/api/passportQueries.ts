@@ -38,9 +38,34 @@ export type PassportItem = {
   tone?: 'success' | 'warning' | 'danger';
 };
 
+/** A cell of a table section; `pill` draws the design's coloured chip. */
+export type PassportCell = {
+  v: string;
+  pill?: 'success' | 'warning' | 'danger' | 'caution' | 'neutral';
+};
+
+/** The colour the section's header disc takes, as the printed sheets use it. */
+export type PassportAccent = 'blue' | 'red' | 'green' | 'amber' | 'purple' | 'teal';
+
+/**
+ * A section of a page.
+ *
+ * `layout` is what the approved design draws: a table with column headings, a
+ * row of counted tiles, a bulleted card, a tinted summary banner, or the plain
+ * label/value list the first build shipped. A section without `layout` is a
+ * list, so a server that has not been updated still renders correctly.
+ */
 export type PassportSection = {
   title: string;
+  layout?: 'list' | 'table' | 'stats' | 'bullets' | 'callout';
+  accent?: PassportAccent;
+  icon?: string | null;
   items: PassportItem[];
+  columns?: string[];
+  rows?: PassportCell[][];
+  stats?: { value: string; label: string; tone?: 'success' | 'warning' | 'danger' }[];
+  lines?: string[];
+  body?: string;
 };
 
 export type PassportPage = {

@@ -10,6 +10,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '@/components/opes-ui';
+import { SectionBlock } from './blocks';
 import { PassportCover } from './PassportCover';
 import { VerificationCentre } from './VerificationCentre';
 import { passportColors as c, passportRadius as r, passportSpace as s } from './tokens';
@@ -36,53 +37,12 @@ export function PassportPageBody({
   return (
     <View>
       {page.sections.map((section, i) => (
-        <SectionCard key={`${page.id}-${i}`} section={section} />
+        <SectionBlock key={`${page.id}-${i}`} section={section} />
       ))}
 
       {/* Page 24 is where the passport stops being a reading surface: the
           short-lived, opaque code a clinician actually scans. */}
       {page.id === 'verification' ? <VerificationCentre status={status} /> : null}
-    </View>
-  );
-}
-
-function SectionCard({ section }: { section: PassportSection }) {
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHead}>
-        <View style={styles.cardIcon}>
-          <Icon name="document-text" size={14} color={c.primary} />
-        </View>
-        <Text style={styles.cardTitle}>{section.title}</Text>
-      </View>
-      {section.items.map((item, i) => (
-        <View key={`${item.label}-${i}`} style={[styles.row, i > 0 && styles.rowBorder]}>
-          <Text style={styles.label}>{item.label}</Text>
-          <View style={styles.valueWrap}>
-            <Text
-              style={[
-                styles.value,
-                item.tone === 'success' && { color: c.success },
-                item.tone === 'warning' && { color: c.warning },
-                item.tone === 'danger' && { color: c.danger },
-              ]}
-            >
-              {item.value}
-            </Text>
-            {item.tone ? (
-              <View
-                style={[
-                  styles.dot,
-                  {
-                    backgroundColor:
-                      item.tone === 'success' ? c.success : item.tone === 'warning' ? c.warning : c.danger,
-                  },
-                ]}
-              />
-            ) : null}
-          </View>
-        </View>
-      ))}
     </View>
   );
 }

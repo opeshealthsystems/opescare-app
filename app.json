@@ -124,7 +124,8 @@
     "extra": {
       "router": {},
       "eas": {
-        "//": "projectId removed on fork — a fork must NOT push to the source app's EAS project. Run `eas init` to create a NEW EAS project for OpesCare Finder, which will write the new projectId here."
+        "//": "This fork's OWN EAS project (opesware/opescare-finder), created 2026-09-06. It is deliberately not the source app's project — a fork must never push builds or updates to it. EAS cannot write this value itself because app.config.js is a dynamic config, so it is maintained here by hand; app.config.js reads EAS_PROJECT_ID first and falls back to this.",
+        "projectId": "d45f34e5-c4d7-4612-960f-844584a7054d"
       }
     },
     "owner": "opesware",

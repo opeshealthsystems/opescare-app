@@ -319,7 +319,14 @@ export const doctorRetry = (failureCount: number, error: unknown): boolean =>
 export interface DoctorAccessRefusal {
   /** Already localised by the server (`doctor_chart.no_clinical_relationship`, EN/FR). */
   message: string | null;
-  error_code: 'NO_CLINICAL_RELATIONSHIP' | (string & {});
+  /**
+   * `NO_CLINICAL_RELATIONSHIP` — no basis to open this record at all.
+   * `CONSENT_REQUIRED`         — a basis exists, but the patient keeps
+   *   their full record behind their own consent, so the clinician sees
+   *   identity, allergies and current medicines and must ask for the
+   *   rest. Both answer to the same `required_action`.
+   */
+  error_code: 'NO_CLINICAL_RELATIONSHIP' | 'CONSENT_REQUIRED' | (string & {});
   /** What would actually get this clinician the chart. */
   required_action: 'request_consent' | (string & {});
 }

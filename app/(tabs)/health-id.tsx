@@ -425,7 +425,14 @@ export default function HealthIdScreen() {
 
             {/* ── Quick actions ────────────────────────────────────────────── */}
             <SectionHeader title={t('healthId.secure.quickActions')} variant="overline" />
+            {/* The card proves who you are; the passport is the record behind it. */}
             <View style={styles.tiles}>
+              <ActionTile
+                icon="book"
+                label={t('passport.title')}
+                caption={t('passport.openHint')}
+                onPress={() => router.push('/health-passport')}
+              />
               <ActionTile
                 icon="folder"
                 label={t('healthId.secure.tileRecords')}

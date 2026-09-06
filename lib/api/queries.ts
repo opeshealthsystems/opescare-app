@@ -655,6 +655,20 @@ export interface ConsentRequestItem {
   /** e.g. "24 hours" — the unit the clinician chose, never "1440 min". */
   duration_label?: string | null;
 
+  /*
+   * ── Newer servers (the consent-prompt / push contract) ───────────────────
+   *
+   * Optional for the same reason as the labels above. `expires_at` is when
+   * the ASK lapses if the patient never answers; the nested requester
+   * objects carry the name and role the prompt shows. The flat
+   * `requesting_facility_name` above remains the fallback.
+   */
+  expires_at?: string | null;
+  requesting_facility?: { id: string; name: string | null } | null;
+  requesting_user?: { name: string | null; role: string | null } | null;
+  /** Labels in the same order as `requested_scope`, from a server that sends those instead of `scope_items`. */
+  scope_labels?: string[] | null;
+
   /** The active ConsentGrant this request produced, once approved — the id `revoke` targets. */
   grant_id: string | null;
   grant_status: string | null;
@@ -663,11 +677,64 @@ export interface ConsentRequestItem {
   updated_at: string | null;
 }
 
-export function useConsentRequests() {
+/** Statuses `GET /mobile/consent-requests?status=` filters on. `pending` is what the prompt polls. */
+export type ConsentRequestFilter = 'pending' | 'approved' | 'denied' | 'expired';
+
+/**
+ * The patient's consent requests, optionally filtered by status on the server.
+ *
+ * Every key here starts with `'consent-requests'`, the prefix the approve /
+ * deny / revoke mutations invalidate, so a decision refreshes the unfiltered
+ * hub list, the prompt's pending list and the pending count together. A
+ * server that predates `?status=` ignores the parameter and returns all of
+ * them; callers that care filter on `status` as well.
+ */
+export function useConsentRequests(
+  status?: ConsentRequestFilter,
+  options: { enabled?: boolean } = {},
+) {
   return useQuery({
-    queryKey: ['consent-requests'],
+    queryKey: ['consent-requests', status ?? 'all'],
     queryFn: async () =>
-      (await apiClient.get<ConsentRequestItem[]>(endpoints.consentRequests)).data,
+      (
+        await apiClient.get<ConsentRequestItem[]>(endpoints.consentRequests, {
+          params: status ? { status } : undefined,
+        })
+      ).data,
+    enabled: options.enabled ?? true,
+  });
+}
+
+/** `GET /mobile/consent-requests/pending-count` → `{ data: { pending } }`. */
+export interface ConsentPendingCountResponse {
+  data: { pending: number };
+}
+
+/**
+ * How many requests await the patient's answer. Cheap enough to poll: the
+ * consent prompt (components/consent/ConsentPromptWatcher.tsx) asks every 20 s
+ * while the app is in the foreground and fetches the list only when this rises.
+ */
+export function useConsentPendingCount(
+  options: { enabled?: boolean; refetchInterval?: number | false } = {},
+) {
+  return useQuery({
+    queryKey: ['consent-requests', 'pending-count'],
+    queryFn: async (): Promise<number> => {
+      const body = (
+        await apiClient.get<ConsentPendingCountResponse | { pending?: number }>(
+          endpoints.consentPendingCount,
+        )
+      ).data;
+      const wrapped = (body as ConsentPendingCountResponse | undefined)?.data?.pending;
+      const bare = (body as { pending?: number } | undefined)?.pending;
+      const count = typeof wrapped === 'number' ? wrapped : bare;
+      return typeof count === 'number' && Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+    },
+    enabled: options.enabled ?? true,
+    refetchInterval: options.refetchInterval ?? false,
+    refetchIntervalInBackground: false,
+    staleTime: 10_000,
   });
 }
 

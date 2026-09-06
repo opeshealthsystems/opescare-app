@@ -20,6 +20,20 @@
  *     detector, for a broken camera, for a code read out over the phone.
  *   • NO ENUMERATION. A code names one patient or nobody; a typed Health ID
  *     goes through the same exact-match lookup as everywhere else.
+ *
+ * ── WHERE A CONFIRMED IDENTITY LEADS, PER ROLE ────────────────────────────
+ * The hand-off is decided by the role's capabilities (`lib/staffCapabilities.ts`,
+ * the mirror of config/staff_capabilities.php) and navigates BY PATH
+ * (`components/doctor/chartRoutes.ts`), never by importing a desk screen —
+ * the desks are built by other agents and may land after this file:
+ *
+ *   clinician (clinical_chart)   Open chart (grant held) · Ask for access (no grant)
+ *   pharmacist (dispense)        Dispense for this patient → /clinician/pharmacy?health_id=…  · Ask for access
+ *   receptionist (front_desk)    Check in / book → /clinician/desk/new-appointment?health_id=…
+ *   lab (lab_results | sample_collection)   Lab orders for this patient → /clinician/lab?health_id=…
+ *   anyone else                  the identity itself, worded for the role
+ *
+ * A button the server would refuse for the role is simply not drawn.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -46,7 +60,13 @@ import {
 } from '@/lib/api/doctorQueries';
 import { sexLabel } from '@/components/doctor/chartShared';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
-import { roleFamily, useProviderRole, useStaffCapability, type RoleFamily } from '@/lib/staffCapabilities';
+import {
+  roleFamily,
+  useHasProviderSession,
+  useProviderRole,
+  useStaffCapability,
+  type RoleFamily,
+} from '@/lib/staffCapabilities';
 import {
   looksLikeHealthIdCode,
   scanFailureKind,
@@ -90,6 +110,16 @@ export default function ScanPatientScreen() {
   const canChart = useStaffCapability('clinical_chart');
   const canRequestAccess = useStaffCapability('request_access');
   const family = roleFamily(useProviderRole());
+  // The desks, for a REAL provider session only — the same decision as the
+  // tab bar's (`_layout.tsx`), so a hand-off never points at a tab the bar
+  // does not have. The preview persona keeps the clinician's hand-offs.
+  const realSession = useHasProviderSession();
+  const holdsDispense = useStaffCapability('dispense');
+  const holdsFrontDesk = useStaffCapability('front_desk');
+  const holdsLab = useStaffCapability('lab_results', 'sample_collection');
+  const canDispense = realSession && holdsDispense;
+  const canFrontDesk = realSession && holdsFrontDesk;
+  const canLab = realSession && holdsLab;
 
   const resolve = useCallback(
     (code: string) => {
@@ -140,33 +170,52 @@ export default function ScanPatientScreen() {
       return;
     }
     if (isPlausibleHealthId(text)) {
-      // A typed Health ID is not a code: it goes through the exact-match ask
-      // flow, pre-filled, like everywhere else in the app — or, for a role
-      // that identifies patients but may not ask for their record, through
-      // the exact-match lookup on the Patients tab.
+      // A typed Health ID is not a code. For a clinician it goes through the
+      // exact-match ask flow, pre-filled, like everywhere else in the app;
+      // for every other role through the exact-match lookup on the Patients
+      // tab, which offers that role's own hand-off (dispense, book, orders).
       setManualError(null);
       router.push(
-        canRequestAccess
+        canChart && canRequestAccess
           ? doctorRoutes.requestAccess(normaliseHealthId(text))
           : doctorRoutes.patientLookup(normaliseHealthId(text)),
       );
       return;
     }
     setManualError(tx('manualInvalid', 'Paste the code from the patient’s QR, or type their full Health ID.'));
-  }, [manual, resolve, router, tx, canRequestAccess]);
+  }, [manual, resolve, router, tx, canChart, canRequestAccess]);
 
   const patient = outcome?.data ?? null;
 
   // Where a confirmed identity leads, for THIS role. The chart needs a grant
-  // AND the capability; the ask needs no grant AND the capability; anything
-  // else ends on the identity itself, worded for the role's actual work.
-  const nextStep: 'chart' | 'ask' | 'none' = !outcome
-    ? 'none'
-    : outcome.consent_granted && canChart
-      ? 'chart'
-      : !outcome.consent_granted && canRequestAccess
-        ? 'ask'
-        : 'none';
+  // AND the capability; the ask needs no grant AND the capability; each desk
+  // needs its capability; anything else ends on the identity itself, worded
+  // for the role's actual work. Buttons are drawn in this order.
+  const handOffs: HandOff[] = [];
+  if (outcome && patient) {
+    if (canChart && outcome.consent_granted) {
+      handOffs.push({ key: 'chart', label: tx('openChart', 'Open chart'), icon: 'folder', route: doctorRoutes.patient(patient.id) });
+    }
+    if (canDispense) {
+      handOffs.push({ key: 'dispense', label: tx('dispense', 'Dispense for this patient'), icon: 'pill', route: doctorRoutes.pharmacy(patient.health_id) });
+    }
+    if (canFrontDesk) {
+      handOffs.push({ key: 'desk', label: tx('checkInBook', 'Check in / book'), icon: 'calendar-plus', route: doctorRoutes.deskNewAppointment(patient.health_id) });
+    }
+    if (canLab) {
+      handOffs.push({ key: 'lab', label: tx('labOrders', 'Lab orders for this patient'), icon: 'flask', route: doctorRoutes.lab(patient.health_id) });
+    }
+    if (!outcome.consent_granted && canRequestAccess) {
+      handOffs.push({ key: 'ask', label: tx('askAccess', 'Ask for access'), icon: 'key', route: doctorRoutes.requestAccess(patient.health_id) });
+    }
+  }
+  // The notice above the buttons: the consent state for a role with the
+  // chart, the role's own desk for everyone else.
+  const noticeKind: 'consent' | 'desk' | 'identity' = canChart
+    ? 'consent'
+    : canDispense || canFrontDesk || canLab
+      ? 'desk'
+      : 'identity';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -258,17 +307,7 @@ export default function ScanPatientScreen() {
               <Fact label={tx('blood', 'Blood')} value={patient.blood_group ?? '—'} colors={colors} />
             </View>
 
-            {nextStep === 'none' ? (
-              // Identity only. No "you can open the chart" for a role that
-              // cannot, and no consent ask for one the server would refuse.
-              <Notice
-                icon="check"
-                tone="ok"
-                title={tx('identifiedOnlyTitle', 'Identity confirmed')}
-                body={identifiedBody(family, tx)}
-                colors={colors}
-              />
-            ) : (
+            {noticeKind === 'consent' ? (
               <Notice
                 icon={outcome.consent_granted ? 'check' : 'lock'}
                 tone={outcome.consent_granted ? 'ok' : 'info'}
@@ -280,27 +319,44 @@ export default function ScanPatientScreen() {
                 }
                 colors={colors}
               />
+            ) : noticeKind === 'desk' ? (
+              // The role's own desk takes it from here. The chart is not
+              // implied for a role that does not hold it.
+              <Notice
+                icon="check"
+                tone="ok"
+                title={tx('identifiedOnlyTitle', 'Identity confirmed')}
+                body={deskBody({ canDispense, canFrontDesk, canLab }, tx)}
+                colors={colors}
+              />
+            ) : (
+              // Identity only. No "you can open the chart" for a role that
+              // cannot, and no consent ask for one the server would refuse.
+              <Notice
+                icon="check"
+                tone="ok"
+                title={tx('identifiedOnlyTitle', 'Identity confirmed')}
+                body={identifiedBody(family, tx)}
+                colors={colors}
+              />
             )}
 
+            {/* The hand-offs, stacked — a role can have more than one. */}
+            {handOffs.length > 0 && (
+              <View style={styles.stack}>
+                {handOffs.map((h, i) => (
+                  <CareButton
+                    key={h.key}
+                    label={h.label}
+                    icon={h.icon}
+                    variant={i === 0 ? 'primary' : 'secondary'}
+                    size="sm"
+                    onPress={() => router.push(h.route)}
+                  />
+                ))}
+              </View>
+            )}
             <View style={styles.actions}>
-              {nextStep === 'chart' && (
-                <CareButton
-                  label={tx('openChart', 'Open chart')}
-                  icon="folder"
-                  style={styles.action}
-                  size="sm"
-                  onPress={() => router.push(doctorRoutes.patient(patient.id))}
-                />
-              )}
-              {nextStep === 'ask' && (
-                <CareButton
-                  label={tx('askAccess', 'Ask for access')}
-                  icon="key"
-                  style={styles.action}
-                  size="sm"
-                  onPress={() => router.push(doctorRoutes.requestAccess(patient.health_id))}
-                />
-              )}
               <CareButton
                 label={tx('scanAgain', 'Scan another')}
                 icon="qr"
@@ -370,21 +426,34 @@ export default function ScanPatientScreen() {
   );
 }
 
+/** One button under a confirmed identity: where THIS role takes the patient next. */
+type HandOff = { key: string; label: string; icon: IconName; route: string };
+
 /**
- * What a confirmed identity means for a role that ends there. Honest about
- * where the rest of the work lives: there is no mobile check-in, dispensing
- * counter or lab bench, and none is implied.
+ * What a confirmed identity means for a role whose next step is its own desk
+ * in this app. The chart is never implied for a role that does not hold it.
+ */
+function deskBody(
+  caps: { canDispense: boolean; canFrontDesk: boolean; canLab: boolean },
+  tx: (k: string, d: string) => string,
+): string {
+  if (caps.canFrontDesk) {
+    return tx('identifiedFrontDeskBody', 'This is the person the Health ID names. Book or check them in from here — today’s book is in the Desk tab.');
+  }
+  if (caps.canDispense) {
+    return tx('identifiedPharmacyBody', 'This is the person the Health ID names. Dispense against their prescriptions from here; their chart is not part of your role.');
+  }
+  return tx('identifiedLabBody', 'This is the person the Health ID names. Their laboratory orders are in the Lab tab; their chart is not part of your role.');
+}
+
+/**
+ * What a confirmed identity means for a role that ends there — no chart, no
+ * desk in this app. Honest about where the rest of the work lives.
  */
 function identifiedBody(family: RoleFamily, tx: (k: string, d: string) => string): string {
   switch (family) {
-    case 'frontDesk':
-      return tx('identifiedFrontDeskBody', 'This is the person the Health ID names. Check-in and the appointment book are on the web desk.');
-    case 'pharmacy':
     case 'pharmacyStock':
-      return tx('identifiedPharmacyBody', 'This is the person the Health ID names. Dispensing is on the web pharmacy counter; their chart is not part of your role.');
-    case 'lab':
-    case 'labCollection':
-      return tx('identifiedLabBody', 'This is the person the Health ID names. Sample collection and result entry are on the web laboratory desk; their chart is not part of your role.');
+      return tx('identifiedStockBody', 'This is the person the Health ID names. Your role covers stock, in the Stock tab; dispensing and their chart are not part of it.');
     default:
       return tx('identifiedRoleBody', 'This is the person the Health ID names. Their chart is not part of your role.');
   }
@@ -472,6 +541,7 @@ const makeStyles = (colors: Palette) =>
     facts: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
     actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
     action: { flex: 1 },
+    stack: { gap: spacing.sm, marginTop: spacing.md },
     fieldLabel: { fontFamily: typography.fontFamily.semiBold, fontSize: 13, color: colors.textPrimary, marginBottom: spacing.xs },
     note: { fontFamily: typography.fontFamily.regular, fontSize: 12, lineHeight: 17, color: colors.textMuted, marginTop: spacing.sm },
   });

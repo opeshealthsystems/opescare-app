@@ -12,6 +12,9 @@
  *   No-show           `useMarkNoShow`
  *   Cancel            `useCancelDoctorAppointment`
  *   Reschedule        `useRescheduleDoctorAppointment`  moves it outright
+ *   Book follow-up    `useBookFollowUp` (via `FollowUpSheet`)  a NEW follow_up
+ *                     appointment, offered after an attended or completed visit
+ *                     to roles holding `clinical_chart`
  *
  * ── THE RULES THIS SCREEN KEEPS ──────────────────────────────────────────
  *  1. EVERY ACTION IS CONFIRMED. Each one opens a kit `Dialog` naming the
@@ -45,6 +48,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { RoleGate } from '@/components/doctor/RoleGate';
+import { FollowUpSheet } from '@/components/doctor/FollowUpSheet';
 import { useStaffCapability } from '@/lib/staffCapabilities';
 import {
   Card,
@@ -174,6 +178,11 @@ function DoctorAppointmentDetailScreenBody() {
   const busy = useRef(false);
   const [pending, setPending] = useState<PendingKey | null>(null);
   const [rescheduling, setRescheduling] = useState(false);
+  // "Book follow-up" after an attended or completed visit — a NEW `follow_up`
+  // appointment with this clinician (`useBookFollowUp`), not a change to this
+  // one. Clinicians only: the front desk holds the diary but books through
+  // its own desk, and the server would refuse it this route anyway.
+  const [followUpOpen, setFollowUpOpen] = useState(false);
 
   const checkHint = tx(
     'appointment.checkHint',
@@ -522,6 +531,28 @@ function DoctorAppointmentDetailScreenBody() {
             onPick={(when) => askToMove(a, when)}
           />
         )}
+
+        {canChart && visitAttended(a) && (
+          <Card>
+            <SectionHeader title={tx('followUp.afterVisit', 'Next visit')} variant="overline" />
+            <Text style={styles.hint}>
+              {tx(
+                'followUp.afterVisitBody',
+                'Book the follow-up while the visit is fresh. It goes into your own diary at this facility, for {{patient}}.',
+                { patient: patientName(a) }
+              )}
+            </Text>
+            <View style={styles.actions}>
+              <CareButton
+                label={tx('followUp.action', 'Book follow-up')}
+                icon="calendar-plus"
+                variant="secondary"
+                disabled={pending !== null}
+                onPress={() => setFollowUpOpen(true)}
+              />
+            </View>
+          </Card>
+        )}
       </>
     );
   }
@@ -546,8 +577,26 @@ function DoctorAppointmentDetailScreenBody() {
         {body}
       </ScrollView>
       {dialog.element}
+      {canChart && a && (
+        <FollowUpSheet
+          visible={followUpOpen}
+          // The chart's key: the Health ID when the row carries it, else the record id.
+          patientId={a.patient_health_id || a.patient_id}
+          patientLabel={patientName(a)}
+          onClose={() => setFollowUpOpen(false)}
+        />
+      )}
     </SafeAreaView>
   );
+}
+
+/**
+ * A visit the patient actually attended — arrived, under way, or completed —
+ * is the moment a follow-up is booked. Not for a no-show or a cancellation:
+ * there was no visit to follow up.
+ */
+function visitAttended(a: StaffAppointment): boolean {
+  return ['arrived', 'in_progress', 'completed'].includes(a.status);
 }
 
 /**

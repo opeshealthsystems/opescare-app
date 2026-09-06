@@ -20,6 +20,8 @@ import { useAuthStore } from '../lib/store/auth';
 import { AppUpdateGate } from '../components/AppUpdateGate';
 import { initOfflineMode } from '../lib/offline';
 import { OfflineBanner } from '../components/offline/OfflineBanner';
+import { PushListeners } from '../lib/push/PushListeners';
+import { ConsentPromptWatcher } from '../components/consent/ConsentPromptWatcher';
 import { enableScreens } from 'react-native-screens';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -208,6 +210,17 @@ export default function RootLayout() {
         {/* Startup version gate (GET /mobile/app-config). Fails open —
             see lib/api/appConfigQueries.ts. */}
         <AppUpdateGate />
+        {/* Push listeners (native) and the consent prompt (every platform)
+            exist only for a signed-in session; the watcher further limits
+            itself to a PATIENT persona — a clinician is never asked to
+            approve anything here. Rendered after the Stack so the sheet
+            paints over whatever screen the patient is on. */}
+        {status === 'authenticated' ? (
+          <>
+            <PushListeners />
+            <ConsentPromptWatcher />
+          </>
+        ) : null}
       </QueryClientProvider>
       </AppBackground>
       </ThemeProvider>

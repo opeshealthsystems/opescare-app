@@ -18,6 +18,18 @@
  *  4. NEVER INVENT A THRESHOLD. Reference intervals and flags are printed as
  *     the laboratory recorded them; where there is none, the screen says so.
  *
+ *  5. THE SHEET DECIDES NOTHING. "Acknowledge and act" (components/results/
+ *     AcknowledgeSheet) collects a patient-facing note, a private comment and
+ *     the next step the clinician intends, and hands one body to ONE
+ *     acknowledge call. The next step is RECORDED with the acknowledgement
+ *     and then OFFERED as a button — prescribing, booking, messaging and
+ *     ordering each remain their own act on their own screen or sheet.
+ *  6. A NEXT STEP THE SERVER CANNOT TAKE YET IS SAID SO. `POST …/messages/
+ *     threads` and `POST …/patients/{id}/lab-orders` are new; a 404 / 405 /
+ *     501 renders "not available on this server yet" — never "sent" or
+ *     "ordered". A thread is opened only with the id the server returned; an
+ *     order is called ordered only when the server answered with one.
+ *
  * `id` is the id of the notification row the inbox listed — the same
  * identifier the desktop inbox acknowledges against.
  *
@@ -27,7 +39,7 @@
  * i18n: `opesDoctor.*` is being migrated; every string carries a
  * `defaultValue` until the keys land. Locale files are not edited here.
  */
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -61,7 +73,6 @@ import {
 } from '@/components/care/shared';
 // ── Doctor foundation (owned by the foundation agent) ─────────────────────
 import {
-  useAcknowledgeResult,
   useResultDetail,
   type InboxAnalyte,
   type InboxResultDetail,
@@ -69,6 +80,27 @@ import {
 } from '@/lib/api/doctorQueries';
 import { categoryLabel, fmtReported } from '@/components/doctor/shared';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
+// ── Acknowledge-and-act (T7b; this screen's own data layer + sheets) ──────
+import {
+  healthIdFromPrescribeLink,
+  isResultStepInvalid,
+  isResultStepUnserved,
+  nextActionLinks,
+  resultStepFailureMessage,
+  startedThreadId,
+  useAcknowledgeResultWithAction,
+  useOrderLabTest,
+  useStartPatientThread,
+  type AcknowledgeResultBody,
+  type InterpretedResultDetail,
+  type NextActionLinks,
+  type OrderedLabTest,
+  type ResultNextAction,
+} from '@/lib/api/resultActionQueries';
+import { AcknowledgeSheet, NEXT_ACTION_ICON, nextActionLabel } from '@/components/results/AcknowledgeSheet';
+import { StartThreadSheet } from '@/components/results/StartThreadSheet';
+import { RepeatTestSheet, type RepeatTestValues } from '@/components/results/RepeatTestSheet';
+import { InterpretationCard } from '@/components/results/InterpretationCard';
 
 /**
  * The server's own sentence, when it sent one.
@@ -150,82 +182,243 @@ function ResultDetailScreenBody() {
   );
 
   const detail = useResultDetail(resultId);
-  const acknowledge = useAcknowledgeResult();
+  const acknowledge = useAcknowledgeResultWithAction();
+  const startThread = useStartPatientThread();
+  const orderTest = useOrderLabTest();
   const { refetch } = detail;
 
+  // Which next steps THIS role may take from this device. The chips are only
+  // offered for steps the clinician could actually complete here; the server
+  // is never asked what it would refuse.
+  const canPrescribe = useStaffCapability('prescribe');
+  const canMessage = useStaffCapability('messaging');
+
+  // ── Sheet + next-step state ───────────────────────────────────────────
+  const [ackOpen, setAckOpen] = useState(false);
+  /** The links the acknowledge response carried — only that call returns them. */
+  const [servedLinks, setServedLinks] = useState<NextActionLinks | null>(null);
+  /** The next step chosen in the sheet, confirmed by the server's row when it carries one. */
+  const [chosenStep, setChosenStep] = useState<ResultNextAction | null>(null);
+  const [threadOpen, setThreadOpen] = useState(false);
+  const [repeatOpen, setRepeatOpen] = useState(false);
+  /** The order the server answered with — the ONLY thing that renders "Ordered". */
+  const [ordered, setOrdered] = useState<OrderedLabTest | null>(null);
+
+  const patientLabelOf = (result: InboxResultDetail) =>
+    result.patient_name ?? tx('result.confirmThisPatient', 'this patient');
+
+  /** The row plus the links the acknowledge response carried, for `nextActionLinks`. */
+  const withLinks = (result: InterpretedResultDetail) => ({
+    ...result,
+    next_action_links: servedLinks ?? undefined,
+  });
+
+  /** The next steps offered in the sheet for this result and this role. */
+  function offeredSteps(result: InboxResultDetail): ResultNextAction[] {
+    const out: ResultNextAction[] = [];
+    const hasPatient = !!result.patient_id;
+    if (canPrescribe && (hasPatient || result.patient_health_id)) out.push('prescribe');
+    if (canChart && hasPatient) out.push('follow_up');
+    if (canMessage && hasPatient) out.push('message');
+    if (canChart && hasPatient) out.push('repeat_test');
+    return out;
+  }
+
   /**
-   * The confirmation. It names the patient, their number and the result in
-   * the question itself, so an accidental tap cannot become an
-   * acknowledgement.
+   * The acknowledgement itself. One call, one body. Every rule of the old
+   * confirm handler is kept: idempotent on the server (a retry after a
+   * dropped response gets the ORIGINAL row), the screen is painted as done
+   * only on an `acknowledged_at`, and a failure names when the outcome is
+   * unknown and where to check.
    */
-  function askToAcknowledge(result: InboxResultDetail) {
-    const patient = result.patient_name ?? tx('result.confirmThisPatient', 'this patient');
-    dialog.confirm({
-      title: result.is_critical
-        ? tx('result.confirmCriticalTitle', 'Acknowledge this CRITICAL result?')
-        : tx('result.confirmTitle', 'Acknowledge this result?'),
-      message: tx(
-        'result.confirmMessage',
-        '{{patient}}{{number}} — {{title}}.\n\nYour name and the time will be recorded against this result on the hospital record, and it will show as acknowledged on the desktop inbox too. This cannot be undone from the app.',
-        {
+  async function acknowledgeWith(result: InboxResultDetail, body: AcknowledgeResultBody) {
+    const patient = patientLabelOf(result);
+    try {
+      const updated = await acknowledge.mutateAsync({ id: result.id, body });
+      if (!updated?.acknowledged_at) {
+        // The server answered, but not with an acknowledgement. Do not paint
+        // the screen as done on the strength of a 200 alone.
+        setAckOpen(false);
+        dialog.alert(
+          tx('result.notAckedTitle', 'Not acknowledged'),
+          tx(
+            'result.notAckedBody',
+            'The hospital record did not come back with an acknowledgement. Please try again, or acknowledge it on a workstation.'
+          ),
+          'critical'
+        );
+        void refetch();
+        return;
+      }
+      // What the server recorded wins over what we sent; what we sent fills
+      // in only when the row carries no interpretation block at all.
+      const recordedStep = updated.interpretation?.next_action ?? body.next_action ?? 'none';
+      setServedLinks(updated.next_action_links ?? null);
+      setChosenStep(recordedStep === 'none' ? null : recordedStep);
+      setAckOpen(false);
+      // Re-read so what is on screen is the server's row, not our guess.
+      void refetch();
+      dialog.alert(
+        tx('result.doneTitle', 'Acknowledged'),
+        tx('result.doneBody', 'Recorded against {{patient}} at {{when}} in the name of {{name}}.', {
           patient,
-          number: result.patient_health_id ? ` (${result.patient_health_id})` : '',
-          title: result.title,
+          when: fmtReported(updated.acknowledged_at),
+          name: updated.acknowledged_by_name ?? tx('result.doneNameYou', 'you'),
+        }),
+        'success'
+      );
+    } catch (e) {
+      setAckOpen(false);
+      dialog.alert(
+        tx('result.failedTitle', 'Could not acknowledge'),
+        writeFailureMessage(
+          tr,
+          e,
+          tx(
+            'result.failedHint',
+            'Open this result again — if it shows as acknowledged, it was recorded. If it does not, acknowledge it again or use a workstation.'
+          )
+        ),
+        'critical'
+      );
+      void refetch();
+    }
+  }
+
+  /**
+   * A next step the server could not take. 404 / 405 / 501 on the two new
+   * endpoints means "nothing served it" and is said so; a 422 carries the
+   * server's own sentence; anything else goes through `describeFailure`.
+   */
+  function reportStepFailure(e: unknown, failedTitle: string) {
+    if (isResultStepUnserved(e)) {
+      dialog.alert(
+        tx('result.stepUnservedTitle', 'Not available on this server yet'),
+        tx(
+          'result.stepUnservedBody',
+          'This server does not offer this step from the app yet. Your acknowledgement was recorded; complete this step on a workstation.'
+        ),
+        'warning'
+      );
+      return;
+    }
+    if (isResultStepInvalid(e)) {
+      dialog.alert(
+        tx('result.stepInvalidTitle', 'Check the form'),
+        resultStepFailureMessage(e) ?? describeFailure(e).message,
+        'warning'
+      );
+      return;
+    }
+    dialog.alert(failedTitle, serverMessage(e) ?? describeFailure(e).message, 'critical');
+  }
+
+  /** Follow the chosen next step. Each one is its own act on its own screen. */
+  function takeStep(step: ResultNextAction, result: InterpretedResultDetail) {
+    const links = nextActionLinks(withLinks(result));
+    const needsPatient = () =>
+      dialog.alert(
+        tx('result.nextStepNoPatientTitle', 'Patient record not linked'),
+        tx(
+          'result.nextStepNoPatient',
+          'This step needs the patient’s record, which this notification does not carry. Use a workstation.'
+        ),
+        'warning'
+      );
+    switch (step) {
+      case 'prescribe': {
+        const healthId = healthIdFromPrescribeLink(links.prescribe) ?? result.patient_health_id ?? null;
+        router.push(
+          healthId
+            ? `${doctorRoutes.prescribe}?health_id=${encodeURIComponent(healthId)}`
+            : doctorRoutes.prescribe
+        );
+        return;
+      }
+      case 'follow_up': {
+        const pid = links.follow_up?.patient_id ?? result.patient_id;
+        if (!pid) return needsPatient();
+        // The chart screen opens its follow-up sheet on this param.
+        router.push(`${doctorRoutes.patient(pid)}?followUp=1`);
+        return;
+      }
+      case 'message': {
+        if (links.message?.thread_id) {
+          router.push(doctorRoutes.thread(String(links.message.thread_id)));
+          return;
         }
-      ),
-      confirmLabel: tx('result.confirmCta', 'Acknowledge'),
-      cancelLabel: tx('result.confirmCancel', 'Not yet'),
-      tone: result.is_critical ? 'critical' : 'warning',
-      destructive: result.is_critical,
-      onConfirm: async () => {
-        try {
-          // The mutation takes the notification id itself. It is idempotent on
-          // the server: a second call answers 200 with the ORIGINAL signature,
-          // so a retry after a dropped response cannot make a landed
-          // acknowledgement look failed.
-          const updated = await acknowledge.mutateAsync(result.id);
-          if (!updated?.acknowledged_at) {
-            // The server answered, but not with an acknowledgement. Do not
-            // paint the screen as done on the strength of a 200 alone.
-            dialog.alert(
-              tx('result.notAckedTitle', 'Not acknowledged'),
-              tx(
-                'result.notAckedBody',
-                'The hospital record did not come back with an acknowledgement. Please try again, or acknowledge it on a workstation.'
-              ),
-              'critical'
-            );
-            void refetch();
-            return;
-          }
-          // Re-read so what is on screen is the server's row, not our guess.
-          void refetch();
-          dialog.alert(
-            tx('result.doneTitle', 'Acknowledged'),
-            tx('result.doneBody', 'Recorded against {{patient}} at {{when}} in the name of {{name}}.', {
-              patient,
-              when: fmtReported(updated.acknowledged_at),
-              name: updated.acknowledged_by_name ?? tx('result.doneNameYou', 'you'),
-            }),
-            'success'
-          );
-        } catch (e) {
-          dialog.alert(
-            tx('result.failedTitle', 'Could not acknowledge'),
-            writeFailureMessage(
-              tr,
-              e,
-              tx(
-                'result.failedHint',
-                'Open this result again — if it shows as acknowledged, it was recorded. If it does not, acknowledge it again or use a workstation.'
-              )
-            ),
-            'critical'
-          );
-          void refetch();
-        }
-      },
-    });
+        if (!(links.message?.patient_id ?? result.patient_id)) return needsPatient();
+        setThreadOpen(true);
+        return;
+      }
+      case 'repeat_test': {
+        if (!(links.repeat_test?.patient_id ?? result.patient_id)) return needsPatient();
+        setRepeatOpen(true);
+        return;
+      }
+      case 'none':
+      default:
+        return;
+    }
+  }
+
+  /** POST …/messages/threads, then open the thread the server created. */
+  async function submitThread(result: InterpretedResultDetail, values: { subject: string; body: string }) {
+    const links = nextActionLinks(withLinks(result));
+    const patientId = links.message?.patient_id ?? result.patient_id;
+    if (!patientId) return;
+    try {
+      const thread = await startThread.mutateAsync({ patient_id: patientId, ...values });
+      const threadId = startedThreadId(thread);
+      setThreadOpen(false);
+      if (!threadId) {
+        // Created, said the server, but with no id we can open. Say exactly that.
+        dialog.alert(
+          tx('result.threadNoIdTitle', 'Conversation started'),
+          tx(
+            'result.threadNoIdBody',
+            'The server created the conversation but did not return its reference. Find it under Messages.'
+          ),
+          'warning'
+        );
+        return;
+      }
+      router.push(doctorRoutes.thread(threadId));
+    } catch (e) {
+      setThreadOpen(false);
+      reportStepFailure(e, tx('result.threadFailedTitle', 'Could not start the conversation'));
+    }
+  }
+
+  /** POST …/patients/{id}/lab-orders; "Ordered" is rendered from the answer only. */
+  async function submitRepeat(result: InterpretedResultDetail, values: RepeatTestValues) {
+    const links = nextActionLinks(withLinks(result));
+    const patientId = links.repeat_test?.patient_id ?? result.patient_id;
+    if (!patientId) return;
+    try {
+      const order = await orderTest.mutateAsync({
+        patient_id: patientId,
+        test_name: values.test_name,
+        test_code: values.test_code || undefined,
+        urgency: values.urgency,
+        clinical_indication: values.clinical_indication,
+      });
+      setRepeatOpen(false);
+      setOrdered(order ?? null);
+      if (!order) {
+        dialog.alert(
+          tx('result.orderNoRowTitle', 'Order not confirmed'),
+          tx(
+            'result.orderNoRowBody',
+            'The server did not return the order it created. Check the patient’s chart before ordering again.'
+          ),
+          'warning'
+        );
+      }
+    } catch (e) {
+      setRepeatOpen(false);
+      reportStepFailure(e, tx('result.repeatFailedTitle', 'Could not order the test'));
+    }
   }
 
   // A refresh that failed while the result is on screen must never pass as fresh.
@@ -280,9 +473,37 @@ function ResultDetailScreenBody() {
       />
     );
   } else if (detail.data) {
-    const r = detail.data;
+    const r = detail.data as InterpretedResultDetail;
     const acked = !!r.acknowledged_at;
     const analytes = r.result?.kind === 'lab' ? r.result.analytes ?? [] : [];
+    // `show()` carries the interpretation once one exists; the acknowledge
+    // response (already written into this cache entry) carries it too.
+    const interpretation = r.interpretation ?? null;
+    // The step to offer: the server's recorded one, else the one chosen in
+    // the sheet this session. A step that needs a patient this row does not
+    // carry is still offered — `takeStep` says why it cannot proceed.
+    const recorded = interpretation?.next_action ?? null;
+    const nextStep: ResultNextAction | null = acked
+      ? recorded && recorded !== 'none'
+        ? recorded
+        : chosenStep
+      : null;
+    const nextStepCta = (step: ResultNextAction): string => {
+      switch (step) {
+        case 'prescribe':
+          return tx('result.nextStepOpenPrescribe', 'Open prescribing');
+        case 'follow_up':
+          return tx('result.nextStepBookFollowUp', 'Book a follow-up');
+        case 'message':
+          return nextActionLinks(withLinks(r)).message?.thread_id
+            ? tx('result.nextStepOpenThread', 'Open the conversation')
+            : tx('result.nextStepMessagePatient', 'Message the patient');
+        case 'repeat_test':
+          return tx('result.nextStepRepeatTest', 'Order the repeat test');
+        default:
+          return nextActionLabel(step, tx);
+      }
+    };
 
     body = (
       <>
@@ -441,23 +662,64 @@ function ResultDetailScreenBody() {
         )}
 
         {acked ? (
-          <Card style={styles.ackedCard}>
-            <View style={styles.ackedRow}>
-              <Icon name="check-circle" size={20} color={colors.statusNormal} />
-              <Text style={styles.ackedText}>
-                {tx('result.ackedBy', 'Acknowledged by {{name}} — {{when}}.', {
-                  name: r.acknowledged_by_name ?? tx('result.ackedByUnknown', 'a clinician'),
-                  when: fmtReported(r.acknowledged_at),
-                })}
+          <>
+            <Card style={styles.ackedCard}>
+              <View style={styles.ackedRow}>
+                <Icon name="check-circle" size={20} color={colors.statusNormal} />
+                <Text style={styles.ackedText}>
+                  {tx('result.ackedBy', 'Acknowledged by {{name}} — {{when}}.', {
+                    name: r.acknowledged_by_name ?? tx('result.ackedByUnknown', 'a clinician'),
+                    when: fmtReported(r.acknowledged_at),
+                  })}
+                </Text>
+              </View>
+              <Text style={styles.caption}>
+                {tx(
+                  'result.ackedCaption',
+                  'This is the same acknowledgement the desktop results inbox shows.'
+                )}
               </Text>
-            </View>
-            <Text style={styles.caption}>
-              {tx(
-                'result.ackedCaption',
-                'This is the same acknowledgement the desktop results inbox shows.'
-              )}
-            </Text>
-          </Card>
+            </Card>
+
+            {/* The recorded interpretation, read-only — from the server's row. */}
+            {interpretation ? <InterpretationCard interpretation={interpretation} tx={tx} /> : null}
+
+            {/* The chosen next step, offered — never taken — as a button. */}
+            {nextStep ? (
+              <>
+                <SectionHeader title={tx('result.nextStepTitle', 'Your next step')} />
+                <CareButton
+                  label={nextStepCta(nextStep)}
+                  icon={NEXT_ACTION_ICON[nextStep]}
+                  iconRight="chevron-right"
+                  variant="primary"
+                  onPress={() => takeStep(nextStep, r)}
+                />
+                <Text style={styles.caption}>
+                  {tx(
+                    'result.nextStepCaption',
+                    'Recorded with your acknowledgement as “{{step}}”. Nothing happens until you take it.',
+                    { step: nextActionLabel(nextStep, tx) }
+                  )}
+                </Text>
+              </>
+            ) : null}
+
+            {ordered ? (
+              <NoticeBanner
+                icon="check-circle"
+                tone="normal"
+                title={tx('result.orderedTitle', 'Ordered')}
+                message={
+                  ordered.code
+                    ? tx('result.orderedBodyWithCode', 'Ordered as {{code}}; the laboratory will see it.', {
+                        code: ordered.code,
+                      })
+                    : tx('result.orderedBody', 'Ordered; the laboratory will see it.')
+                }
+              />
+            ) : null}
+          </>
         ) : (
           <>
             <CareButton
@@ -469,12 +731,12 @@ function ResultDetailScreenBody() {
               icon="check-circle"
               variant={r.is_critical ? 'dangerSolid' : 'primary'}
               loading={acknowledge.isPending}
-              onPress={() => askToAcknowledge(r)}
+              onPress={() => setAckOpen(true)}
             />
             <Text style={styles.caption}>
               {tx(
-                'result.ackCaption',
-                'Acknowledging records your name and the time against this result on the hospital record. You will be asked to confirm.'
+                'result.ackCaptionAct',
+                'Acknowledging records your name and the time against this result on the hospital record. You will be asked to confirm, and may add a note for the patient and a next step.'
               )}
             </Text>
           </>
@@ -501,8 +763,106 @@ function ResultDetailScreenBody() {
         {stale}
         {body}
       </ScrollView>
+      {detail.data ? (
+        <ResultActionSheets
+          result={detail.data as InterpretedResultDetail}
+          patientLabel={patientLabelOf(detail.data)}
+          offered={offeredSteps(detail.data)}
+          links={nextActionLinks(withLinks(detail.data as InterpretedResultDetail))}
+          ackOpen={ackOpen && !detail.data.acknowledged_at}
+          onAckClose={() => setAckOpen(false)}
+          ackBusy={acknowledge.isPending}
+          onAck={(body) => void acknowledgeWith(detail.data as InboxResultDetail, body)}
+          threadOpen={threadOpen}
+          onThreadClose={() => setThreadOpen(false)}
+          threadBusy={startThread.isPending}
+          onThread={(values) => void submitThread(detail.data as InterpretedResultDetail, values)}
+          repeatOpen={repeatOpen}
+          onRepeatClose={() => setRepeatOpen(false)}
+          repeatBusy={orderTest.isPending}
+          onRepeat={(values) => void submitRepeat(detail.data as InterpretedResultDetail, values)}
+          tx={tx}
+        />
+      ) : null}
       {dialog.element}
     </SafeAreaView>
+  );
+}
+
+/**
+ * The three sheets this screen can open, mounted together. Pure presentation:
+ * every decision (what to send, what the answer means) stays in the screen.
+ */
+function ResultActionSheets({
+  result,
+  patientLabel,
+  offered,
+  links,
+  ackOpen,
+  onAckClose,
+  ackBusy,
+  onAck,
+  threadOpen,
+  onThreadClose,
+  threadBusy,
+  onThread,
+  repeatOpen,
+  onRepeatClose,
+  repeatBusy,
+  onRepeat,
+  tx,
+}: {
+  result: InterpretedResultDetail;
+  patientLabel: string;
+  offered: readonly ResultNextAction[];
+  links: NextActionLinks;
+  ackOpen: boolean;
+  onAckClose: () => void;
+  ackBusy: boolean;
+  onAck: (body: AcknowledgeResultBody) => void;
+  threadOpen: boolean;
+  onThreadClose: () => void;
+  threadBusy: boolean;
+  onThread: (values: { subject: string; body: string }) => void;
+  repeatOpen: boolean;
+  onRepeatClose: () => void;
+  repeatBusy: boolean;
+  onRepeat: (values: RepeatTestValues) => void;
+  tx: (key: string, defaultValue: string, params?: Record<string, unknown>) => string;
+}) {
+  const testName = result.result?.test_name ?? null;
+  return (
+    <>
+      <AcknowledgeSheet
+        visible={ackOpen}
+        onClose={onAckClose}
+        busy={ackBusy}
+        result={result}
+        patientLabel={patientLabel}
+        offered={offered}
+        onSubmit={onAck}
+        tx={tx}
+      />
+      <StartThreadSheet
+        visible={threadOpen}
+        onClose={onThreadClose}
+        busy={threadBusy}
+        patientLabel={patientLabel}
+        testName={testName}
+        onSubmit={onThread}
+        tx={tx}
+      />
+      <RepeatTestSheet
+        visible={repeatOpen}
+        onClose={onRepeatClose}
+        busy={repeatBusy}
+        patientLabel={patientLabel}
+        testName={links.repeat_test?.test_name ?? testName}
+        testCode={links.repeat_test?.test_code ?? null}
+        onSubmit={onRepeat}
+        tx={tx}
+      />
+    </>
   );
 }
 

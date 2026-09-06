@@ -28,6 +28,7 @@ import {
 } from '@/components/opes-ui';
 import { FieldLabel, FormError, Note } from '@/components/enrol/shared';
 import { Screen } from '@/components/ui/Screen';
+import { AnimatedSeal } from '@/components/auth/AnimatedSeal';
 import { GoogleMark } from '@/components/icons/GoogleMark';
 import { routeToClinicianArea, useAuthStore } from '@/lib/store/auth';
 import {
@@ -343,6 +344,11 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.content}
         >
+          {/* The Health ID's seal, straight under "Welcome back". It lives
+              inside the scroll view so it scrolls away once the keyboard is
+              up, instead of squeezing the form on a small phone. */}
+          <AnimatedSeal />
+
           {SHOW_DEMO_LOGINS ? (
             <DemoAccountPicker
               open={demoMenuOpen}

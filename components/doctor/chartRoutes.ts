@@ -33,6 +33,25 @@
  *   thread         /clinician/messages/[id]              app/clinician/messages/[id].tsx
  *   profile        /clinician/profile                    app/clinician/profile.tsx
  *
+ *   ── The desks (one tab per role family; `lib/staffCapabilities.ts`) ──────
+ *   pharmacy              /clinician/pharmacy                     app/clinician/pharmacy/index.tsx        (dispense)
+ *   pharmacyPrescription  /clinician/pharmacy/prescription/[id]   app/clinician/pharmacy/prescription/[id].tsx
+ *   pharmacyReservation   /clinician/pharmacy/reservation/[id]    app/clinician/pharmacy/reservation/[id].tsx
+ *   pharmacyStock         /clinician/pharmacy/stock               app/clinician/pharmacy/stock.tsx        (pharmacy_stock)
+ *   lab                   /clinician/lab                          app/clinician/lab/index.tsx             (lab_results | sample_collection)
+ *   labOrder              /clinician/lab/order/[id]               app/clinician/lab/order/[id].tsx
+ *   desk                  /clinician/desk                         app/clinician/desk/index.tsx            (front_desk)
+ *   deskAppointment       /clinician/desk/appointment/[id]        app/clinician/desk/appointment/[id].tsx
+ *   deskNewAppointment    /clinician/desk/new-appointment         app/clinician/desk/new-appointment.tsx
+ *   deskRegisterPatient   /clinician/desk/register-patient        app/clinician/desk/register-patient.tsx
+ *   patientFollowUp       /clinician/patient/[id]?followUp=1      the chart, opening on its follow-up sheet
+ *
+ * The desk screens are built by other agents against THESE paths. A hand-off
+ * (the scanner, the lookup, a result's "next step") navigates by path and
+ * never imports a desk module, so it compiles whether or not the desk has
+ * landed yet — and expo-router answers a path with no file behind it with its
+ * own not-found screen rather than a crash.
+ *
  * `patients` (the search list) and `patient` (one chart) are deliberately
  * different segments: a single `patients/[id]` collides with the `patients`
  * index in the tab bar, which is exactly the kind of thing that only shows up
@@ -186,6 +205,50 @@ export const doctorRoutes = {
    * path that hands off to requestAccess() or the chart.
    */
   scan: '/clinician/scan',
+
+  // ── The desks ───────────────────────────────────────────────────────────
+
+  /**
+   * The pharmacy counter (`dispense`). With a Health ID it opens on THAT
+   * patient's dispensable prescriptions — the scanner's and the lookup's
+   * hand-off — otherwise on the queue routed to this facility.
+   */
+  pharmacy: (healthId?: string) =>
+    healthId ? `/clinician/pharmacy?health_id=${seg(healthId)}` : '/clinician/pharmacy',
+  /** One prescription at the counter: accept → ready → dispense. */
+  pharmacyPrescription: (id: string) => `/clinician/pharmacy/prescription/${seg(id)}`,
+  /** One medicine reservation: accept → ready → collected / dispatched → delivered. */
+  pharmacyReservation: (id: string) => `/clinician/pharmacy/reservation/${seg(id)}`,
+  /** Stock on hand and adjustments (`pharmacy_stock`). */
+  pharmacyStock: '/clinician/pharmacy/stock',
+
+  /**
+   * The laboratory bench (`lab_results`; `sample_collection` for collection
+   * only). With a Health ID it opens on THAT patient's orders.
+   */
+  lab: (healthId?: string) =>
+    healthId ? `/clinician/lab?health_id=${seg(healthId)}` : '/clinician/lab',
+  /** One lab order: collect → enter results → release. */
+  labOrder: (id: string) => `/clinician/lab/order/${seg(id)}`,
+
+  /** The front desk: today's facility-wide book (`front_desk`). */
+  desk: '/clinician/desk',
+  /** One appointment as the desk sees it: confirm, check in, route, move, cancel. */
+  deskAppointment: (id: string) => `/clinician/desk/appointment/${seg(id)}`,
+  /** Book a new appointment; with a Health ID the patient is already chosen. */
+  deskNewAppointment: (healthId?: string) =>
+    healthId
+      ? `/clinician/desk/new-appointment?health_id=${seg(healthId)}`
+      : '/clinician/desk/new-appointment',
+  /** Register a patient who has no Health ID yet (via PatientIdentityService). */
+  deskRegisterPatient: '/clinician/desk/register-patient',
+
+  /**
+   * The chart, opening straight onto its "Book follow-up" sheet — what a
+   * result's "next step" pushes. The chart reads `followUp=1` once and drops
+   * it, so a back-swipe does not reopen the sheet.
+   */
+  patientFollowUp: (id: string) => `/clinician/patient/${seg(id)}?followUp=1`,
 } as const;
 
 /** Where a non-clinician is sent back to — the patient app's home tab. */

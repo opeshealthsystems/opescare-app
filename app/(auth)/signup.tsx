@@ -28,6 +28,7 @@ import {
 } from '@/components/opes-ui';
 import { FieldLabel, FormError, Note, SecondaryButton } from '@/components/enrol/shared';
 import { Screen } from '@/components/ui/Screen';
+import { AnimatedSeal } from '@/components/auth/AnimatedSeal';
 import { resolvePostAuthStatus, useAuthStore } from '@/lib/store/auth';
 import { tokenStorage } from '@/lib/api/tokenStorage';
 import { useRegisterPatient } from '@/lib/api/queries';
@@ -351,6 +352,11 @@ export default function SignupScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.content}
         >
+          {/* The emblem the Health ID being created will carry, under the
+              "Create your Health ID" header. A notch smaller than on sign-in
+              so the step rail and the first field stay above the fold. */}
+          <AnimatedSeal size={64} />
+
           <StepProgress
             steps={STEPS.map((value) => ({
               key: String(value),

@@ -148,6 +148,15 @@ export const doctorEndpoints = {
    */
   unreadCounts: `${DOCTOR_API_PREFIX}/messages/unread-count`,
 
+  /**
+   * POST `{ scheduled_at, reason? }` — books a `follow_up` appointment for
+   * this patient with the signed-in clinician as provider, at the token's
+   * facility (`capability:clinical_chart`, `routes/mobile_doctor_schedule.php`).
+   * `patientId` is the Health ID or the record uuid, like every chart route.
+   * 403 `role_forbidden` for a non-clinician; 422 for a time in the past.
+   */
+  patientFollowUp: (patientId: string) => `${DOCTOR_API_PREFIX}/patients/${patientId}/follow-up`,
+
   /** GET / PUT. */
   profile: `${DOCTOR_API_PREFIX}/profile`,
   /** POST multipart `photo`. */
@@ -743,6 +752,39 @@ export function useRescheduleDoctorAppointment() {
         scheduled_at: toClinicWallClock(when),
         ...(durationMinutes ? { duration_minutes: durationMinutes } : {}),
       }),
+    onSuccess: invalidate,
+  });
+}
+
+/** What the follow-up sheet sends. `reason` is optional and trimmed; blank is not sent. */
+export interface FollowUpInput {
+  /** The Health ID (or record uuid) — the same key the chart is opened with. */
+  patientId: string;
+  /** The wall-clock time the clinician picked; sent as `toClinicWallClock`. */
+  when: Date;
+  reason?: string;
+}
+
+/**
+ * `POST /mobile/doctor/patients/{id}/follow-up` — books a `follow_up`
+ * appointment for the patient with THIS clinician, at the token's facility.
+ *
+ * The time is sent exactly as the reschedule sends one (`toClinicWallClock`),
+ * so the two writers on this surface agree about what a picked time means.
+ * On success the diary, the home counts and the requests list are all
+ * re-read; the new appointment is the mutation's result, so a screen can show
+ * it (and open it) without guessing at what the server stored.
+ */
+export function useBookFollowUp() {
+  const invalidate = useInvalidateAppointments();
+  return useMutation({
+    mutationFn: ({ patientId, when, reason }: FollowUpInput) => {
+      const trimmed = reason?.trim();
+      return postData<StaffAppointment>(doctorEndpoints.patientFollowUp(patientId), {
+        scheduled_at: toClinicWallClock(when),
+        ...(trimmed ? { reason: trimmed } : {}),
+      });
+    },
     onSuccess: invalidate,
   });
 }

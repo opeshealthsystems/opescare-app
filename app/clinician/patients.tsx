@@ -36,12 +36,21 @@
  * Health ID" when the truth is "this server has no clinician service" is
  * exactly the kind of confident wrong answer a chart app must never give.
  *
+ * ── WHERE A CONFIRMED IDENTITY LEADS, PER ROLE ────────────────────────────
+ * A clinician's match opens the chart. Every other role stays on the identity
+ * and is handed to ITS desk, by path (`components/doctor/chartRoutes.ts`) and
+ * never by importing a desk screen — the desks are built by other agents:
+ *
+ *   pharmacist (dispense)         Dispense for this patient → /clinician/pharmacy?health_id=…
+ *   receptionist (front_desk)     Check in / book → /clinician/desk/new-appointment?health_id=…
+ *   lab (lab_results | sample_collection)   Lab orders → /clinician/lab?health_id=…
+ *   + Ask for access, for any role holding `request_access`
+ *
  * i18n: the `opesDoctor.search.*` catalogue was written for the NAME search
  * this screen deliberately does not do (`search.placeholder` reads "Name or
- * medical record number"). Those keys are left alone — locale files are not
- * edited here — and the ID-specific strings carry English `defaultValue`s
- * until keys for them land. Reused as-is: `search.title`, `search.searching`,
- * `search.years`, `search.allergiesBadge`.
+ * medical record number"). Those keys are left alone, and the ID-specific
+ * strings carry English `defaultValue`s. Reused as-is: `search.title`,
+ * `search.searching`, `search.years`, `search.allergiesBadge`.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -87,7 +96,7 @@ import {
 import { sexLabel } from '@/components/doctor/chartShared';
 import { patientName, staffTypeLabel } from '@/components/doctor/scheduleShared';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
-import { useStaffCapability } from '@/lib/staffCapabilities';
+import { useHasProviderSession, useStaffCapability } from '@/lib/staffCapabilities';
 
 /** One submitted lookup. The nonce lets the same ID be looked up twice. */
 type LookupRequest = { healthId: string; nonce: number };
@@ -116,7 +125,20 @@ export default function PatientLookupScreen() {
   const canChart = useStaffCapability('clinical_chart');
   const canRequestAccess = useStaffCapability('request_access');
   const canEmergency = useStaffCapability('emergency_access');
-  const canSchedule = useStaffCapability('schedule');
+  const holdsSchedule = useStaffCapability('schedule');
+  // The desks, for a REAL provider session only — the same decision as the
+  // tab bar's (`_layout.tsx`), so a hand-off never points at a tab the bar
+  // does not have. The preview persona keeps the clinician's paths.
+  const realSession = useHasProviderSession();
+  const holdsDispense = useStaffCapability('dispense');
+  const holdsFrontDesk = useStaffCapability('front_desk');
+  const holdsLab = useStaffCapability('lab_results', 'sample_collection');
+  const canDispense = realSession && holdsDispense;
+  const canFrontDesk = realSession && holdsFrontDesk;
+  const canLab = realSession && holdsLab;
+  // The diary below is the clinician's OWN. The front desk holds `schedule`
+  // for the FACILITY's book, which is the Desk tab — so no diary here for it.
+  const canSchedule = holdsSchedule && !canFrontDesk;
   const params = useLocalSearchParams<{ health_id?: string }>();
 
   const [entry, setEntry] = useState('');
@@ -237,8 +259,31 @@ export default function PatientLookupScreen() {
     );
   } else if (match) {
     // The chart only for a role that holds it. Everyone else ends on the
-    // confirmed identity — demographics, never clinical history — with the
-    // consent request offered only to roles the server would let ask.
+    // confirmed identity — demographics, never clinical history — and is
+    // handed to ITS desk by path (`chartRoutes`): the counter, the front
+    // desk's booking form, the bench. The consent request is offered only to
+    // roles the server would let ask. Nothing the server would refuse is drawn.
+    const handOffs: { key: string; label: string; icon: 'pill' | 'calendar-plus' | 'flask' | 'key'; route: string }[] = [];
+    if (canDispense) {
+      handOffs.push({ key: 'dispense', label: tx('search.dispense', 'Dispense for this patient'), icon: 'pill', route: doctorRoutes.pharmacy(match.health_id) });
+    }
+    if (canFrontDesk) {
+      handOffs.push({ key: 'desk', label: tx('search.checkInBook', 'Check in / book'), icon: 'calendar-plus', route: doctorRoutes.deskNewAppointment(match.health_id) });
+    }
+    if (canLab) {
+      handOffs.push({ key: 'lab', label: tx('search.labOrders', 'Lab orders for this patient'), icon: 'flask', route: doctorRoutes.lab(match.health_id) });
+    }
+    if (canRequestAccess) {
+      handOffs.push({ key: 'ask', label: tx('search.askAccess', 'Ask for access'), icon: 'key', route: doctorRoutes.requestAccess(match.health_id) });
+    }
+    const roleNote = canFrontDesk
+      ? tx('search.deskNote', 'Book or check this patient in from here. Today’s book is in the Desk tab.')
+      : canDispense
+        ? tx('search.dispenseNote', 'Dispense against this patient’s prescriptions from here. Their chart is not part of your role.')
+        : canLab
+          ? tx('search.labNote', 'Open this patient’s laboratory orders from here. Their chart is not part of your role.')
+          : tx('search.noChartForRole', 'Their chart is not part of your role.');
+
     result = (
       <>
         <SectionHeader
@@ -257,18 +302,18 @@ export default function PatientLookupScreen() {
         </Card>
         {!canChart && (
           <Card>
-            <Text style={styles.note}>
-              {tx('search.noChartForRole', 'Their chart is not part of your role.')}
-            </Text>
-            {canRequestAccess && (
-              <View style={[styles.actions, styles.noteSpaced]}>
-                <CareButton
-                  label={tx('search.askAccess', 'Ask for access')}
-                  icon="key"
-                  variant="secondary"
-                  style={styles.action}
-                  onPress={() => router.push(doctorRoutes.requestAccess(match.health_id))}
-                />
+            <Text style={styles.note}>{roleNote}</Text>
+            {handOffs.length > 0 && (
+              <View style={[styles.stack, styles.noteSpaced]}>
+                {handOffs.map((h, i) => (
+                  <CareButton
+                    key={h.key}
+                    label={h.label}
+                    icon={h.icon}
+                    variant={i === 0 ? 'primary' : 'secondary'}
+                    onPress={() => router.push(h.route)}
+                  />
+                ))}
               </View>
             )}
           </Card>
@@ -583,5 +628,6 @@ const makeStyles = (colors: Palette) =>
     noteSpaced: { marginTop: spacing.sm },
     actions: { flexDirection: 'row', gap: spacing.sm },
     action: { flex: 1 },
+    stack: { gap: spacing.sm },
     section: { gap: 0 },
   });

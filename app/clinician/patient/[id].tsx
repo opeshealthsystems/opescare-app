@@ -11,6 +11,12 @@
  * where the decision support and the signing flow live, and `ReadOnlyFooter`
  * says so out loud rather than leaving it to be discovered.
  *
+ * The ONE write offered here is "Book follow-up" (the header action, and
+ * `components/doctor/FollowUpSheet.tsx`): a `follow_up` appointment with this
+ * clinician at their facility — a diary entry, not a clinical act on the
+ * record. `?followUp=1` opens the sheet on arrival, which is how a result's
+ * "next step" lands here (`doctorRoutes.patientFollowUp`).
+ *
  * ── THREE INDEPENDENT LOADS, AND WHY ──────────────────────────────────────
  *
  *   1. identity   `useChartPatient`    — the header is useful the moment it lands
@@ -61,12 +67,13 @@
  * `defaultValue` and is staged for translation in
  * `lib/i18n/pending/doctor_chart.{en,fr}.json`. Locale files are not edited here.
  */
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { RoleGate, RoleRefusedNotice } from '@/components/doctor/RoleGate';
+import { FollowUpSheet } from '@/components/doctor/FollowUpSheet';
 import { isRoleForbidden } from '@/lib/api/roleErrors';
 import { useStaffCapability } from '@/lib/staffCapabilities';
 import type { UseQueryResult } from '@tanstack/react-query';
@@ -165,8 +172,21 @@ function PatientChartScreenBody() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, followUp } = useLocalSearchParams<{ id: string; followUp?: string }>();
   const patientId = typeof id === 'string' && id.length > 0 ? id : undefined;
+
+  // ── Book follow-up ──────────────────────────────────────────────────────
+  // The one write this read-only chart offers: a `follow_up` appointment with
+  // THIS clinician (`useBookFollowUp`, capability clinical_chart — the gate
+  // above). `?followUp=1` (a result's "next step", `doctorRoutes.patientFollowUp`)
+  // opens the sheet once per mount; coming back to the chart does not reopen it.
+  const [followUpOpen, setFollowUpOpen] = useState(false);
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (autoOpened.current || !patientId || followUp !== '1') return;
+    autoOpened.current = true;
+    setFollowUpOpen(true);
+  }, [followUp, patientId]);
 
   const tx = useCallback<Tx>(
     (key, defaultValue, params) => String(t(`opesDoctor.${key}`, { defaultValue, ...params })),
@@ -205,6 +225,19 @@ function PatientChartScreenBody() {
       <ScreenHeader
         title={patient?.name ?? tx('chart.title', 'Patient Chart')}
         subtitle={patient?.health_id ?? undefined}
+        actions={
+          // Only over a chart that opened: a follow-up for a record this
+          // clinician could not read is not offered.
+          identityDead
+            ? undefined
+            : [
+                {
+                  icon: 'calendar-plus',
+                  accessibilityLabel: tx('followUp.action', 'Book follow-up'),
+                  onPress: () => setFollowUpOpen(true),
+                },
+              ]
+        }
       />
 
       <ScrollView
@@ -277,6 +310,15 @@ function PatientChartScreenBody() {
 
         <ReadOnlyFooter />
       </ScrollView>
+
+      {patientId && (
+        <FollowUpSheet
+          visible={followUpOpen}
+          patientId={patientId}
+          patientLabel={patient?.name ?? patient?.health_id ?? null}
+          onClose={() => setFollowUpOpen(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }

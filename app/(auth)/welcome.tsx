@@ -4,11 +4,9 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   GradientButton,
-  Icon,
   PulseLogo,
   Watermark,
   Wordmark,
-  radii,
   spacing,
   typography,
   useTheme,
@@ -17,6 +15,7 @@ import {
 } from '@/components/opes-ui';
 import { Bullet, Note } from '@/components/enrol/shared';
 import { Screen } from '@/components/ui/Screen';
+import { AnimatedSeal } from '@/components/auth/AnimatedSeal';
 
 /**
  * The front door — the OPES kit's CORE-003 Onboarding Welcome, flattened onto
@@ -76,9 +75,9 @@ export default function WelcomeScreen() {
         <Text style={styles.tagline}>{t('opesCore.onboarding.welcomeTagline')}</Text>
         <Text style={styles.body}>{t('opesCore.onboarding.welcomeBody')}</Text>
 
-        <View style={styles.heroArt}>
-          <Icon name="heart-pulse" size={72} color={colors.blue} strokeWidth={1.6} />
-        </View>
+        {/* The Health ID's own seal stands where a generic hero glyph used to,
+            so the front door shows the artwork the credential carries. */}
+        <AnimatedSeal style={styles.seal} />
 
         <Text style={styles.sectionTitle}>{t('opesCore.onboarding.valuesTitle')}</Text>
         <View style={styles.valueList}>
@@ -137,16 +136,7 @@ const makeStyles = (colors: Palette) =>
       textAlign: 'center',
     },
 
-    heroArt: {
-      alignSelf: 'center',
-      marginVertical: spacing.md,
-      width: 148,
-      height: 148,
-      borderRadius: radii.pill,
-      backgroundColor: colors.primarySoft,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
+    seal: { alignSelf: 'center', marginVertical: spacing.sm },
 
     sectionTitle: {
       fontFamily: typography.fontFamily.semiBold,

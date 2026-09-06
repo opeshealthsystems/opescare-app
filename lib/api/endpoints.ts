@@ -72,6 +72,8 @@ export const endpoints = {
     `/mobile/family/invitations/${encodeURIComponent(id)}/decline`,
 
   consentRequests: '/mobile/consent-requests',
+  /** GET → `{ data: { pending } }` — polled by components/consent/ConsentPromptWatcher.tsx. */
+  consentPendingCount: '/mobile/consent-requests/pending-count',
   approveConsent: (id: string) => `/mobile/consent-requests/${id}/approve`,
   denyConsent: (id: string) => `/mobile/consent-requests/${id}/deny`,
   revokeConsent: (id: string) => `/mobile/consents/${id}/revoke`,
@@ -132,4 +134,98 @@ export const endpoints = {
   // App\Modules\Offline\Services\SyncService for later reconciliation.
   offlinePolicies: '/mobile/offline/policies',
   offlinePolicyQueue: (policyId: string) => `/mobile/offline/policies/${policyId}/queue`,
+
+  // Pharmacy DESK — the PHARMACIST'S side of `/mobile/pharmacy-desk`, behind a
+  // provider token (`auth.provider` + `capability:dispense`; the two stock
+  // routes `capability:pharmacy_stock`). Distinct audience from the patient
+  // finder paths above (`medicineSearch`, `medicineReservations`…), which are
+  // patient-token routes. Coded against the "Pharmacy desk" contract in the
+  // role-dashboards plan; the data layer is `lib/api/pharmacyDeskQueries.ts`.
+  // There is deliberately NO single-item GET here — the contract has none; a
+  // detail screen is derived from the queue it came from.
+  pharmacyDesk: {
+    /** GET → `{ data: { facility, counts } }`. */
+    home: '/mobile/pharmacy-desk/home',
+    /** GET `?status=incoming|preparing|ready|dispensed` — routed to THIS facility. */
+    prescriptions: '/mobile/pharmacy-desk/prescriptions',
+    /** GET `?health_id=` (EXACT) — this patient's active prescriptions dispensable here. */
+    prescriptionLookup: '/mobile/pharmacy-desk/prescriptions/lookup',
+    /** POST. */
+    acceptPrescription: (id: string) =>
+      `/mobile/pharmacy-desk/prescriptions/${encodeURIComponent(id)}/accept`,
+    /** POST. */
+    readyPrescription: (id: string) =>
+      `/mobile/pharmacy-desk/prescriptions/${encodeURIComponent(id)}/ready`,
+    /** POST `{ items: [{ id, quantity_dispensed? }], notes? }`. */
+    dispensePrescription: (id: string) =>
+      `/mobile/pharmacy-desk/prescriptions/${encodeURIComponent(id)}/dispense`,
+    /** GET `?status=pending|accepted|ready|collected|dispatched|delivered|cancelled`. */
+    reservations: '/mobile/pharmacy-desk/reservations',
+    /** POST — `action` is one of accept · ready · collected · dispatch · delivered · cancel. */
+    reservationAction: (id: string, action: string) =>
+      `/mobile/pharmacy-desk/reservations/${encodeURIComponent(id)}/${action}`,
+    /** GET `?q=&low=1`. */
+    stock: '/mobile/pharmacy-desk/stock',
+    /** POST `{ delta, reason }` — writes a StockMovement. */
+    adjustStock: (id: string) => `/mobile/pharmacy-desk/stock/${encodeURIComponent(id)}/adjust`,
+  },
+
+  // Lab DESK — the LAB TECHNICIAN'S side, behind a provider token
+  // (`auth.provider` + `capability:lab_results`; `/collect` additionally admits
+  // `sample_collection`). Distinct audience from the patient `/mobile/labs/*`
+  // paths in `lib/api/labsQueries.ts`, which are patient-token routes. Coded
+  // against the "Lab desk" contract in the role-dashboards plan; the data
+  // layer is `lib/api/labDeskQueries.ts`. Every list is scoped to the token's
+  // facility by the server — nothing here names a facility.
+  labDesk: {
+    /** GET → `{ data: { facility, counts } }`. */
+    home: '/mobile/lab/home',
+    /** GET `?status=ordered|collected|in_progress|resulted&urgency=` — THIS facility. */
+    orders: '/mobile/lab/orders',
+    /** GET → the order + `results[]` + `reference_ranges[]`. */
+    order: (id: string) => `/mobile/lab/orders/${encodeURIComponent(id)}`,
+    /** POST → status `collected`. */
+    collectOrder: (id: string) => `/mobile/lab/orders/${encodeURIComponent(id)}/collect`,
+    /** POST `{ results: [{ parameter_name, value, unit?, reference_range?, flag?, loinc_code?, notes? }] }` → status `in_progress`. */
+    orderResults: (id: string) => `/mobile/lab/orders/${encodeURIComponent(id)}/results`,
+    /** POST → status `resulted`; notifies the patient and the ordering clinician. 409 once released. */
+    releaseOrder: (id: string) => `/mobile/lab/orders/${encodeURIComponent(id)}/release`,
+    /** GET — patient test requests submitted to THIS facility. */
+    requests: '/mobile/lab/requests',
+    /** POST — creates the LabOrder. */
+    approveRequest: (id: string) => `/mobile/lab/requests/${encodeURIComponent(id)}/approve`,
+    /** POST `{ reason }`. */
+    declineRequest: (id: string) => `/mobile/lab/requests/${encodeURIComponent(id)}/decline`,
+  },
+
+  // Front DESK — the RECEPTIONIST'S side, behind a provider token
+  // (`auth.provider` + `capability:front_desk`). The facility-wide appointment
+  // book: confirm, check in (opens the visit), route to a clinician, move,
+  // cancel, no-show; book by EXACT Health ID; register a walk-in patient.
+  // Coded against the "Front desk" contract in the role-dashboards plan; the
+  // data layer is `lib/api/deskQueries.ts`. There is deliberately NO
+  // single-item GET here — the contract has none; the detail screen is derived
+  // from the day list it came from.
+  desk: {
+    /** GET → `{ data: { facility, counts: { today_total, awaiting_confirmation, checked_in, no_show, cancelled } } }`. */
+    home: '/mobile/desk/home',
+    /** GET `?date=YYYY-MM-DD&status=&provider_id=` — the whole facility's book. POST `{ health_id, scheduled_at, appointment_type, provider_id?, reason? }` books one. */
+    appointments: '/mobile/desk/appointments',
+    /** GET → `{ data: [{ id, name, role }] }` — clinicians posted at THIS facility. */
+    providers: '/mobile/desk/providers',
+    /** PUT `{ scheduled_at }` — moves the appointment outright. */
+    appointment: (id: string) => `/mobile/desk/appointments/${encodeURIComponent(id)}`,
+    /** PATCH `{ provider_id }` — assigns a clinician. */
+    routeAppointment: (id: string) => `/mobile/desk/appointments/${encodeURIComponent(id)}/route`,
+    /** POST. */
+    confirmAppointment: (id: string) => `/mobile/desk/appointments/${encodeURIComponent(id)}/confirm`,
+    /** POST — opens the visit at this facility under the signed-in receptionist. */
+    checkInAppointment: (id: string) => `/mobile/desk/appointments/${encodeURIComponent(id)}/check-in`,
+    /** POST. */
+    noShowAppointment: (id: string) => `/mobile/desk/appointments/${encodeURIComponent(id)}/no-show`,
+    /** POST `{ reason }` — the reason is required. */
+    cancelAppointment: (id: string) => `/mobile/desk/appointments/${encodeURIComponent(id)}/cancel`,
+    /** POST `{ first_name, last_name, date_of_birth, sex, phone? }` → 201 `{ data: ProviderPatientSummary }`; 409 `duplicate_identity` on a match. */
+    patients: '/mobile/desk/patients',
+  },
 } as const;

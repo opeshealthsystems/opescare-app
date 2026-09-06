@@ -4,7 +4,17 @@
  * Port of OPES DIA-002 (UIUX/src/screens/diagnostics/LabResultDetailScreen.tsx):
  * the order identity block, the ordering provider, the normal / low / high /
  * critical counters, the full result table with reference ranges and flag
- * colours, and the clinician's interpretation.
+ * colours, the clinician's review note, and why the test was ordered.
+ *
+ * "Your clinician's note" (T7) lists `interpretations` — the SHARED notes a
+ * reviewing clinician wrote for the patient, with author and date, straight
+ * from `GET /mobile/labs/{id}`. With none, the card says "Not yet reviewed",
+ * or "Reviewed on … — no note was shared" when `reviewed_at` is set. The
+ * block that used to be labelled "Interpretation" is the ORDER's
+ * `clinical_notes` / `result_summary` — the pre-test indication — and is now
+ * labelled "Why this test was ordered" so a patient does not read the reason
+ * for a test as its verdict. Types for the additions live in
+ * `lib/api/labInterpretationTypes.ts` (labsQueries.ts is owned elsewhere).
  *
  * Navigation is expo-router: a numeric row opens `/labs/[id]/trend?analyte=…`,
  * the PDF / share tiles open `/labs/[id]/report`, "Contact" and "Send to
@@ -55,6 +65,7 @@ import {
   type LabOrderDetail,
   type PortalLabResult,
 } from '@/lib/api/labsQueries';
+import type { LabInterpretation, LabOrderDetailWithInterpretations } from '@/lib/api/labInterpretationTypes';
 import { LabsUnavailable, resultFlagLabel, useLabsT, type Tx } from './index';
 
 function columns(tx: Tx): TableColumn[] {
@@ -89,7 +100,9 @@ export default function LabResultDetailScreen() {
   const orderId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const query = useLabResult(orderId);
-  const order = query.data ?? null;
+  // Read through the T7 extension: `interpretations` / `reviewed_at` are
+  // optional, so a server without them renders "not yet reviewed".
+  const order = (query.data ?? null) as LabOrderDetailWithInterpretations | null;
   const COLUMNS = useMemo(() => columns(tx), [tx]);
   // The lab sent no bounds → print the same honest wording the full report
   // uses, never a bare "—" that reads as "no data".
@@ -123,6 +136,10 @@ export default function LabResultDetailScreen() {
     const results = order.results ?? [];
     const critical = results.filter((r) => r.flag === 'critical');
     const trendable = results.find((r) => r.numeric_value !== null);
+    // Only notes with text are listed; the server already sends shared ones only.
+    const notes: LabInterpretation[] = (order.interpretations ?? []).filter(
+      (n) => typeof n?.patient_note === 'string' && n.patient_note.trim() !== ''
+    );
 
     return (
       <>
@@ -323,10 +340,53 @@ export default function LabResultDetailScreen() {
           )}
         </Card>
 
-        {/* ── Interpretation ─────────────────────────────────────────── */}
+        {/* ── Your clinician's note ─────────────────────────────────── */}
+        <Card>
+          <Overline label={tx('result.clinicianNote', 'Your clinician’s note')} style={styles.overlineGap} />
+          {notes.length > 0 ? (
+            notes.map((n, i) => (
+              <View key={`${n.at ?? 'n'}-${i}`} style={[styles.noteItem, i > 0 && styles.noteItemGap]}>
+                <InfoStrip icon="check-circle" tone="normal">
+                  <Text style={styles.interpretation}>{n.patient_note}</Text>
+                  <View style={styles.signRow}>
+                    <Text style={styles.signText} numberOfLines={1}>
+                      {n.author_name && n.author_role
+                        ? tx('result.noteAuthor', '{{name}}, {{role}}', { name: n.author_name, role: n.author_role })
+                        : n.author_name ?? n.author_role ?? tx('result.noteAuthorUnknown', 'Your clinician')}
+                    </Text>
+                    {!!n.at && <Text style={styles.signText}>{fmtDateTime(n.at)}</Text>}
+                  </View>
+                </InfoStrip>
+              </View>
+            ))
+          ) : order.reviewed_at ? (
+            <InfoStrip icon="check-circle" tone="normal">
+              <Text style={styles.noticeTitle}>
+                {tx('result.reviewedNoNote', 'Reviewed on {{date}} — no note was shared', {
+                  date: fmtDate(order.reviewed_at),
+                })}
+              </Text>
+              <Text style={styles.noticeBody}>
+                {tx(
+                  'result.reviewedNoNoteBody',
+                  'A clinician has seen this result. If you have questions, contact the ordering clinician.'
+                )}
+              </Text>
+            </InfoStrip>
+          ) : (
+            <InfoStrip icon="clock" tone="pending">
+              <Text style={styles.noticeTitle}>{tx('result.notReviewed', 'Not yet reviewed by your clinician')}</Text>
+              <Text style={styles.noticeBody}>
+                {tx('result.notReviewedBody', 'When a clinician reviews this result, their note appears here.')}
+              </Text>
+            </InfoStrip>
+          )}
+        </Card>
+
+        {/* ── Why this test was ordered (the order's own notes) ─────── */}
         {!!(order.clinical_notes || order.result_summary) && (
           <Card>
-            <Overline label={tx('result.interpretation', 'Interpretation')} style={styles.overlineGap} />
+            <Overline label={tx('result.whyOrdered', 'Why this test was ordered')} style={styles.overlineGap} />
             <InfoStrip icon="document-text" tone="pending">
               <Text style={styles.interpretation}>{order.clinical_notes ?? order.result_summary}</Text>
               <View style={styles.signRow}>
@@ -560,6 +620,8 @@ const makeStyles = (colors: Palette) =>
       color: colors.textPrimary,
     },
     signRow: { marginTop: spacing.sm },
+    noteItem: {},
+    noteItemGap: { marginTop: spacing.sm },
     signText: {
       fontFamily: typography.fontFamily.regular,
       fontSize: 11,

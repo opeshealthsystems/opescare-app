@@ -12,49 +12,56 @@
  * It is a UI gate, NOT a security boundary. The server authorises every
  * request on the token it was given; this only decides what is worth drawing.
  *
- * Today `useIsDoctor()` is false for every real session — the finder mints
- * only patient tokens — so this screen IS what `/clinician` shows unless the
- * dev override `EXPO_PUBLIC_DOCTOR_PERSONA=1` is set. See `lib/store/auth.ts`.
- *
- * ── THE BACKEND GAP ───────────────────────────────────────────────────────
- * The finder serves no `/mobile/doctor/*` routes yet, so EVERY doctor hook
- * 404s — including the unread-count query behind the messages badge. Nothing
- * here may spin forever or crash on that: `doctorRetry` does not retry a 404,
- * the badge simply stays absent, and each screen renders an honest
- * `EmptyState`.
- *
  * ── THE BAR (UIUX/DESIGN_SPEC.md §11) ─────────────────────────────────────
- * Five slots, no centre FAB — a clinician's bar has no Quick Add:
- *
- *     Home  |  Schedule  |  Patients  |  Results  |  Messages•
- *
+ * Five slots at most, no centre FAB — a clinician's bar has no Quick Add.
  * Height `62 + insets.bottom`, `colors.surface` on a 1px `colors.border` top
  * line, active `colors.blue`, inactive `colors.textMuted`, 11px medium labels,
  * 24px icons at stroke 2.0, and the `colors.badge` pip on Messages. Every
  * value is a kit token; nothing here is a literal colour.
  *
  * ── THE BAR, PER ROLE ─────────────────────────────────────────────────────
- * The five slots are the DOCTOR'S bar. Every professional with a posting can
- * hold a provider token — receptionists, pharmacists, lab staff — and the
- * server refuses each of them the routes their role lacks (403
- * `role_forbidden`, per `config/staff_capabilities.php`, mirrored in
- * `lib/staffCapabilities.ts`). A slot whose capability the role does not hold
- * is registered with `href: null`: still a route, never a button. Today and
- * Patients stay for everyone, so the bar never has fewer than two slots:
+ * Every professional with a posting holds a provider token — receptionists,
+ * pharmacists, lab staff as well as doctors and nurses — and the server
+ * refuses each of them the routes their role lacks (403 `role_forbidden`, per
+ * `config/staff_capabilities.php`, mirrored in `lib/staffCapabilities.ts`).
+ * Each role gets ITS desk in the second slot, and a slot whose capability the
+ * role does not hold is registered with `href: null`: still a route, never a
+ * button. Today and Patients stay for everyone, so the bar never has fewer
+ * than two slots:
  *
- *     doctor / nurse   Today · Schedule · Patients · Results · Messages
- *     receptionist     Today · Schedule · Patients · Messages
- *     pharmacist       Today · Patients · Messages
- *     lab technician   Today · Patients · Results · Messages
+ *     doctor / nurse / trainee / supervisor (clinical_chart)
+ *                      Today · Schedule · Patients · Results · Messages
+ *     pharmacist (dispense)
+ *                      Today · Pharmacy · Patients · Messages
+ *     medicine_stock (pharmacy_stock without dispense)
+ *                      Today · Stock · Patients
+ *     lab (lab_results | sample_collection)
+ *                      Today · Lab · Patients · Messages
+ *     receptionist (front_desk)
+ *                      Today · Desk · Patients · Messages
+ *
+ * Why the diary and the inbox are not simply "whoever holds the capability":
+ *   • `schedule` — the front desk holds it on the server (it reads the
+ *     FACILITY's book), but the Schedule tab here is the clinician's OWN diary
+ *     (`/mobile/doctor/appointments`, provider = me). The facility book is the
+ *     Desk tab, so the diary slot is hidden for a front-desk role.
+ *   • `results` — the inbox is the CLINICIAN's acknowledgement queue. Lab
+ *     staff enter and release results on the Lab tab; showing them the
+ *     acknowledgement inbox as well would be two doors onto one bench.
+ *
+ * The clinician PREVIEW (`EXPO_PUBLIC_DOCTOR_PERSONA`, no provider account)
+ * is unrestricted by `useStaffCapability`, which would put every desk in the
+ * bar at once — eight buttons. It gets the doctor's bar; the desks stay
+ * routable for it, just not as buttons.
  *
  * ── EVERY OTHER ROUTE IN THE GROUP ────────────────────────────────────────
  * A `Tabs` navigator turns EVERY child route into a tab button unless it is
  * registered with `href: null`. The detail routes below are therefore listed
- * explicitly. Several of them (and some of the five slots) are still being
- * written by other agents: expo-router answers a `Tabs.Screen` naming a file
- * that does not exist yet with a dev-only `console.warn`, which is the right
- * trade — the alternative is a stray tab button appearing in the bar the
- * moment someone adds a file. Route paths come from
+ * explicitly. Several of them are still being written by other agents
+ * (`pharmacy/*`, `lab/*`, `desk/*`): expo-router answers a `Tabs.Screen`
+ * naming a file that does not exist yet with a dev-only `console.warn`,
+ * which is the right trade — the alternative is a stray tab button appearing
+ * in the bar the moment someone adds a file. Route paths come from
  * `components/doctor/chartRoutes.ts`, which is the map all of us build to.
  */
 import { useCallback } from 'react';
@@ -65,7 +72,7 @@ import { useTranslation } from 'react-i18next';
 import { Icon, iconStroke, typography, useTheme, type IconName } from '@/components/opes-ui';
 import { useDoctorUnreadCounts } from '@/lib/api/doctorQueries';
 import { useIsDoctor } from '@/lib/store/auth';
-import { useStaffCapability } from '@/lib/staffCapabilities';
+import { useHasProviderSession, useStaffCapability } from '@/lib/staffCapabilities';
 import { WrongAppScreen } from './wrong-app';
 
 /**
@@ -84,6 +91,9 @@ function tabIcon(name: IconName) {
   );
 }
 
+/** `href` for a slot: a button when the role holds it, a hidden route otherwise. */
+const slot = (held: boolean) => (held ? undefined : null);
+
 export default function DoctorLayout() {
   const isDoctor = useIsDoctor();
 
@@ -100,13 +110,26 @@ function DoctorTabs() {
   const insets = useSafeAreaInsets();
 
   // ── Which slots this ROLE gets (`lib/staffCapabilities.ts`) ─────────────
-  // `href: null` keeps a route mounted and navigable but takes its button out
-  // of the bar — the same mechanism the detail routes below use. Today and
-  // Patients are never hidden: every professional identifies patients, and a
-  // bar is never drawn with fewer than two slots.
-  const canSchedule = useStaffCapability('schedule');
-  const canResults = useStaffCapability('clinical_chart', 'lab_results');
+  const realSession = useHasProviderSession();
+  const canChart = useStaffCapability('clinical_chart');
   const canMessage = useStaffCapability('messaging');
+  const holdsSchedule = useStaffCapability('schedule');
+  const holdsFrontDesk = useStaffCapability('front_desk');
+  const holdsDispense = useStaffCapability('dispense');
+  const holdsStock = useStaffCapability('pharmacy_stock');
+  const holdsLab = useStaffCapability('lab_results', 'sample_collection');
+
+  // The desks are drawn only for a real provider session (see the module note).
+  const canFrontDesk = realSession && holdsFrontDesk;
+  const canDispense = realSession && holdsDispense;
+  const canLab = realSession && holdsLab;
+  // Stock is a TAB only for a role that holds stock without the counter
+  // (medicine_stock); a pharmacist reaches it from inside Pharmacy.
+  const stockIsTab = realSession && holdsStock && !holdsDispense;
+  // The clinician's own diary — not the facility book (that is Desk).
+  const canSchedule = holdsSchedule && !canFrontDesk;
+  // The acknowledgement inbox is the clinician's; lab staff have the Lab tab.
+  const canResults = canChart;
 
   // Cheap: one 30s-stale query shared with the messages screen, polled a
   // minute apart, with no retry on a final answer. A count we do not have is
@@ -146,27 +169,69 @@ function DoctorTabs() {
         },
       }}
     >
-      {/* ── The five slots ─────────────────────────────────────────────── */}
+      {/* ── Slot 1: Today, for everyone ──────────────────────────────────── */}
       <Tabs.Screen
         name="home"
         options={{ title: tx('tabs.home', 'Today'), tabBarIcon: tabIcon('home') }}
       />
+
+      {/* ── Slot 2: the role's desk — exactly one of these is a button ──── */}
       <Tabs.Screen
         name="schedule"
         options={{
-          href: canSchedule ? undefined : null,
+          href: slot(canSchedule),
           title: tx('tabs.schedule', 'Schedule'),
           tabBarIcon: tabIcon('calendar'),
         }}
       />
+      {/* A directory's index is registered by its directory name: expo-router
+          matches `name` against both `pharmacy` and `pharmacy/index`
+          (useScreens.getSortedChildren), and the plain name is what the
+          route audit can resolve to the file. */}
+      <Tabs.Screen
+        name="pharmacy"
+        options={{
+          href: slot(canDispense),
+          title: tx('tabs.pharmacy', 'Pharmacy'),
+          tabBarIcon: tabIcon('pill'),
+        }}
+      />
+      <Tabs.Screen
+        name="pharmacy/stock"
+        options={{
+          href: slot(stockIsTab),
+          title: tx('tabs.stock', 'Stock'),
+          tabBarIcon: tabIcon('archive'),
+        }}
+      />
+      <Tabs.Screen
+        name="lab"
+        options={{
+          href: slot(canLab),
+          title: tx('tabs.lab', 'Lab'),
+          tabBarIcon: tabIcon('flask'),
+        }}
+      />
+      <Tabs.Screen
+        name="desk"
+        options={{
+          href: slot(canFrontDesk),
+          title: tx('tabs.desk', 'Desk'),
+          tabBarIcon: tabIcon('calendar'),
+        }}
+      />
+
+      {/* ── Slot 3: Patients, for everyone ───────────────────────────────── */}
       <Tabs.Screen
         name="patients"
         options={{ title: tx('tabs.patients', 'Patients'), tabBarIcon: tabIcon('person-search') }}
       />
+
+      {/* ── Slots 4–5: the clinician's inbox, and messaging ──────────────── */}
       <Tabs.Screen
         name="results"
         options={{
-          href: canResults ? undefined : null,
+          href: slot(canResults),
           title: tx('tabs.results', 'Results'),
           tabBarIcon: tabIcon('flask'),
         }}
@@ -174,7 +239,7 @@ function DoctorTabs() {
       <Tabs.Screen
         name="messages"
         options={{
-          href: canMessage ? undefined : null,
+          href: slot(canMessage),
           title: tx('tabs.messages', 'Messages'),
           tabBarIcon: tabIcon('chat'),
           tabBarBadge: unreadThreads > 0 ? unreadThreads : undefined,
@@ -194,6 +259,14 @@ function DoctorTabs() {
       <Tabs.Screen name="patient/[id]/[section]" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
       <Tabs.Screen name="wrong-app" options={{ href: null }} />
+
+      {/* The desks' detail routes (built by the desk agents; paths per chartRoutes). */}
+      <Tabs.Screen name="pharmacy/prescription/[id]" options={{ href: null }} />
+      <Tabs.Screen name="pharmacy/reservation/[id]" options={{ href: null }} />
+      <Tabs.Screen name="lab/order/[id]" options={{ href: null }} />
+      <Tabs.Screen name="desk/appointment/[id]" options={{ href: null }} />
+      <Tabs.Screen name="desk/new-appointment" options={{ href: null }} />
+      <Tabs.Screen name="desk/register-patient" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -68,6 +68,11 @@
       "bundler": "metro",
       "output": "single"
     },
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#0F4C81",
+      "iosDisplayInForeground": true
+    },
     "plugins": [
       "expo-router",
       "expo-status-bar",
@@ -101,7 +106,14 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#0F4C81"
+          "color": "#0F4C81",
+          "sounds": [
+            "./assets/sounds/opescare_consent.wav",
+            "./assets/sounds/opescare_message.wav",
+            "./assets/sounds/opescare_result.wav",
+            "./assets/sounds/opescare_appointment.wav",
+            "./assets/sounds/opescare_alert.wav"
+          ]
         }
       ],
       [

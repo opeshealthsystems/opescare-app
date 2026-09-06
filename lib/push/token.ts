@@ -34,7 +34,7 @@
  *   (from Settings) is the right response to all three.
  */
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { ensureNotificationChannels } from './channels';
 import {
   getPushCapability,
   resolvePushPlatform,
@@ -117,33 +117,13 @@ export function configurePushForegroundPresentation(): void {
 }
 
 /**
- * Android delivers nothing on an idle or locked handset unless the message
- * arrives on a channel with sufficient importance, and a channel's settings
- * are fixed at creation — so they are created before the first send, not
- * after.
- *
- * `lockscreenVisibility: PRIVATE` on the clinical channel is not decoration:
- * a lock screen is a public surface, and an OpesCare push must never put a
- * diagnosis or a result value on one. The server payload carries no clinical
- * content either (`ExpoPushService`), so this is the second of two locks.
+ * The Android channels every push lands on. The channel set — six ids, one
+ * sound each, MAX importance for consent and emergency — lives in
+ * `lib/push/channels.ts`. This is the historical name, kept so the
+ * token-acquisition path and its callers read as before.
  */
 export async function ensureAndroidChannels(): Promise<void> {
-  if (Platform.OS !== 'android') return;
-  try {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'General',
-      importance: Notifications.AndroidImportance.DEFAULT,
-    });
-    await Notifications.setNotificationChannelAsync('clinical', {
-      name: 'Results and consent requests',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 250, 250],
-      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
-    });
-  } catch {
-    // A missing channel degrades delivery; it does not justify refusing to
-    // register a token that is otherwise valid.
-  }
+  await ensureNotificationChannels();
 }
 
 /**

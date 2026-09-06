@@ -30,6 +30,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { RoleGate } from '@/components/doctor/RoleGate';
 import {
   Card,
   EmptyState,
@@ -85,7 +86,20 @@ function startOfWeek(d: Date): Date {
   return addDays(d, day === 0 ? -6 : 1 - day);
 }
 
+/**
+ * Role gate — schedule. A role without it never mounts the screen
+ * below, so none of its queries run and the server is never asked what it
+ * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
+ */
 export default function DoctorScheduleScreen() {
+  return (
+    <RoleGate need={['schedule']}>
+      <DoctorScheduleScreenBody />
+    </RoleGate>
+  );
+}
+
+function DoctorScheduleScreenBody() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();

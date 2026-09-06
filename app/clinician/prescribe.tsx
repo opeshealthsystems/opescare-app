@@ -56,6 +56,8 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { RoleGate, RoleRefusedNotice } from '@/components/doctor/RoleGate';
+import { isRoleForbidden } from '@/lib/api/roleErrors';
 import * as Clipboard from 'expo-clipboard';
 import {
   Card,
@@ -141,7 +143,20 @@ const EMPTY_DRAFT = (): PrescriptionDraft => ({
  */
 const PAIR_COLUMN_BASIS = 140;
 
+/**
+ * Role gate — prescribe. A role without it never mounts the screen
+ * below, so none of its queries run and the server is never asked what it
+ * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
+ */
 export default function PrescribeScreen() {
+  return (
+    <RoleGate need={['prescribe']}>
+      <PrescribeScreenBody />
+    </RoleGate>
+  );
+}
+
+function PrescribeScreenBody() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -1399,6 +1414,9 @@ function WrittenList({
   let body: React.ReactNode;
   if (loading) {
     body = <LoadingBlock label={tx('prescribe.writtenLoading', 'Reading your prescriptions…')} />;
+  } else if (error && isRoleForbidden(error)) {
+    // The server said this ACCOUNT may not use the desk. Not "not served".
+    body = <RoleRefusedNotice />;
   } else if (error) {
     const notServed = isPrescribingUnavailable(error);
     body = (
@@ -1584,6 +1602,14 @@ function issueFailureNotice(
         'prescribe.uncertainBody',
         'The prescription was sent but nothing came back, so it is not known whether it was issued. Open “Prescriptions you have written” and check before writing it again — issuing it twice would put two live scripts on this patient’s record.'
       ),
+    };
+  }
+  if (isRoleForbidden(error)) {
+    // A refusal for the ROLE, from a desk that IS served. Never "not available".
+    return {
+      tone: 'critical',
+      title: tx('roleGate.serverRefusedTitle', 'Your role does not include this'),
+      message: `${tx('roleGate.serverRefusedBody', 'The server refused this for your role. Nothing was changed.')} ${tx('prescribe.nothingIssued', 'Nothing was issued.')}`,
     };
   }
   if (isPrescribingUnavailable(error)) {

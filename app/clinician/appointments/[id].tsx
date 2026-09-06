@@ -44,6 +44,8 @@ import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { RoleGate } from '@/components/doctor/RoleGate';
+import { useStaffCapability } from '@/lib/staffCapabilities';
 import {
   Card,
   EmptyState,
@@ -125,7 +127,20 @@ function canEdit(a: StaffAppointment): boolean {
   return !['cancelled', 'completed', 'no_show'].includes(a.status);
 }
 
+/**
+ * Role gate — schedule. A role without it never mounts the screen
+ * below, so none of its queries run and the server is never asked what it
+ * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
+ */
 export default function DoctorAppointmentDetailScreen() {
+  return (
+    <RoleGate need={['schedule']}>
+      <DoctorAppointmentDetailScreenBody />
+    </RoleGate>
+  );
+}
+
+function DoctorAppointmentDetailScreenBody() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();
@@ -133,6 +148,8 @@ export default function DoctorAppointmentDetailScreen() {
   const dialog = useDialog();
   const { id } = useLocalSearchParams<{ id: string }>();
   const appointmentId = typeof id === 'string' ? id : '';
+  // The front desk holds the diary but not the chart; the link is not drawn.
+  const canChart = useStaffCapability('clinical_chart');
 
   /** `opesDoctor.<key>` with a readable default until the catalogue lands. */
   const tx = useCallback<Tx>(
@@ -390,7 +407,7 @@ export default function DoctorAppointmentDetailScreen() {
             <StatusPill status={a.status} />
           </View>
 
-          {!!a.patient_id && (
+          {canChart && !!a.patient_id && (
             <View style={styles.chartRow}>
               <CareButton
                 label={tx('appointment.openChart', 'Open Patient Chart')}

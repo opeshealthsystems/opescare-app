@@ -66,6 +66,9 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { RoleGate, RoleRefusedNotice } from '@/components/doctor/RoleGate';
+import { isRoleForbidden } from '@/lib/api/roleErrors';
+import { useStaffCapability } from '@/lib/staffCapabilities';
 import type { UseQueryResult } from '@tanstack/react-query';
 import {
   Card,
@@ -143,7 +146,20 @@ const chartState = <T,>(query: ChartQuery<T>) => asAsyncState(query as UseQueryR
 /** `opesDoctor.<key>` with a readable default until the catalogue lands. */
 type Tx = (key: string, defaultValue: string, params?: Record<string, unknown>) => string;
 
+/**
+ * Role gate — clinical_chart. A role without it never mounts the screen
+ * below, so none of its queries run and the server is never asked what it
+ * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
+ */
 export default function PatientChartScreen() {
+  return (
+    <RoleGate need={['clinical_chart']}>
+      <PatientChartScreenBody />
+    </RoleGate>
+  );
+}
+
+function PatientChartScreenBody() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();
@@ -200,6 +216,7 @@ export default function PatientChartScreen() {
         {identityDead ? (
           <DeadChart
             missingId={!patientId}
+            roleForbidden={isRoleForbidden(identity.error)}
             notServed={isDoctorFeatureUnserved(identity.error)}
             failureTitle={identity.error ? describeFailure(identity.error).title : null}
             message={identity.error ? describeFailure(identity.error).message : null}
@@ -273,6 +290,7 @@ export default function PatientChartScreen() {
  */
 function DeadChart({
   missingId,
+  roleForbidden,
   notServed,
   failureTitle,
   message,
@@ -281,6 +299,12 @@ function DeadChart({
   tr,
 }: {
   missingId: boolean;
+  /**
+   * `403 role_forbidden`: the server said this ACCOUNT'S ROLE has no chart at
+   * all. Not a record refusal — so no consent ask, and no retry, which could
+   * only buy a second refusal.
+   */
+  roleForbidden: boolean;
   notServed: boolean;
   /**
    * `describeFailure(...).title` for the read that failed, or null when there
@@ -310,6 +334,7 @@ function DeadChart({
       />
     );
   }
+  if (roleForbidden) return <RoleRefusedNotice />;
   return (
     <EmptyState
       icon={notServed ? 'folder' : 'alert-circle'}
@@ -339,6 +364,9 @@ function IdentityCard({ patient: p, tx }: { patient: ChartPatient; tx: Tx }) {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // The consent ask is a surface of its own (`request_access`); a role that
+  // can read a chart on a care relationship but may not ask is not offered it.
+  const canRequestAccess = useStaffCapability('request_access');
   const location = [p.address, p.city].filter(Boolean).join(', ') || null;
   const kin = p.next_of_kin?.name
     ? [p.next_of_kin.name, p.next_of_kin.relation, p.next_of_kin.phone].filter(Boolean).join(' · ')
@@ -374,12 +402,14 @@ function IdentityCard({ patient: p, tx }: { patient: ChartPatient; tx: Tx }) {
               'You can see this record because you are treating this patient, not because they granted your facility standing access. Ask for a consent grant if you need it beyond this episode.'
             )}
           />
-          <CareButton
-            label={tx('chart.requestAccess', 'Ask for access')}
-            icon="lock-open"
-            variant="secondary"
-            onPress={() => router.push(doctorRoutes.requestAccess(p.health_id))}
-          />
+          {canRequestAccess && (
+            <CareButton
+              label={tx('chart.requestAccess', 'Ask for access')}
+              icon="lock-open"
+              variant="secondary"
+              onPress={() => router.push(doctorRoutes.requestAccess(p.health_id))}
+            />
+          )}
         </>
       )}
 

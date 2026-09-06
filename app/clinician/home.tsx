@@ -16,6 +16,17 @@
  * the same query `/clinician/requests` runs, sharing its cache — and when that
  * read fails the row becomes a plain link with NO number, never a zero.
  *
+ * ── ONE SCREEN, DRAWN PER ROLE ────────────────────────────────────────────
+ * Every professional with a posting lands here — receptionists, pharmacists
+ * and lab staff as well as doctors and nurses — and the server refuses each
+ * the routes their role lacks (`config/staff_capabilities.php`, mirrored in
+ * `lib/staffCapabilities.ts`). So each section below is drawn only for a role
+ * whose capability the server would honour: Write for prescribers, the
+ * results tiles for chart and lab roles, the diary for roles with a schedule.
+ * A role without the chart gets an honest "what this app does for you" card
+ * instead — and it says where the rest of its work lives (the web desk), not
+ * that a mobile counter, bench or check-in exists when none does.
+ *
  * Backend gap: the finder does not serve `/mobile/doctor/*` yet, so this hook
  * 404s today. A 404 (or any failure with nothing on screen) renders an honest
  * EmptyState with a retry; nothing spins forever and nothing is invented.
@@ -56,10 +67,12 @@ import {
 import { CountTile, ResultRow } from '@/components/doctor/shared';
 import { ScheduleRow } from '@/components/doctor/scheduleShared';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
-import { useAuthStore } from '@/lib/store/auth';
-
-/** Roles that write prescriptions. Everyone else still identifies patients and asks for access. */
-const PRESCRIBER_ROLES = new Set(['doctor', 'specialist', 'specialist_doctor', 'resident_doctor', 'medical_supervisor', 'multi_doctor']);
+import {
+  roleFamily,
+  useProviderRole,
+  useStaffCapability,
+  type RoleFamily,
+} from '@/lib/staffCapabilities';
 
 /**
  * The home endpoint sends a slimmer appointment than the schedule endpoint
@@ -121,11 +134,21 @@ export default function DoctorHomeScreen() {
     [t]
   );
 
+  // ── What this ROLE gets (`lib/staffCapabilities.ts`) ────────────────────
+  const canPrescribe = useStaffCapability('prescribe');
+  const canChart = useStaffCapability('clinical_chart');
+  const canRequestAccess = useStaffCapability('request_access');
+  const canResults = useStaffCapability('clinical_chart', 'lab_results');
+  const canMessage = useStaffCapability('messaging');
+  const canSchedule = useStaffCapability('schedule');
+  const family = roleFamily(useProviderRole());
+
   const home = useDoctorHome();
   // The same query `/clinician/requests` runs (identical key → shared cache),
   // solely for its server-counted total. A failure here never blanks the
-  // screen: the row degrades to a link without a number.
-  const requests = useAppointmentRequests();
+  // screen: the row degrades to a link without a number. Not asked at all for
+  // a role without a schedule — the server would only refuse it.
+  const requests = useAppointmentRequests({}, { enabled: canSchedule });
   const { refetch } = home;
   const refetchRequests = requests.refetch;
 
@@ -172,8 +195,8 @@ export default function DoctorHomeScreen() {
   // this screen renders a full-height EmptyState — which used to swallow the
   // only route to `app/clinician/prescribe.tsx` and leave a doctor with no way
   // to write a prescription at all. Writing one needs nothing from the summary.
-  const providerRole = useAuthStore((s) => s.provider?.role ?? '');
-  const canPrescribe = PRESCRIBER_ROLES.has(providerRole.toLowerCase());
+  // Who may write is `canPrescribe` above — the capability map, not a
+  // hand-rolled role list.
 
   const identifySection = (
     <>
@@ -183,7 +206,11 @@ export default function DoctorHomeScreen() {
           icon="qr"
           tint="blue"
           title={tx('home.tileScan', 'Scan a patient’s Health ID')}
-          subtitle={tx('home.tileScanSub', 'Read the code they present, then ask for access or open the chart')}
+          subtitle={
+            canChart || canRequestAccess
+              ? tx('home.tileScanSub', 'Read the code they present, then ask for access or open the chart')
+              : tx('home.tileScanSubIdentify', 'Read the code they present to confirm who they are')
+          }
           onPress={() => router.push(doctorRoutes.scan)}
         />
       </Card>
@@ -204,6 +231,31 @@ export default function DoctorHomeScreen() {
       </Card>
     </>
   );
+
+  // For a role without the chart, say what the phone CAN do for it — and
+  // where the rest of its work lives. Nothing here is a feature the backend
+  // lacks dressed up as one it has: there is no mobile dispensing counter, no
+  // lab-side result entry and no facility-wide front-desk book, and the copy
+  // says so rather than implying one.
+  const roleCopy = roleHomeCopy(family, tx);
+  const roleSection = canChart ? null : (
+    <>
+      <SectionHeader title={tx('home.roleSection', 'What this app does for you')} />
+      <Card>
+        <View style={styles.roleRow}>
+          <Icon name="info" size={18} color={colors.blue} />
+          <View style={styles.roleText}>
+            <Text style={styles.roleTitle}>{roleCopy.title}</Text>
+            <Text style={styles.roleBody}>{roleCopy.body}</Text>
+          </View>
+        </View>
+      </Card>
+    </>
+  );
+
+  // The "waiting on you" card only when at least one of its tiles is this
+  // role's to see — an empty card would read as "nothing is waiting".
+  const waitingTiles = canResults || canMessage || canSchedule;
 
   let body: React.ReactNode;
   if (home.isPending) {
@@ -234,7 +286,7 @@ export default function DoctorHomeScreen() {
   } else if (data) {
     body = (
       <>
-        {data.counts.critical_unacknowledged > 0 && (
+        {canResults && data.counts.critical_unacknowledged > 0 && (
           <NoticeBanner
             icon="alert-triangle"
             tone="critical"
@@ -252,55 +304,65 @@ export default function DoctorHomeScreen() {
           />
         )}
 
-        <SectionHeader title={tx('home.waitingOnYou', 'Waiting on you')} />
-        <Card variant="flush">
-          <CountTile
-            icon="alert-circle"
-            tint="red"
-            count={data.counts.unacknowledged_results}
-            label={tx('home.tileResults', 'Results to acknowledge')}
-            emphasise={data.counts.critical_unacknowledged > 0}
-            onPress={() => router.push(doctorRoutes.results)}
-          />
-          <CountTile
-            icon="chat"
-            tint="blue"
-            count={data.counts.unread_messages}
-            label={tx('home.tileMessages', 'Unread patient messages')}
-            onPress={() => router.push(doctorRoutes.messages)}
-          />
-          <CountTile
-            icon="calendar"
-            tint="purple"
-            count={data.counts.appointments_today}
-            label={tx('home.tileAppointments', 'Appointments today')}
-            onPress={() => router.push(doctorRoutes.schedule)}
-          />
-          {requestTotal === null ? (
-            // The count could not be read. A link, not a number we don't have.
-            <ListRow
-              icon="clipboard"
-              tint="amber"
-              title={tx('schedule.requestsAction', 'Appointment requests')}
-              subtitle={tx(
-                'home.tileRequestsUnknown',
-                'Open to see what is awaiting your decision'
+        {waitingTiles && (
+          <>
+            <SectionHeader title={tx('home.waitingOnYou', 'Waiting on you')} />
+            <Card variant="flush">
+              {canResults && (
+                <CountTile
+                  icon="alert-circle"
+                  tint="red"
+                  count={data.counts.unacknowledged_results}
+                  label={tx('home.tileResults', 'Results to acknowledge')}
+                  emphasise={data.counts.critical_unacknowledged > 0}
+                  onPress={() => router.push(doctorRoutes.results)}
+                />
               )}
-              onPress={() => router.push(doctorRoutes.requests)}
-            />
-          ) : (
-            <CountTile
-              icon="clipboard"
-              tint="amber"
-              count={requestTotal}
-              label={tx('schedule.requestsAction', 'Appointment requests')}
-              onPress={() => router.push(doctorRoutes.requests)}
-            />
-          )}
-        </Card>
+              {canMessage && (
+                <CountTile
+                  icon="chat"
+                  tint="blue"
+                  count={data.counts.unread_messages}
+                  label={tx('home.tileMessages', 'Unread patient messages')}
+                  onPress={() => router.push(doctorRoutes.messages)}
+                />
+              )}
+              {canSchedule && (
+                <CountTile
+                  icon="calendar"
+                  tint="purple"
+                  count={data.counts.appointments_today}
+                  label={tx('home.tileAppointments', 'Appointments today')}
+                  onPress={() => router.push(doctorRoutes.schedule)}
+                />
+              )}
+              {canSchedule &&
+                (requestTotal === null ? (
+                  // The count could not be read. A link, not a number we don't have.
+                  <ListRow
+                    icon="clipboard"
+                    tint="amber"
+                    title={tx('schedule.requestsAction', 'Appointment requests')}
+                    subtitle={tx(
+                      'home.tileRequestsUnknown',
+                      'Open to see what is awaiting your decision'
+                    )}
+                    onPress={() => router.push(doctorRoutes.requests)}
+                  />
+                ) : (
+                  <CountTile
+                    icon="clipboard"
+                    tint="amber"
+                    count={requestTotal}
+                    label={tx('schedule.requestsAction', 'Appointment requests')}
+                    onPress={() => router.push(doctorRoutes.requests)}
+                  />
+                ))}
+            </Card>
+          </>
+        )}
 
-
-        {data.urgent_results.length > 0 && (
+        {canResults && data.urgent_results.length > 0 && (
           <>
             <SectionHeader
               title={tx('home.urgentResults', 'Most urgent results')}
@@ -315,16 +377,18 @@ export default function DoctorHomeScreen() {
           </>
         )}
 
-        <SectionHeader
-          title={tx('home.nextToday', 'Next today')}
-          actionLabel={
-            data.counts.appointments_today > 0 ? tx('home.fullSchedule', 'Full schedule') : undefined
-          }
-          onAction={
-            data.counts.appointments_today > 0 ? () => router.push(doctorRoutes.schedule) : undefined
-          }
-        />
-        {data.next_appointments.length === 0 ? (
+        {canSchedule && (
+          <>
+            <SectionHeader
+              title={tx('home.nextToday', 'Next today')}
+              actionLabel={
+                data.counts.appointments_today > 0 ? tx('home.fullSchedule', 'Full schedule') : undefined
+              }
+              onAction={
+                data.counts.appointments_today > 0 ? () => router.push(doctorRoutes.schedule) : undefined
+              }
+            />
+            {data.next_appointments.length === 0 ? (
           <EmptyState
             icon="calendar-check"
             tint="blue"
@@ -360,6 +424,8 @@ export default function DoctorHomeScreen() {
             ))}
           </Card>
         )}
+          </>
+        )}
 
         <View style={styles.footer}>
           <Icon name="shield-check" size={16} color={colors.textMuted} />
@@ -381,13 +447,18 @@ export default function DoctorHomeScreen() {
         subtitle={data?.provider.name}
         showBack={false}
         actions={[
-          {
-            icon: 'bell',
-            // No count when we do not have one — never a zero bubble.
-            badge: data?.counts.unacknowledged_results,
-            accessibilityLabel: tx('home.inboxAction', 'Results inbox'),
-            onPress: () => router.push(doctorRoutes.results),
-          },
+          // The inbox bell only for a role that has an inbox to open.
+          ...(canResults
+            ? [
+                {
+                  icon: 'bell' as const,
+                  // No count when we do not have one — never a zero bubble.
+                  badge: data?.counts.unacknowledged_results,
+                  accessibilityLabel: tx('home.inboxAction', 'Results inbox'),
+                  onPress: () => router.push(doctorRoutes.results),
+                },
+              ]
+            : []),
           {
             // The profile route is registered href:null (it is not one of the five
             // tab slots), so without this action it would be reachable by URL only —
@@ -411,10 +482,66 @@ export default function DoctorHomeScreen() {
         {stale}
         {identifySection}
         {writeSection}
+        {roleSection}
         {body}
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+/**
+ * What the phone does for a role without the chart, by the PHP config's own
+ * grouping. Every sentence that names a desk names the WEB desk: the backend
+ * has no mobile dispensing counter, no lab-side result entry and no
+ * facility-wide front-desk book, and this copy must not suggest otherwise.
+ */
+function roleHomeCopy(
+  family: RoleFamily,
+  tx: (key: string, defaultValue: string, params?: Record<string, unknown>) => string
+): { title: string; body: string } {
+  switch (family) {
+    case 'frontDesk':
+      return {
+        title: tx('home.roleFrontDeskTitle', 'Identify patients and see your diary'),
+        body: tx(
+          'home.roleFrontDeskBody',
+          'Scan or type a Health ID to confirm who is in front of you. Check-in, the queue and the facility-wide appointment book are managed on the web desk, not in this app.'
+        ),
+      };
+    case 'pharmacy':
+    case 'pharmacyStock':
+      return {
+        title: tx('home.rolePharmacyTitle', 'Identify patients and ask for access'),
+        body: tx(
+          'home.rolePharmacyBody',
+          'Scan or type a Health ID to confirm who is at the counter, and ask the patient for access to their record. Dispensing against a prescription and stock are managed on the web pharmacy counter, not in this app.'
+        ),
+      };
+    case 'lab':
+      return {
+        title: tx('home.roleLabTitle', 'Identify patients and follow results'),
+        body: tx(
+          'home.roleLabBody',
+          'Scan or type a Health ID to confirm who is giving a sample. The results inbox lists results on orders placed under your account; entering and validating results is done on the web laboratory desk, not in this app.'
+        ),
+      };
+    case 'labCollection':
+      return {
+        title: tx('home.roleLabCollectionTitle', 'Identify patients'),
+        body: tx(
+          'home.roleLabCollectionBody',
+          'Scan or type a Health ID to confirm who is giving a sample. The sample collection workflow is managed on the web laboratory desk, not in this app.'
+        ),
+      };
+    default:
+      return {
+        title: tx('home.roleOtherTitle', 'Identify patients'),
+        body: tx(
+          'home.roleOtherBody',
+          'Scan or type a Health ID to confirm who is in front of you. The rest of your work is on the OpesCare web portal.'
+        ),
+      };
+  }
 }
 
 const makeStyles = (colors: Palette) =>
@@ -423,6 +550,22 @@ const makeStyles = (colors: Palette) =>
     content: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
 
     divider: { height: 1, backgroundColor: colors.divider, marginLeft: spacing.md },
+
+    roleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+    roleText: { flex: 1 },
+    roleTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textPrimary,
+    },
+    roleBody: {
+      marginTop: 2,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textMuted,
+    },
 
     footer: {
       flexDirection: 'row',

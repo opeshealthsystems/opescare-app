@@ -50,6 +50,7 @@ import axios from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { HEALTH_ID_MIN_LENGTH, isPlausibleHealthId, normaliseHealthId } from './doctorQueries';
+import { isRoleForbidden } from './roleErrors';
 
 // The Health ID rules are the platform's, not this module's — they are defined
 // once in `doctorQueries` and re-exported so a screen needs one import.
@@ -338,9 +339,16 @@ function parseList(body: unknown): IssuedPrescription[] {
  * explicit not-implemented (501), or a token it will not accept on a provider
  * route (401 / 403). The screen must say so plainly — never spin, never crash,
  * and above all never pretend a prescription was written.
+ *
+ * NOT a role refusal. `403 { error_code: "role_forbidden" }` means the surface
+ * IS served and this ACCOUNT may not use it — a nurse or a pharmacist on the
+ * prescriber's desk. Folding that in here would dress a refusal up as "not
+ * available on this server yet", the exact claim `doctorQueries` forbids.
+ * Screens read it with `isRoleForbidden` first.
  */
 export function isPrescribingUnavailable(error: unknown): boolean {
   if (!axios.isAxiosError(error)) return false;
+  if (isRoleForbidden(error)) return false;
   const status = error.response?.status;
   return status === 404 || status === 501 || status === 401 || status === 403;
 }

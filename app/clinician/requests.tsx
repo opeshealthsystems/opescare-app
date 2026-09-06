@@ -31,6 +31,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { RoleGate } from '@/components/doctor/RoleGate';
 import {
   Card,
   EmptyState,
@@ -78,7 +79,20 @@ function writeFailureMessage(t: Translate, e: unknown, checkHint: string): strin
     : f.message;
 }
 
+/**
+ * Role gate — schedule. A role without it never mounts the screen
+ * below, so none of its queries run and the server is never asked what it
+ * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
+ */
 export default function AppointmentRequestsScreen() {
+  return (
+    <RoleGate need={['schedule']}>
+      <AppointmentRequestsScreenBody />
+    </RoleGate>
+  );
+}
+
+function AppointmentRequestsScreenBody() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();

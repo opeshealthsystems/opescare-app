@@ -33,6 +33,20 @@
  * 24px icons at stroke 2.0, and the `colors.badge` pip on Messages. Every
  * value is a kit token; nothing here is a literal colour.
  *
+ * ── THE BAR, PER ROLE ─────────────────────────────────────────────────────
+ * The five slots are the DOCTOR'S bar. Every professional with a posting can
+ * hold a provider token — receptionists, pharmacists, lab staff — and the
+ * server refuses each of them the routes their role lacks (403
+ * `role_forbidden`, per `config/staff_capabilities.php`, mirrored in
+ * `lib/staffCapabilities.ts`). A slot whose capability the role does not hold
+ * is registered with `href: null`: still a route, never a button. Today and
+ * Patients stay for everyone, so the bar never has fewer than two slots:
+ *
+ *     doctor / nurse   Today · Schedule · Patients · Results · Messages
+ *     receptionist     Today · Schedule · Patients · Messages
+ *     pharmacist       Today · Patients · Messages
+ *     lab technician   Today · Patients · Results · Messages
+ *
  * ── EVERY OTHER ROUTE IN THE GROUP ────────────────────────────────────────
  * A `Tabs` navigator turns EVERY child route into a tab button unless it is
  * registered with `href: null`. The detail routes below are therefore listed
@@ -51,6 +65,7 @@ import { useTranslation } from 'react-i18next';
 import { Icon, iconStroke, typography, useTheme, type IconName } from '@/components/opes-ui';
 import { useDoctorUnreadCounts } from '@/lib/api/doctorQueries';
 import { useIsDoctor } from '@/lib/store/auth';
+import { useStaffCapability } from '@/lib/staffCapabilities';
 import { WrongAppScreen } from './wrong-app';
 
 /**
@@ -84,10 +99,20 @@ function DoctorTabs() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
+  // ── Which slots this ROLE gets (`lib/staffCapabilities.ts`) ─────────────
+  // `href: null` keeps a route mounted and navigable but takes its button out
+  // of the bar — the same mechanism the detail routes below use. Today and
+  // Patients are never hidden: every professional identifies patients, and a
+  // bar is never drawn with fewer than two slots.
+  const canSchedule = useStaffCapability('schedule');
+  const canResults = useStaffCapability('clinical_chart', 'lab_results');
+  const canMessage = useStaffCapability('messaging');
+
   // Cheap: one 30s-stale query shared with the messages screen, polled a
-  // minute apart, with no retry on the 404 this server currently answers.
-  // A count we do not have is NO badge — never a zero, and never a guess.
-  const unread = useDoctorUnreadCounts();
+  // minute apart, with no retry on a final answer. A count we do not have is
+  // NO badge — never a zero, and never a guess. Not asked at all for a role
+  // without messaging: the server would only refuse it.
+  const unread = useDoctorUnreadCounts({ enabled: canMessage });
   const unreadThreads = unread.data?.unread_threads ?? 0;
 
   const tx = useCallback(
@@ -128,7 +153,11 @@ function DoctorTabs() {
       />
       <Tabs.Screen
         name="schedule"
-        options={{ title: tx('tabs.schedule', 'Schedule'), tabBarIcon: tabIcon('calendar') }}
+        options={{
+          href: canSchedule ? undefined : null,
+          title: tx('tabs.schedule', 'Schedule'),
+          tabBarIcon: tabIcon('calendar'),
+        }}
       />
       <Tabs.Screen
         name="patients"
@@ -136,11 +165,16 @@ function DoctorTabs() {
       />
       <Tabs.Screen
         name="results"
-        options={{ title: tx('tabs.results', 'Results'), tabBarIcon: tabIcon('flask') }}
+        options={{
+          href: canResults ? undefined : null,
+          title: tx('tabs.results', 'Results'),
+          tabBarIcon: tabIcon('flask'),
+        }}
       />
       <Tabs.Screen
         name="messages"
         options={{
+          href: canMessage ? undefined : null,
           title: tx('tabs.messages', 'Messages'),
           tabBarIcon: tabIcon('chat'),
           tabBarBadge: unreadThreads > 0 ? unreadThreads : undefined,

@@ -55,6 +55,11 @@
 import axios from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
+import { isRoleForbidden } from './roleErrors';
+
+// The ROLE refusal predicate lives in its own module so the care layer can use
+// it without importing this one; re-exported so a doctor screen needs one import.
+export { isRoleForbidden, roleForbiddenRequired } from './roleErrors';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Endpoints — every path in one place, all under the (unserved) doctor prefix
@@ -319,10 +324,19 @@ export interface DoctorAccessRefusal {
  * Only the chart refuses this way; the status is required as well as the body
  * so a 403 from anywhere else (a proxy, a WAF interstitial) cannot be dressed
  * up as a clinical refusal.
+ *
+ * ── A ROLE REFUSAL IS NOT A RECORD REFUSAL ────────────────────────────────
+ * `403 { error_code: "role_forbidden" }` (the `capability:` middleware) says
+ * the ACCOUNT'S ROLE lacks the chart altogether. No consent request answers
+ * that, so it must never come back here with the default
+ * `required_action: request_consent` and steer a receptionist into an ask the
+ * server would also refuse. It returns null; screens read it with
+ * `isRoleForbidden` and say "not part of your role".
  */
 export function doctorAccessRefusal(error: unknown): DoctorAccessRefusal | null {
   if (!axios.isAxiosError(error)) return null;
   if (error.response?.status !== 403) return null;
+  if (isRoleForbidden(error)) return null;
 
   const body = error.response?.data as Partial<DoctorAccessRefusal> | undefined;
 

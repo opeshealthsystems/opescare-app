@@ -66,6 +66,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { RoleGate } from '@/components/doctor/RoleGate';
 import type { UseQueryResult } from '@tanstack/react-query';
 import {
   Card,
@@ -182,7 +183,20 @@ const chartState = <T,>(query: ChartQuery<T>) => asAsyncState(query as UseQueryR
 /** `opesDoctor.<key>` with a readable default until the catalogue lands. */
 type Tx = (key: string, defaultValue: string, params?: Record<string, unknown>) => string;
 
+/**
+ * Role gate — clinical_chart. A role without it never mounts the screen
+ * below, so none of its queries run and the server is never asked what it
+ * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
+ */
 export default function PatientChartSectionScreen() {
+  return (
+    <RoleGate need={['clinical_chart']}>
+      <PatientChartSectionScreenBody />
+    </RoleGate>
+  );
+}
+
+function PatientChartSectionScreenBody() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();

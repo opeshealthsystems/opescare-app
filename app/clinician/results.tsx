@@ -34,6 +34,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { RoleGate } from '@/components/doctor/RoleGate';
 import axios from 'axios';
 import {
   Card,
@@ -123,7 +124,20 @@ function isNotServed(e: unknown): boolean {
   return body?.error_code === 'ENDPOINT_NOT_FOUND' || !body?.message;
 }
 
+/**
+ * Role gate — clinical_chart or lab_results. A role without it never mounts the screen
+ * below, so none of its queries run and the server is never asked what it
+ * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
+ */
 export default function ResultsInboxScreen() {
+  return (
+    <RoleGate need={['clinical_chart', 'lab_results']}>
+      <ResultsInboxScreenBody />
+    </RoleGate>
+  );
+}
+
+function ResultsInboxScreenBody() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();

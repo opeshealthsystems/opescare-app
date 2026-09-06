@@ -67,6 +67,7 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { RoleGate } from '@/components/doctor/RoleGate';
 import {
   Card,
   Icon,
@@ -134,7 +135,20 @@ const ACK_COPY: Record<Ack, { icon: IconName; en: string }> = {
   },
 };
 
+/**
+ * Role gate — emergency_access. A role without it never mounts the screen
+ * below, so none of its queries run and the server is never asked what it
+ * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
+ */
 export default function BreakGlassScreen() {
+  return (
+    <RoleGate need={['emergency_access']}>
+      <BreakGlassScreenBody />
+    </RoleGate>
+  );
+}
+
+function BreakGlassScreenBody() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const router = useRouter();

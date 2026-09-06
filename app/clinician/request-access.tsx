@@ -60,6 +60,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { RoleGate } from '@/components/doctor/RoleGate';
 import {
   Card,
   Chip,
@@ -151,7 +152,20 @@ const buildFallbackScopes = (tx: Tx): ConsentVocabularyItem[] => [
   { value: 'orders.read', label: tx('fallbackScope.orders_read', 'Laboratory and imaging orders') },
 ];
 
+/**
+ * Role gate — request_access. A role without it never mounts the screen
+ * below, so none of its queries run and the server is never asked what it
+ * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
+ */
 export default function RequestAccessScreen() {
+  return (
+    <RoleGate need={['request_access']}>
+      <RequestAccessScreenBody />
+    </RoleGate>
+  );
+}
+
+function RequestAccessScreenBody() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);

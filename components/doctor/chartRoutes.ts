@@ -139,6 +139,12 @@ export const doctorRoutes = {
   appointment: (id: string) => `/clinician/appointments/${seg(id)}`,
   /** Health-ID patient lookup (exact match only — no enumeration search). */
   patients: '/clinician/patients',
+  /**
+   * The same lookup, pre-filled with a Health ID — where a typed ID goes for a
+   * role that identifies patients but may not ask for access to their record.
+   */
+  patientLookup: (healthId?: string) =>
+    healthId ? `/clinician/patients?health_id=${seg(healthId)}` : '/clinician/patients',
   /** One patient's read-only chart overview. */
   patient: (id: string) => `/clinician/patient/${seg(id)}`,
   /** One section of that chart, full screen. */

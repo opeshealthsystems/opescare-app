@@ -36,6 +36,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { RoleGate } from '@/components/doctor/RoleGate';
 import {
   Card,
   EmptyState,
@@ -113,7 +114,20 @@ function whenLabel(iso: string | null): string {
   return then.toDateString() === new Date().toDateString() ? chatTime(iso) : shortDate(iso);
 }
 
+/**
+ * Role gate — messaging. A role without it never mounts the screen
+ * below, so none of its queries run and the server is never asked what it
+ * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
+ */
 export default function DoctorMessagesScreen() {
+  return (
+    <RoleGate need={['messaging']}>
+      <DoctorMessagesScreenBody />
+    </RoleGate>
+  );
+}
+
+function DoctorMessagesScreenBody() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();

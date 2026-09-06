@@ -46,6 +46,7 @@ import {
 } from '@/lib/api/doctorQueries';
 import { sexLabel } from '@/components/doctor/chartShared';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
+import { roleFamily, useProviderRole, useStaffCapability, type RoleFamily } from '@/lib/staffCapabilities';
 import {
   looksLikeHealthIdCode,
   scanFailureKind,
@@ -81,6 +82,14 @@ export default function ScanPatientScreen() {
   const scan = useScanPatient();
 
   const cameraUsable = webHasBarcodeDetector();
+
+  // What this ROLE may do with a confirmed identity (`lib/staffCapabilities.ts`,
+  // the mirror of the server's config/staff_capabilities.php). Identifying a
+  // patient is open to every professional; the chart and the consent request
+  // are not, and a button the server would refuse is simply not drawn.
+  const canChart = useStaffCapability('clinical_chart');
+  const canRequestAccess = useStaffCapability('request_access');
+  const family = roleFamily(useProviderRole());
 
   const resolve = useCallback(
     (code: string) => {
@@ -132,15 +141,32 @@ export default function ScanPatientScreen() {
     }
     if (isPlausibleHealthId(text)) {
       // A typed Health ID is not a code: it goes through the exact-match ask
-      // flow, pre-filled, like everywhere else in the app.
+      // flow, pre-filled, like everywhere else in the app — or, for a role
+      // that identifies patients but may not ask for their record, through
+      // the exact-match lookup on the Patients tab.
       setManualError(null);
-      router.push(doctorRoutes.requestAccess(normaliseHealthId(text)));
+      router.push(
+        canRequestAccess
+          ? doctorRoutes.requestAccess(normaliseHealthId(text))
+          : doctorRoutes.patientLookup(normaliseHealthId(text)),
+      );
       return;
     }
     setManualError(tx('manualInvalid', 'Paste the code from the patient’s QR, or type their full Health ID.'));
-  }, [manual, resolve, router, tx]);
+  }, [manual, resolve, router, tx, canRequestAccess]);
 
   const patient = outcome?.data ?? null;
+
+  // Where a confirmed identity leads, for THIS role. The chart needs a grant
+  // AND the capability; the ask needs no grant AND the capability; anything
+  // else ends on the identity itself, worded for the role's actual work.
+  const nextStep: 'chart' | 'ask' | 'none' = !outcome
+    ? 'none'
+    : outcome.consent_granted && canChart
+      ? 'chart'
+      : !outcome.consent_granted && canRequestAccess
+        ? 'ask'
+        : 'none';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -232,20 +258,32 @@ export default function ScanPatientScreen() {
               <Fact label={tx('blood', 'Blood')} value={patient.blood_group ?? '—'} colors={colors} />
             </View>
 
-            <Notice
-              icon={outcome.consent_granted ? 'check' : 'lock'}
-              tone={outcome.consent_granted ? 'ok' : 'info'}
-              title={outcome.consent_granted ? tx('accessGrantedTitle', 'Your facility has access') : tx('accessNotGrantedTitle', 'No access to this record yet')}
-              body={
-                outcome.consent_granted
-                  ? tx('accessGrantedBody', 'The patient has granted your facility access to their record. You can open the chart.')
-                  : tx('accessNotGrantedBody', 'Ask the patient for access to the parts of their record you need — prescriptions, lab results, vitals. They approve it on their phone.')
-              }
-              colors={colors}
-            />
+            {nextStep === 'none' ? (
+              // Identity only. No "you can open the chart" for a role that
+              // cannot, and no consent ask for one the server would refuse.
+              <Notice
+                icon="check"
+                tone="ok"
+                title={tx('identifiedOnlyTitle', 'Identity confirmed')}
+                body={identifiedBody(family, tx)}
+                colors={colors}
+              />
+            ) : (
+              <Notice
+                icon={outcome.consent_granted ? 'check' : 'lock'}
+                tone={outcome.consent_granted ? 'ok' : 'info'}
+                title={outcome.consent_granted ? tx('accessGrantedTitle', 'Your facility has access') : tx('accessNotGrantedTitle', 'No access to this record yet')}
+                body={
+                  outcome.consent_granted
+                    ? tx('accessGrantedBody', 'The patient has granted your facility access to their record. You can open the chart.')
+                    : tx('accessNotGrantedBody', 'Ask the patient for access to the parts of their record you need — prescriptions, lab results, vitals. They approve it on their phone.')
+                }
+                colors={colors}
+              />
+            )}
 
             <View style={styles.actions}>
-              {outcome.consent_granted ? (
+              {nextStep === 'chart' && (
                 <CareButton
                   label={tx('openChart', 'Open chart')}
                   icon="folder"
@@ -253,7 +291,8 @@ export default function ScanPatientScreen() {
                   size="sm"
                   onPress={() => router.push(doctorRoutes.patient(patient.id))}
                 />
-              ) : (
+              )}
+              {nextStep === 'ask' && (
                 <CareButton
                   label={tx('askAccess', 'Ask for access')}
                   icon="key"
@@ -329,6 +368,26 @@ export default function ScanPatientScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+/**
+ * What a confirmed identity means for a role that ends there. Honest about
+ * where the rest of the work lives: there is no mobile check-in, dispensing
+ * counter or lab bench, and none is implied.
+ */
+function identifiedBody(family: RoleFamily, tx: (k: string, d: string) => string): string {
+  switch (family) {
+    case 'frontDesk':
+      return tx('identifiedFrontDeskBody', 'This is the person the Health ID names. Check-in and the appointment book are on the web desk.');
+    case 'pharmacy':
+    case 'pharmacyStock':
+      return tx('identifiedPharmacyBody', 'This is the person the Health ID names. Dispensing is on the web pharmacy counter; their chart is not part of your role.');
+    case 'lab':
+    case 'labCollection':
+      return tx('identifiedLabBody', 'This is the person the Health ID names. Sample collection and result entry are on the web laboratory desk; their chart is not part of your role.');
+    default:
+      return tx('identifiedRoleBody', 'This is the person the Health ID names. Their chart is not part of your role.');
+  }
 }
 
 function failureTitle(kind: ScanFailureKind | null, tx: (k: string, d: string) => string): string {

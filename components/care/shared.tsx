@@ -42,6 +42,7 @@ import { useRouter } from 'expo-router';
 import axios from 'axios';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { isRoleForbidden } from '@/lib/api/roleErrors';
 import * as kit from '@/components/opes-ui';
 import {
   EmptyState,
@@ -131,6 +132,8 @@ export type FailureKind =
   | 'server'
   | 'notFound'
   | 'permission'
+  /** 403 `role_forbidden` — the ACCOUNT'S ROLE lacks this surface; no request or consent changes it. */
+  | 'roleForbidden'
   | 'session'
   | 'busy'
   | 'notLinked'
@@ -163,6 +166,16 @@ export function describeFailure(e: unknown, fallbackMessage?: string): Failure {
       return failure('offline', 'offlineTitle', 'offlineBody');
     }
     if (status === 401) return failure('session', 'sessionTitle', 'sessionBody');
+    // The server refused this for the account's ROLE (`role_forbidden`), not
+    // for this record. The patient wording below ("not shared with your
+    // account — ask reception") would be a wrong claim to a receptionist.
+    if (isRoleForbidden(e)) {
+      return {
+        kind: 'roleForbidden',
+        title: tr('opesDoctor.roleGate.serverRefusedTitle'),
+        message: tr('opesDoctor.roleGate.serverRefusedBody'),
+      };
+    }
     if (status === 403) return failure('permission', 'permissionTitle', 'permissionBody');
     if (status === 404) return failure('notFound', 'notFoundTitle', 'notFoundBody');
     if (status === 408) return failure('timeout', 'timeoutTitle', 'timeoutBody');

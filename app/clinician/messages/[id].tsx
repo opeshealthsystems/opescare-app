@@ -50,6 +50,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { RoleGate } from '@/components/doctor/RoleGate';
+import { useStaffCapability } from '@/lib/staffCapabilities';
 import {
   EmptyState,
   Icon,
@@ -108,7 +110,20 @@ function startsNewDay(previous: DoctorThreadMessage | undefined, message: Doctor
   return a.toDateString() !== b.toDateString();
 }
 
+/**
+ * Role gate — messaging. A role without it never mounts the screen
+ * below, so none of its queries run and the server is never asked what it
+ * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
+ */
 export default function DoctorMessageThreadScreen() {
+  return (
+    <RoleGate need={['messaging']}>
+      <DoctorMessageThreadScreenBody />
+    </RoleGate>
+  );
+}
+
+function DoctorMessageThreadScreenBody() {
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -116,6 +131,9 @@ export default function DoctorMessageThreadScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const dialog = useDialog();
   const params = useLocalSearchParams<{ id?: string; title?: string }>();
+  // Messaging is held by every professional; the chart is not. No link for a
+  // role that would only be refused it.
+  const canChart = useStaffCapability('clinical_chart');
 
   /** `opesDoctor.<key>` with a readable default until the catalogue lands. */
   const tx = useCallback(
@@ -373,7 +391,7 @@ export default function DoctorMessageThreadScreen() {
         {/* The chart link. `ChatHeader`'s own profile slot says "View Profile",
             which is the wrong claim for a clinical record, so this is a local
             strip rather than an edit to the shared chat chrome. */}
-        {isPatientThread && !!data?.patient_id && (
+        {canChart && isPatientThread && !!data?.patient_id && (
           <TouchableOpacity
             style={styles.chartLink}
             activeOpacity={0.7}

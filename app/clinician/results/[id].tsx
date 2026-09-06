@@ -32,6 +32,8 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { RoleGate } from '@/components/doctor/RoleGate';
+import { useStaffCapability } from '@/lib/staffCapabilities';
 import axios from 'axios';
 import {
   Card,
@@ -112,7 +114,20 @@ function toneForFlag(flag: string | null | undefined): StatusTone {
   }
 }
 
+/**
+ * Role gate — clinical_chart or lab_results. A role without it never mounts the screen
+ * below, so none of its queries run and the server is never asked what it
+ * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
+ */
 export default function ResultDetailScreen() {
+  return (
+    <RoleGate need={['clinical_chart', 'lab_results']}>
+      <ResultDetailScreenBody />
+    </RoleGate>
+  );
+}
+
+function ResultDetailScreenBody() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors, statusMap } = useTheme();
@@ -120,6 +135,8 @@ export default function ResultDetailScreen() {
   const dialog = useDialog();
   const { id } = useLocalSearchParams<{ id: string }>();
   const resultId = typeof id === 'string' ? id : '';
+  // A lab technician sees the inbox but holds no chart; the link is not drawn.
+  const canChart = useStaffCapability('clinical_chart');
 
   /** `opesDoctor.<key>` with a readable default until the catalogue lands. */
   const tx = useCallback(
@@ -332,7 +349,7 @@ export default function ResultDetailScreen() {
           />
         </Card>
 
-        {!!r.patient_id && (
+        {canChart && !!r.patient_id && (
           <CareButton
             label={tx('appointment.openChart', 'Open Patient Chart')}
             icon="person"

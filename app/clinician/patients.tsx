@@ -46,7 +46,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
@@ -87,6 +87,7 @@ import {
 import { sexLabel } from '@/components/doctor/chartShared';
 import { patientName, staffTypeLabel } from '@/components/doctor/scheduleShared';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
+import { useStaffCapability } from '@/lib/staffCapabilities';
 
 /** One submitted lookup. The nonce lets the same ID be looked up twice. */
 type LookupRequest = { healthId: string; nonce: number };
@@ -108,26 +109,51 @@ export default function PatientLookupScreen() {
     [t]
   );
 
+  // What this ROLE may do with an identified patient (`lib/staffCapabilities.ts`,
+  // the mirror of the server's config/staff_capabilities.php). Identification
+  // is open to every professional; the chart, the consent ask, the emergency
+  // override and the diary are not, and nothing the server would refuse is drawn.
+  const canChart = useStaffCapability('clinical_chart');
+  const canRequestAccess = useStaffCapability('request_access');
+  const canEmergency = useStaffCapability('emergency_access');
+  const canSchedule = useStaffCapability('schedule');
+  const params = useLocalSearchParams<{ health_id?: string }>();
+
   const [entry, setEntry] = useState('');
   const [entryError, setEntryError] = useState<string | null>(null);
   const [request, setRequest] = useState<LookupRequest | null>(null);
   const nonce = useRef(0);
+
+  // A Health ID handed over by another screen (the scanner's keyboard path)
+  // is looked up at once — exactly as if it had been typed here. Once per
+  // value, and only a plausible one: nothing partial is ever sent.
+  const prefilled = useRef<string | null>(null);
+  useEffect(() => {
+    const raw = typeof params.health_id === 'string' ? normaliseHealthId(params.health_id) : '';
+    if (!raw || prefilled.current === raw || !isPlausibleHealthId(raw)) return;
+    prefilled.current = raw;
+    setEntry(raw);
+    setEntryError(null);
+    nonce.current += 1;
+    setRequest({ healthId: raw, nonce: nonce.current });
+  }, [params.health_id]);
 
   // Nothing is sent until a full, plausible Health ID has been submitted:
   // the hook itself is `enabled: isPlausibleHealthId(...)`.
   const lookup = usePatientLookup(request?.healthId);
   const match = lookup.data ?? null;
 
-  // A match opens the chart. Guarded per submission, so returning to this tab
-  // does not bounce the clinician straight back into the chart they just left,
-  // and a second press on the same ID still opens it.
+  // A match opens the chart — for a role that holds the chart. Guarded per
+  // submission, so returning to this tab does not bounce the clinician straight
+  // back into the chart they just left, and a second press on the same ID
+  // still opens it. Every other role stays here, on the confirmed identity.
   const openedFor = useRef(-1);
   useEffect(() => {
-    if (!request || !match) return;
+    if (!canChart || !request || !match) return;
     if (openedFor.current === request.nonce) return;
     openedFor.current = request.nonce;
     router.push(doctorRoutes.patient(match.id));
-  }, [request, match, router]);
+  }, [canChart, request, match, router]);
 
   function submit() {
     const healthId = normaliseHealthId(entry);
@@ -156,8 +182,9 @@ export default function PatientLookupScreen() {
   // ── The clinician's own day. Not a patient search: these are appointments
   // this provider already holds, bounded to today by an explicit date window
   // rather than trusting a server default.
+  // Not asked at all for a role without a diary: the server would only refuse.
   const today = isoDay(new Date());
-  const schedule = useDoctorSchedule({ from: today, to: today });
+  const schedule = useDoctorSchedule({ from: today, to: today }, { enabled: canSchedule });
   const todayRows = dedupePatients(schedule.data?.data ?? []);
 
   let result: React.ReactNode = null;
@@ -209,16 +236,43 @@ export default function PatientLookupScreen() {
       />
     );
   } else if (match) {
+    // The chart only for a role that holds it. Everyone else ends on the
+    // confirmed identity — demographics, never clinical history — with the
+    // consent request offered only to roles the server would let ask.
     result = (
       <>
-        <SectionHeader title={tx('search.matchTitle', 'Match')} />
+        <SectionHeader
+          title={
+            canChart
+              ? tx('search.matchTitle', 'Match')
+              : tx('search.identifiedTitle', 'Identity confirmed')
+          }
+        />
         <Card variant="flush">
           <PatientRow
             patient={match}
-            onPress={() => router.push(doctorRoutes.patient(match.id))}
+            onPress={canChart ? () => router.push(doctorRoutes.patient(match.id)) : undefined}
             tx={tx}
           />
         </Card>
+        {!canChart && (
+          <Card>
+            <Text style={styles.note}>
+              {tx('search.noChartForRole', 'Their chart is not part of your role.')}
+            </Text>
+            {canRequestAccess && (
+              <View style={[styles.actions, styles.noteSpaced]}>
+                <CareButton
+                  label={tx('search.askAccess', 'Ask for access')}
+                  icon="key"
+                  variant="secondary"
+                  style={styles.action}
+                  onPress={() => router.push(doctorRoutes.requestAccess(match.health_id))}
+                />
+              </View>
+            )}
+          </Card>
+        )}
       </>
     );
   }
@@ -316,31 +370,43 @@ export default function PatientLookupScreen() {
 
           Until now nothing in the app linked to it at all — the screen shipped
           reachable only by typing a URL, which on a phone means not at all.
+
+          Only for roles that hold `emergency_access` (doctors, nurses, medical
+          supervisors) — the server refuses everyone else.
         */}
-        <Card variant="flush">
-          <ListRow
-            icon="alert-triangle"
-            tint="red"
-            title={tx('emergency.entryTitle', 'Emergency access')}
-            subtitle={tx(
-              'emergency.entryBody',
-              'For an unconscious or unidentified patient with no record of care here. Logged as an override, and the patient is told.'
-            )}
-            onPress={() => router.push(doctorRoutes.breakGlass)}
-          />
-        </Card>
+        {canEmergency && (
+          <Card variant="flush">
+            <ListRow
+              icon="alert-triangle"
+              tint="red"
+              title={tx('emergency.entryTitle', 'Emergency access')}
+              subtitle={tx(
+                'emergency.entryBody',
+                'For an unconscious or unidentified patient with no record of care here. Logged as an override, and the patient is told.'
+              )}
+              onPress={() => router.push(doctorRoutes.breakGlass)}
+            />
+          </Card>
+        )}
 
         {result}
 
-        <TodaySection
-          rows={todayRows}
-          loading={schedule.isPending}
-          failed={schedule.isError && schedule.data === undefined}
-          failure={schedule.isError ? describeFailure(schedule.error).message : null}
-          onRetry={() => void schedule.refetch()}
-          onOpen={(a) => router.push(doctorRoutes.patient(chartIdOf(a)))}
-          tx={tx}
-        />
+        {/* The diary only for a role with a schedule; a row opens the chart for
+            a role that holds it and the appointment itself for one that does
+            not (the front desk). */}
+        {canSchedule && (
+          <TodaySection
+            rows={todayRows}
+            loading={schedule.isPending}
+            failed={schedule.isError && schedule.data === undefined}
+            failure={schedule.isError ? describeFailure(schedule.error).message : null}
+            onRetry={() => void schedule.refetch()}
+            onOpen={(a) =>
+              router.push(canChart ? doctorRoutes.patient(chartIdOf(a)) : doctorRoutes.appointment(a.id))
+            }
+            tx={tx}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -371,7 +437,8 @@ function PatientRow({
   tx,
 }: {
   patient: PatientLookupResult;
-  onPress: () => void;
+  /** Absent for a role without the chart: the row is then a fact, not a door. */
+  onPress?: () => void;
   tx: (key: string, defaultValue: string, params?: Record<string, unknown>) => string;
 }) {
   // Derived here rather than read off the payload: the lookup returns

@@ -980,7 +980,9 @@
     "matchLabel": "Matching ({{count}})",
     "privacyBlockTitle": "Your documents are private",
     "privacyBlockBody": "Only you, and the facilities you have granted access to, can open these. You decide who that is.",
-    "manageAccess": "Manage access"
+    "manageAccess": "Manage access",
+    "download": "Download",
+    "downloadSub": "Built from your record when you download it. Nothing is stored."
   },
   "referrals": {
     "title": "Referrals",
@@ -7597,6 +7599,15 @@
     "healthIdLabel": "Health ID",
     "dobLabel": "Date of birth",
     "sexLabel": "Sex",
-    "footBand": "OPESCARE HEALTH PASSPORT"
+    "blocks": {
+      "no_rows": "Nothing recorded here yet.",
+      "document_id": "Document ID",
+      "authorised_by": "Authorised by",
+      "authority": "OpesCare Health Systems",
+      "healthier_people": "Healthier People",
+      "stronger_africa": "Stronger Africa",
+      "safer_healthier": "A SAFER, HEALTHIER AFRICA",
+      "people_united": "PEOPLE UNITED FOR BETTER HEALTH"
+    }
   }
 }

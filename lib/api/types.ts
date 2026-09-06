@@ -108,6 +108,13 @@ export interface OfficialDocument {
   issued_at: string | null;
   document_number: string | null;
   verification_code: string | null;
+  /**
+   * Present on documents the server renders on request rather than storing.
+   * A short-lived signed link: opening it builds the sheet from the record as
+   * it stands now. These rows have no stored file and no detail endpoint, so
+   * the verify and share actions do not apply to them.
+   */
+  download_url?: string | null;
 }
 
 export interface OfficialDocumentDetail extends OfficialDocument {

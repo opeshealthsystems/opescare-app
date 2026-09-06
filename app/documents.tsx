@@ -125,6 +125,24 @@ export default function DocumentsScreen() {
     setNotice(null);
   };
 
+  /**
+   * Documents the server renders on request carry their own signed link, so
+   * there is nothing to fetch first — the sheet is built when the link is
+   * opened. It goes to the system browser because that is what can save a file.
+   */
+  const handleDownload = async (doc: OfficialDocument) => {
+    setNotice(null);
+    if (!doc.download_url) {
+      setNotice({ tone: 'critical', message: t('documents.viewError') });
+      return;
+    }
+    try {
+      await Linking.openURL(doc.download_url);
+    } catch {
+      setNotice({ tone: 'critical', message: t('documents.viewError') });
+    }
+  };
+
   const handleOpen = (doc: OfficialDocument) => {
     setNotice(null);
     setBusy('open');
@@ -184,6 +202,7 @@ export default function DocumentsScreen() {
             busy={busy}
             typeLabel={typeLabel(selected.document_type)}
             onOpen={() => handleOpen(selected)}
+            onDownload={() => void handleDownload(selected)}
             onShare={() => void handleShare(selected)}
             onManageAccess={() => router.push('/privacy')}
             onBack={closePreview}
@@ -342,6 +361,7 @@ function PreviewPanel({
   typeLabel,
   onOpen,
   onShare,
+  onDownload,
   onManageAccess,
   onBack,
 }: {
@@ -352,6 +372,7 @@ function PreviewPanel({
   typeLabel: string;
   onOpen: () => void;
   onShare: () => void;
+  onDownload: () => void;
   onManageAccess: () => void;
   onBack: () => void;
 }) {
@@ -481,7 +502,17 @@ function PreviewPanel({
 
       {/* Actions */}
       <Card variant="flush">
-        <ListRow
+        {doc.download_url ? (
+          <ListRow
+            icon="download"
+            tint="green"
+            title={t('documents.download')}
+            subtitle={t('documents.downloadSub')}
+            onPress={onDownload}
+            chevron
+          />
+        ) : null}
+        {doc.download_url ? null : <ListRow
           icon="external-link"
           tint="blue"
           title={t('documents.view')}
@@ -490,8 +521,8 @@ function PreviewPanel({
           chevron={busy !== 'open'}
           trailing={busy === 'open' ? <ActivityIndicator size="small" color={colors.blue} /> : undefined}
           divider
-        />
-        <ListRow
+        />}
+        {doc.download_url ? null : <ListRow
           icon="share"
           tint="blue"
           title={t('opesDocs.preview.shareTitle')}
@@ -500,7 +531,7 @@ function PreviewPanel({
           chevron={busy !== 'share'}
           trailing={busy === 'share' ? <ActivityIndicator size="small" color={colors.blue} /> : undefined}
           divider
-        />
+        />}
         <ListRow
           icon="lock"
           tint="purple"

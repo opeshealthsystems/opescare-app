@@ -980,7 +980,9 @@
     "matchLabel": "Résultats ({{count}})",
     "privacyBlockTitle": "Vos documents sont privés",
     "privacyBlockBody": "Vous seul, et les établissements auxquels vous avez donné accès, pouvez les ouvrir. C’est vous qui décidez.",
-    "manageAccess": "Gérer les accès"
+    "manageAccess": "Gérer les accès",
+    "download": "Télécharger",
+    "downloadSub": "Généré à partir de votre dossier au moment du téléchargement. Rien n’est archivé."
   },
   "referrals": {
     "title": "Références",
@@ -7598,6 +7600,15 @@
     "healthIdLabel": "Identifiant Santé",
     "dobLabel": "Date de naissance",
     "sexLabel": "Sexe",
-    "footBand": "PASSEPORT DE SANTÉ OPESCARE"
+    "blocks": {
+      "no_rows": "Rien n’est encore enregistré ici.",
+      "document_id": "N° de document",
+      "authorised_by": "Autorisé par",
+      "authority": "OpesCare Health Systems",
+      "healthier_people": "Des personnes",
+      "stronger_africa": "en meilleure santé",
+      "safer_healthier": "UNE AFRIQUE PLUS SÛRE ET EN MEILLEURE SANTÉ",
+      "people_united": "UNIS POUR UNE MEILLEURE SANTÉ"
+    }
   }
 }

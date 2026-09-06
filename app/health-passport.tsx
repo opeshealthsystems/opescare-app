@@ -44,7 +44,8 @@ import {
 import { CareButton, LoadingBlock, describeFailure } from '@/components/care/shared';
 import { PassportPageBody } from '@/components/passport/PassportPage';
 import { passportIcon } from '@/components/passport/assets';
-import { FootBand, HolderStrip, PageKicker, PassportRail } from '@/components/passport/PageFurniture';
+import { IllustratedFootBand } from '@/components/passport/FootBand';
+import { HolderStrip, PageKicker, PassportRail } from '@/components/passport/PageFurniture';
 import { SecurityFooter } from '@/components/passport/SecurityFooter';
 import { SecuritySubstrate } from '@/components/passport/substrate';
 import { passportColors as c, passportRadius as r } from '@/components/passport/tokens';
@@ -241,7 +242,7 @@ export default function HealthPassportScreen() {
             totalPages={total}
           />}
 
-          {isCover ? null : <FootBand />}
+          {isCover ? null : <IllustratedFootBand />}
         </View>
 
         {/* The passport reads the record; presenting identity is the card. */}

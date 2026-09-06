@@ -12,7 +12,6 @@
  *                   page nineteen must not have to leaf back to page two to
  *                   check whose record they are holding.
  *   THE KICKER      the page's one-line purpose, set in caps under its title.
- *   THE FOOT BAND   the navy bar closing every page.
  *
  * All drawn natively. The reference sheets are A4 artwork and the package's own
  * spec forbids reproducing them literally on a phone — so the structure and the
@@ -116,18 +115,6 @@ export function PageKicker({ text }: { text: string }) {
   );
 }
 
-/** The navy band that closes every page. */
-export function FootBand() {
-  const { t } = useTranslation();
-  return (
-    <View style={styles.footBand}>
-      <Text style={styles.footBandText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-        {t('passport.footBand')}
-      </Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   rail: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 14, overflow: 'hidden' },
   railText: {
@@ -173,20 +160,4 @@ const styles = StyleSheet.create({
     color: c.teal,
   },
 
-  footBand: {
-    marginLeft: -24,
-    marginRight: -16,
-    marginBottom: -16,
-    marginTop: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    backgroundColor: c.primaryDark,
-  },
-  footBandText: {
-    fontSize: 7,
-    fontWeight: '800',
-    letterSpacing: 1.1,
-    color: 'rgba(255,255,255,0.85)',
-    textAlign: 'center',
-  },
 });

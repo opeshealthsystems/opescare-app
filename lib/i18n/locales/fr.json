@@ -7076,7 +7076,9 @@
       "emptyTitle": "Aucune ordonnance à dispenser ici",
       "emptyBody": "{{healthId}} n’a aucune ordonnance active dispensable dans cette pharmacie. Cela ne dit rien des ordonnances détenues ailleurs.",
       "resultsTitle_one": "{{count}} ordonnance pour ce patient",
-      "resultsTitle_other": "{{count}} ordonnances pour ce patient"
+      "resultsTitle_other": "{{count}} ordonnances pour ce patient",
+      "noPatientTitle": "Aucun titulaire pour cet Identifiant Santé",
+      "noPatientBody": "{{healthId}} n’est pas enregistré. Vérifiez la carte ou le code avec le patient — une faute de frappe en est la cause habituelle."
     },
     "queues": {
       "title": "Files",

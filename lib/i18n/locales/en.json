@@ -7075,7 +7075,9 @@
       "emptyTitle": "No prescription to dispense here",
       "emptyBody": "{{healthId}} has no active prescription that can be dispensed at this pharmacy. This says nothing about prescriptions held elsewhere.",
       "resultsTitle_one": "{{count}} prescription for this patient",
-      "resultsTitle_other": "{{count}} prescriptions for this patient"
+      "resultsTitle_other": "{{count}} prescriptions for this patient",
+      "noPatientTitle": "No one holds this Health ID",
+      "noPatientBody": "{{healthId}} is not on record. Check the card or code with the patient — a typo is the usual cause."
     },
     "queues": {
       "title": "Queues",

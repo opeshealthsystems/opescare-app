@@ -341,7 +341,16 @@ function PharmacyDeskBody() {
                     <DeskFailureState error={lookup.error} onRetry={() => void lookup.refetch()} />
                   )}
                 </Card>
-              ) : (lookup.data?.length ?? 0) === 0 ? (
+              ) : lookup.data?.patient === null ? (
+                <Card variant="flush">
+                  <EmptyState
+                    icon="person-search"
+                    tint="amber"
+                    title={t('pharmacyDesk.lookup.noPatientTitle')}
+                    message={t('pharmacyDesk.lookup.noPatientBody', { healthId: request.healthId })}
+                  />
+                </Card>
+              ) : (lookup.data?.prescriptions.length ?? 0) === 0 ? (
                 <Card variant="flush">
                   <EmptyState
                     icon="pill"
@@ -353,11 +362,11 @@ function PharmacyDeskBody() {
               ) : (
                 <>
                   <SectionHeader
-                    title={t('pharmacyDesk.lookup.resultsTitle', { count: lookup.data?.length ?? 0 })}
+                    title={t('pharmacyDesk.lookup.resultsTitle', { count: lookup.data?.prescriptions.length ?? 0 })}
                     variant="overline"
                   />
                   <Card variant="flush">
-                    {(lookup.data ?? []).map((p, i, arr) => (
+                    {(lookup.data?.prescriptions ?? []).map((p, i, arr) => (
                       <PrescriptionRow
                         key={p.id}
                         prescription={p}

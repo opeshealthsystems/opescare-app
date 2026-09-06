@@ -288,6 +288,22 @@ async function getList<T>(path: string, params?: Record<string, unknown>): Promi
   return assertArray<T>(res.data?.data, path);
 }
 
+/**
+ * The counter lookup answers `{ data: prescriptions[], patient: {…} | null }`:
+ * `patient` null means no one holds that Health ID, which is a different
+ * answer from "this person has nothing to fill here".
+ */
+export type PrescriptionLookup = { patient: DeskLookupPatient | null; prescriptions: DeskPrescription[] };
+export type DeskLookupPatient = { id: string; health_id: string | null; display_name: string | null };
+async function getLookup(path: string, params: Record<string, unknown>): Promise<PrescriptionLookup> {
+  const res = await apiClient.get<Envelope<unknown> & { patient?: unknown }>(path, { params });
+  const patient = res.data?.patient;
+  return {
+    patient: patient && typeof patient === 'object' ? (patient as DeskLookupPatient) : null,
+    prescriptions: assertArray<DeskPrescription>(res.data?.data, path),
+  };
+}
+
 async function getOne<T>(path: string, params?: Record<string, unknown>): Promise<T> {
   const res = await apiClient.get<Envelope<unknown>>(path, { params });
   return assertObject<T>(res.data?.data, path);
@@ -359,7 +375,7 @@ export function usePrescriptionLookup(healthId: string | null | undefined, opts:
       if (!isPlausibleHealthId(key)) {
         throw new Error('A full Health ID is required to look prescriptions up.');
       }
-      return getList<DeskPrescription>(desk.prescriptionLookup, { health_id: key });
+      return getLookup(desk.prescriptionLookup, { health_id: key });
     },
     retry: false,
     staleTime: 15 * 1000,
@@ -484,7 +500,7 @@ export function usePrescriptionFromCache(
   const lookup = usePrescriptionLookup(healthId, { enabled: healthId !== null });
 
   const fromHint = useMemo(
-    () => [...(queue.data ?? []), ...(lookup.data ?? [])].find((p) => p.id === id) ?? null,
+    () => [...(queue.data ?? []), ...(lookup.data?.prescriptions ?? [])].find((p) => p.id === id) ?? null,
     [queue.data, lookup.data, id],
   );
 

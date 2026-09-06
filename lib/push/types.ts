@@ -18,6 +18,10 @@ export const PUSH_DATA_TYPES = [
   'appointment',
   'message',
   'emergency_access',
+  // Pharmacy counter events and laboratory request decisions.
+  'prescription',
+  'reservation',
+  'lab_request',
 ] as const;
 
 export type PushDataType = (typeof PUSH_DATA_TYPES)[number];

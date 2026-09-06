@@ -706,41 +706,25 @@ export function useCancelDoctorAppointment() {
 }
 
 /**
- * `2027-12-30 14:30:00` from the LOCAL components of `d` — no offset, no `Z`.
+ * The `scheduled_at` every writer sends (desk book/reschedule, doctor
+ * reschedule, follow-up): the INSTANT the clinician picked, as ISO-8601 with
+ * the zone, rounded to the minute.
  *
- * ── CORRECTED 2026-09-05: THE SERVER TIMEZONE IS UTC, NOT AFRICA/DOUALA ────
- * This docblock used to claim the finder parses incoming datetimes in
- * Africa/Douala and normalises an explicit `Z` the same way. Both halves were
- * wrong. `MobileDoctorScheduleController::reschedule` does:
- *
- *     Carbon::parse($validated['scheduled_at'], config('app.timezone'))
- *
- * and the finder's `config/app.php` sets `'timezone' => 'UTC'` with no
- * `APP_TIMEZONE` override. So the naive string above is read as UTC, and an
- * explicit `Z` would be HONOURED (it already is UTC), not shifted.
- *
- * BEHAVIOUR IS UNCHANGED — only this comment moved. What the two options
- * actually do, so the next reader can decide with the facts:
- *
- *   • this function sends the DIGITS the clinician picked. They are stored as
- *     those digits in UTC and come back from `toIso8601String()` as the same
- *     digits, so the schedule shows back exactly what was chosen.
- *   • `toISOString()` would send the INSTANT. On a phone set to Africa/Douala
- *     (UTC+1) that is one hour earlier in digits than what was picked, so the
- *     row would read 13:30 where the clinician chose 14:30.
- *
- * Sending wall-clock digits is therefore still the right call for a picker
- * whose value is a wall-clock time, but note it is only exactly correct while
- * the client renders `scheduled_at` in UTC too. If a screen ever formats
- * appointment times in device-local time, this pairing needs revisiting
- * TOGETHER with that screen — do not change one side alone.
+ * Why an instant and not wall-clock digits: the finder's `config/app.php` is
+ * `'timezone' => 'UTC'`, so naive digits are stored as UTC, while every screen
+ * in this app formats `scheduled_at` in device-local time (`format.ts`). From a
+ * phone on Africa/Douala (UTC+1) the digits "14:30" used to come back as 15:30
+ * on the book, the patient's app and the follow-up line, while the patient's
+ * push said 14:30. Carrying the instant keeps all of them on the same minute;
+ * the server formats notification text in `app.clinic_timezone`.
  */
 export function toClinicWallClock(d: Date): string {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return (
-    `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ` +
-    `${p(d.getHours())}:${p(d.getMinutes())}:00`
-  );
+  // An absolute instant, not the phone's wall-clock digits: the server parses
+  // `scheduled_at` in UTC and every screen renders it back in local time, so
+  // sending "14:30" from a UTC+1 phone used to book 15:30. ISO-8601 with the
+  // zone carries the same instant end to end (desk book/reschedule, doctor
+  // reschedule, follow-up).
+  return new Date(Math.floor(d.getTime() / 60000) * 60000).toISOString();
 }
 
 /** `PUT /mobile/doctor/appointments/{id}` — moves the appointment outright; 409 once closed. */

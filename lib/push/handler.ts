@@ -36,6 +36,12 @@ export const CONSENT_QUERY_KEY = ['consent-requests'] as const;
  * The in-app screen for a push, by `data.type`. Returns null for a type this
  * app has no screen for; callers fall back to the notification centre.
  */
+/** `data.action_url` when it is an in-app path (never an external URL). */
+function actionUrl(data: PushData): string | null {
+  const raw = (data as { action_url?: unknown }).action_url;
+  return typeof raw === 'string' && raw.startsWith('/') && !raw.startsWith('//') ? raw : null;
+}
+
 export function routeForPush(data: PushData): string | null {
   switch (data.type) {
     case 'consent_request':
@@ -58,8 +64,16 @@ export function routeForPush(data: PushData): string | null {
     }
     case 'emergency_access':
       return '/privacy/access-logs';
+    case 'prescription':
+      return actionUrl(data) ?? '/prescriptions';
+    case 'reservation':
+      return actionUrl(data) ?? '/pharmacy';
+    case 'lab_request':
+      return actionUrl(data) ?? '/labs';
     default:
-      return null;
+      // A server-side screen hint is honoured for kinds this build does not
+      // know by name, as long as it is an in-app path.
+      return actionUrl(data);
   }
 }
 

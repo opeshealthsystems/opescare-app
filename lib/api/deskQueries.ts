@@ -248,7 +248,7 @@ export function deskStatusFamily(status: string | null | undefined): DeskStatusF
 export const DESK_STATUS_WIRE: Record<Exclude<DeskStatusFamily, 'unknown'>, string> = {
   awaiting: 'scheduled',
   confirmed: 'confirmed',
-  checked_in: 'arrived',
+  checked_in: 'checked_in',
   in_progress: 'in_progress',
   completed: 'completed',
   cancelled: 'cancelled',

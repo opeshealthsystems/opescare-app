@@ -942,9 +942,9 @@
   },
   "documents": {
     "title": "Documents",
-    "subtitle": "Official documents your care facilities have issued to you — each one independently verifiable.",
-    "verifiedTitle": "Issued and sealed by the facility",
-    "verifiedBody": "Every document here was issued by a registered facility and carries its own verification code, so anyone you show it to can confirm it is genuine without seeing the rest of your record.",
+    "subtitle": "Documents from your health record. Some were issued and sealed by a facility; others are built from your record the moment you download them.",
+    "verifiedTitle": "Two kinds of document",
+    "verifiedBody": "Some of these were issued and sealed by a registered facility and carry their own verification code. The rest are built from your record at the moment you download them, so they are always current and no copy of your record is kept anywhere.",
     "loading": "Loading your documents…",
     "errorTitle": "We couldn't load your documents",
     "loadError": "Check your connection and pull down to try again — nothing has been lost.",
@@ -972,7 +972,13 @@
       "medical_certificate": "Medical Certificate",
       "prescription": "Prescription",
       "invoice": "Invoice",
-      "other": "Official Document"
+      "other": "Official Document",
+      "laboratory_report": "Laboratory report",
+      "immunisation_record": "Immunisation record",
+      "certificate": "Certificate",
+      "RX": "Prescription",
+      "MC": "Medical certificate",
+      "ICV": "Vaccination certificate"
     },
     "searchPlaceholder": "Search documents…",
     "clearSearch": "Clear search",
@@ -982,7 +988,8 @@
     "privacyBlockBody": "Only you, and the facilities you have granted access to, can open these. You decide who that is.",
     "manageAccess": "Manage access",
     "download": "Download",
-    "downloadSub": "Built from your record when you download it. Nothing is stored."
+    "downloadSub": "Built from your record when you download it. Nothing is stored.",
+    "onDemandBadge": "Made on download"
   },
   "referrals": {
     "title": "Referrals",

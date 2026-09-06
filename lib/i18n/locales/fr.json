@@ -942,9 +942,9 @@
   },
   "documents": {
     "title": "Documents",
-    "subtitle": "Les documents officiels délivrés par vos établissements de santé — chacun vérifiable de façon indépendante.",
-    "verifiedTitle": "Délivré et scellé par l'établissement",
-    "verifiedBody": "Chaque document ici a été délivré par un établissement enregistré et porte son propre code de vérification : la personne à qui vous le montrez peut en confirmer l'authenticité sans voir le reste de votre dossier.",
+    "subtitle": "Documents de votre dossier de santé. Certains ont été délivrés et scellés par un établissement ; d’autres sont générés à partir de votre dossier au moment du téléchargement.",
+    "verifiedTitle": "Deux sortes de documents",
+    "verifiedBody": "Certains ont été délivrés et scellés par un établissement agréé et portent leur propre code de vérification. Les autres sont générés à partir de votre dossier au moment du téléchargement : ils sont donc toujours à jour, et aucune copie de votre dossier n’est conservée.",
     "loading": "Chargement de vos documents…",
     "errorTitle": "Impossible de charger vos documents",
     "loadError": "Vérifiez votre connexion et tirez vers le bas pour réessayer — rien n’a été perdu.",
@@ -972,7 +972,13 @@
       "medical_certificate": "Certificat médical",
       "prescription": "Ordonnance",
       "invoice": "Facture",
-      "other": "Document officiel"
+      "other": "Document officiel",
+      "laboratory_report": "Compte rendu de laboratoire",
+      "immunisation_record": "Carnet de vaccination",
+      "certificate": "Certificat",
+      "RX": "Ordonnance",
+      "MC": "Certificat médical",
+      "ICV": "Certificat de vaccination"
     },
     "searchPlaceholder": "Rechercher un document…",
     "clearSearch": "Effacer la recherche",
@@ -982,7 +988,8 @@
     "privacyBlockBody": "Vous seul, et les établissements auxquels vous avez donné accès, pouvez les ouvrir. C’est vous qui décidez.",
     "manageAccess": "Gérer les accès",
     "download": "Télécharger",
-    "downloadSub": "Généré à partir de votre dossier au moment du téléchargement. Rien n’est archivé."
+    "downloadSub": "Généré à partir de votre dossier au moment du téléchargement. Rien n’est archivé.",
+    "onDemandBadge": "Généré au téléchargement"
   },
   "referrals": {
     "title": "Références",

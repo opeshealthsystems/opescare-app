@@ -58,6 +58,13 @@ const TYPE_META: Record<string, { icon: IconName; tint: Tint }> = {
   medical_certificate: { icon: 'check-circle', tint: 'blue' },
   prescription: { icon: 'pill', tint: 'green' },
   invoice: { icon: 'receipt', tint: 'amber' },
+  // Rendered from the record on request rather than issued and stored.
+  laboratory_report: { icon: 'flask', tint: 'green' },
+  immunisation_record: { icon: 'syringe', tint: 'green' },
+  certificate: { icon: 'check-circle', tint: 'blue' },
+  RX: { icon: 'pill', tint: 'green' },
+  MC: { icon: 'check-circle', tint: 'blue' },
+  ICV: { icon: 'syringe', tint: 'green' },
 };
 const DEFAULT_META: { icon: IconName; tint: Tint } = { icon: 'document', tint: 'blue' };
 
@@ -410,12 +417,24 @@ function PreviewPanel({
             </View>
           ) : null}
         </View>
-        <StatusBadge
-          status={verified ? 'verified' : 'pending'}
-          tone={verified ? 'normal' : 'warning'}
-          icon={verified ? 'check-circle' : 'alert-circle'}
-          label={verified ? t('opesDocs.preview.verified') : t('opesDocs.preview.pending')}
-        />
+        {/* A document the server renders on request is not awaiting anything:
+            its verification is minted at the moment it is downloaded, so
+            "pending" would be a status invented for it. */}
+        {doc.download_url ? (
+          <StatusBadge
+            status="on_demand"
+            tone="normal"
+            icon="refresh"
+            label={t('documents.onDemandBadge')}
+          />
+        ) : (
+          <StatusBadge
+            status={verified ? 'verified' : 'pending'}
+            tone={verified ? 'normal' : 'warning'}
+            icon={verified ? 'check-circle' : 'alert-circle'}
+            label={verified ? t('opesDocs.preview.verified') : t('opesDocs.preview.pending')}
+          />
+        )}
       </View>
 
       {notice ? <NoticeBanner icon="alert-circle" tone={notice.tone} message={notice.message} /> : null}

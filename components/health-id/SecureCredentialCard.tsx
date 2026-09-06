@@ -54,6 +54,8 @@ type Props = {
   verified: boolean;
   presentation?: boolean;
   onPressQr?: () => void;
+  /** Caption under an EMPTY QR slot when the reason is not being offline (e.g. a read-only guardian view). */
+  qrPlaceholder?: string;
   onCopyId?: () => void;
   copyState?: CopyState;
 };
@@ -65,6 +67,7 @@ export function SecureCredentialCard({
   verified,
   presentation = false,
   onPressQr,
+  qrPlaceholder,
   onCopyId,
   copyState = 'idle',
 }: Props) {
@@ -242,7 +245,7 @@ export function SecureCredentialCard({
                 </View>
               )}
               <Text style={styles.qrCaption} numberOfLines={2}>
-                {model.qrPayload ? t('opesCore.healthId.scanToVerify') : t('offline.syncOfflineHint')}
+                {model.qrPayload ? t('opesCore.healthId.scanToVerify') : (qrPlaceholder ?? t('offline.syncOfflineHint'))}
               </Text>
             </View>
           </View>

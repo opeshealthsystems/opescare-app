@@ -1434,7 +1434,8 @@
       "presentHint": "Un code actif de 15 minutes est émis pour {{name}} et inscrit dans son journal d’accès à votre nom.",
       "presentReadOnly": "Présenter l’Identifiant Santé de {{name}} exige un accès complet. Votre lien est en lecture seule : la carte est ici en consultation uniquement.",
       "copyId": "Copier l’ID",
-      "copied": "Copié"
+      "copied": "Copié",
+      "qrReadOnly": "Carte en consultation — présenter exige un accès complet"
     }
   },
   "carePlans": {

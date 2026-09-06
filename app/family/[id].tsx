@@ -306,6 +306,7 @@ export default function FamilyMemberScreen() {
                   statusLabel={statusLabel}
                   verified={verified}
                   onPressQr={readOnly ? undefined : openPresentation}
+                  qrPlaceholder={readOnly ? t('family.member.qrReadOnly') : undefined}
                 />
 
                 {/* ── Present / copy — the same rail as the holder's own tab ── */}

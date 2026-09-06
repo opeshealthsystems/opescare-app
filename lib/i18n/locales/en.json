@@ -1434,7 +1434,8 @@
       "presentHint": "A live 15-minute code is issued for {{name}} and written to their access log under your name.",
       "presentReadOnly": "Presenting {{name}}’s Health ID needs full access. Your link is read-only, so the card is view-only here.",
       "copyId": "Copy ID",
-      "copied": "Copied"
+      "copied": "Copied",
+      "qrReadOnly": "View-only card — presenting needs full access"
     }
   },
   "carePlans": {

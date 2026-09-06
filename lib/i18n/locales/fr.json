@@ -7573,7 +7573,7 @@
       "presentHint": "Un code éphémère qu’un soignant peut scanner pour vérifier que ce dossier est le vôtre et à jour. Il expire de lui-même.",
       "mintFailed": "Le code n’a pas pu être préparé. Réessayez dans un instant.",
       "opaqueReference": "RÉFÉRENCE DE VÉRIFICATION OPAQUE",
-      "expiresIn": "Expire dans {{seconds}} s",
+      "expiresIn": "Expire dans {{seconds}}",
       "noClinicalData": "Ce code ne contient qu’une référence. Aucune donnée de votre dossier ne s’y trouve.",
       "qrLabel": "Votre code de vérification éphémère",
       "serverIsAuthority": "Vérifié auprès du registre au moment du scan, et non sur cette page.",

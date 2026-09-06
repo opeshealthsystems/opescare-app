@@ -7572,7 +7572,7 @@
       "presentHint": "A short-lived code a clinician can scan to check this record is yours and current. It expires on its own.",
       "mintFailed": "The code could not be prepared. Try again in a moment.",
       "opaqueReference": "OPAQUE VERIFICATION REFERENCE",
-      "expiresIn": "Expires in {{seconds}}s",
+      "expiresIn": "Expires in {{seconds}}",
       "noClinicalData": "This code carries a reference only. None of your clinical record is in it.",
       "qrLabel": "Your short-lived verification code",
       "serverIsAuthority": "Checked against the register at the moment of the scan, not against this page.",

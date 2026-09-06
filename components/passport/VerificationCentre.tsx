@@ -116,7 +116,11 @@ export function VerificationCentre({ status }: { status: CredentialStatus }) {
             <Icon name="qr" size={13} color={c.teal} />
             <Text style={styles.scanText}>{t('passport.verify.opaqueReference')}</Text>
           </View>
-          <Text style={styles.countdown}>{t('passport.verify.expiresIn', { seconds: secondsLeft })}</Text>
+          <Text style={styles.countdown}>
+            {t('passport.verify.expiresIn', {
+              seconds: `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`,
+            })}
+          </Text>
           <Text style={styles.note}>{t('passport.verify.noClinicalData')}</Text>
         </View>
       ) : (
@@ -149,7 +153,9 @@ const styles = StyleSheet.create({
   indicator: { width: 40, height: 40 },
   statusLabel: { fontSize: 14, fontWeight: '900', color: c.text },
   statusHint: { marginTop: 2, fontSize: 11, color: c.textSecondary, lineHeight: 16 },
-  qrBlock: { marginTop: 16, alignItems: 'center', gap: 8 },
+  // The frame's glow reaches ~18% beyond the panel, so the gap above it is
+  // generous on purpose: less and the artwork sits on the status sentence.
+  qrBlock: { marginTop: 30, alignItems: 'center', gap: 10 },
   scanLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   scanText: { fontSize: 8, fontWeight: '900', letterSpacing: 0.8, color: c.teal },
   countdown: { fontSize: 12, fontWeight: '800', color: c.primary },

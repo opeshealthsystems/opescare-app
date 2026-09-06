@@ -15,20 +15,6 @@ import { VerificationCentre } from './VerificationCentre';
 import { passportColors as c, passportRadius as r, passportSpace as s } from './tokens';
 import type { PassportPage, PassportSection } from '@/lib/api/passportQueries';
 
-/** Page icons come from the server; anything unknown falls back to a document. */
-export function glyph(name: string | undefined): IconName {
-  const known: Record<string, IconName> = {
-    'shield-check': 'shield-check', 'id-card': 'id-card', 'first-aid': 'first-aid',
-    'document-text': 'document-text', 'alert-triangle': 'alert-triangle', pill: 'pill',
-    activity: 'activity', 'calendar-check': 'calendar-check', building: 'building',
-    flask: 'flask', image: 'image', 'heart-pulse': 'heart-pulse', 'arrow-right': 'arrow-right',
-    'folder-plus': 'folder-plus', baby: 'baby', users: 'users', 'credit-card': 'credit-card',
-    lock: 'lock', qr: 'qr', 'heart-rate': 'heart-rate', 'check-circle': 'check-circle',
-    clipboard: 'clipboard',
-  };
-  return known[name ?? ''] ?? 'document-text';
-}
-
 export function PassportPageBody({
   page,
   status = 'PROVISIONAL',

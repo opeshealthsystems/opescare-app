@@ -30,6 +30,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { G, Text as SvgText } from 'react-native-svg';
 import { Art } from '@/components/health-id/Layers';
+import { PASSPORT_SUBSTRATE } from './assets';
 import { HEALTH_ID_ART } from '@/components/health-id/assets';
 import { passportColors as c } from './tokens';
 
@@ -43,8 +44,11 @@ export function SecuritySubstrate() {
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      {/* 1. The paper itself. */}
-      <Art source={HEALTH_ID_ART.documentTexture} style={FILL} resizeMode="cover" opacity={0.16} />
+      {/* 1. The paper itself — the passport package's own guilloche wave,
+          drawn for a white page rather than for the card's navy, so it is
+          the base layer and everything borrowed sits on top of it. */}
+      <Art source={PASSPORT_SUBSTRATE} style={FILL} resizeMode="cover" opacity={0.9} />
+      <Art source={HEALTH_ID_ART.documentTexture} style={FILL} resizeMode="cover" opacity={0.1} />
 
       {/* 2. Guilloche — the oldest anti-copy mark there is. */}
       <Art source={HEALTH_ID_ART.guillocheTexture} style={FILL} resizeMode="cover" opacity={0.13} />

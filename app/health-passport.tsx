@@ -28,7 +28,7 @@
  * no A4 spread.
  */
 import { useCallback, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -41,7 +41,8 @@ import {
   typography,
 } from '@/components/opes-ui';
 import { CareButton, LoadingBlock, describeFailure } from '@/components/care/shared';
-import { PassportPageBody, glyph } from '@/components/passport/PassportPage';
+import { PassportPageBody } from '@/components/passport/PassportPage';
+import { passportIcon } from '@/components/passport/assets';
 import { SecurityFooter } from '@/components/passport/SecurityFooter';
 import { SecuritySubstrate } from '@/components/passport/substrate';
 import { passportColors as c, passportRadius as r } from '@/components/passport/tokens';
@@ -157,7 +158,13 @@ export default function HealthPassportScreen() {
 
           {isCover ? null : <View style={styles.titleRow}>
             <View style={styles.titleIcon}>
-              <Icon name={glyph(current?.icon)} size={20} color={c.primary} />
+              {/* The page's own mark, drawn for these thirty pages. */}
+              <Image
+                source={passportIcon(current?.id)}
+                style={styles.titleGlyph}
+                resizeMode="contain"
+                accessibilityIgnoresInvertColors
+              />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.pageTitle}>{current?.title}</Text>
@@ -263,8 +270,14 @@ export default function HealthPassportScreen() {
                   accessibilityRole="button"
                 >
                   <View style={styles.num}>
-                    <Text style={styles.numText}>{p.number}</Text>
+                    <Image
+                      source={passportIcon(p.id)}
+                      style={styles.rowGlyph}
+                      resizeMode="contain"
+                      accessibilityIgnoresInvertColors
+                    />
                   </View>
+                  <Text style={styles.rowNum}>{p.number}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowTitle}>{p.title}</Text>
                     <Text style={styles.rowSub} numberOfLines={1}>
@@ -363,6 +376,9 @@ const styles = StyleSheet.create({
   indexActive: { backgroundColor: c.primaryLight },
   num: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EDF4F9' },
   numText: { fontSize: 11, fontWeight: '900', color: c.primary },
+  titleGlyph: { width: 24, height: 24 },
+  rowGlyph: { width: 20, height: 20 },
+  rowNum: { width: 20, fontSize: 10, fontWeight: '900', color: c.muted, textAlign: 'center' },
   rowTitle: { fontSize: 12.5, fontWeight: '800', color: c.text },
   rowSub: { fontSize: 10.5, color: c.textSecondary, marginTop: 2 },
 });

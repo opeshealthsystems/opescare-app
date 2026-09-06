@@ -70,7 +70,8 @@
     "demoLoginGirl": "Fille de démonstration — enfant, identité vérifiée",
     "demoLoginGuardian": "Tuteur de démonstration — parent des deux enfants",
     "demoLoginGrandmother": "Grand-mère de démonstration — personne âgée, lecture seule pour son fils",
-    "sealCaption": "Identifiant Santé OpesCare Secure"
+    "sealCaption": "Identifiant Santé OpesCare Secure",
+    "demoLoginLabtech": "Technicien de laboratoire de démonstration"
   },
   "signup": {
     "stepIndicator": "Étape {{current}} sur {{total}}",

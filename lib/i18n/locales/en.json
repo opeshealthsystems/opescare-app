@@ -70,7 +70,8 @@
     "demoLoginGirl": "Demo girl — child, verified ID",
     "demoLoginGuardian": "Demo guardian — parent of the two children",
     "demoLoginGrandmother": "Demo grandmother — older person, read-only to her son",
-    "sealCaption": "OpesCare Secure Health ID"
+    "sealCaption": "OpesCare Secure Health ID",
+    "demoLoginLabtech": "Demo lab technician"
   },
   "signup": {
     "stepIndicator": "Step {{current}} of {{total}}",

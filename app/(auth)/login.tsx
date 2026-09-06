@@ -99,6 +99,7 @@ const DEMO_ACCOUNTS = [
   // doctor; the clinician area adapts (no prescribing for non-prescribers).
   { key: 'nurse', icon: 'activity', labelKey: 'auth.demoLoginNurse', email: 'demo.nurse@opescare.test', password: 'demo1234', clinician: true },
   { key: 'pharmacist', icon: 'pill', labelKey: 'auth.demoLoginPharmacist', email: 'demo.pharmacist@opescare.test', password: 'demo1234', clinician: true },
+  { key: 'labtech', icon: 'flask', labelKey: 'auth.demoLoginLabtech', email: 'demo.labtech@opescare.test', password: 'demo1234', clinician: true },
   { key: 'receptionist', icon: 'clipboard', labelKey: 'auth.demoLoginReceptionist', email: 'demo.receptionist@opescare.test', password: 'demo1234', clinician: true },
 ] as const satisfies readonly {
   key: string;

@@ -1,96 +1,99 @@
 /**
- * The security substrate — the printed passport's anti-counterfeit language,
- * adapted to a phone.
+ * The security substrate — the printed passport's anti-counterfeit language.
  *
- * Guilloche arcs, a faint Africa mark, a DNA thread, perimeter markers and
- * microtext, drawn once behind the page content. It is BRAND AND ANTI-COPY
- * LANGUAGE ONLY: none of it proves anything. What makes a credential real is
- * the server's answer about its status, and the short-lived QR minted for a
- * presentation — never the fact that a page looks ornate. The package's own
- * security note is explicit about this and so is this file, because the day
- * someone mistakes the artwork for the proof is the day the artwork becomes a
- * liability.
+ * These are the CANONICAL runtime assets from the OpesCare Secure visual
+ * library (`assets/health-id/*`), the same files the Health ID card composes,
+ * so a clinician holding the card and the passport side by side sees one
+ * document family rather than two lookalikes. The library's own layer list is
+ * followed: guilloche, DNA motif, Africa watermark, ECG accent, perimeter
+ * markers, seal, fingerprint block and microtext.
  *
- * Purely decorative, so it is hidden from assistive technology and stopped
- * entirely under reduced motion (it never animates, but the aura it sits under
- * does).
+ * ── WHY THE OPACITIES ARE NOT THE CARD'S ─────────────────────────────────
+ *
+ * The card is a deep-blue credential and carries these layers at 0.45–0.9. A
+ * passport page is a WHITE document page: the same values there turn the paper
+ * muddy and, worse, compete with the clinical text a person is trying to read.
+ * Everything here therefore sits between 0.03 and 0.14 — present when you look
+ * for it, invisible when you are reading a potassium result. Security artwork
+ * that fights the record has failed at its job.
+ *
+ * ── IT IS ARTWORK, NOT PROOF ─────────────────────────────────────────────
+ *
+ * Anti-copy and brand language only. What makes a credential real is the
+ * server's answer about its status and the short-lived code on page 24 — never
+ * the fact that a page looks ornate. Purely decorative, so the whole layer is
+ * hidden from assistive technology, and nothing here animates.
  */
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, G, Line, Path, Text as SvgText } from 'react-native-svg';
+import Svg, { G, Text as SvgText } from 'react-native-svg';
+import { Art } from '@/components/health-id/Layers';
+import { HEALTH_ID_ART } from '@/components/health-id/assets';
 import { passportColors as c } from './tokens';
+
+const FILL = StyleSheet.absoluteFill;
 
 export function SecuritySubstrate() {
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Svg width="100%" height="100%" viewBox="0 0 340 640" preserveAspectRatio="xMidYMid slice">
-        <Defs />
+    <View
+      style={StyleSheet.absoluteFill}
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      {/* 1. The paper itself. */}
+      <Art source={HEALTH_ID_ART.documentTexture} style={FILL} resizeMode="cover" opacity={0.07} />
 
-        {/* Guilloche: interfering arcs, the oldest anti-copy mark there is. */}
-        <G opacity={0.06}>
-          {Array.from({ length: 9 }).map((_, i) => (
-            <Circle key={`g${i}`} cx={170} cy={320} r={40 + i * 26} stroke={c.primary} strokeWidth={0.7} fill="none" />
-          ))}
-          {Array.from({ length: 7 }).map((_, i) => (
-            <Circle key={`h${i}`} cx={80 + i * 30} cy={320} r={120} stroke={c.teal} strokeWidth={0.4} fill="none" />
-          ))}
-        </G>
+      {/* 2. Guilloche — the oldest anti-copy mark there is. */}
+      <Art source={HEALTH_ID_ART.guillocheTexture} style={FILL} resizeMode="cover" opacity={0.05} />
+      <Art source={HEALTH_ID_ART.guillocheLines} style={FILL} resizeMode="cover" opacity={0.035} />
+      <Art source={HEALTH_ID_ART.guillocheMesh} style={FILL} resizeMode="cover" opacity={0.04} />
 
-        {/* The continent, as a watermark rather than a picture. */}
-        <G opacity={0.045}>
-          <Path
-            d="M150 120c26 0 44 12 52 30 9 20 4 40-4 58-7 16-6 30 2 44 9 16 12 33 6 50-7 21-26 34-45 40-14 5-27 14-33 28-7 16-22 26-38 22-15-4-23-19-22-34 1-19 10-36 12-55 2-22-6-43-4-65 2-25 16-47 34-63 12-11 26-19 40-24 0 0 0 0 0 0z"
-            fill={c.primary}
-          />
-        </G>
+      {/* 3. The continent, as a watermark rather than a picture. */}
+      <Art source={HEALTH_ID_ART.africa} style={styles.africa} resizeMode="contain" opacity={0.05} />
 
-        {/* A DNA thread down the margin: the micro-data motif. */}
-        <G opacity={0.07}>
-          {Array.from({ length: 16 }).map((_, i) => {
-            const y = 40 + i * 36;
-            const phase = i % 2 === 0 ? 1 : -1;
-            return (
-              <G key={`d${i}`}>
-                <Path d={`M18 ${y} q ${10 * phase} 18 0 36`} stroke={c.teal} strokeWidth={1} fill="none" />
-                <Path d={`M30 ${y} q ${-10 * phase} 18 0 36`} stroke={c.primary} strokeWidth={1} fill="none" />
-                <Line x1={18} y1={y + 18} x2={30} y2={y + 18} stroke={c.primary} strokeWidth={0.7} />
-              </G>
-            );
-          })}
-        </G>
+      {/* 4. The DNA motif down the outer margin, as on the printed document. */}
+      <Art source={HEALTH_ID_ART.dnaMicrodata} style={styles.dnaMargin} resizeMode="cover" opacity={0.06} />
+      <Art source={HEALTH_ID_ART.dnaHelix} style={styles.dnaHelix} resizeMode="contain" opacity={0.045} />
 
-        {/* A single ECG accent, the clinical signature of the document. */}
-        <G opacity={0.09}>
-          <Path
-            d="M0 585 H70 l10-22 8 44 10-58 9 36 8-16 h30 l9-26 8 52 9-40 8 20 h40 l10-14 8 28 9-34 8 20 h60"
-            stroke={c.teal}
-            strokeWidth={1.2}
-            fill="none"
-          />
-        </G>
+      {/* 5. The seal, struck faintly into the page. */}
+      <Art source={HEALTH_ID_ART.seal} style={styles.seal} resizeMode="contain" opacity={0.055} />
 
-        {/* Perimeter registration markers. */}
-        <G opacity={0.16}>
-          {[
-            [14, 14, 1, 1],
-            [326, 14, -1, 1],
-            [14, 626, 1, -1],
-            [326, 626, -1, -1],
-          ].map(([x, y, dx, dy], i) => (
-            <G key={`m${i}`}>
-              <Line x1={x} y1={y} x2={x + 14 * dx} y2={y} stroke={c.primary} strokeWidth={1.1} />
-              <Line x1={x} y1={y} x2={x} y2={y + 14 * dy} stroke={c.primary} strokeWidth={1.1} />
-            </G>
-          ))}
-        </G>
+      {/* 6. Perimeter registration markers. */}
+      <Art source={HEALTH_ID_ART.cornerMarkers} style={FILL} resizeMode="stretch" opacity={0.09} />
 
-        {/* Microtext: legible only up close, as on the printed document. */}
-        <G opacity={0.13}>
-          <SvgText x={170} y={634} fontSize={4} fill={c.primary} textAnchor="middle" letterSpacing={1.4}>
-            OPESCARE SECURE • PEOPLE • DATA • TRUST • BETTER HEALTH • AFRICA • OPESCARE SECURE
+      {/* 7. The clinical signature of the document, along the foot. */}
+      <Art source={HEALTH_ID_ART.ecgLine} style={styles.ecg} resizeMode="stretch" opacity={0.1} />
+
+      {/* 8. The fingerprint block — the printed passport's security corner. */}
+      <Art source={HEALTH_ID_ART.fingerprint} style={styles.fingerprint} resizeMode="contain" opacity={0.07} />
+
+      {/* The paper scrim. The layers above were drawn for the card's deep navy;
+          on a white page they tint the paper, so a sheet of paper goes back
+          over them. Security artwork must never fight the clinical text. */}
+      <View style={styles.scrim} />
+
+      {/* 9. Microtext: legible only up close, as on the printed document. */}
+      <Svg style={FILL} width="100%" height="100%" viewBox="0 0 340 640" preserveAspectRatio="xMidYMid slice">
+        <G opacity={0.14}>
+          <SvgText x={170} y={9} fontSize={4} fill={c.primary} textAnchor="middle" letterSpacing={1.3}>
+            OPESCARE SECURE • PEOPLE • DATA • TRUST • BETTER HEALTH • AFRICA
+          </SvgText>
+          <SvgText x={170} y={636} fontSize={4} fill={c.primaryDark} textAnchor="middle" letterSpacing={1.3}>
+            AUTHENTIC • VERIFIABLE • CONSENT-AWARE • AUDITED
           </SvgText>
         </G>
       </Svg>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  scrim: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.62)' },
+  africa: { position: 'absolute', right: -30, top: 150, width: 260, height: 260 },
+  dnaMargin: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 26 },
+  dnaHelix: { position: 'absolute', right: -14, bottom: 90, width: 120, height: 260 },
+  seal: { position: 'absolute', alignSelf: 'center', top: '38%', width: 190, height: 190 },
+  ecg: { position: 'absolute', left: 0, right: 0, bottom: 34, height: 46 },
+  fingerprint: { position: 'absolute', right: 14, bottom: 16, width: 46, height: 46 },
+});

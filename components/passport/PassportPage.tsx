@@ -10,6 +10,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '@/components/opes-ui';
+import { VerificationCentre } from './VerificationCentre';
 import { passportColors as c, passportRadius as r, passportSpace as s } from './tokens';
 import type { PassportPage, PassportSection } from '@/lib/api/passportQueries';
 
@@ -27,7 +28,14 @@ export function glyph(name: string | undefined): IconName {
   return known[name ?? ''] ?? 'document-text';
 }
 
-export function PassportPageBody({ page }: { page: PassportPage }) {
+export function PassportPageBody({
+  page,
+  status = 'PROVISIONAL',
+}: {
+  page: PassportPage;
+  /** The credential status the summary reported, for the Verification Centre. */
+  status?: 'ACTIVE' | 'PROVISIONAL' | 'SUSPENDED' | 'REVOKED' | 'EXPIRED';
+}) {
   if (page.kind === 'cover') return <Cover page={page} />;
   if (page.kind === 'back-cover') return <BackCover />;
 
@@ -36,6 +44,10 @@ export function PassportPageBody({ page }: { page: PassportPage }) {
       {page.sections.map((section, i) => (
         <SectionCard key={`${page.id}-${i}`} section={section} />
       ))}
+
+      {/* Page 24 is where the passport stops being a reading surface: the
+          short-lived, opaque code a clinician actually scans. */}
+      {page.id === 'verification' ? <VerificationCentre status={status} /> : null}
     </View>
   );
 }

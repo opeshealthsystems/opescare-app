@@ -140,6 +140,16 @@ export default function HealthPassportScreen() {
             </View>
           </View>
 
+          {/* The demo pill the package's shell carries — shown ONLY when the
+              account really is a demonstration one. On a real record it would
+              be a lie in the other direction. */}
+          {summary.data?.is_demo ? (
+            <View style={styles.demoPill}>
+              <Icon name="info" size={12} color={c.warning} />
+              <Text style={styles.demoText}>{t('passport.demoPill')}</Text>
+            </View>
+          ) : null}
+
           <View style={styles.rule} />
 
           <View style={styles.titleRow}>
@@ -166,14 +176,14 @@ export default function HealthPassportScreen() {
                 <Text style={styles.retryText}>{t('passport.tryAgain')}</Text>
               </Pressable>
             </View>
-          ) : pageIsEmpty(page.data) ? (
+          ) : pageIsEmpty(page.data) && page.data?.id !== 'verification' ? (
             <View style={styles.centre}>
               <Icon name="folder" size={30} color={c.muted} />
               <Text style={styles.stateText}>{t('passport.empty')}</Text>
               <Text style={styles.stateHint}>{t('passport.emptyHint')}</Text>
             </View>
           ) : page.data ? (
-            <PassportPageBody page={page.data} />
+            <PassportPageBody page={page.data} status={summary.data?.status ?? 'PROVISIONAL'} />
           ) : null}
 
           <View style={styles.footer}>
@@ -290,6 +300,12 @@ const styles = StyleSheet.create({
   pageSmall: { fontSize: 7, fontWeight: '900', letterSpacing: 1, color: c.muted },
   pageBig: { fontSize: 15, fontWeight: '900', color: c.primary },
   pageSlash: { fontSize: 9, fontWeight: '700', color: c.muted },
+  demoPill: {
+    alignSelf: 'flex-start', marginTop: 13, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6,
+    backgroundColor: '#FFF7E8', borderWidth: 1, borderColor: '#F2D59F',
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+  },
+  demoText: { fontSize: 8.5, fontWeight: '900', letterSpacing: 0.4, color: c.warning },
   rule: { height: 1, backgroundColor: c.border, marginVertical: 15 },
   titleRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   titleIcon: {

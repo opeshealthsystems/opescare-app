@@ -7566,6 +7566,25 @@
     "pledgeAfrica": "POUR L’AFRIQUE",
     "openCard": "Ouvrir ma carte Identifiant Santé",
     "open": "Ouvrir mon Passeport de santé",
-    "openHint": "Votre dossier, en trente pages"
+    "openHint": "Votre dossier, en trente pages",
+    "verify": {
+      "present": "Afficher mon code de vérification",
+      "minting": "Préparation…",
+      "presentHint": "Un code éphémère qu’un soignant peut scanner pour vérifier que ce dossier est le vôtre et à jour. Il expire de lui-même.",
+      "mintFailed": "Le code n’a pas pu être préparé. Réessayez dans un instant.",
+      "opaqueReference": "RÉFÉRENCE DE VÉRIFICATION OPAQUE",
+      "expiresIn": "Expire dans {{seconds}} s",
+      "noClinicalData": "Ce code ne contient qu’une référence. Aucune donnée de votre dossier ne s’y trouve.",
+      "qrLabel": "Votre code de vérification éphémère",
+      "serverIsAuthority": "Vérifié auprès du registre au moment du scan, et non sur cette page.",
+      "status": {
+        "active": "Justificatif actif",
+        "provisional": "Provisoire — non encore vérifié",
+        "suspended": "Suspendu",
+        "revoked": "Révoqué",
+        "expired": "Expiré"
+      }
+    },
+    "demoPill": "COMPTE DE DÉMONSTRATION — PAS UN JUSTIFICATIF RÉEL"
   }
 }

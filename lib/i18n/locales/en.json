@@ -7565,6 +7565,25 @@
     "pledgeAfrica": "AFRICA FOCUSED",
     "openCard": "Open my Health ID card",
     "open": "Open my Health Passport",
-    "openHint": "Your record, as thirty pages"
+    "openHint": "Your record, as thirty pages",
+    "verify": {
+      "present": "Show my verification code",
+      "minting": "Preparing…",
+      "presentHint": "A short-lived code a clinician can scan to check this record is yours and current. It expires on its own.",
+      "mintFailed": "The code could not be prepared. Try again in a moment.",
+      "opaqueReference": "OPAQUE VERIFICATION REFERENCE",
+      "expiresIn": "Expires in {{seconds}}s",
+      "noClinicalData": "This code carries a reference only. None of your clinical record is in it.",
+      "qrLabel": "Your short-lived verification code",
+      "serverIsAuthority": "Checked against the register at the moment of the scan, not against this page.",
+      "status": {
+        "active": "Active credential",
+        "provisional": "Provisional — not yet verified",
+        "suspended": "Suspended",
+        "revoked": "Revoked",
+        "expired": "Expired"
+      }
+    },
+    "demoPill": "DEMONSTRATION ACCOUNT — NOT A LIVE CREDENTIAL"
   }
 }

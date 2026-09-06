@@ -69,6 +69,8 @@ export type PassportSummary = {
   display_name: string | null;
   last_updated_at: string | null;
   total_pages: number;
+  /** True when this is a demonstration account, so the page can say so. */
+  is_demo?: boolean;
   pages: PassportPageRef[];
 };
 

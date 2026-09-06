@@ -42,6 +42,7 @@ import {
 } from '@/components/opes-ui';
 import { CareButton, LoadingBlock, describeFailure } from '@/components/care/shared';
 import { PassportPageBody, glyph } from '@/components/passport/PassportPage';
+import { SecurityFooter } from '@/components/passport/SecurityFooter';
 import { SecuritySubstrate } from '@/components/passport/substrate';
 import { passportColors as c, passportRadius as r } from '@/components/passport/tokens';
 import {
@@ -64,6 +65,8 @@ export default function HealthPassportScreen() {
 
   const current = pages[index];
   const page = usePassportPage(current?.id ?? null, { enabled: !!current });
+  // The covers are the document's face and are drawn edge to edge.
+  const isCover = page.data?.kind === 'cover' || page.data?.kind === 'back-cover';
 
   const go = useCallback(
     (next: number) => {
@@ -123,10 +126,10 @@ export default function HealthPassportScreen() {
       />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.canvas}>
-          <SecuritySubstrate />
+        <View style={[styles.canvas, isCover && styles.canvasCover]}>
+          {isCover ? null : <SecuritySubstrate />}
 
-          <View style={styles.topMeta}>
+          {isCover ? null : <View style={styles.topMeta}>
             <View style={{ gap: 3 }}>
               <Text style={styles.docLabel}>{t('passport.documentLabel')}</Text>
               <Text style={styles.microLabel}>{stateLabel.toUpperCase()}</Text>
@@ -138,21 +141,21 @@ export default function HealthPassportScreen() {
                 <Text style={styles.pageSlash}>/{total}</Text>
               </Text>
             </View>
-          </View>
+          </View>}
 
           {/* The demo pill the package's shell carries — shown ONLY when the
               account really is a demonstration one. On a real record it would
               be a lie in the other direction. */}
-          {summary.data?.is_demo ? (
+          {summary.data?.is_demo && !isCover ? (
             <View style={styles.demoPill}>
               <Icon name="info" size={12} color={c.warning} />
               <Text style={styles.demoText}>{t('passport.demoPill')}</Text>
             </View>
           ) : null}
 
-          <View style={styles.rule} />
+          {isCover ? null : <View style={styles.rule} />}
 
-          <View style={styles.titleRow}>
+          {isCover ? null : <View style={styles.titleRow}>
             <View style={styles.titleIcon}>
               <Icon name={glyph(current?.icon)} size={20} color={c.primary} />
             </View>
@@ -160,7 +163,7 @@ export default function HealthPassportScreen() {
               <Text style={styles.pageTitle}>{current?.title}</Text>
               {current?.subtitle ? <Text style={styles.pageSubtitle}>{current.subtitle}</Text> : null}
             </View>
-          </View>
+          </View>}
 
           {page.isPending ? (
             <View style={styles.centre}>
@@ -183,19 +186,21 @@ export default function HealthPassportScreen() {
               <Text style={styles.stateHint}>{t('passport.emptyHint')}</Text>
             </View>
           ) : page.data ? (
-            <PassportPageBody page={page.data} status={summary.data?.status ?? 'PROVISIONAL'} />
+            <PassportPageBody
+              page={page.data}
+              status={summary.data?.status ?? 'PROVISIONAL'}
+              holderName={summary.data?.display_name}
+              healthId={summary.data?.health_id}
+            />
           ) : null}
 
-          <View style={styles.footer}>
-            <View>
-              <Text style={styles.secure}>{t('passport.secure')}</Text>
-              <Text style={styles.footerMeta}>{t('passport.tagline')}</Text>
-            </View>
-            <View style={{ alignItems: 'center', gap: 3 }}>
-              <Icon name="lock" size={13} color={c.primary} />
-              <Text style={styles.footerMicro}>{t('passport.secureShort')}</Text>
-            </View>
-          </View>
+          {isCover ? null : <SecurityFooter
+            status={summary.data?.status ?? 'PROVISIONAL'}
+            healthId={summary.data?.health_id}
+            lastUpdatedAt={summary.data?.last_updated_at}
+            pageNumber={current?.number ?? 1}
+            totalPages={total}
+          />}
         </View>
 
         {/* The passport reads the record; presenting identity is the card. */}
@@ -280,6 +285,8 @@ export default function HealthPassportScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
   scroll: { padding: 12, paddingBottom: 24 },
+  // A cover is the face: no paper, no border, no padding around it.
+  canvasCover: { backgroundColor: 'transparent', borderWidth: 0, padding: 0, minHeight: 0, overflow: 'visible' },
   canvas: {
     position: 'relative',
     overflow: 'hidden',

@@ -10,6 +10,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '@/components/opes-ui';
+import { PassportCover } from './PassportCover';
 import { VerificationCentre } from './VerificationCentre';
 import { passportColors as c, passportRadius as r, passportSpace as s } from './tokens';
 import type { PassportPage, PassportSection } from '@/lib/api/passportQueries';
@@ -31,13 +32,20 @@ export function glyph(name: string | undefined): IconName {
 export function PassportPageBody({
   page,
   status = 'PROVISIONAL',
+  holderName,
+  healthId,
 }: {
   page: PassportPage;
   /** The credential status the summary reported, for the Verification Centre. */
   status?: 'ACTIVE' | 'PROVISIONAL' | 'SUSPENDED' | 'REVOKED' | 'EXPIRED';
+  /** Whose passport it is — printed on the cover, as on the card. */
+  holderName?: string | null;
+  healthId?: string | null;
 }) {
-  if (page.kind === 'cover') return <Cover page={page} />;
-  if (page.kind === 'back-cover') return <BackCover />;
+  if (page.kind === 'cover') {
+    return <PassportCover holderName={holderName} healthId={healthId} subtitle={page.subtitle} />;
+  }
+  if (page.kind === 'back-cover') return <PassportCover back />;
 
   return (
     <View>
@@ -89,50 +97,6 @@ function SectionCard({ section }: { section: PassportSection }) {
           </View>
         </View>
       ))}
-    </View>
-  );
-}
-
-function Cover({ page }: { page: PassportPage }) {
-  const { t } = useTranslation();
-  return (
-    <View style={styles.cover}>
-      <View style={styles.coverRing}>
-        <Icon name="shield-check" size={44} color={c.surface} />
-      </View>
-      <Text style={styles.coverBrand}>OPESCARE</Text>
-      <Text style={styles.coverTitle}>{t('passport.coverTitle').toUpperCase()}</Text>
-      <Text style={styles.coverTag}>{t('passport.tagline')}</Text>
-      <View style={styles.coverPanel}>
-        <Text style={styles.panelTitle}>{page.subtitle}</Text>
-        <Text style={styles.panelBody}>{t('passport.coverExplainer')}</Text>
-      </View>
-    </View>
-  );
-}
-
-function BackCover() {
-  const { t } = useTranslation();
-  const pledges: Array<[IconName, string]> = [
-    ['lock', t('passport.pledgeData')],
-    ['shield-check', t('passport.pledgeControl')],
-    ['users', t('passport.pledgePeople')],
-    ['heart-pulse', t('passport.pledgeAfrica')],
-  ];
-
-  return (
-    <View style={styles.back}>
-      <Text style={styles.backKicker}>{t('passport.secure').toUpperCase()}</Text>
-      <Text style={styles.backTitle}>{t('passport.backTitle')}</Text>
-      <Text style={styles.backBody}>{t('passport.backBody')}</Text>
-      <View style={styles.backGrid}>
-        {pledges.map(([icon, label]) => (
-          <View key={label} style={styles.backCell}>
-            <Icon name={icon} size={17} color={c.teal} />
-            <Text style={styles.backCellText}>{label}</Text>
-          </View>
-        ))}
-      </View>
     </View>
   );
 }

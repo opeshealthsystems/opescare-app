@@ -13,9 +13,11 @@
  * The card is a deep-blue credential and carries these layers at 0.45–0.9. A
  * passport page is a WHITE document page: the same values there turn the paper
  * muddy and, worse, compete with the clinical text a person is trying to read.
- * Everything here therefore sits between 0.03 and 0.14 — present when you look
- * for it, invisible when you are reading a potassium result. Security artwork
- * that fights the record has failed at its job.
+ * Everything here therefore sits between 0.09 and 0.22 under a paper scrim:
+ * PRESENT — a reader can see the guilloche, the helix, the seal and the ECG —
+ * while the clinical text still wins every contrast contest. A first pass at
+ * 0.03–0.14 was so faint the security language read as nothing at all, which
+ * defeats the point of having it.
  *
  * ── IT IS ARTWORK, NOT PROOF ─────────────────────────────────────────────
  *
@@ -42,31 +44,31 @@ export function SecuritySubstrate() {
       importantForAccessibility="no-hide-descendants"
     >
       {/* 1. The paper itself. */}
-      <Art source={HEALTH_ID_ART.documentTexture} style={FILL} resizeMode="cover" opacity={0.07} />
+      <Art source={HEALTH_ID_ART.documentTexture} style={FILL} resizeMode="cover" opacity={0.16} />
 
       {/* 2. Guilloche — the oldest anti-copy mark there is. */}
-      <Art source={HEALTH_ID_ART.guillocheTexture} style={FILL} resizeMode="cover" opacity={0.05} />
-      <Art source={HEALTH_ID_ART.guillocheLines} style={FILL} resizeMode="cover" opacity={0.035} />
-      <Art source={HEALTH_ID_ART.guillocheMesh} style={FILL} resizeMode="cover" opacity={0.04} />
+      <Art source={HEALTH_ID_ART.guillocheTexture} style={FILL} resizeMode="cover" opacity={0.13} />
+      <Art source={HEALTH_ID_ART.guillocheLines} style={FILL} resizeMode="cover" opacity={0.09} />
+      <Art source={HEALTH_ID_ART.guillocheMesh} style={FILL} resizeMode="cover" opacity={0.11} />
 
       {/* 3. The continent, as a watermark rather than a picture. */}
-      <Art source={HEALTH_ID_ART.africa} style={styles.africa} resizeMode="contain" opacity={0.05} />
+      <Art source={HEALTH_ID_ART.africa} style={styles.africa} resizeMode="contain" opacity={0.1} />
 
       {/* 4. The DNA motif down the outer margin, as on the printed document. */}
-      <Art source={HEALTH_ID_ART.dnaMicrodata} style={styles.dnaMargin} resizeMode="cover" opacity={0.06} />
-      <Art source={HEALTH_ID_ART.dnaHelix} style={styles.dnaHelix} resizeMode="contain" opacity={0.045} />
+      <Art source={HEALTH_ID_ART.dnaMicrodata} style={styles.dnaMargin} resizeMode="cover" opacity={0.16} />
+      <Art source={HEALTH_ID_ART.dnaHelix} style={styles.dnaHelix} resizeMode="contain" opacity={0.1} />
 
       {/* 5. The seal, struck faintly into the page. */}
-      <Art source={HEALTH_ID_ART.seal} style={styles.seal} resizeMode="contain" opacity={0.055} />
+      <Art source={HEALTH_ID_ART.seal} style={styles.seal} resizeMode="contain" opacity={0.1} />
 
       {/* 6. Perimeter registration markers. */}
-      <Art source={HEALTH_ID_ART.cornerMarkers} style={FILL} resizeMode="stretch" opacity={0.09} />
+      <Art source={HEALTH_ID_ART.cornerMarkers} style={FILL} resizeMode="stretch" opacity={0.2} />
 
       {/* 7. The clinical signature of the document, along the foot. */}
-      <Art source={HEALTH_ID_ART.ecgLine} style={styles.ecg} resizeMode="stretch" opacity={0.1} />
+      <Art source={HEALTH_ID_ART.ecgLine} style={styles.ecg} resizeMode="stretch" opacity={0.22} />
 
       {/* 8. The fingerprint block — the printed passport's security corner. */}
-      <Art source={HEALTH_ID_ART.fingerprint} style={styles.fingerprint} resizeMode="contain" opacity={0.07} />
+      <Art source={HEALTH_ID_ART.fingerprint} style={styles.fingerprint} resizeMode="contain" opacity={0.14} />
 
       {/* The paper scrim. The layers above were drawn for the card's deep navy;
           on a white page they tint the paper, so a sheet of paper goes back
@@ -75,7 +77,7 @@ export function SecuritySubstrate() {
 
       {/* 9. Microtext: legible only up close, as on the printed document. */}
       <Svg style={FILL} width="100%" height="100%" viewBox="0 0 340 640" preserveAspectRatio="xMidYMid slice">
-        <G opacity={0.14}>
+        <G opacity={0.3}>
           <SvgText x={170} y={9} fontSize={4} fill={c.primary} textAnchor="middle" letterSpacing={1.3}>
             OPESCARE SECURE • PEOPLE • DATA • TRUST • BETTER HEALTH • AFRICA
           </SvgText>
@@ -89,7 +91,7 @@ export function SecuritySubstrate() {
 }
 
 const styles = StyleSheet.create({
-  scrim: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.62)' },
+  scrim: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.42)' },
   africa: { position: 'absolute', right: -30, top: 150, width: 260, height: 260 },
   dnaMargin: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 26 },
   dnaHelix: { position: 'absolute', right: -14, bottom: 90, width: 120, height: 260 },

@@ -7584,6 +7584,9 @@
         "expired": "Expired"
       }
     },
-    "demoPill": "DEMONSTRATION ACCOUNT — NOT A LIVE CREDENTIAL"
+    "demoPill": "DEMONSTRATION ACCOUNT — NOT A LIVE CREDENTIAL",
+    "updatedAt": "Record updated {{when}}",
+    "drawnAt": "This copy drawn {{when}}",
+    "microtext": "OPESCARE SECURE • AUTHENTIC • VERIFIABLE • CONSENT-AWARE • AUDITED • PAGE {{page}} OF {{total}}"
   }
 }

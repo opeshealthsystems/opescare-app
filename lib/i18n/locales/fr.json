@@ -7585,6 +7585,9 @@
         "expired": "Expiré"
       }
     },
-    "demoPill": "COMPTE DE DÉMONSTRATION — PAS UN JUSTIFICATIF RÉEL"
+    "demoPill": "COMPTE DE DÉMONSTRATION — PAS UN JUSTIFICATIF RÉEL",
+    "updatedAt": "Dossier mis à jour {{when}}",
+    "drawnAt": "Copie établie {{when}}",
+    "microtext": "OPESCARE SECURE • AUTHENTIQUE • VÉRIFIABLE • SOUMIS AU CONSENTEMENT • AUDITÉ • PAGE {{page}} SUR {{total}}"
   }
 }

@@ -4,6 +4,8 @@ import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 import { apiClient, setSessionExpiredHandler } from '../api/client';
 import { endpoints } from '../api/endpoints';
+import { revokePushTokensOnThisDevice } from '../api/queries';
+import { clearPushRegistration, getOrCreateFingerprint } from '../push/device';
 import { tokenStorage } from '../api/tokenStorage';
 import { getCachedDemographics, isNetworkError } from '../offline/cache';
 import {
@@ -627,6 +629,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Already expired, offline, or no such route — the local wipe stands.
       }
     }
+
+    // Stop this handset's phone alerts for the account that is leaving. Best
+    // effort like the session revoke above: the server retires every token
+    // registered under this fingerprint, and the local registration id goes
+    // either way so the next sign-in registers afresh.
+    try {
+      await revokePushTokensOnThisDevice(await getOrCreateFingerprint());
+    } catch {
+      // Offline or already gone — receipts will retire a dead token later.
+    }
+    await clearPushRegistration().catch(() => undefined);
 
     await clearStoredSession();
 

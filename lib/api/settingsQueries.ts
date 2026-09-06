@@ -306,7 +306,8 @@ export type NotificationPreferenceKey =
   | 'push_lab_results'
   | 'push_prescriptions'
   | 'push_billing'
-  | 'push_consent_requests';
+  | 'push_consent_requests'
+  | 'push_messages';
 
 export const NOTIFICATION_PREFERENCE_KEYS: NotificationPreferenceKey[] = [
   'push_appointments',
@@ -314,6 +315,7 @@ export const NOTIFICATION_PREFERENCE_KEYS: NotificationPreferenceKey[] = [
   'push_prescriptions',
   'push_billing',
   'push_consent_requests',
+  'push_messages',
 ];
 
 /**

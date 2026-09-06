@@ -151,6 +151,12 @@ const PREFERENCE_META: Record<
     labelKey: 'settings.notifications.consentRequests',
     bodyKey: 'settings.notifications.consentRequestsBody',
   },
+  push_messages: {
+    icon: 'chat',
+    tint: 'blue',
+    labelKey: 'settings.notifications.messages',
+    bodyKey: 'settings.notifications.messagesBody',
+  },
 };
 
 export default function SettingsScreen() {

@@ -891,7 +891,9 @@
       "unavailable": "Impossible de lire cette préférence",
       "updateError": "Impossible d’enregistrer cette préférence. Elle reste inchangée — veuillez réessayer.",
       "centre": "Centre de notifications",
-      "centreBody": "Tout ce qu’OpesCare vous a envoyé."
+      "centreBody": "Tout ce qu’OpesCare vous a envoyé.",
+      "messages": "Messages de votre équipe de soins",
+      "messagesBody": "Un nouveau message dans l’une de vos conversations. Les demandes d’accès et les urgences sont toujours livrées."
     },
     "device": {
       "pushLabel": "Notifications push",

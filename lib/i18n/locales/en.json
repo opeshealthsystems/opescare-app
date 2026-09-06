@@ -891,7 +891,9 @@
       "unavailable": "We couldn't read this preference",
       "updateError": "Couldn't save that preference. It has been left as it was — please try again.",
       "centre": "Notification centre",
-      "centreBody": "Everything OpesCare has sent you."
+      "centreBody": "Everything OpesCare has sent you.",
+      "messages": "Messages from your care team",
+      "messagesBody": "A new message in one of your conversations. Access requests and emergencies are always delivered."
     },
     "device": {
       "pushLabel": "Push notifications",

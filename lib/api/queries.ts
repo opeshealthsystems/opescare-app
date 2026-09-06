@@ -212,6 +212,8 @@ export interface MobileSettings {
   push_prescriptions: boolean;
   push_billing: boolean;
   push_consent_requests: boolean;
+  /** Messages from the care team; access requests and emergencies are never suppressed server-side. */
+  push_messages: boolean;
   preferred_language: string;
   preferred_theme: 'light' | 'dark' | 'system';
   biometric_login_enabled: boolean;
@@ -259,6 +261,15 @@ export function useRevokePushToken() {
     mutationFn: async (tokenId: string) =>
       (await apiClient.delete<{ status: string }>(endpoints.pushToken(tokenId))).data,
   });
+}
+
+/**
+ * `DELETE /mobile/push-tokens` for THIS handset (by fingerprint): called on
+ * logout so a signed-out phone stops receiving the previous account's alerts.
+ * Plain function, not a hook — it runs inside the auth store's logout.
+ */
+export async function revokePushTokensOnThisDevice(deviceFingerprint: string): Promise<void> {
+  await apiClient.delete(endpoints.pushTokens, { data: { device_fingerprint: deviceFingerprint } });
 }
 
 // ---------------------------------------------------------------------------

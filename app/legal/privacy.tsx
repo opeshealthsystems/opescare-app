@@ -291,7 +291,7 @@ export default function PrivacyPolicyScreen() {
           <Text style={styles.lede}>
             {t('legal.privacy.lede', {
               defaultValue:
-                'OpesCare Finder holds medical information about you. This page explains, in plain words, what the app collects, who can see it, and what you can do about it. It describes what the app actually does today — not what it might do later.',
+                'OpesCare holds medical information about you. This page explains, in plain words, what the app collects, who can see it, and what you can do about it. It describes what the app actually does today — not what it might do later.',
             })}
           </Text>
         </Card>

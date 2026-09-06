@@ -6364,7 +6364,7 @@
     "privacy": {
       "title": "Politique de confidentialité",
       "updated": "Dernière mise à jour le {{date}}",
-      "lede": "OpesCare Finder détient des informations médicales vous concernant. Cette page explique, en termes simples, ce que l'application collecte, qui peut y accéder et ce que vous pouvez faire à ce sujet. Elle décrit ce que l'application fait réellement aujourd'hui — et non ce qu'elle pourrait faire plus tard.",
+      "lede": "OpesCare détient des informations médicales vous concernant. Cette page explique, en termes simples, ce que l'application collecte, qui peut y accéder et ce que vous pouvez faire à ce sujet. Elle décrit ce que l'application fait réellement aujourd'hui — et non ce qu'elle pourrait faire plus tard.",
       "collectTitle": "Ce que nous collectons",
       "collectIdentity": "Les informations d'identité et de contact que vous nous communiquez : vos nom et prénom, votre date de naissance, votre sexe, votre numéro de téléphone, votre adresse e-mail, votre adresse postale, ainsi que le nom et le numéro de téléphone de la personne à prévenir en cas d'urgence que vous désignez. Si vous inscrivez une personne à charge, nous collectons les mêmes informations la concernant.",
       "collectHealth": "Les informations de santé contenues dans votre dossier OpesCare : votre identifiant santé, votre groupe sanguin, vos allergies, vos diagnostics et pathologies, vos vaccinations, vos ordonnances, vos demandes et résultats d'analyses, vos signes vitaux, vos plans de soins, vos orientations, vos rendez-vous et les documents cliniques qui vous sont délivrés.",
@@ -6410,11 +6410,11 @@
     "terms": {
       "title": "Conditions d'utilisation",
       "updated": "Dernière mise à jour le {{date}}",
-      "lede": "Ces conditions encadrent votre utilisation de l'application OpesCare Finder. Les deux premières sections sont les plus importantes pour votre sécurité — lisez-les même si vous ne lisez rien d'autre.",
+      "lede": "Ces conditions encadrent votre utilisation de l'application OpesCare. Les deux premières sections sont les plus importantes pour votre sécurité — lisez-les même si vous ne lisez rien d'autre.",
       "emergencyTitle": "Cette application ne remplace pas les secours",
       "emergencyBody": "Si vous êtes en situation d'urgence médicale, arrêtez-vous et appelez le numéro d'urgence local ou rendez-vous au service d'urgence le plus proche. N'utilisez pas cette application pour demander de l'aide urgente. Les messages, les demandes de rendez-vous et les demandes de sang ne font pas l'objet d'une surveillance continue et peuvent ne pas être vus à temps.",
       "adviceTitle": "Elle ne donne pas d'avis médical",
-      "adviceBody": "OpesCare Finder vous présente des informations issues de votre dossier de santé et des établissements de l'annuaire national. Elle ne pose pas de diagnostic, ne traite pas et ne vous dit pas quoi faire concernant votre santé. Rien dans l'application ne remplace une consultation auprès d'un soignant qualifié, et aucun résultat, aucune valeur ni aucun indicateur affiché ici ne doit être suivi d'effet sans une telle consultation.",
+      "adviceBody": "OpesCare vous présente des informations issues de votre dossier de santé et des établissements de l'annuaire national. Elle ne pose pas de diagnostic, ne traite pas et ne vous dit pas quoi faire concernant votre santé. Rien dans l'application ne remplace une consultation auprès d'un soignant qualifié, et aucun résultat, aucune valeur ni aucun indicateur affiché ici ne doit être suivi d'effet sans une telle consultation.",
       "adviceResults": "Les résultats d'analyses et les signes vitaux sont affichés tels que votre établissement les a communiqués. Une valeur de référence ou un marqueur hors norme est une annotation propre au laboratoire, et non une interprétation de ce que cela signifie pour vous.",
       "accountTitle": "Votre compte",
       "accountTruthful": "Vous devez fournir des informations d'identité exactes. Votre identifiant santé est délivré sur cette base, et un dossier rattaché à des informations erronées représente un danger pour vous : il peut placer les allergies ou le groupe sanguin d'une autre personne sous les yeux de celui qui vous soigne.",

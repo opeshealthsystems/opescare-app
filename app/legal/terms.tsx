@@ -80,7 +80,7 @@ function useSections(): Section[] {
       body: [
         tx(
           'adviceBody',
-          'OpesCare Finder shows you information from your health record and from the facilities in the national directory. It does not diagnose, treat, or tell you what to do about your health. Nothing in the app replaces a consultation with a qualified clinician, and no result, value or flag shown here should be acted on without one.',
+          'OpesCare shows you information from your health record and from the facilities in the national directory. It does not diagnose, treat, or tell you what to do about your health. Nothing in the app replaces a consultation with a qualified clinician, and no result, value or flag shown here should be acted on without one.',
         ),
         tx(
           'adviceResults',
@@ -222,7 +222,7 @@ export default function TermsOfServiceScreen() {
           <Text style={styles.lede}>
             {t('legal.terms.lede', {
               defaultValue:
-                'These terms cover your use of the OpesCare Finder app. The first two sections are the ones that matter most to your safety — please read them even if you read nothing else.',
+                'These terms cover your use of the OpesCare app. The first two sections are the ones that matter most to your safety — please read them even if you read nothing else.',
             })}
           </Text>
         </Card>

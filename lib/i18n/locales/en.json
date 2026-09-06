@@ -6183,7 +6183,8 @@
       "dispense": "Dispense for this patient",
       "checkInBook": "Check in / book",
       "labOrders": "Lab orders for this patient",
-      "identifiedStockBody": "This is the person the Health ID names. Your role covers stock, in the Stock tab; dispensing and their chart are not part of it."
+      "identifiedStockBody": "This is the person the Health ID names. Your role covers stock, in the Stock tab; dispensing and their chart are not part of it.",
+      "orderLab": "Order lab test"
     },
     "roleGate": {
       "header": "Clinician area",
@@ -6235,6 +6236,27 @@
       "action": "Book follow-up",
       "afterVisit": "Next visit",
       "afterVisitBody": "Book the follow-up while the visit is fresh. It goes into your own diary at this facility, for {{patient}}."
+    },
+    "orderLab": {
+      "action": "Order lab test",
+      "title": "Order a laboratory test",
+      "lead": "A new laboratory order for {{patient}}, in your name.",
+      "searchLabel": "Test",
+      "searchPlaceholder": "Search the catalogue or type a test name",
+      "suggestions": "From the laboratory catalogue",
+      "codeLabel": "Code (optional)",
+      "urgencyLabel": "Urgency",
+      "indicationLabel": "Clinical indication",
+      "indicationPlaceholder": "What you want the laboratory to answer…",
+      "helper": "The laboratory desk sees this order under your name; the patient is told a test was ordered.",
+      "cta": "Order test",
+      "cancel": "Cancel",
+      "required": "This field is required.",
+      "orderedTitle": "Ordered",
+      "orderedBody": "{{test}} is on the laboratory's worklist. You will see the result in your inbox.",
+      "failedTitle": "Not ordered",
+      "notServed": "Ordering is not available on this server yet — order on a workstation.",
+      "noCatalogue": "No catalogue match — the name you typed will be sent as written."
     }
   },
   "_readme": [

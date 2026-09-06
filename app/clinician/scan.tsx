@@ -195,6 +195,7 @@ export default function ScanPatientScreen() {
   if (outcome && patient) {
     if (canChart && outcome.consent_granted) {
       handOffs.push({ key: 'chart', label: tx('openChart', 'Open chart'), icon: 'folder', route: doctorRoutes.patient(patient.id) });
+      handOffs.push({ key: 'orderLab', label: tx('orderLab', 'Order lab test'), icon: 'flask', route: doctorRoutes.patientOrderLab(patient.id) });
     }
     if (canDispense) {
       handOffs.push({ key: 'dispense', label: tx('dispense', 'Dispense for this patient'), icon: 'pill', route: doctorRoutes.pharmacy(patient.health_id) });

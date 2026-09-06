@@ -249,6 +249,8 @@ export const doctorRoutes = {
    * it, so a back-swipe does not reopen the sheet.
    */
   patientFollowUp: (id: string) => `/clinician/patient/${seg(id)}?followUp=1`,
+  /** The chart, opening on its "Order a lab test" sheet (scanner hand-off). */
+  patientOrderLab: (id: string) => `/clinician/patient/${seg(id)}?orderLab=1`,
 } as const;
 
 /** Where a non-clinician is sent back to — the patient app's home tab. */

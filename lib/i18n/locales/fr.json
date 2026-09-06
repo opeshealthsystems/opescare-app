@@ -6183,7 +6183,8 @@
       "dispense": "Délivrer pour ce patient",
       "checkInBook": "Enregistrer / prendre RDV",
       "labOrders": "Analyses de ce patient",
-      "identifiedStockBody": "C’est bien la personne désignée par l’identifiant santé. Votre rôle couvre le stock, dans l’onglet Stock ; la délivrance et son dossier n’en font pas partie."
+      "identifiedStockBody": "C’est bien la personne désignée par l’identifiant santé. Votre rôle couvre le stock, dans l’onglet Stock ; la délivrance et son dossier n’en font pas partie.",
+      "orderLab": "Prescrire une analyse"
     },
     "roleGate": {
       "header": "Espace soignant",
@@ -6235,6 +6236,27 @@
       "action": "Programmer un suivi",
       "afterVisit": "Prochaine visite",
       "afterVisitBody": "Programmez le suivi tant que la visite est récente. Il s’inscrit dans votre propre agenda de cet établissement, pour {{patient}}."
+    },
+    "orderLab": {
+      "action": "Prescrire une analyse",
+      "title": "Prescrire une analyse de laboratoire",
+      "lead": "Une nouvelle demande d’analyse pour {{patient}}, en votre nom.",
+      "searchLabel": "Analyse",
+      "searchPlaceholder": "Cherchez dans le catalogue ou saisissez un nom d’analyse",
+      "suggestions": "Depuis le catalogue du laboratoire",
+      "codeLabel": "Code (facultatif)",
+      "urgencyLabel": "Urgence",
+      "indicationLabel": "Indication clinique",
+      "indicationPlaceholder": "Ce que vous attendez du laboratoire…",
+      "helper": "Le laboratoire voit cette demande en votre nom ; le patient est informé qu’une analyse a été prescrite.",
+      "cta": "Prescrire l’analyse",
+      "cancel": "Annuler",
+      "required": "Ce champ est obligatoire.",
+      "orderedTitle": "Prescrite",
+      "orderedBody": "{{test}} figure sur la liste de travail du laboratoire. Le résultat arrivera dans votre boîte.",
+      "failedTitle": "Non prescrite",
+      "notServed": "La prescription d’analyses n’est pas encore disponible sur ce serveur — utilisez un poste de travail.",
+      "noCatalogue": "Aucune correspondance au catalogue — le nom saisi sera transmis tel quel."
     }
   },
   "_readme": [

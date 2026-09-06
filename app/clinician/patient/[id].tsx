@@ -74,6 +74,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { RoleGate, RoleRefusedNotice } from '@/components/doctor/RoleGate';
 import { FollowUpSheet } from '@/components/doctor/FollowUpSheet';
+import { OrderLabSheet } from '@/components/doctor/OrderLabSheet';
 import { isRoleForbidden } from '@/lib/api/roleErrors';
 import { useStaffCapability } from '@/lib/staffCapabilities';
 import type { UseQueryResult } from '@tanstack/react-query';
@@ -172,7 +173,7 @@ function PatientChartScreenBody() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const { id, followUp } = useLocalSearchParams<{ id: string; followUp?: string }>();
+  const { id, followUp, orderLab } = useLocalSearchParams<{ id: string; followUp?: string; orderLab?: string }>();
   const patientId = typeof id === 'string' && id.length > 0 ? id : undefined;
 
   // ── Book follow-up ──────────────────────────────────────────────────────
@@ -181,6 +182,13 @@ function PatientChartScreenBody() {
   // above). `?followUp=1` (a result's "next step", `doctorRoutes.patientFollowUp`)
   // opens the sheet once per mount; coming back to the chart does not reopen it.
   const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [orderLabOpen, setOrderLabOpen] = useState(false);
+  const orderLabAutoOpened = useRef(false);
+  useEffect(() => {
+    if (orderLabAutoOpened.current || !patientId || orderLab !== '1') return;
+    orderLabAutoOpened.current = true;
+    setOrderLabOpen(true);
+  }, [orderLab, patientId]);
   const autoOpened = useRef(false);
   useEffect(() => {
     if (autoOpened.current || !patientId || followUp !== '1') return;
@@ -231,6 +239,11 @@ function PatientChartScreenBody() {
           identityDead
             ? undefined
             : [
+                {
+                  icon: 'flask',
+                  accessibilityLabel: tx('orderLab.action', 'Order lab test'),
+                  onPress: () => setOrderLabOpen(true),
+                },
                 {
                   icon: 'calendar-plus',
                   accessibilityLabel: tx('followUp.action', 'Book follow-up'),
@@ -310,6 +323,15 @@ function PatientChartScreenBody() {
 
         <ReadOnlyFooter />
       </ScrollView>
+
+      {patientId && (
+        <OrderLabSheet
+          visible={orderLabOpen}
+          patientId={patientId}
+          patientLabel={patient?.name ?? patient?.health_id ?? null}
+          onClose={() => setOrderLabOpen(false)}
+        />
+      )}
 
       {patientId && (
         <FollowUpSheet

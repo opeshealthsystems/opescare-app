@@ -33,7 +33,7 @@
  * from what the detail row itself already carries (its `patient_id`, its
  * `patient_health_id`, its test) — the same facts, not invented ones.
  */
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { apiClient } from './client';
 import {
@@ -58,6 +58,8 @@ export const resultActionEndpoints = {
   startThread: `${DOCTOR_API_PREFIX}/messages/threads`,
   /** POST — place a laboratory order for a patient (ordered_by = me). */
   labOrders: (patientId: string) => `${DOCTOR_API_PREFIX}/patients/${seg(patientId)}/lab-orders`,
+  /** GET `?q=` — the orderable-test catalogue (one entry per code). */
+  labCatalogue: `${DOCTOR_API_PREFIX}/lab-catalogue`,
 } as const;
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -254,6 +256,35 @@ export function useStartPatientThread() {
 }
 
 /** POST /mobile/doctor/patients/{id}/lab-orders — order a (repeat) test. */
+/** One orderable test as the laboratories published it. */
+export interface LabCatalogueEntry {
+  code: string;
+  name: string;
+  loinc_code: string | null;
+  category: string | null;
+  specimen: string | null;
+}
+
+/**
+ * `GET /mobile/doctor/lab-catalogue?q=` — suggestions for the order sheet.
+ * Asks only from two characters; a 404 (older server) simply yields no
+ * suggestions, the typed name is still sent as written.
+ */
+export function useLabCatalogue(q: string, opts: { enabled?: boolean } = {}) {
+  const term = q.trim();
+  return useQuery({
+    queryKey: ['doctor', 'lab-catalogue', term.toLowerCase()],
+    queryFn: async () => {
+      const res = await apiClient.get<{ data?: unknown }>(resultActionEndpoints.labCatalogue, { params: { q: term } });
+      const rows = res.data?.data;
+      return Array.isArray(rows) ? (rows as LabCatalogueEntry[]) : [];
+    },
+    enabled: (opts.enabled ?? true) && term.length >= 2,
+    staleTime: 60 * 1000,
+    retry: false,
+  });
+}
+
 export function useOrderLabTest() {
   const qc = useQueryClient();
   return useMutation({

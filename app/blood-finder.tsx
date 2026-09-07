@@ -494,6 +494,29 @@ export default function BloodFinderScreen() {
     [bloodGroup, componentType, origin.lat, origin.lng, radiusKm, router],
   );
 
+  /**
+   * PM-BLOOD-02. Same params as the request route, because the detail screen
+   * re-resolves the facility from the same search rather than trusting a
+   * snapshot passed through the navigation.
+   */
+  const goToBank = useCallback(
+    (facility: BloodBankResult) => {
+      if (!bloodGroup) return;
+      router.push({
+        pathname: '/blood-finder/bank',
+        params: {
+          facilityId: facility.id,
+          bloodGroup,
+          componentType,
+          lat: String(origin.lat),
+          lng: String(origin.lng),
+          radiusKm: String(radiusKm),
+        },
+      });
+    },
+    [bloodGroup, componentType, origin.lat, origin.lng, radiusKm, router],
+  );
+
   /** Cancelling a reservation is unrecoverable — confirm before firing it. */
   const confirmCancel = (request: BloodRequest) =>
     dialog.confirm({
@@ -994,7 +1017,7 @@ export default function BloodFinderScreen() {
                   <BloodBankCard
                     key={facility.id}
                     facility={facility}
-                    onRequest={() => goToRequest(facility)}
+                    onOpen={() => goToBank(facility)}
                   />
                 ))}
                 {truncated ? (
@@ -1274,10 +1297,11 @@ function StockFacts({
  */
 function BloodBankCard({
   facility,
-  onRequest,
+  onOpen,
 }: {
   facility: BloodBankResult;
-  onRequest: () => void;
+  /** Opens PM-BLOOD-02 for this facility. */
+  onOpen: () => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -1330,7 +1354,7 @@ function BloodBankCard({
             />
           </View>
         }
-        onPress={onRequest}
+        onPress={onOpen}
         accessibilityLabel={[facility.name, place, stockLabel, distance, freshnessLabel]
           .filter(Boolean)
           .join(', ')}
@@ -1376,7 +1400,7 @@ function BloodBankCard({
           <GradientButton
             label={t('bloodFinder.requestUnits')}
             icon="none"
-            onPress={onRequest}
+            onPress={onOpen}
             accessibilityHint={t('bloodFinder.request.subtitle')}
           />
         </View>
@@ -1601,7 +1625,7 @@ function NoStockPanel({
                   <BloodBankCard
                     key={facility.id}
                     facility={facility}
-                    onRequest={() => onOpenFacility(facility)}
+                    onOpen={() => onOpenFacility(facility)}
                   />
                 ))}
               </View>

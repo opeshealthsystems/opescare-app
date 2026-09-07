@@ -3,7 +3,7 @@
     "name": "OpesCare",
     "slug": "opescare-finder",
     "scheme": "opescarefinder",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -12,7 +12,7 @@
     "description": "Find medicines and blood in stock near you, book appointments at verified facilities, and carry your OpesCare Health ID and medical records wherever you get care.",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "cloud.opescare.finder",
+      "bundleIdentifier": "com.opescare.patientid",
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -45,7 +45,7 @@
       }
     },
     "android": {
-      "package": "cloud.opescare.finder",
+      "package": "com.opescare.patientid",
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",

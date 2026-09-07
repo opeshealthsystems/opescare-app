@@ -1,0 +1,15 @@
+# Release binaries live here on disk but never in git history.
+#
+# One APK is ~132 MB and a bundle is comparable. Committing one per release
+# would grow this repository by that much PERMANENTLY — git history cannot be
+# slimmed after the fact without rewriting every commit that follows. The
+# artefacts are reproducible (`eas build`) and EAS keeps every one of them for
+# 30 days at a stable URL, which is recorded in artifacts/MANIFEST.md.
+#
+# Everything else in playstore/ — the listing copy, the data-safety answers,
+# the signing facts, this manifest — IS committed, because that is the part
+# that cannot be regenerated.
+*.apk
+*.aab
+*.keystore
+*.jks

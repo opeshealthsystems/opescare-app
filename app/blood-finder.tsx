@@ -1180,27 +1180,22 @@ export default function BloodFinderScreen() {
             onPress={() => router.push('/blood-finder/request')}
           />
           <QuickAction
-            icon="location"
+            icon="users"
             tint="blue"
-            label={t('bloodFinder.quick.map')}
-            onPress={() => router.push('/care-map')}
+            label={t('bloodFinder.quick.findDonors')}
+            onPress={() => router.push('/blood-finder/donors')}
+          />
+          <QuickAction
+            icon="heart-pulse"
+            tint="red"
+            label={t('bloodFinder.quick.becomeDonor')}
+            onPress={() => router.push('/blood-finder/become-donor')}
           />
           <QuickAction
             icon="book"
             tint="blue"
             label={t('bloodFinder.quick.education')}
             onPress={() => router.push('/blood-finder/education')}
-          />
-          <QuickAction
-            icon="receipt"
-            tint="blue"
-            label={t('bloodFinder.quick.myRequests')}
-            onPress={() =>
-              scrollRef.current?.scrollTo({
-                y: Math.max(requestsY.current - 12, 0),
-                animated: true,
-              })
-            }
           />
         </View>
 

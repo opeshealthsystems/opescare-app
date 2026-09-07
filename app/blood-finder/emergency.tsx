@@ -98,13 +98,17 @@ import {
  *     blood bank instead — the one secondary action that is real here, and the
  *     one every safety notice in this feature already tells people to take.
  *   - The kit has no siren and no lightning glyph (see Icon.tsx GLYPHS), so
- *     the banner mark is `alert-triangle` and the PRIORITY pill carries
- *     `alert-circle`.
+ *     the banner mark is `bell` — the nearest alarm — and the PRIORITY pill
+ *     carries `alert-circle`.
  */
 
 const COMPONENTS: { value: BloodComponentValue; icon: IconName }[] = [
   { value: 'whole_blood', icon: 'droplet' },
-  { value: 'red_cells', icon: 'droplet' },
+  // The reference gives every tile its OWN mark — a droplet, a blood bag, a
+  // cell cluster, a plasma drop, a snowflake — and two identical droplets read
+  // as one control drawn twice. `archive` is the nearest thing the kit has to
+  // the reference's packed-cell bag.
+  { value: 'red_cells', icon: 'archive' },
   { value: 'platelets', icon: 'activity' },
   { value: 'plasma', icon: 'flask' },
 ];
@@ -429,7 +433,10 @@ export default function EmergencyBloodRequestScreen() {
         <View style={styles.lead} accessibilityRole="alert">
           <View style={styles.leadRow}>
             <View style={styles.leadMark}>
-              <Icon name="alert-triangle" size={22} color={colors.statusCritical} />
+              {/* The reference's mark is an alarm siren, not a warning
+                  triangle. The kit has no siren (see Icon.tsx GLYPHS); `bell`
+                  is the nearest alarm glyph it does have. */}
+              <Icon name="bell" size={22} color={colors.statusCritical} />
             </View>
             <View style={styles.leadBody}>
               <Text style={styles.leadTitle}>{t('bloodEmergency.leadTitle')}</Text>

@@ -46,15 +46,41 @@
  * app/doctor/[id].tsx — verified against the schema). So there is no
  * `RatingLine`, no "Sort by rating / experience", and no "Available / Not
  * accepting" pill here. The specialty tile strip fed by
- * `GET /patient/providers/specialties` becomes department chips computed
+ * `GET /patient/providers/specialties` becomes department tiles computed
  * from the facility's own clinician list.
+ *
+ * ── The shared finder chrome, and what it is NOT given here ───────────────
+ * The layout is components/finder/FinderChrome (top bar, oversized heading,
+ * search + Filters, counted category rail, results header, cards, help panel)
+ * so this screen and Find Facility cannot drift. Four slots the reference
+ * design fills are left empty here, each for a verified reason:
+ *
+ *   ★ rating / review count — nothing in the schema holds either. No stars.
+ *   photograph — `staff_profiles` has no photo column (stated outright in
+ *       MobileProviderController's own column reality check), so the card's
+ *       leading mark is a 56pt tinted initials disc via `initialsFrom`.
+ *   "Available / In 30 mins" pill — `open_slot_count` is reported for the
+ *       FACILITY, never per clinician; the roster payload carries no slot
+ *       data at all. Labelling every clinician "Available" would be a claim
+ *       the server never made, so no pill is drawn.
+ *   distance — no provider and no directory row carries a distance
+ *       (`distance_km` exists only on the pharmacy and blood-bank payloads,
+ *       which are searched from an origin). The location line therefore shows
+ *       the clinician's facility CITY, which is a fact, not a fabricated "0.6
+ *       km away".
+ *
+ * The verified tick is drawn only where `credentials` or `licenses` is
+ * non-empty — both are filtered to ACTIVE records server-side.
+ *
+ * Sorting is by name or by department: the reference's "Sort by: Distance"
+ * has no data behind it here for the same reason the distance line does not.
  *
  * Deep link: `/doctors?facilityId=<care_facilities id>` lands straight on that
  * facility's clinicians (the facility page and booking flow can send patients
  * here without making them pick again).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -65,8 +91,8 @@ import {
   EmptyState,
   Icon,
   ListRow,
-  ScreenHeader,
   SectionHeader,
+  initialsFrom,
   radii,
   spacing,
   typography,
@@ -80,9 +106,20 @@ import {
   ErrorBlock,
   LoadingBlock,
   NoticeBanner,
-  ProviderAvatar,
   SearchField,
 } from '@/components/care/shared';
+import {
+  CardMetaRow,
+  CategoryTile,
+  FiltersButton,
+  FinderHeading,
+  FinderTopBar,
+  HelpPanel,
+  ResultCard,
+  ResultsHeader,
+  type FinderAction,
+} from '@/components/finder/FinderChrome';
+import { useUnreadNotificationCount } from '@/lib/api/appConfigQueries';
 import { apiClient } from '@/lib/api/client';
 import { endpoints } from '@/lib/api/endpoints';
 import {
@@ -250,6 +287,28 @@ function facilityGlyph(type: string): { icon: IconName; tint: Tint } {
   return FACILITY_ICON[type] ?? { icon: 'building', tint: 'blue' };
 }
 
+/**
+ * A glyph for a department tile.
+ *
+ * `staff_profiles.department` is free text typed by each facility, so this
+ * matches on the word rather than on a code list, and anything unrecognised
+ * gets the neutral stethoscope — never a wrong specialty picture.
+ */
+const DEPARTMENT_GLYPHS: { match: RegExp; icon: IconName }[] = [
+  { match: /cardio|heart|coeur|cœur/i, icon: 'heart-pulse' },
+  { match: /p(a)?ediatr|enfant|neonat|néonat/i, icon: 'baby' },
+  { match: /gyn|obstet|obstét|matern|midwif|sage/i, icon: 'person' },
+  { match: /lab|analys/i, icon: 'flask' },
+  { match: /pharm/i, icon: 'pill' },
+  { match: /radio|imag|scan/i, icon: 'microscope' },
+  { match: /emerg|urgence|trauma/i, icon: 'first-aid' },
+  { match: /dent/i, icon: 'smile' },
+];
+
+function departmentGlyph(name: string): IconName {
+  return DEPARTMENT_GLYPHS.find((d) => d.match.test(name))?.icon ?? 'stethoscope';
+}
+
 /** professional_licenses.profession — same map as app/doctor/[id].tsx. */
 const PROFESSION_KEYS: Record<string, string> = {
   doctor: 'doctor.professionDoctor',
@@ -281,6 +340,13 @@ export default function FindDoctorScreen() {
   // Step 2 — clinicians inside the chosen facility
   const [providerInput, setProviderInput] = useState(params.q ?? '');
   const [department, setDepartment] = useState<string | null>(null);
+
+  // The Filters panel beside the search field, and the results sort. Sort has
+  // exactly two honest orders — see the header note on why not distance.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sort, setSort] = useState<'name' | 'department'>('name');
+
+  const unreadCount = useUnreadNotificationCount();
 
   // A `facilityId` param is honoured exactly once, so "Change" afterwards
   // really does return to the picker instead of snapping back to the link.
@@ -351,17 +417,23 @@ export default function FindDoctorScreen() {
   }, [providers]);
 
   const needle = normalizeText(providerInput);
-  const results = useMemo(
-    () =>
-      providers.filter((p) => {
-        if (department && p.department !== department) return false;
-        if (!needle) return true;
-        return [p.name, p.job_title, p.department, roleLabel(p)].some(
-          (v) => !!v && normalizeText(v).includes(needle),
-        );
-      }),
-    [providers, department, needle, roleLabel],
-  );
+  const results = useMemo(() => {
+    const matched = providers.filter((p) => {
+      if (department && p.department !== department) return false;
+      if (!needle) return true;
+      return [p.name, p.job_title, p.department, roleLabel(p)].some(
+        (v) => !!v && normalizeText(v).includes(needle),
+      );
+    });
+    // A copy: the query's own array is cache state and must not be sorted in
+    // place. Department-less clinicians sort last rather than under "".
+    return [...matched].sort((a, b) =>
+      sort === 'department'
+        ? (a.department ?? '￿').localeCompare(b.department ?? '￿') ||
+          a.name.localeCompare(b.name)
+        : a.name.localeCompare(b.name),
+    );
+  }, [providers, department, needle, roleLabel, sort]);
   const hasFilters = !!needle || !!department;
 
   // ── Actions ──────────────────────────────────────────────────────────────
@@ -535,18 +607,9 @@ export default function FindDoctorScreen() {
         </Card>
       )}
 
-      <SearchField
-        value={facilityInput}
-        onChangeText={(v) => {
-          setFacilityInput(v);
-          if (!v) setFacilitySearch('');
-        }}
-        placeholder={t('appointments.book.searchPlaceholder')}
-        onSubmit={() => setFacilitySearch(facilityInput.trim())}
-        accessibilityLabel={t('appointments.book.stepFacility')}
-      />
-
-      {renderRegistryFilter()}
+      {/* Which slice of the register is on screen is a filter, so it lives in
+          the Filters panel beside the search field. */}
+      {filtersOpen && renderRegistryFilter()}
 
       {/* The denominator, stated once. Only when the totals are actually in
           hand — an absent `registry` block means an older API, and a made-up
@@ -778,35 +841,71 @@ export default function FindDoctorScreen() {
       );
     }
     return (
-      <Card variant="flush">
-        {results.map((p, i) => {
-          // Only honest when the registry holds a licence or credential.
+      <View style={styles.cardStack}>
+        {results.map((p) => {
+          // Only honest when the registry holds an ACTIVE licence or credential.
           const verified = p.credentials.length > 0 || p.licenses.length > 0;
+          const open = () => router.push(`/doctor/${p.id}`);
           return (
-            <ListRow
+            <ResultCard
               key={p.id}
-              leading={<ProviderAvatar name={p.name} size={40} />}
-              title={p.name}
-              meta={[roleLabel(p), p.department, p.facility_name]}
+              mark={
+                // No photo column exists on staff_profiles, so this is an
+                // initials disc — `initialsFrom` so every screen agrees.
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{initialsFrom(p.name, '')}</Text>
+                </View>
+              }
               trailing={
-                verified ? (
+                <TouchableOpacity
+                  onPress={open}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('opesCare.findProvider.viewProfile')}
+                  style={styles.profileButton}
+                >
+                  <Text style={styles.profileButtonText} numberOfLines={1}>
+                    {t('opesCare.findProvider.viewProfile')}
+                  </Text>
+                </TouchableOpacity>
+              }
+              onPress={open}
+              accessibilityLabel={p.name}
+              accessibilityHint={t('appointments.book.viewDoctorProfile')}
+            >
+              <View style={styles.nameRow}>
+                <Text style={styles.providerName} numberOfLines={2}>
+                  {p.name}
+                </Text>
+                {verified && (
                   <Icon
-                    name="check-circle"
-                    size={18}
-                    color={colors.statusNormal}
+                    name="shield-check"
+                    size={16}
+                    color={colors.blue}
                     accessibilityLabel={t('opesCare.findProvider.verified', {
                       defaultValue: 'Verified credentials',
                     })}
                   />
-                ) : undefined
-              }
-              onPress={() => router.push(`/doctor/${p.id}`)}
-              accessibilityHint={t('appointments.book.viewDoctorProfile')}
-              divider={i < results.length - 1}
-            />
+                )}
+              </View>
+              <Text style={styles.providerRole} numberOfLines={1}>
+                {roleLabel(p)}
+              </Text>
+              {/* The department, on its own line rather than dot-joined to the
+                  role: the two together needed 291pt in a 142pt column, so
+                  neither was readable. */}
+              {!!p.department && <CardMetaRow icon="grid" text={p.department} />}
+              {/* Every provider on this screen belongs to the facility you just
+                  picked, so repeating its name on all four cards was noise that
+                  cost the column its width. The city is the one place fact that
+                  varies nothing here either — but it is short, and it answers
+                  "where would I be going". No distance exists per provider, so
+                  none is drawn. */}
+              {!!p.city && <CardMetaRow icon="location" text={p.city} />}
+            </ResultCard>
           );
         })}
-      </Card>
+      </View>
     );
   };
 
@@ -814,45 +913,40 @@ export default function FindDoctorScreen() {
     const glyph = facilityGlyph(f.facility_type);
     return (
       <>
-        <View>
-          <SectionHeader
-            title={t('appointments.book.stepFacility')}
-            actionLabel={t('appointments.book.changeFacility')}
-            onAction={changeFacility}
-          />
+        {/* The Filters panel: the two refinements this screen really has —
+            which facility is being looked inside, and which department. */}
+        {filtersOpen && (
           <Card variant="flush">
             <ListRow
               icon={glyph.icon}
               tint={glyph.tint}
               title={f.facility_name}
               meta={[facilityTypeLabel(f.facility_type), joinLocationParts(f.city, f.region)]}
-              value={t('appointments.book.viewFacility')}
+              value={t('appointments.book.changeFacility')}
+              onPress={changeFacility}
+              accessibilityHint={t('appointments.book.changeFacility')}
+              divider
+            />
+            <ListRow
+              icon="building"
+              tint="blue"
+              title={t('appointments.book.viewFacility')}
+              value={department ?? t('opesCare.findProvider.allDepartments')}
               onPress={() => router.push(`/facility/${f.id}`)}
             />
           </Card>
-        </View>
-
-        <SearchField
-          value={providerInput}
-          onChangeText={setProviderInput}
-          placeholder={t('opesCare.findProvider.searchPlaceholder')}
-          accessibilityLabel={t('opesCare.findProvider.title')}
-        />
+        )}
 
         {departments.length > 0 && (
-          <View>
-            <SectionHeader
-              title={t('opesCare.findProvider.departments')}
-              actionLabel={department ? t('opesCare.findProvider.allDepartments') : undefined}
-              onAction={department ? () => setDepartment(null) : undefined}
-            />
+          <View style={styles.railBlock}>
+            <SectionHeader title={t('opesCare.findProvider.topCategories')} />
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipRow}
+              contentContainerStyle={styles.tileRow}
               keyboardShouldPersistTaps="handled"
             >
-              <Chip
+              <CategoryTile
                 icon="grid"
                 label={t('opesCare.findProvider.all')}
                 count={providers.length}
@@ -860,8 +954,9 @@ export default function FindDoctorScreen() {
                 onPress={() => setDepartment(null)}
               />
               {departments.map((d) => (
-                <Chip
+                <CategoryTile
                   key={d.name}
+                  icon={departmentGlyph(d.name)}
                   label={d.name}
                   count={d.count}
                   selected={department === d.name}
@@ -872,35 +967,47 @@ export default function FindDoctorScreen() {
           </View>
         )}
 
-        <View>
+        <View style={styles.resultsBlock}>
           {providersQuery.isSuccess && !facilityUnlinked && providers.length > 0 && (
-            <SectionHeader
-              title={t('opesCare.findProvider.providersFound', { count: results.length })}
-              actionLabel={hasFilters ? t('opesCare.findProvider.clearFilters') : undefined}
-              onAction={hasFilters ? clearProviderFilters : undefined}
-            />
+            <>
+              <ResultsHeader
+                title={t('opesCare.findProvider.providersFound', { count: results.length })}
+                sortLabel={
+                  sort === 'department'
+                    ? t('opesCare.findProvider.sortDepartment', {
+                        defaultValue: 'Sort by: Department',
+                      })
+                    : t('opesCare.findProvider.sortName', { defaultValue: 'Sort by: Name' })
+                }
+                sortOpen={false}
+                onSortPress={() => setSort(sort === 'name' ? 'department' : 'name')}
+                sortAccessibilityLabel={t('opesCare.findProvider.sortA11y', {
+                  defaultValue: 'Change how providers are sorted',
+                })}
+              />
+              {hasFilters && (
+                <TouchableOpacity
+                  onPress={clearProviderFilters}
+                  hitSlop={6}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('opesCare.findProvider.clearFilters')}
+                >
+                  <Text style={styles.clearLink}>{t('opesCare.findProvider.clearFilters')}</Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
           {renderProviderResults()}
         </View>
 
-        <View style={styles.assist}>
-          <View style={styles.assistTop}>
-            <View style={styles.assistIcon}>
-              <Icon name="info" size={20} color={colors.textOnBrand} />
-            </View>
-            <View style={styles.assistBody}>
-              <Text style={styles.assistTitle}>{t('opesCare.findProvider.assistTitle')}</Text>
-              <Text style={styles.assistText}>{t('opesCare.findProvider.assistText')}</Text>
-            </View>
-          </View>
-          <CareButton
-            label={t('opesCare.findProvider.requestAssistance')}
-            variant="secondary"
-            size="sm"
-            icon="chat"
-            onPress={() => router.push('/help')}
-          />
-        </View>
+        <HelpPanel
+          title={t('opesCare.findProvider.assistTitle')}
+          body={t('opesCare.findProvider.assistText')}
+          actionLabel={t('opesCare.findProvider.requestAssistance')}
+          actionIcon="headset"
+          onAction={() => router.push('/help')}
+        />
       </>
     );
   };
@@ -909,20 +1016,71 @@ export default function FindDoctorScreen() {
   // flashing underneath it for a moment.
   const resolvingLink = !linkConsumed && !facility;
 
+  // The bell is the only top-bar action, and its badge is the real unread
+  // count (0 while loading or on error → no badge, never a made-up number).
+  const topActions: FinderAction[] = [
+    {
+      icon: 'bell',
+      onPress: () => router.push('/notifications'),
+      accessibilityLabel: t('notifications.title'),
+      badge: unreadCount,
+    },
+  ];
+
+  // Which stage the search row is driving. Stage one searches the register by
+  // facility name on submit; stage two filters the loaded roster as you type.
+  const activeFilterCount = facility
+    ? (department ? 1 : 0)
+    : scope === 'clinicians'
+      ? 0
+      : 1;
+
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
-      <ScreenHeader
-        title={t('opesCare.findProvider.title')}
-        subtitle={t('opesCare.findProvider.directorySubtitle', {
-          defaultValue: 'Search clinicians by facility, department and name',
-        })}
-        onBack={goBack}
-      />
+      <FinderTopBar onBack={goBack} backLabel={t('common.back')} actions={topActions} />
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
+        <FinderHeading
+          title={t('opesCare.findProvider.title')}
+          subtitle={t('opesCare.findProvider.headingSubtitle', {
+            defaultValue: 'Search and find healthcare providers',
+          })}
+        />
+
+        <View style={styles.searchRow}>
+          <View style={styles.searchField}>
+            {facility ? (
+              <SearchField
+                value={providerInput}
+                onChangeText={setProviderInput}
+                placeholder={t('opesCare.findProvider.searchPlaceholder')}
+                accessibilityLabel={t('opesCare.findProvider.title')}
+              />
+            ) : (
+              <SearchField
+                value={facilityInput}
+                onChangeText={(v) => {
+                  setFacilityInput(v);
+                  if (!v) setFacilitySearch('');
+                }}
+                placeholder={t('appointments.book.searchPlaceholder')}
+                onSubmit={() => setFacilitySearch(facilityInput.trim())}
+                accessibilityLabel={t('appointments.book.stepFacility')}
+              />
+            )}
+          </View>
+          <FiltersButton
+            label={t('opesCare.findProvider.filters')}
+            count={activeFilterCount}
+            open={filtersOpen}
+            onPress={() => setFiltersOpen((v) => !v)}
+            accessibilityHint={t('opesCare.findProvider.applyFilters')}
+          />
+        </View>
+
         {resolvingLink ? (
           <LoadingBlock label={t('appointments.book.openingFacility')} />
         ) : facility ? (
@@ -942,8 +1100,63 @@ const makeStyles = (colors: Palette) =>
     screen: { flex: 1, backgroundColor: colors.page },
     content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
     chipRow: { gap: spacing.sm + 2, paddingRight: spacing.md },
+    tileRow: { gap: spacing.sm + 2, paddingRight: spacing.md, paddingVertical: 2 },
     stack: { gap: spacing.sm + 2 },
     loadMore: { marginTop: spacing.md },
+
+    // `stretch` is what makes the field match the 52pt Filters button.
+    searchRow: { flexDirection: 'row', alignItems: 'stretch', gap: spacing.sm },
+    searchField: { flex: 1, minWidth: 0, justifyContent: 'center' },
+    railBlock: { gap: spacing.sm },
+    resultsBlock: { gap: spacing.sm + 2 },
+    cardStack: { gap: spacing.sm + 2 },
+    clearLink: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      color: colors.link,
+    },
+
+    // 64pt initials disc — there is no provider photo anywhere in the schema.
+    avatar: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primarySoft,
+    },
+    avatarText: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: 22,
+      color: colors.blue,
+    },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    providerName: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.bold,
+      fontSize: 18,
+      lineHeight: 24,
+      color: colors.textPrimary,
+    },
+    providerRole: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.textSecondary,
+    },
+    profileButton: {
+      minHeight: 40,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radii.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.blue,
+    },
+    profileButtonText: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.sm,
+      color: colors.textOnBrand,
+    },
 
     assist: {
       gap: spacing.sm + 2,

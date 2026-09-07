@@ -21,9 +21,9 @@
  *  - **It has no sort parameter.** Ordering is client-side over the pages
  *    fetched so far, which the "showing N of M" line states rather than hides.
  *
- * The embedded `FacilityMap` (the finder's own OpenStreetMap embed with in-app
- * directions) is a deliberate feature and takes the OPES layout's hero slot,
- * directly under the search row.
+ * There is no map on this screen. A map answers "how do I get to THIS place",
+ * which is a question about one facility, so it lives on the facility profile
+ * — a list of 903 pins answers nothing and pushes the results off the screen.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -39,7 +39,6 @@ import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { FacilityMap } from '@/components/map/FacilityMap';
 import { Screen } from '@/components/ui/Screen';
 import {
   Card,
@@ -48,10 +47,8 @@ import {
   GradientButton,
   Icon,
   ListRow,
-  ScreenHeader,
   SectionHeader,
   StaleNotice,
-  StatusBadge,
   a11yJoin,
   colors,
   radii,
@@ -62,14 +59,33 @@ import {
   type Tint,
 } from '@/components/opes-ui';
 import {
+  CardMetaRow,
+  CardPill,
+  CategoryTile,
+  FiltersButton,
+  FinderHeading,
+  FinderTopBar,
+  HelpPanel,
+  ResultCard,
+  ResultsHeader,
+  type FinderAction,
+} from '@/components/finder/FinderChrome';
+import {
   CareButton,
   ErrorBlock,
   LoadingBlock,
   NoticeBanner,
   SearchField,
 } from '@/components/care/shared';
-import { flattenFacilityPages, useFacilityDirectory } from '@/lib/api/careMapQueries';
-import type { CareFacilitySummary } from '@/lib/api/queries';
+import {
+  facilityTypeCounts,
+  flattenFacilityPages,
+  useFacilityDirectory,
+  useFacilityRegistrySummary,
+  type FacilityDirectoryRow,
+} from '@/lib/api/careMapQueries';
+import { useUnreadNotificationCount } from '@/lib/api/appConfigQueries';
+import { useAuthStore } from '@/lib/store/auth';
 import {
   CITY_SCOPES,
   DEFAULT_CITY_SCOPE,
@@ -96,7 +112,7 @@ type LocationState =
   | 'unavailable';
 
 interface FacilityRow {
-  facility: CareFacilitySummary;
+  facility: FacilityDirectoryRow;
   distanceKm: number | null;
 }
 
@@ -158,36 +174,6 @@ function matchCityScope(...candidates: (string | null | undefined)[]): string | 
     if (hit) return hit;
   }
   return null;
-}
-
-/* ── Type tile (the CARE-007 "Department Types" strip) ──────────────────── */
-
-function TypeTile({
-  icon,
-  label,
-  selected,
-  onPress,
-}: {
-  icon: IconName;
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.85}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ selected }}
-      style={[styles.type, selected && styles.typeOn]}
-    >
-      <Icon name={icon} size={26} color={colors.blue} />
-      <Text style={styles.typeLabel} numberOfLines={2}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
 }
 
 /* ── Location affordance ────────────────────────────────────────────────── */
@@ -266,19 +252,19 @@ function LocationPrompt({
 
 function FacilityListRow({
   row,
-  divider,
   onOpen,
   t,
 }: {
   row: FacilityRow;
-  divider: boolean;
   onOpen: () => void;
   t: TFunction;
 }) {
   const { facility } = row;
   const distance = row.distanceKm != null ? formatDistance(row.distanceKm) : undefined;
   const typeLabel = typeLabelTr(t, facility.facility_type);
-  const where = joinLocationParts(facility.address, facility.city, facility.region);
+  // The card's location line is the reference's "City, Region"; the street
+  // address stays on the profile, where there is room to read it.
+  const where = joinLocationParts(facility.city, facility.region);
 
   // `phone_primary` is the literal string "N/A" on 1 840 of the register's
   // 2 728 rows, so testing it for truthiness put a Call button on two thirds of
@@ -296,34 +282,85 @@ function FacilityListRow({
     if (url) Linking.openURL(url).catch(() => {});
   };
 
-  const trailing = phone ? (
-    <View style={styles.rowTrailing}>
-      {!!distance && <Text style={styles.rowValue}>{distance}</Text>}
-      <TouchableOpacity
-        onPress={handleCall}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel={a11yJoin(String(t('careMap.call')), facility.facility_name)}
-        style={styles.callButton}
-      >
-        <Icon name="phone" size={16} color={tintMap.green.fg} />
-      </TouchableOpacity>
-    </View>
-  ) : undefined;
+  // The reference card carries a photograph, a star rating and a review count.
+  // `care_facilities` has no photo column and the schema holds no rating or
+  // review anywhere, so none of the three is drawn. The leading mark is the
+  // facility-type glyph on its own tint, and the trailing column carries what
+  // the payload really reports: whether the listing is connected to OpesCare,
+  // and how many clinicians and open slots it publishes.
+  const connected = facility.connected;
+  const providers = facility.provider_count ?? 0;
+  const openSlots = facility.open_slot_count ?? 0;
+  // An unconnected listing publishes nothing, so a zero there means "nobody has
+  // told us", not "there are none" — it gets no count line at all.
+  const countLine =
+    connected === false
+      ? null
+      : providers > 0
+        ? String(t('opesCare.findFacility.doctors', { count: providers }))
+        : openSlots > 0
+          ? String(t('careMap.openSlots', {
+              count: openSlots,
+              defaultValue: '{{count}} open slots',
+            }))
+          : null;
+
+  const trailing = (
+    <>
+      {connected === undefined ? null : (
+        <CardPill
+          label={
+            connected
+              ? String(t('facilityRegistry.connectedOnly'))
+              : String(t('careMap.directoryOnlyShort', { defaultValue: 'Directory only' }))
+          }
+          tone={connected ? 'normal' : 'muted'}
+        />
+      )}
+      {countLine ? <Text style={styles.cardCount}>{countLine}</Text> : null}
+      {phone ? (
+        <TouchableOpacity
+          onPress={handleCall}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={a11yJoin(String(t('careMap.call')), facility.facility_name)}
+          style={styles.callButton}
+        >
+          <Icon name="phone" size={16} color={tintMap.green.fg} />
+        </TouchableOpacity>
+      ) : (
+        <Icon name="chevron-right" size={18} color={colors.textMuted} />
+      )}
+    </>
+  );
 
   return (
-    <ListRow
-      icon={facilityIcon(facility.facility_type)}
-      tint={facilityTint(facility.facility_type)}
-      title={facility.facility_name}
-      meta={[typeLabel, where || null]}
-      value={trailing ? undefined : distance}
+    <ResultCard
+      mark={
+        <View style={[styles.mark, { backgroundColor: tintMap[facilityTint(facility.facility_type)].bg }]}>
+          <Icon
+            name={facilityIcon(facility.facility_type)}
+            size={26}
+            color={tintMap[facilityTint(facility.facility_type)].fg}
+          />
+        </View>
+      }
       trailing={trailing}
       onPress={onOpen}
-      divider={divider}
       accessibilityLabel={a11yJoin(facility.facility_name, typeLabel, where, distance)}
       accessibilityHint={String(t('careMap.viewDetails'))}
-    />
+    >
+      <Text style={styles.cardTitle} numberOfLines={2}>
+        {facility.facility_name}
+      </Text>
+      <Text style={styles.cardType} numberOfLines={1}>
+        {typeLabel}
+      </Text>
+      {where ? <CardMetaRow icon="location" text={where} /> : null}
+      {/* 508 of the 903 rows publish no coordinates. A distance line appears
+          only when there is a real one to show — never an estimate. */}
+      {distance ? <CardMetaRow icon="location" text={distance} /> : null}
+    </ResultCard>
   );
 }
 
@@ -337,17 +374,16 @@ function FacilityRows({
   t: TFunction;
 }) {
   return (
-    <Card variant="flush">
-      {rows.map((row, index) => (
+    <View style={styles.cardStack}>
+      {rows.map((row) => (
         <FacilityListRow
           key={row.facility.id}
           row={row}
-          divider={index < rows.length - 1}
           onOpen={() => onOpen(row.facility.id)}
           t={t}
         />
       ))}
-    </Card>
+    </View>
   );
 }
 
@@ -534,6 +570,8 @@ export default function CareMapScreen() {
   const [sort, setSort] = useState<FacilitySort>('relevance');
   /** Whether the filter panel under the search row is expanded. */
   const [filtersOpen, setFiltersOpen] = useState(false);
+  /** Whether the results header's "Sort by" dropdown is showing its options. */
+  const [sortOpen, setSortOpen] = useState(false);
   /**
    * Two refinements the endpoint cannot express, applied to the rows already
    * loaded. Both are honest about the register's gaps rather than hiding them:
@@ -548,6 +586,14 @@ export default function CareMapScreen() {
   const [areaAutoMatched, setAreaAutoMatched] = useState(false);
   const [areaUnmatched, setAreaUnmatched] = useState(false);
   const [detectedCity, setDetectedCity] = useState<string | null>(null);
+
+  // Both of these are authed endpoints, so they are gated on the session the
+  // way the home screen gates its bell — an unauthenticated call would fire a
+  // 401 into the refresh interceptor for nothing.
+  const authed = useAuthStore((s) => s.status) === 'authenticated';
+  const unreadCount = useUnreadNotificationCount(authed);
+  const registry = useFacilityRegistrySummary(authed);
+  const typeCounts = useMemo(() => facilityTypeCounts(registry.data), [registry.data]);
 
   const directory = useFacilityDirectory({
     q: appliedSearch || undefined,
@@ -684,22 +730,6 @@ export default function CareMapScreen() {
 
   const refinedAway = sortedRows.length - rows.length;
 
-  // The subset of the loaded rows the embedded map can plot. FacilityMap skips
-  // items without coordinates and renders nothing when none have any, so this
-  // safely carries the 508-of-903 coordinate-less rows through untouched.
-  const mapFacilities = useMemo(
-    () =>
-      rows.map((row) => ({
-        id: row.facility.id,
-        name: row.facility.facility_name,
-        latitude: row.facility.latitude,
-        longitude: row.facility.longitude,
-        city: row.facility.city,
-        distance: row.distanceKm,
-      })),
-    [rows],
-  );
-
   const nearest = useMemo<FacilityRow | null>(() => {
     if (!coords) return null;
     let best: FacilityRow | null = null;
@@ -754,23 +784,28 @@ export default function CareMapScreen() {
   const openFacility = (id: string) => router.push({ pathname: '/facility/[id]', params: { id } });
   const openDoctors = () => router.push('/doctors');
 
+  const topActions: FinderAction[] = [
+    {
+      icon: 'bell',
+      onPress: () => router.push('/notifications'),
+      accessibilityLabel: String(t('notifications.title')),
+      // Real count from GET /mobile/notifications/unread-count. It resolves to
+      // 0 — no badge — while loading or on any error.
+      badge: unreadCount,
+    },
+  ];
+
   return (
     <Screen className="px-0">
       <View style={styles.screen}>
-        <ScreenHeader
-          title={t('careMap.title')}
-          subtitle={t('careMap.subtitle')}
-          right={
-            locationState === 'granted' ? (
-              <StatusBadge
-                status="active"
-                tone="normal"
-                icon="location"
-                size="sm"
-                label={t('careMap.locationOn')}
-              />
-            ) : undefined
-          }
+        <FinderTopBar
+          onBack={() => router.back()}
+          backLabel={String(t('common.back'))}
+          actions={topActions}
+        />
+        <FinderHeading
+          title={String(t('careMap.findTitle', { defaultValue: 'Find Facility' }))}
+          subtitle={String(t('careMap.findSubtitle', { defaultValue: 'Search and find healthcare facilities' }))}
         />
 
         <ScrollView
@@ -786,28 +821,23 @@ export default function CareMapScreen() {
         >
           {/* ── Search ──────────────────────────────────────────────────── */}
           <View style={styles.searchRow}>
-            <SearchField
-              value={searchInput}
-              onChangeText={setSearchInput}
-              placeholder={t('careMap.searchPlaceholder')}
-              onSubmit={applySearch}
-            />
-            <TouchableOpacity
-              style={[styles.filterButton, filtersOpen && styles.filterButtonOn]}
-              activeOpacity={0.8}
+            <View style={styles.searchField}>
+              <SearchField
+                value={searchInput}
+                onChangeText={setSearchInput}
+                placeholder={t('careMap.searchByPlaceholder', {
+                  defaultValue: 'Search by facility name, type or location',
+                })}
+                onSubmit={applySearch}
+              />
+            </View>
+            <FiltersButton
+              label={String(t('opesCare.findFacility.filters'))}
+              count={activeFilterCount}
+              open={filtersOpen}
               onPress={() => setFiltersOpen((open) => !open)}
-              accessibilityRole="button"
-              accessibilityLabel={t('opesCare.findFacility.applyFilters')}
-              accessibilityState={{ expanded: filtersOpen }}
-              accessibilityHint={t('careMap.filterPanel.hint')}
-            >
-              <Icon name="filter" size={18} color={colors.link} />
-              <Text style={styles.filterText}>
-                {activeFilterCount > 0
-                  ? t('careMap.filterPanel.buttonWithCount', { count: activeFilterCount })
-                  : t('opesCare.findFacility.filters')}
-              </Text>
-            </TouchableOpacity>
+              accessibilityHint={String(t('careMap.filterPanel.hint'))}
+            />
           </View>
 
           {filtersOpen ? (
@@ -828,12 +858,6 @@ export default function CareMapScreen() {
               t={t}
             />
           ) : null}
-
-          {/* ── Map hero: real embedded OpenStreetMap of every loaded facility,
-                 with in-app directions. Nothing hands off to a native maps app. */}
-          <View style={styles.mapWrap}>
-            <FacilityMap facilities={mapFacilities} height={260} />
-          </View>
 
           <LocationPrompt
             state={locationState}
@@ -891,10 +915,14 @@ export default function CareMapScreen() {
               contentContainerStyle={styles.typeRow}
             >
               {TYPE_FILTERS.map((filter) => (
-                <TypeTile
+                <CategoryTile
                   key={filter.key}
                   icon={filter.value ? facilityIcon(filter.value) : 'grid'}
-                  label={t(`careMap.filters.${filter.key}`)}
+                  label={String(t(`careMap.filters.${filter.key}`))}
+                  /* Real `count(*)` from the registry summary. A type with no
+                     row — or a failed summary — passes undefined, and the tile
+                     then shows no figure at all rather than a zero. */
+                  count={typeCounts[filter.value]}
                   selected={typeFilter === filter.value}
                   onPress={() =>
                     setTypeFilter(filter.value && typeFilter === filter.value ? '' : filter.value)
@@ -980,10 +1008,54 @@ export default function CareMapScreen() {
               ) : null}
 
               {rows.length > 0 ? (
-                <View>
-                  <SectionHeader
-                    title={t('careMap.resultCount', { loaded: rows.length, total })}
+                <View style={styles.resultsBlock}>
+                  <ResultsHeader
+                    title={String(t('careMap.facilitiesFound', {
+                      count: total || rows.length,
+                      defaultValue: '{{count}} Facilities Found',
+                    }))}
+                    sortLabel={String(
+                      t('careMap.sortBy', {
+                        label: t(`careMap.sort.${sort}`),
+                        defaultValue: 'Sort by: {{label}}',
+                      }),
+                    )}
+                    sortOpen={sortOpen}
+                    onSortPress={() => setSortOpen((open) => !open)}
+                    sortAccessibilityLabel={String(t('careMap.sortChoose', { defaultValue: 'Change sort order' }))}
                   />
+                  {/* The dropdown the button opens. Every sort the screen has
+                      ever offered is here; distance stays dimmed and inert
+                      until there is a position to measure from. */}
+                  {sortOpen ? (
+                    <View style={styles.sortRow}>
+                      {SORTS.map((key) => {
+                        const off = key === 'distance' && !coords;
+                        return (
+                          <Chip
+                            key={key}
+                            label={t(`careMap.sort.${key}`)}
+                            selected={sort === key}
+                            onPress={
+                              off
+                                ? undefined
+                                : () => {
+                                    setSort(key);
+                                    setSortOpen(false);
+                                  }
+                            }
+                            style={off ? styles.chipDisabled : undefined}
+                          />
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                  {/* "Showing N of M" — the list is paged and ordering only
+                      applies to what has been fetched, which is said rather
+                      than hidden. */}
+                  <Text style={styles.sortNote}>
+                    {t('careMap.resultCount', { loaded: rows.length, total })}
+                  </Text>
                   {/* The two client-side refinements narrow the pages already
                       fetched, not the 2 728-row query behind them. Saying how
                       many loaded rows they hide keeps "showing N of M" from
@@ -993,20 +1065,6 @@ export default function CareMapScreen() {
                       {t('careMap.filterPanel.refinedAway', { count: refinedAway })}
                     </Text>
                   ) : null}
-                  <View style={styles.sortRow}>
-                    {SORTS.map((key) => {
-                      const off = key === 'distance' && !coords;
-                      return (
-                        <Chip
-                          key={key}
-                          label={t(`careMap.sort.${key}`)}
-                          selected={sort === key}
-                          onPress={off ? undefined : () => setSort(key)}
-                          style={off ? styles.chipDisabled : undefined}
-                        />
-                      );
-                    })}
-                  </View>
                   {directory.hasNextPage ? (
                     <Text style={styles.sortNote}>{t('careMap.sortNote')}</Text>
                   ) : null}
@@ -1079,6 +1137,17 @@ export default function CareMapScreen() {
               onPress={openDoctors}
             />
           </View>
+
+          {/* ── Closing help panel ──────────────────────────────────────── */}
+          <HelpPanel
+            title={String(t('careMap.helpTitle', { defaultValue: "Can't find the facility you need?" }))}
+            body={String(t('careMap.helpBody', {
+              defaultValue: 'Let us help you locate the right facility for your care.',
+            }))}
+            actionLabel={String(t('opesCare.findFacility.requestHelp'))}
+            actionIcon="headset"
+            onAction={() => router.push('/help')}
+          />
         </ScrollView>
       </View>
     </Screen>
@@ -1090,22 +1159,8 @@ const styles = StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
   stack: { gap: spacing.sm + 2 },
 
-  mapWrap: { borderRadius: radii.md, overflow: 'hidden' },
-
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2 },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    minHeight: 46,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.primarySoft,
-  },
-  filterButtonOn: { backgroundColor: colors.surface, borderColor: colors.blue },
-  filterText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm, color: colors.link },
+  searchField: { flex: 1, minWidth: 0 },
 
   panel: { gap: spacing.md, padding: spacing.md },
   panelSection: { gap: spacing.sm },
@@ -1126,24 +1181,6 @@ const styles = StyleSheet.create({
   panelActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
 
   typeRow: { gap: spacing.sm + 2, paddingRight: spacing.md },
-  type: {
-    width: 96,
-    paddingVertical: spacing.md - 2,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    gap: 6,
-  },
-  typeOn: { backgroundColor: colors.primarySoft, borderColor: colors.blue },
-  typeLabel: {
-    fontFamily: typography.fontFamily.medium,
-    fontSize: typography.size.xs,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
 
   chipRow: { gap: spacing.sm, paddingRight: spacing.md },
   sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
@@ -1156,8 +1193,37 @@ const styles = StyleSheet.create({
   },
   groupHeader: { marginTop: spacing.sm, marginBottom: 0 },
 
-  rowTrailing: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  rowValue: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm, color: colors.link },
+  resultsBlock: { gap: spacing.sm },
+
+  /* Result card — the leading mark stands in for the reference's photograph,
+     which this platform has no column for. */
+  cardStack: { gap: spacing.sm + 2 },
+  mark: {
+    width: 64,
+    height: 64,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardTitle: {
+    fontFamily: typography.fontFamily.semiBold,
+    fontSize: 17,
+    lineHeight: 22,
+    color: colors.textPrimary,
+  },
+  cardType: {
+    fontFamily: typography.fontFamily.medium,
+    fontSize: typography.size.xs,
+    lineHeight: typography.lineHeight.xs,
+    color: colors.blue,
+  },
+  cardCount: {
+    fontFamily: typography.fontFamily.regular,
+    fontSize: 11,
+    lineHeight: 15,
+    color: colors.textSecondary,
+    textAlign: 'right',
+  },
   callButton: {
     width: 32,
     height: 32,

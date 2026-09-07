@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -109,6 +109,16 @@ import {
  * do before they scroll to a booking button that would not have worked. The
  * booking card still reads the live slots response and only offers a CTA when
  * something is genuinely open.
+ *
+ * ── Tile row ─────────────────────────────────────────────────────────────
+ * The identity card's circular action row follows MED-04's "Selected
+ * Pharmacy" panel (`reference/medicine/a_full_screen_mobile_app_ui_
+ * screenshot_clean_whit.png`), which draws Call | Directions | Website as
+ * equal tiles. This screen carries all three plus Email and Share, because
+ * `care_facilities` publishes an email and this app can share a listing.
+ * The reference's photo, rating and "Open 24/7" chip are NOT carried: the
+ * directory holds no photo and no rating, and a 24/7 claim is only drawn
+ * when every published `hours` row actually says 24 hours.
  *
  * Where the facility is stays an *embedded* map (`FacilityMap`, the finder's
  * in-app map with in-app directions). There is deliberately no external
@@ -288,7 +298,9 @@ function CircleAction({
       <View style={styles.actionCircle}>
         <Icon name={icon} size={22} color={colors.blue} />
       </View>
-      <Text style={styles.actionLabel}>{label}</Text>
+      <Text style={styles.actionLabel} numberOfLines={1}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -410,6 +422,18 @@ export default function FacilityDetailScreen() {
   // The shared care helpers take a plain `(key, params) => string`; i18next's
   // `t` is that, minus its overload noise.
   const tr: Translate = (key, options) => String(t(key, options));
+
+  /**
+   * MED-04 draws the selected pharmacy's actions as a Call | Directions |
+   * Website tile row. "Directions" here scrolls to the embedded map further
+   * down rather than handing off to an external maps app — the CSP blocks
+   * outbound map hosts, and this screen has deliberately never carried an
+   * external maps link.
+   */
+  const scrollRef = useRef<ScrollView>(null);
+  const mapY = useRef(0);
+  const jumpToMap = () =>
+    scrollRef.current?.scrollTo({ y: Math.max(0, mapY.current - 8), animated: true });
 
   const facilityQuery = useFacilityDetail(facilityId);
   const providersQuery = useFacilityProviders(facilityId);
@@ -816,6 +840,7 @@ export default function FacilityDetailScreen() {
       <ScreenHeader title={t('facility.title')} subtitle={headerSubtitle} onBack={goBack} />
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.content}
         refreshControl={
@@ -882,6 +907,24 @@ export default function FacilityDetailScreen() {
               // the action mysteriously unavailable.
               hint={phonePrimary ? undefined : t('facility.phoneNotListedHint')}
               onPress={callFacility}
+            />
+            {/* MED-04's middle tile. Dimmed — with a spoken reason — when the
+                register holds no coordinates, because there is then nothing to
+                scroll to. */}
+            <CircleAction
+              icon="send"
+              label={t('facility.directionsAction', { defaultValue: 'Directions' })}
+              disabled={!hasCoords}
+              hint={
+                hasCoords
+                  ? t('facility.directionsHint', {
+                      defaultValue: 'Shows this facility on the map further down the page.',
+                    })
+                  : t('facility.directionsUnavailableHint', {
+                      defaultValue: 'No map coordinates are published for this facility.',
+                    })
+              }
+              onPress={jumpToMap}
             />
             <CircleAction
               icon="mail"
@@ -1037,7 +1080,7 @@ export default function FacilityDetailScreen() {
         </View>
 
         {/* ── Where it is: embedded, in-app map (no external maps app) ─ */}
-        <View>
+        <View onLayout={(event) => (mapY.current = event.nativeEvent.layout.y)}>
           <SectionHeader title={t('opesCare.facilityProfile.location')} variant="overline" />
           {hasCoords ? (
             <Card variant="flush">
@@ -1385,15 +1428,18 @@ const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
     },
 
+    // Five tiles at 375pt: each takes an equal share rather than
+    // `space-around`, so "Directions" and "Website" keep their labels on one
+    // line instead of one wide tile squeezing its neighbours.
     actions: {
       flexDirection: 'row',
-      justifyContent: 'space-around',
+      alignItems: 'flex-start',
       marginTop: spacing.md,
       paddingTop: spacing.md,
       borderTopWidth: 1,
       borderTopColor: colors.divider,
     },
-    action: { alignItems: 'center', gap: 6 },
+    action: { flex: 1, alignItems: 'center', gap: 6 },
     actionOff: { opacity: 0.4 },
     actionCircle: {
       width: 48,
@@ -1403,9 +1449,14 @@ const makeStyles = (colors: Palette) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    // 11pt, not `size.xs`: five equal tiles give each ~62pt at 375pt, and
+    // "Directions" does not fit that at 12pt. Never `adjustsFontSizeToFit` —
+    // it is iOS-only and clips silently elsewhere.
     actionLabel: {
       fontFamily: typography.fontFamily.semiBold,
-      fontSize: typography.size.xs,
+      fontSize: 11,
+      lineHeight: 14,
+      textAlign: 'center',
       color: colors.textPrimary,
     },
 

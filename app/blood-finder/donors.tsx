@@ -222,6 +222,10 @@ export default function FindDonorsScreen() {
               icon="droplet"
               iconColor={colors.statusCritical}
               value={bloodGroup}
+              // The reference renders the chosen group in red beside its red
+              // droplet, which is what makes that one cell read as the key
+              // control of the card.
+              valueColor={colors.statusCritical}
               options={groupSelectOptions}
               onSelect={setBloodGroup}
               sheetTitle={t('donorSearch.groupLabel')}
@@ -479,6 +483,11 @@ function DonorCard({ donor }: { donor: DonorResult }) {
           </View>
         </View>
 
+        {/* The reference rules a hairline between the identity column and the
+            action column. It is what stops a wide card reading as one run-on
+            line. */}
+        <View style={styles.donorDivider} />
+
         <View style={styles.donorAside}>
           {donor.phone_shared ? (
             <CareButton
@@ -529,6 +538,7 @@ function SelectField<T extends string>({
   placeholder,
   icon,
   iconColor,
+  valueColor,
   sheetTitle,
   compact,
   style,
@@ -541,6 +551,8 @@ function SelectField<T extends string>({
   placeholder: string;
   icon?: IconName;
   iconColor?: string;
+  /** Tints the CHOSEN value only; the placeholder keeps its muted grey. */
+  valueColor?: string;
   sheetTitle?: string;
   /** Header-sized: no label, smaller type. */
   compact?: boolean;
@@ -575,6 +587,7 @@ function SelectField<T extends string>({
           style={[
             styles.fieldValue,
             compact && styles.fieldValueCompact,
+            selected && !!valueColor && { color: valueColor },
             !selected && styles.fieldPlaceholder,
           ]}
           numberOfLines={1}
@@ -845,6 +858,7 @@ const makeStyles = (c: Palette) =>
       fontSize: typography.size.xs,
       color: c.textMuted,
     },
+    donorDivider: { alignSelf: 'stretch', width: StyleSheet.hairlineWidth, backgroundColor: c.divider },
     donorAside: { width: 110, alignItems: 'flex-end', gap: 4 },
     withheld: { flexDirection: 'row', alignItems: 'flex-start', gap: 5 },
     withheldText: {

@@ -575,7 +575,10 @@
       "expired": "Expired"
     },
     "phoneNotListed": "No phone number listed",
-    "phoneNotListedHint": "This facility has not published a phone number, so calling is not available from here."
+    "phoneNotListedHint": "This facility has not published a phone number, so calling is not available from here.",
+    "directionsAction": "Directions",
+    "directionsHint": "Shows this facility on the map further down the page.",
+    "directionsUnavailableHint": "No map coordinates are published for this facility."
   },
   "doctor": {
     "title": "Clinician",
@@ -2183,7 +2186,19 @@
       "buttonWithCount": "Filters · {{count}}",
       "clearType": "Clear {{type}}",
       "refinedAway": "{{count}} hidden by your filters"
-    }
+    },
+    "findTitle": "Find Facility",
+    "findSubtitle": "Search and find healthcare facilities",
+    "searchByPlaceholder": "Search by facility name, type or location",
+    "helpTitle": "Can't find the facility you need?",
+    "helpBody": "Let us help you locate the right facility for your care.",
+    "sortBy": "Sort by: {{label}}",
+    "sortChoose": "Change sort order",
+    "directoryOnlyShort": "Directory only",
+    "facilitiesFound_one": "{{count}} Facility Found",
+    "facilitiesFound_other": "{{count}} Facilities Found",
+    "openSlots_one": "{{count}} open slot",
+    "openSlots_other": "{{count}} open slots"
   },
   "forgotPassword": {
     "title": "Forgot Password?",
@@ -3789,7 +3804,11 @@
       "notConnectedShort": "Not connected",
       "notConnectedTitle": "This facility has not published its clinicians",
       "notConnectedMessage": "It is not connected to OpesCare yet, so no clinician profiles are listed. You can still call the facility directly.",
-      "verified": "Verified credentials"
+      "verified": "Verified credentials",
+      "headingSubtitle": "Search and find healthcare providers",
+      "sortDepartment": "Sort by: Department",
+      "sortName": "Sort by: Name",
+      "sortA11y": "Change how providers are sorted"
     },
     "findFacility": {
       "title": "Find Department",
@@ -8079,7 +8098,7 @@
       "consent": "Consent"
     },
     "stepOf": "Step {{current}} of {{total}}: {{label}}",
-    "groupPlaceholder": "Choose group",
+    "groupPlaceholder": "Choose your group",
     "eligibilityItems": {
       "age": {
         "title": "Aged 18 to 60",
@@ -8156,7 +8175,7 @@
     "howItWorks": "How it works",
     "retry": "Try again",
     "closeSheet": "Close",
-    "groupPlaceholder": "Choose group",
+    "groupPlaceholder": "Choose a group",
     "lastDonatedLabel": "Last donated",
     "lastDonated": {
       "any": "Any time",
@@ -8167,7 +8186,7 @@
     "sortLabel": "Sort",
     "sortSheetTitle": "Sort volunteers by",
     "sort": {
-      "since": "Longest wait",
+      "since": "Longest since donating",
       "area": "By area"
     },
     "filtersShow": "Show filters",

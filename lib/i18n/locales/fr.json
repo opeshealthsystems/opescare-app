@@ -575,7 +575,10 @@
       "expired": "Expirée"
     },
     "phoneNotListed": "Aucun numéro de téléphone publié",
-    "phoneNotListedHint": "Cet établissement n’a pas publié de numéro de téléphone ; l’appel n’est donc pas possible depuis cette fiche."
+    "phoneNotListedHint": "Cet établissement n’a pas publié de numéro de téléphone ; l’appel n’est donc pas possible depuis cette fiche.",
+    "directionsAction": "Itinéraire",
+    "directionsHint": "Affiche cet établissement sur la carte plus bas dans la page.",
+    "directionsUnavailableHint": "Aucune coordonnée cartographique n'est publiée pour cet établissement."
   },
   "doctor": {
     "title": "Praticien",
@@ -2183,7 +2186,19 @@
       "buttonWithCount": "Filtres · {{count}}",
       "clearType": "Effacer {{type}}",
       "refinedAway": "{{count}} masqués par vos filtres"
-    }
+    },
+    "findTitle": "Trouver un établissement",
+    "findSubtitle": "Recherchez et trouvez des établissements de santé",
+    "searchByPlaceholder": "Nom, type ou localité",
+    "helpTitle": "Vous ne trouvez pas votre établissement ?",
+    "helpBody": "Nous pouvons vous aider à trouver le bon établissement.",
+    "sortBy": "Trier par : {{label}}",
+    "sortChoose": "Changer l'ordre de tri",
+    "directoryOnlyShort": "Annuaire seulement",
+    "facilitiesFound_one": "{{count}} établissement trouvé",
+    "facilitiesFound_other": "{{count}} établissements trouvés",
+    "openSlots_one": "{{count}} créneau libre",
+    "openSlots_other": "{{count}} créneaux libres"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié ?",
@@ -3789,7 +3804,11 @@
       "notConnectedShort": "Non connecté",
       "notConnectedTitle": "Cet établissement n’a pas publié ses soignants",
       "notConnectedMessage": "Il n’est pas encore connecté à OpesCare, donc aucun profil de soignant n’est répertorié. Vous pouvez toujours appeler l’établissement directement.",
-      "verified": "Qualifications vérifiées"
+      "verified": "Qualifications vérifiées",
+      "headingSubtitle": "Recherchez et trouvez des professionnels de santé",
+      "sortDepartment": "Trier par : service",
+      "sortName": "Trier par : nom",
+      "sortA11y": "Changer l'ordre de tri des professionnels"
     },
     "findFacility": {
       "title": "Trouver un service",
@@ -8080,7 +8099,7 @@
       "consent": "Consentement"
     },
     "stepOf": "Étape {{current}} sur {{total}} : {{label}}",
-    "groupPlaceholder": "Choisir",
+    "groupPlaceholder": "Choisir votre groupe",
     "eligibilityItems": {
       "age": {
         "title": "De 18 à 60 ans",
@@ -8157,7 +8176,7 @@
     "howItWorks": "Comment ça marche",
     "retry": "Réessayer",
     "closeSheet": "Fermer",
-    "groupPlaceholder": "Choisir",
+    "groupPlaceholder": "Choisir un groupe",
     "lastDonatedLabel": "Dernier don",
     "lastDonated": {
       "any": "Peu importe",
@@ -8168,7 +8187,7 @@
     "sortLabel": "Trier",
     "sortSheetTitle": "Trier les volontaires par",
     "sort": {
-      "since": "Plus ancien",
+      "since": "Don le plus ancien",
       "area": "Par zone"
     },
     "filtersShow": "Afficher les filtres",

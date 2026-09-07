@@ -54,6 +54,23 @@ OpesCare ne pose aucun diagnostic, ne prescrit aucun traitement et ne donne pas 
 
 ---
 
+## Coordonnées
+
+Identiques à la fiche anglaise — Play les partage entre les langues.
+
+| Champ | Valeur |
+| --- | --- |
+| Site web | `https://finder.opescare.cloud` |
+| Politique de confidentialité | `https://finder.opescare.cloud/privacy` |
+| Suppression des données | `https://finder.opescare.cloud/account-deletion` |
+| E-mail | `support@opescare.com` — **à vérifier avant soumission** |
+
+> L’adresse `support@opescare.com` n’a pas pu être confirmée : au test du
+> 7 septembre 2026, les deux serveurs de messagerie d’`opescare.com` ont refusé
+> **toutes** les adresses du domaine, y compris une adresse inventée. Voir le
+> détail dans `store-listing-en.md`. Envoyez-y un message depuis un compte
+> personnel pour trancher.
+
 ## Traduction — notes
 
 - **« déclarée par l’établissement et horodatée »** traduit l’invariant de la

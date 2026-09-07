@@ -71,12 +71,36 @@ OpesCare does not diagnose, treat or give medical advice, and it is not a substi
 | Website | `https://finder.opescare.cloud` |
 | Privacy policy | `https://finder.opescare.cloud/privacy` |
 | Data deletion | `https://finder.opescare.cloud/account-deletion` |
-| Email | **Set this before submitting** — see the note below |
+| Email | `support@opescare.com` — **confirm it receives mail first, see below** |
 
-> **The support email must be one that receives mail.** Play shows it publicly
-> and will test it. `opescare.cloud` currently publishes a null MX, so nothing
-> addressed to it can be delivered; either remove that record or give Play an
-> address on `opescare.com`, which does accept mail.
+> ### The support email is not confirmed working
+>
+> Play publishes this address and verifies it, so a dead one stalls the review.
+>
+> `support@opescare.com` was probed live on 7 September 2026 against both of
+> `opescare.com`'s mail exchangers. `MAIL FROM` was accepted and then **every**
+> recipient at the domain was refused:
+>
+> ```
+> eforward1.registrar-servers.com  RCPT <support@opescare.com>      554 5.7.1 Relay access denied
+> eforward1.registrar-servers.com  RCPT <zz-nope-77213@opescare.com> 554 5.7.1 Relay access denied
+> eforward3.registrar-servers.com  same, both addresses
+> ```
+>
+> A blanket refusal that does not distinguish a real address from a made-up one
+> is what Namecheap's forwarding service returns when **no forward is
+> configured for the domain**: the MX records point at the service, but the
+> service has nothing to deliver to. It is not proof — our sending host could
+> also be blocked — but it is the likeliest reading, and either way the address
+> is not demonstrably live.
+>
+> **Confirm it in thirty seconds:** send a message to `support@opescare.com`
+> from any personal account and see whether it arrives. If it does not, add the
+> forward in the Namecheap dashboard for `opescare.com` before submitting.
+>
+> Note this is a *different* problem from the platform's outbound mail. That one
+> is the null MX on `opescare.cloud`, which stops anything the app sends from
+> being delivered at all.
 
 ## A note on the availability wording
 

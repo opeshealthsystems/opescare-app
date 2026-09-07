@@ -1150,6 +1150,12 @@ export default function BloodFinderScreen() {
           ) : (
             openRequests.map((request) => (
               <OpenRequestCard
+                onTrack={() =>
+                  router.push({
+                    pathname: '/blood-finder/status',
+                    params: { requestId: request.id },
+                  })
+                }
                 key={request.id}
                 request={request}
                 cancelling={
@@ -1750,10 +1756,13 @@ function OpenRequestCard({
   request,
   cancelling,
   onCancel,
+  onTrack,
 }: {
   request: BloodRequest;
   cancelling: boolean;
   onCancel: () => void;
+  /** Opens PM-BLOOD-05 for this request. */
+  onTrack: () => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -1776,7 +1785,8 @@ function OpenRequestCard({
           place || null,
           t('bloodFinder.reference', { reference: request.reference }),
         ]}
-        chevron={false}
+        onPress={onTrack}
+        accessibilityHint={t('bloodStatus.title')}
         trailing={
           <View style={styles.rowAside}>
             <StatusBadge

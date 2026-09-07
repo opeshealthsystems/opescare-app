@@ -79,6 +79,7 @@ const ROUTES = {
   carePlans: '/care-plans',
   referrals: '/referrals',
   offlineAccess: '/offline-access',
+  about: '/about',
   help: '/help',
   // `app/legal/privacy.tsx` and `app/legal/terms.tsx` shipped with no entry
   // point anywhere in the app — `scripts/nav-audit.mjs` reported both as
@@ -517,6 +518,14 @@ export default function SettingsScreen() {
             <View>
               <SectionHeader title={t('settings.group.about')} variant="overline" />
               <Card variant="flush">
+                <ListRow
+                  icon="info"
+                  tint="blue"
+                  title={t('about.title')}
+                  subtitle={t('settings.about.aboutBody')}
+                  onPress={() => router.push(ROUTES.about)}
+                  divider
+                />
                 <ListRow
                   icon="help-circle"
                   tint="blue"

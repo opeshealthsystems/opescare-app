@@ -928,7 +928,8 @@
       "versionUnknown": "Inconnue",
       "updateAvailable": "La version {{version}} est disponible.",
       "privacyPolicyBody": "Ce que nous collectons, qui peut le consulter et vos droits sur ces données.",
-      "termsBody": "Les règles de fonctionnement de l'application, et ce qu'elle ne fait pas."
+      "termsBody": "Les règles de fonctionnement de l'application, et ce qu'elle ne fait pas.",
+      "aboutBody": "Ce qu’est OpesCare et les règles qu’il suit."
     },
     "assurance": {
       "title": "Votre dossier vous suit",
@@ -7965,5 +7966,41 @@
     "ctaTitle": "Vous ne trouvez pas ce qu’il vous faut ?",
     "ctaBody": "Cherchez par groupe et composant exacts, et réservez des unités.",
     "ctaAction": "Ouvrir le Blood Finder"
+  },
+  "about": {
+    "title": "À propos d’OpesCare",
+    "sealAlt": "Le sceau OpesCare Health ID — un peuple en meilleure santé, une Afrique plus forte.",
+    "tagline": "UN IDENTIFIANT SANTÉ. DES SOINS CONNECTÉS.",
+    "lead": "OpesCare vous donne un identifiant santé portable et un dossier médical qui vous suit entre les cliniques, hôpitaux, laboratoires et pharmacies que vous fréquentez. Votre dossier est écrit par les soignants qui vous prennent en charge, et il n’est ouvert par eux que si vous l’autorisez.",
+    "principlesTitle": "Ce sur quoi il repose",
+    "principles": {
+      "yours": {
+        "title": "Le dossier est le vôtre",
+        "body": "Ni celui de la clinique, ni le nôtre. Vous pouvez le lire, le télécharger et l’emporter."
+      },
+      "travels": {
+        "title": "Il vous suit",
+        "body": "Un seul identifiant santé vous identifie dans tout établissement du réseau : un soignant qui ne vous a jamais vu voit l’essentiel."
+      },
+      "consent": {
+        "title": "Vous décidez qui l’ouvre",
+        "body": "L’accès est accordé par vous et inscrit dans un journal que vous pouvez consulter ensuite. L’accès d’urgence est un réglage qui vous appartient."
+      },
+      "bilingual": {
+        "title": "Français et anglais",
+        "body": "Chaque écran, chaque document et chaque notification, dans la langue de votre choix."
+      }
+    },
+    "buildTitle": "Cette version",
+    "versionLabel": "Version",
+    "buildLabel": "Build",
+    "packageLabel": "Paquet",
+    "versionUnknown": "Non disponible",
+    "versionUnknownNote": "Les détails de version proviennent de l’application installée. Dans un navigateur, il n’y a aucune version installée à lire.",
+    "legalTitle": "Les règles de cette application",
+    "privacy": "Politique de confidentialité",
+    "terms": "Conditions d’utilisation",
+    "deletion": "Supprimer mon compte",
+    "foot": "OpesCare ne pose aucun diagnostic, ne prescrit aucun traitement et ne donne pas d’avis médical ; l’application ne remplace pas une consultation."
   }
 }

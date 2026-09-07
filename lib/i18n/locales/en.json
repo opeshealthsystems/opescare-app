@@ -928,7 +928,8 @@
       "versionUnknown": "Unknown",
       "updateAvailable": "Version {{version}} is available.",
       "privacyPolicyBody": "What we collect, who can see it, and your rights over it.",
-      "termsBody": "The rules this app runs by, and what it does not do."
+      "termsBody": "The rules this app runs by, and what it does not do.",
+      "aboutBody": "What OpesCare is, and the rules it runs by."
     },
     "assurance": {
       "title": "Your record travels with you",
@@ -7964,5 +7965,41 @@
     "ctaTitle": "Can't find what you need?",
     "ctaBody": "Search by your exact group and component, and reserve units.",
     "ctaAction": "Open Blood Finder"
+  },
+  "about": {
+    "title": "About OpesCare",
+    "sealAlt": "The OpesCare Health ID seal — a healthier people, a stronger Africa.",
+    "tagline": "ONE HEALTH ID. CONNECTED CARE.",
+    "lead": "OpesCare gives you a portable Health ID and a medical record that follows you between the clinics, hospitals, laboratories and pharmacies you use. Your record is written by the clinicians who treat you, and it is opened by them only when you allow it.",
+    "principlesTitle": "What it stands on",
+    "principles": {
+      "yours": {
+        "title": "The record is yours",
+        "body": "Not the clinic’s, and not ours. You can read it, download it and take it with you."
+      },
+      "travels": {
+        "title": "It travels with you",
+        "body": "One Health ID identifies you at any facility on the network, so a clinician who has never met you sees what matters."
+      },
+      "consent": {
+        "title": "You decide who opens it",
+        "body": "Access is granted by you and written to a log you can read afterwards. Emergency access is your switch to set."
+      },
+      "bilingual": {
+        "title": "English and French",
+        "body": "Every screen, every document and every notification, in the language you choose."
+      }
+    },
+    "buildTitle": "This build",
+    "versionLabel": "Version",
+    "buildLabel": "Build",
+    "packageLabel": "Package",
+    "versionUnknown": "Not available",
+    "versionUnknownNote": "Version details come from the installed app. In a browser there is no installed version to read.",
+    "legalTitle": "The rules this app runs by",
+    "privacy": "Privacy policy",
+    "terms": "Terms of service",
+    "deletion": "Delete my account",
+    "foot": "OpesCare does not diagnose, treat or give medical advice, and it does not replace seeing a health professional."
   }
 }

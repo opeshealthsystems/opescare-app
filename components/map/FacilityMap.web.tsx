@@ -9,6 +9,11 @@ type Props = {
   directions?: boolean;
   /** `thumbnail` drops the map's own controls — see embedMapUrl. */
   variant?: MapVariant;
+  /** Draw the search area: both halves or neither. */
+  center?: { lat: number; lng: number } | null;
+  radiusKm?: number | null;
+  /** Name every pin. */
+  labels?: boolean;
   style?: ViewStyle;
 };
 
@@ -17,8 +22,17 @@ type Props = {
  * real OpenStreetMap map (markers + in-app directions) without leaving the app.
  * (Native uses a WebView — see FacilityMap.tsx.)
  */
-export function FacilityMap({ facilities, height = 220, directions, variant, style }: Props) {
-  const url = embedMapUrl(facilities, { directions, variant });
+export function FacilityMap({
+  facilities,
+  height = 220,
+  directions,
+  variant,
+  center,
+  radiusKm,
+  labels,
+  style,
+}: Props) {
+  const url = embedMapUrl(facilities, { directions, variant, center, radiusKm, labels });
   if (!url) return null;
 
   return React.createElement('iframe', {

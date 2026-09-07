@@ -7817,7 +7817,30 @@
     "backToFinder": "Back to Blood Finder",
     "ctaTitle": "Ready to make a difference?",
     "ctaBody": "Join the volunteer register. You choose whether anyone can see you, and you can withdraw at any time.",
-    "ctaAction": "Become a donor"
+    "ctaAction": "Become a donor",
+    "quickTitle": "Quick topics",
+    "quick": {
+      "donating": {
+        "title": "Donating",
+        "sub": "What it involves"
+      },
+      "compatibility": {
+        "title": "Who can receive",
+        "sub": "Group by group"
+      },
+      "eligibility": {
+        "title": "Eligibility",
+        "sub": "What is asked"
+      },
+      "findDonors": {
+        "title": "Find donors",
+        "sub": "The volunteer register"
+      },
+      "join": {
+        "title": "Join in",
+        "sub": "Become a donor"
+      }
+    }
   },
   "bloodBank": {
     "title": "Blood bank details",
@@ -8079,20 +8102,20 @@
     "why": {
       "title": "Why become a donor?",
       "lives": {
-        "title": "Up to 3 patients",
-        "sub": "One donation is separated into red cells, platelets and plasma."
+        "title": "3 patients",
+        "sub": "Red cells, platelets, plasma."
       },
       "community": {
-        "title": "Your own community",
-        "sub": "Donated blood is used by hospitals near where it is given."
+        "title": "Nearby",
+        "sub": "Used by hospitals close by."
       },
       "control": {
-        "title": "You stay in control",
-        "sub": "Pause or withdraw from the register at any time."
+        "title": "Your call",
+        "sub": "Pause or leave any time."
       },
       "free": {
-        "title": "Never for sale",
-        "sub": "Donating is voluntary and unpaid. Nobody should pay for blood."
+        "title": "Never sold",
+        "sub": "Voluntary and unpaid."
       }
     }
   },

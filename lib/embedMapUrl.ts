@@ -31,7 +31,15 @@ export type MapVariant = 'thumbnail' | 'full';
 
 export function embedMapUrl(
   facilities: MapFacility[] | MapFacility | null | undefined,
-  opts?: { directions?: boolean; variant?: MapVariant },
+  opts?: {
+    directions?: boolean;
+    variant?: MapVariant;
+    /** Draw the search area, centred here, with this radius. */
+    center?: { lat: number; lng: number } | null;
+    radiusKm?: number | null;
+    /** Name every pin, as SB-05 does. */
+    labels?: boolean;
+  },
 ): string | null {
   const list = Array.isArray(facilities) ? facilities : facilities ? [facilities] : [];
   const points = list
@@ -62,6 +70,14 @@ export function embedMapUrl(
   // of the top-left corner otherwise, where the app floats its own chip.
   if (opts?.variant === 'thumbnail') params.set('ui', 'static');
   else params.set('controls', 'topright');
+  if (opts?.labels) params.set('labels', '1');
+  // The circle is the filter the patient set, drawn. It needs both halves —
+  // a radius with no centre would be a ring around an arbitrary pin.
+  const c = opts?.center;
+  if (c && Number.isFinite(c.lat) && Number.isFinite(c.lng)) {
+    params.set('center', `${c.lat},${c.lng}`);
+    if (opts?.radiusKm) params.set('radiusKm', String(opts.radiusKm));
+  }
   // A locale hint so the map's popups/labels match the app.
   return `${finderOrigin()}/embed/map?${params.toString()}`;
 }

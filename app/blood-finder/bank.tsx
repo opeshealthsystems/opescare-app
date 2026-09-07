@@ -252,6 +252,25 @@ function FactRow({
   );
 }
 
+/**
+ * "Hôpital Central de Yaoundé" -> "HC". The first letter of the first two
+ * words that carry meaning — a facility's own name, never more than two
+ * letters, so the disc holds it at any size.
+ */
+const SKIP_WORDS = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'of', 'the', 'and', 'et', "d'"]);
+
+function initials(name: string): string {
+  const words = name
+    .split(/[\s\-']+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length > 0 && !SKIP_WORDS.has(w.toLowerCase()));
+
+  return words
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
 export default function BloodBankDetailScreen() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -430,8 +449,11 @@ export default function BloodBankDetailScreen() {
         {/* ── 1. Identity: mark + name block + stacked action column ───────── */}
         <Card>
           <View style={styles.identity}>
-            <View style={[styles.identityMark, { backgroundColor: colors.statusCriticalBg }]}>
-              <Icon name="droplet" size={24} color={colors.statusCritical} />
+            <View style={styles.identityMark}>
+              <Icon name="droplet" size={17} color={colors.statusCritical} />
+              <Text style={styles.identityInitials} numberOfLines={1}>
+                {initials(facility.name)}
+              </Text>
             </View>
 
             <View style={styles.identityBody}>
@@ -748,12 +770,25 @@ const makeStyles = (c: Palette) =>
 
     /* 1. Identity ------------------------------------------------------- */
     identity: { flexDirection: 'row', gap: spacing.sm + 2, alignItems: 'flex-start' },
+    // The reference's mark is a 72pt logo disc on a white face. We have no
+    // logo, so the disc carries the facility's initials — its own name, not a
+    // graphic we would have to invent — at the weight the layout expects.
     identityMark: {
-      width: 44,
-      height: 44,
-      borderRadius: radii.pill,
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
       alignItems: 'center',
       justifyContent: 'center',
+      gap: 1,
+    },
+    identityInitials: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: 15,
+      letterSpacing: .5,
+      color: c.primaryDeep,
     },
     identityBody: { flex: 1, minWidth: 0 },
     nameRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },

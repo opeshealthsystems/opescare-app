@@ -1,3 +1,4 @@
+import React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
@@ -511,14 +512,21 @@ export default function BecomeDonorScreen() {
               </View>
               {/* 2x2, not the reference's 4-up row — see the docblock. */}
               <View style={styles.whyGrid}>
-                {WHY.map((item) => (
-                  <View key={item.key} style={styles.whyCell}>
-                    <View style={styles.whyIcon}>
-                      <Icon name={item.icon} size={16} color={colors.statusNormal} />
+                {WHY.map((item, index) => (
+                  <React.Fragment key={item.key}>
+                    {index > 0 && <View style={styles.whyDivider} />}
+                    <View style={styles.whyCell}>
+                      <View style={styles.whyIcon}>
+                        <Icon name={item.icon} size={16} color={colors.statusNormal} />
+                      </View>
+                      <Text style={styles.whyCellTitle} numberOfLines={2}>
+                        {t(`donor.why.${item.key}.title`)}
+                      </Text>
+                      <Text style={styles.whyCellText} numberOfLines={3}>
+                        {t(`donor.why.${item.key}.sub`)}
+                      </Text>
                     </View>
-                    <Text style={styles.whyCellTitle}>{t(`donor.why.${item.key}.title`)}</Text>
-                    <Text style={styles.whyCellText}>{t(`donor.why.${item.key}.sub`)}</Text>
-                  </View>
+                  </React.Fragment>
                 ))}
               </View>
             </View>
@@ -957,12 +965,21 @@ const makeStyles = (c: Palette) =>
     },
     whyGrid: {
       flexDirection: 'row',
-      flexWrap: 'wrap',
-      rowGap: spacing.md,
-      columnGap: spacing.sm,
+      alignItems: 'stretch',
       marginTop: spacing.md,
     },
-    whyCell: { width: '48%', alignItems: 'center' },
+    // Four equal columns, hairline-divided, as the reference draws them.
+    // flexBasis 0 rather than a percentage so they share the row exactly;
+    // minWidth 0 so a caption wraps instead of widening its own column.
+    whyCell: {
+      flexGrow: 1,
+      flexShrink: 1,
+      flexBasis: 0,
+      minWidth: 0,
+      alignItems: 'center',
+      paddingHorizontal: 4,
+    },
+    whyDivider: { width: StyleSheet.hairlineWidth, backgroundColor: c.border, marginVertical: 2 },
     whyIcon: {
       width: 32,
       height: 32,

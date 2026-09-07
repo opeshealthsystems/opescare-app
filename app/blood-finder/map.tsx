@@ -359,7 +359,15 @@ export default function BloodMapScreen() {
             <LoadingBlock label={t('bloodFinder.searching')} />
           ) : mappable.length > 0 ? (
             <View style={styles.mapWrap}>
-              <FacilityMap facilities={mappable} height={260} />
+              <FacilityMap
+                facilities={mappable}
+                height={260}
+                // The circle IS the filter above it, drawn. Named pins,
+                // as the reference draws them.
+                center={{ lat: city.lat, lng: city.lng }}
+                radiusKm={radiusKm}
+                labels
+              />
               <View style={styles.mapChip} pointerEvents="none">
                 <Icon name="target" size={13} color={colors.blue} />
                 <Text style={styles.mapChipText} numberOfLines={1}>

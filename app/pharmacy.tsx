@@ -167,6 +167,30 @@ const CATEGORY_ICONS: Record<string, IconName> = {
 const FALLBACK_CATEGORY_ICON: IconName = 'first-aid';
 
 /**
+ * The tint each category wears on the rail, keyed by the same icon key the API
+ * sends. The reference gives every tile its own colour and that variety IS the
+ * rail — a rail in one grey reads as a row of chips. Values are palette keys,
+ * so both brands and both themes resolve them themselves.
+ */
+type TintKey = 'tintRed' | 'tintGreen' | 'tintBlue' | 'tintAmber' | 'tintPurple';
+
+const CATEGORY_TINTS: Record<string, TintKey> = {
+  pill: 'tintRed',
+  'shield-plus': 'tintGreen',
+  droplet: 'tintPurple',
+  'heart-pulse': 'tintRed',
+  'flask-conical': 'tintBlue',
+  wind: 'tintGreen',
+  sparkles: 'tintAmber',
+  'circle-dot': 'tintAmber',
+  bug: 'tintPurple',
+  baby: 'tintBlue',
+  package: 'tintBlue',
+};
+
+const FALLBACK_CATEGORY_TINT: TintKey = 'tintBlue';
+
+/**
  * `care_facilities.verification_status` is a free-form column, so only values
  * this app actually understands are rendered. Anything else — including null —
  * shows no verification line at all: silence is honest, a guess is not.
@@ -641,6 +665,7 @@ export default function PharmacyScreen() {
               <CategoryTile
                 key={c.value}
                 icon={CATEGORY_ICONS[c.icon] ?? FALLBACK_CATEGORY_ICON}
+                tint={CATEGORY_TINTS[c.icon] ?? FALLBACK_CATEGORY_TINT}
                 label={t(`pharmacy.categories.${c.value}`, { defaultValue: c.label })}
                 count={c.medicine_count}
                 selected={category === c.value}
@@ -1129,17 +1154,22 @@ function CategoryTile({
   icon,
   label,
   count,
+  tint,
   selected,
   onPress,
 }: {
   icon: IconName;
   label: string;
   count?: number;
+  /** Palette key for this category's colour; omitted by the "All" tile. */
+  tint?: TintKey;
   selected: boolean;
   onPress: () => void;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const stroke = tint ? colors[tint] : colors.blue;
+  const fill = tint ? colors[`${tint}Bg` as keyof typeof colors] : colors.primarySoft;
 
   return (
     <TouchableOpacity
@@ -1151,18 +1181,16 @@ function CategoryTile({
       style={[
         styles.catTile,
         {
-          borderColor: selected ? colors.statusNormal : colors.border,
-          backgroundColor: selected ? colors.statusNormalBg : colors.surface,
+          borderColor: selected ? stroke : colors.border,
+          backgroundColor: selected ? fill : colors.surface,
         },
       ]}
     >
-      <Icon
-        name={icon}
-        size={21}
-        color={selected ? colors.statusNormal : colors.textSecondary}
-      />
+      <View style={[styles.catMark, { backgroundColor: selected ? colors.surface : fill }]}>
+        <Icon name={icon} size={19} color={stroke} />
+      </View>
       <Text
-        style={[styles.catLabel, selected && { color: colors.statusNormal }]}
+        style={[styles.catLabel, selected && { color: colors.textPrimary }]}
         numberOfLines={2}
       >
         {label}
@@ -1774,7 +1802,7 @@ const makeStyles = (c: Palette) =>
     /* MED-01 category rail */
     catTile: {
       width: 84,
-      minHeight: 78,
+      minHeight: 92,
       borderRadius: radii.md,
       borderWidth: StyleSheet.hairlineWidth,
       alignItems: 'center',
@@ -1783,6 +1811,13 @@ const makeStyles = (c: Palette) =>
       paddingHorizontal: 6,
       paddingVertical: spacing.sm,
       marginRight: spacing.xs,
+    },
+    catMark: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     catLabel: {
       fontFamily: typography.fontFamily.medium,

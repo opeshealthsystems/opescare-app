@@ -2096,7 +2096,9 @@ const makeStyles = (c: Palette) =>
   StyleSheet.create({
     /* PM-BLOOD-01 finder card */
     fieldRow: { flexDirection: 'row', gap: spacing.sm },
-    fieldWide: { flex: 1.2, minWidth: 0 },
+    // The reference splits step 1 / step 2 about 60:40, not 55:45 — five
+    // group tiles need the room, and the component dropdown does not.
+    fieldWide: { flex: 1.55, minWidth: 0 },
     fieldNarrow: { flex: 1, minWidth: 0 },
     fieldLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
     fieldNumber: {
@@ -2111,11 +2113,15 @@ const makeStyles = (c: Palette) =>
       color: c.textPrimary,
     },
 
-    groupRow: { flexDirection: 'row', gap: 5 },
+    groupRow: { flexDirection: 'row', gap: 6 },
+    // Square-ish tiles, as drawn. flexBasis 0 rather than `flex: 1` so all
+    // five share the row exactly whatever their labels are.
     groupPill: {
-      flex: 1,
+      flexGrow: 1,
+      flexShrink: 1,
+      flexBasis: 0,
       minWidth: 0,
-      height: 46,
+      height: 44,
       borderRadius: radii.sm,
       borderWidth: 1,
       alignItems: 'center',

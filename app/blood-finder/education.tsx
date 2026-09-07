@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useRef } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Screen } from '@/components/ui/Screen';
@@ -59,6 +59,27 @@ const TOPICS: Topic[] = [
 ];
 
 /**
+ * The reference's Quick Topics row. Each tile goes somewhere that exists:
+ * three scroll to a section further down this screen, two open a donor screen.
+ * A tile that led nowhere would be decoration, and the row is navigation.
+ */
+type Quick = {
+  key: string;
+  icon: IconName;
+  tint: 'blue' | 'red' | 'green';
+  /** A section of this screen, or a route to push. */
+  target: 'donating' | 'compatibility' | 'eligibility' | '/blood-finder/donors' | '/blood-finder/become-donor';
+};
+
+const QUICK: Quick[] = [
+  { key: 'donating', icon: 'droplet', tint: 'red', target: 'donating' },
+  { key: 'compatibility', icon: 'shield-check', tint: 'blue', target: 'compatibility' },
+  { key: 'eligibility', icon: 'clipboard', tint: 'green', target: 'eligibility' },
+  { key: 'findDonors', icon: 'users', tint: 'blue', target: '/blood-finder/donors' },
+  { key: 'join', icon: 'heart-pulse', tint: 'red', target: '/blood-finder/become-donor' },
+];
+
+/**
  * Whole-blood compatibility, receiver → the groups they may receive from.
  *
  * O− is the universal donor and AB+ the universal receiver, which is why the
@@ -85,6 +106,23 @@ export default function BloodEducationScreen() {
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/blood-finder'));
 
+  // Quick Topics scroll to a section rather than opening a new screen: the
+  // content is already here, and a reader who taps "Who can receive" wants to
+  // be looking at the table, not at a second copy of it.
+  const scroller = useRef<ScrollView>(null);
+  const anchors = useRef<Record<string, number>>({});
+  const anchor = (key: string) => (e: { nativeEvent: { layout: { y: number } } }) => {
+    anchors.current[key] = e.nativeEvent.layout.y;
+  };
+  const jump = (target: Quick['target']) => {
+    if (target.startsWith('/')) {
+      router.push(target as '/blood-finder/donors');
+      return;
+    }
+    const y = anchors.current[target];
+    if (y !== undefined) scroller.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
+  };
+
   const tintOf = (tint: Topic['tint']) =>
     tint === 'red'
       ? { fg: colors.statusCritical, bg: colors.statusCriticalBg }
@@ -100,22 +138,59 @@ export default function BloodEducationScreen() {
         onBack={goBack}
       />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* The one claim the whole screen rests on, stated once and up front. */}
-        <Card accentColor={colors.statusCritical}>
-          <View style={styles.leadRow}>
-            <View style={[styles.leadMark, { backgroundColor: colors.statusCriticalBg }]}>
-              <Icon name="droplet" size={22} color={colors.statusCritical} />
-            </View>
-            <View style={styles.leadBody}>
-              <Text style={styles.leadTitle}>{t('bloodEducation.leadTitle')}</Text>
-              <Text style={styles.leadText}>{t('bloodEducation.leadBody')}</Text>
-            </View>
+      <ScrollView
+        ref={scroller}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* The reference's opening band: the one claim the whole screen rests
+            on, stated once, large, before any of the detail. */}
+        <View style={styles.hero}>
+          <View style={styles.heroBody}>
+            <Text style={styles.heroTitle}>{t('bloodEducation.leadTitle')}</Text>
+            <Text style={styles.heroText}>{t('bloodEducation.leadBody')}</Text>
           </View>
-        </Card>
+          <View style={styles.heroArt} pointerEvents="none">
+            <Icon name="droplet" size={42} color={colors.statusCritical} />
+          </View>
+        </View>
+
+        {/* ── Quick topics ─────────────────────────────────────────────────── */}
+        <View style={styles.stack}>
+          <SectionHeader title={t('bloodEducation.quickTitle')} />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickRow}
+          >
+            {QUICK.map((item) => {
+              const tone = tintOf(item.tint);
+              return (
+                <TouchableOpacity
+                  key={item.key}
+                  onPress={() => jump(item.target)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(`bloodEducation.quick.${item.key}.title`)}
+                  style={styles.quickTile}
+                >
+                  <View style={[styles.quickMark, { backgroundColor: tone.bg }]}>
+                    <Icon name={item.icon} size={19} color={tone.fg} />
+                  </View>
+                  <Text style={styles.quickTitle} numberOfLines={2}>
+                    {t(`bloodEducation.quick.${item.key}.title`)}
+                  </Text>
+                  <Text style={styles.quickSub} numberOfLines={2}>
+                    {t(`bloodEducation.quick.${item.key}.sub`)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
 
         {/* ── Donating ─────────────────────────────────────────────────────── */}
-        <View style={styles.stack}>
+        <View style={styles.stack} onLayout={anchor('donating')}>
           <SectionHeader title={t('bloodEducation.donatingTitle')} />
           {TOPICS.map((topic) => {
             const tone = tintOf(topic.tint);
@@ -140,7 +215,7 @@ export default function BloodEducationScreen() {
         </View>
 
         {/* ── Compatibility ────────────────────────────────────────────────── */}
-        <View style={styles.stack}>
+        <View style={styles.stack} onLayout={anchor('compatibility')}>
           <SectionHeader title={t('bloodEducation.compatibilityTitle')} />
           <Card variant="flush">
             <View style={styles.tableHead}>
@@ -184,7 +259,7 @@ export default function BloodEducationScreen() {
         </View>
 
         {/* ── Eligibility ──────────────────────────────────────────────────── */}
-        <View style={styles.stack}>
+        <View style={styles.stack} onLayout={anchor('eligibility')}>
           <SectionHeader title={t('bloodEducation.eligibilityTitle')} />
           <Card>
             {(['age', 'weight', 'health', 'interval'] as const).map((key, index) => (
@@ -242,6 +317,69 @@ const makeStyles = (c: Palette) =>
   StyleSheet.create({
     content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
     stack: { gap: spacing.sm },
+
+    hero: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      backgroundColor: c.statusCriticalBg,
+      borderRadius: radii.lg,
+      padding: spacing.md,
+    },
+    heroBody: { flex: 1, minWidth: 0, gap: 4 },
+    heroTitle: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+      lineHeight: typography.lineHeight.lg,
+      color: c.statusCritical,
+    },
+    heroText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: c.textSecondary,
+    },
+    heroArt: {
+      width: 68,
+      height: 68,
+      borderRadius: 34,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    quickRow: { gap: spacing.sm, paddingRight: spacing.md },
+    quickTile: {
+      width: 108,
+      // Equal plates. A two-line title on one tile was leaving its neighbours
+      // short, and the row is meant to read as one object.
+      minHeight: 112,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      padding: spacing.sm,
+      gap: 6,
+    },
+    quickMark: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    quickTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      lineHeight: 18,
+      color: c.textPrimary,
+    },
+    quickSub: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: 11,
+      lineHeight: 14,
+      color: c.textMuted,
+    },
 
     ctaCard: { backgroundColor: c.statusCriticalBg, borderColor: c.statusCritical, gap: spacing.md },
     ctaRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },

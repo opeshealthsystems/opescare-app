@@ -7818,7 +7818,30 @@
     "backToFinder": "Retour au Blood Finder",
     "ctaTitle": "Prêt à faire la différence ?",
     "ctaBody": "Rejoignez le registre des volontaires. Vous décidez si l'on peut vous voir, et vous pouvez vous retirer à tout moment.",
-    "ctaAction": "Devenir donneur"
+    "ctaAction": "Devenir donneur",
+    "quickTitle": "Sujets rapides",
+    "quick": {
+      "donating": {
+        "title": "Le don",
+        "sub": "Ce que cela implique"
+      },
+      "compatibility": {
+        "title": "Qui peut recevoir",
+        "sub": "Groupe par groupe"
+      },
+      "eligibility": {
+        "title": "Éligibilité",
+        "sub": "Ce qui est demandé"
+      },
+      "findDonors": {
+        "title": "Trouver un donneur",
+        "sub": "Le registre des volontaires"
+      },
+      "join": {
+        "title": "Participer",
+        "sub": "Devenir donneur"
+      }
+    }
   },
   "bloodBank": {
     "title": "Détails de la banque de sang",
@@ -8080,20 +8103,20 @@
     "why": {
       "title": "Pourquoi devenir donneur ?",
       "lives": {
-        "title": "Jusqu’à 3 patients",
-        "sub": "Un don est séparé en globules rouges, plaquettes et plasma."
+        "title": "3 patients",
+        "sub": "Globules, plaquettes, plasma."
       },
       "community": {
-        "title": "Votre communauté",
-        "sub": "Le sang donné est utilisé par les hôpitaux proches du lieu du don."
+        "title": "Tout près",
+        "sub": "Utilisé par les hôpitaux proches."
       },
       "control": {
-        "title": "Vous gardez la main",
-        "sub": "Mettez votre inscription en pause ou retirez-vous à tout moment."
+        "title": "Vous décidez",
+        "sub": "Pause ou retrait à tout moment."
       },
       "free": {
-        "title": "Jamais à vendre",
-        "sub": "Le don est volontaire et non rémunéré. Personne ne doit payer pour du sang."
+        "title": "Jamais vendu",
+        "sub": "Volontaire et non rémunéré."
       }
     }
   },

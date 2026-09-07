@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -88,6 +88,12 @@ export default function ProfileScreen() {
   const fetchMe = useAuthStore((s) => s.fetchMe);
   const [retrying, setRetrying] = useState(false);
   const [showAllRecord, setShowAllRecord] = useState(false);
+  // The identity card's own width, measured. Everything in that row is sized
+  // from it rather than from a number that only holds at 375pt.
+  const [cardWidth, setCardWidth] = useState(0);
+  // A signed photo link that has expired renders nothing; this flips the card
+  // back to initials instead of leaving a grey hole.
+  const [photoFailed, setPhotoFailed] = useState(false);
   const [showAllAccount, setShowAllAccount] = useState(false);
 
   // Opening this tab is itself a reason to try again: if the boot-time fetch
@@ -147,6 +153,37 @@ export default function ProfileScreen() {
   })();
 
   const emergency = patient?.emergency_contact ?? null;
+
+  // A refreshed signed link deserves a fresh attempt.
+  useEffect(() => {
+    setPhotoFailed(false);
+  }, [patient?.photo_url]);
+
+  /**
+   * Portrait and Health-ID columns as a share of the measured card, clamped.
+   * Below ~56pt a face is a thumbnail and the initials stop being readable;
+   * above ~96pt the portrait starts crowding the details column on a tablet.
+   * `cardWidth || 311` keeps the first paint (before onLayout fires) at the
+   * 375pt figure rather than collapsing to zero.
+   */
+  const columns = useMemo(() => {
+    const inner = (cardWidth || 311) - spacing.md * 2;
+    const clamp = (min: number, value: number, max: number) =>
+      Math.round(Math.max(min, Math.min(max, value)));
+    const portrait = clamp(56, inner * 0.21, 96);
+    return {
+      // Below ~300pt of card there is not enough width for three columns:
+      // the details column falls under 110pt and the age line, phone and
+      // email ellipsise together. The ID panel drops below instead.
+      stacked: inner < 300,
+      portrait,
+      // 4:3 portrait crop, which is what a face wants.
+      portraitHeight: Math.round(portrait * 1.32),
+      panel: clamp(84, inner * 0.3, 124),
+    };
+  }, [cardWidth]);
+
+  const showPhoto = !!patient?.photo_url && !photoFailed;
 
   /** Whole years, or null when no usable date of birth is recorded. */
   const ageLabel = useMemo(() => {
@@ -424,8 +461,15 @@ export default function ProfileScreen() {
             accessibilityLabel={t('profile.editProfileAction')}
             style={styles.topAvatarWrap}
           >
-            {patient.photo_url ? (
-              <Image source={{ uri: patient.photo_url }} style={styles.topAvatar} resizeMode="cover" accessibilityIgnoresInvertColors alt="" />
+            {showPhoto ? (
+              <Image
+                source={{ uri: patient.photo_url as string }}
+                style={styles.topAvatar}
+                resizeMode="cover"
+                onError={() => setPhotoFailed(true)}
+                accessibilityIgnoresInvertColors
+                alt=""
+              />
             ) : (
               <View style={[styles.topAvatar, styles.topAvatarFallback]}>
                 <Text style={styles.topAvatarText}>{initials}</Text>
@@ -457,16 +501,40 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── 1. Identity card: portrait | details | Health ID panel ───── */}
-        <Card style={styles.identity}>
+        <Card
+          style={styles.identity}
+          onLayout={(e) => setCardWidth(e.nativeEvent.layout.width)}
+        >
           <View style={styles.identityMain}>
             {/* left: portrait · middle: who you are · right: your Health ID */}
             <View>
-              <View style={styles.portrait}>
-                {patient.photo_url ? (
-                  <Image source={{ uri: patient.photo_url }} style={styles.portraitImg} resizeMode="cover" accessibilityIgnoresInvertColors alt="" />
+              <View
+                style={[
+                  styles.portrait,
+                  { width: columns.portrait, height: columns.portraitHeight },
+                ]}
+              >
+                {showPhoto ? (
+                  <Image
+                    source={{ uri: patient.photo_url as string }}
+                    style={styles.portraitImg}
+                    resizeMode="cover"
+                    onError={() => setPhotoFailed(true)}
+                    accessibilityIgnoresInvertColors
+                    alt=""
+                  />
                 ) : (
                   <View style={[styles.portraitImg, styles.portraitFallback]}>
-                    <Text style={styles.portraitInitials}>{initials}</Text>
+                    <Text
+                      style={[
+                        styles.portraitInitials,
+                        // The initials track the portrait so they neither
+                        // rattle around in a large frame nor overflow a small one.
+                        { fontSize: Math.round(columns.portrait * 0.36) },
+                      ]}
+                    >
+                      {initials}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -508,7 +576,7 @@ export default function ProfileScreen() {
               </Text>
             </View>
 
-            <View style={styles.identityRule} />
+            {columns.stacked ? null : <View style={styles.identityRule} />}
 
             {/* The Health ID column. The QR itself lives on the Health ID tab,
                 which owns the permanent payload and the 15-minute temporary
@@ -519,7 +587,10 @@ export default function ProfileScreen() {
               activeOpacity={0.85}
               accessibilityRole="button"
               accessibilityLabel={t('profile.healthIdCard')}
-              style={styles.idPanel}
+              style={[
+                styles.idPanel,
+                columns.stacked ? styles.idPanelStacked : { width: columns.panel },
+              ]}
             >
               <View style={styles.idPanelHead}>
                 <PulseLogo size={18} />
@@ -761,7 +832,7 @@ function PanelHeader({ icon, title, subtitle, actionLabel, actionIcon, onAction 
         <Icon name={icon} size={19} color={colors.textOnBrand} />
       </View>
       <View style={styles.panelHeadText}>
-        <Text style={styles.panelTitle} numberOfLines={1}>{title}</Text>
+        <Text style={styles.panelTitle} numberOfLines={2}>{title}</Text>
         <Text style={styles.panelSub} numberOfLines={2}>{subtitle}</Text>
       </View>
       <TouchableOpacity onPress={onAction} hitSlop={8} accessibilityRole="button" accessibilityLabel={actionLabel} style={styles.panelAction}>
@@ -880,11 +951,12 @@ const makeStyles = (c: Palette) =>
 
     /* 1. Identity card */
     identity: { gap: spacing.md },
-    identityMain: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-    portrait: { width: 64, height: 84, borderRadius: radii.md, overflow: 'hidden', backgroundColor: c.primarySoft },
+    identityMain: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, flexWrap: 'wrap' },
+    // width/height come from the measured card — see `columns`.
+    portrait: { borderRadius: radii.md, overflow: 'hidden', backgroundColor: c.primarySoft },
     portraitImg: { width: '100%', height: '100%' },
     portraitFallback: { alignItems: 'center', justifyContent: 'center' },
-    portraitInitials: { fontFamily: typography.fontFamily.bold, fontSize: 22, color: c.blue },
+    portraitInitials: { fontFamily: typography.fontFamily.bold, color: c.blue },
     portraitCamera: {
       position: 'absolute', right: -7, bottom: -7, width: 28, height: 28, borderRadius: 14,
       alignItems: 'center', justifyContent: 'center', backgroundColor: c.blue,
@@ -909,7 +981,17 @@ const makeStyles = (c: Palette) =>
     identityLineText: { flexShrink: 1, fontFamily: typography.fontFamily.regular, fontSize: 11, lineHeight: 17, color: c.textSecondary },
 
     /* Health ID panel */
-    idPanel: { width: 92, alignItems: 'center', gap: 4, paddingLeft: 6 },
+    idPanel: { alignItems: 'center', gap: 4, paddingLeft: 6 },
+    // The narrow-screen shape: a full-width band under the details, divided by
+    // a rule instead of standing beside one.
+    idPanelStacked: {
+      width: '100%',
+      paddingLeft: 0,
+      marginTop: spacing.sm,
+      paddingTop: spacing.sm,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: c.border,
+    },
     idPanelHead: { flexDirection: 'row', alignItems: 'center', gap: 5 },
     idPanelTitle: {
       flexShrink: 1,

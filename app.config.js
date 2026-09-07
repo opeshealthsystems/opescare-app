@@ -102,6 +102,55 @@ function refuse(message) {
   throw new Error(`[app.config.js] ${message}\nSee ${RUNBOOK}.`);
 }
 
+/**
+ * The only backend that exists today. It runs with APP_ENV=demo and
+ * OPESCARE_DEMO_MODE=true, its patients are `is_demo` rows, and its login page
+ * hands out demo accounts.
+ */
+const DEMO_API_HOST = 'finder.opescare.cloud';
+
+/**
+ * A store build must not point at the demo backend by accident.
+ *
+ * `eas.json`'s production profile used to hard-code the demo URL, and
+ * `lib/api/endpoints.ts` falls back to the same host when the variable is
+ * unset — a sane default for development, and the wrong one to inherit
+ * silently in the binary that goes on Google Play. Shipping demo records to
+ * real patients is not a mistake anybody would notice from the outside until
+ * somebody signed in.
+ *
+ * So a `production` build has to NAME its API. Pointing one at the demo host
+ * on purpose is still allowed — there is nowhere else to point it yet — but it
+ * has to be said out loud with OPESCARE_ALLOW_DEMO_BACKEND=1.
+ */
+function checkProductionBackend(apiBaseUrl) {
+  if (!onEasBuildWorker || easBuildProfile !== 'production') {
+    return;
+  }
+
+  if (process.env.OPESCARE_ALLOW_DEMO_BACKEND === '1') {
+    return;
+  }
+
+  if (!apiBaseUrl) {
+    refuse(
+      'This is a production EAS build and EXPO_PUBLIC_API_BASE_URL is not set, so the app would fall back ' +
+        `to the demo backend (${DEMO_API_HOST}) baked into lib/api/endpoints.ts. Set ` +
+        'EXPO_PUBLIC_API_BASE_URL in the production profile to the API this release should talk to — or, ' +
+        'to ship against the demo backend deliberately, set OPESCARE_ALLOW_DEMO_BACKEND=1 in that profile.',
+    );
+  }
+
+  if (apiBaseUrl.includes(DEMO_API_HOST)) {
+    refuse(
+      `This is a production EAS build pointed at the DEMO backend (${apiBaseUrl}). Its records are demo ` +
+        'records and its login page hands out demo accounts, so a Play release built this way would show ' +
+        'real patients a fictional history belonging to nobody. Point EXPO_PUBLIC_API_BASE_URL at a ' +
+        'production API — or set OPESCARE_ALLOW_DEMO_BACKEND=1 if that really is the intention.',
+    );
+  }
+}
+
 function trimmed(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
@@ -169,6 +218,8 @@ function resolveGoogleServicesFile() {
 module.exports = ({ config }) => {
   const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
   const needsCleartext = apiBaseUrl.startsWith('http://');
+
+  checkProductionBackend(apiBaseUrl);
 
   const easProjectId = resolveEasProjectId(config);
   const googleServicesFile = resolveGoogleServicesFile();

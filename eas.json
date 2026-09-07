@@ -59,7 +59,6 @@
       },
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://finder.opescare.cloud/api",
         "EXPO_PUBLIC_DEMO_LOGINS": "0",
         "EXPO_PUBLIC_DOCTOR_PERSONA": "0"
       }

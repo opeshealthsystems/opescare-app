@@ -21,6 +21,7 @@ import {
   ScreenHeader,
   formatDateTime,
   formatLabel,
+  initialsFrom,
   radii,
   spacing,
   typography,
@@ -252,25 +253,6 @@ function FactRow({
   );
 }
 
-/**
- * "Hôpital Central de Yaoundé" -> "HC". The first letter of the first two
- * words that carry meaning — a facility's own name, never more than two
- * letters, so the disc holds it at any size.
- */
-const SKIP_WORDS = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'of', 'the', 'and', 'et', "d'"]);
-
-function initials(name: string): string {
-  const words = name
-    .split(/[\s\-']+/)
-    .map((w) => w.trim())
-    .filter((w) => w.length > 0 && !SKIP_WORDS.has(w.toLowerCase()));
-
-  return words
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? '')
-    .join('');
-}
-
 export default function BloodBankDetailScreen() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -452,7 +434,7 @@ export default function BloodBankDetailScreen() {
             <View style={styles.identityMark}>
               <Icon name="droplet" size={17} color={colors.statusCritical} />
               <Text style={styles.identityInitials} numberOfLines={1}>
-                {initials(facility.name)}
+                {initialsFrom(facility.name, '+')}
               </Text>
             </View>
 

@@ -103,8 +103,9 @@ import {
  *     three columns leave ~98pt each and "Whole Blood" alone needs more.
  *   · "Need By" and "Request Context" are stacked, not side by side: a text
  *     area in a 139pt column is not a text area.
- *   · The 4-across stat rows on PM-BLOOD-04 wrap to 2 × 2 (same grid, same
- *     dividers) — "Reservation expires" does not fit in 72pt.
+ *   · PM-BLOOD-04's stat row is the reference's one row of four. The label
+ *     sits UNDER its icon there rather than beside it, which is what lets
+ *     "Reservation expires" live in a 72pt cell.
  *   · The contact tiles stack their radio above the label instead of sitting in
  *     a row, so three fit across.
  *   · The five-up action row on PM-BLOOD-04 is three: Download and Print have
@@ -799,7 +800,7 @@ export default function BloodRequestScreen() {
               </Text>
             </View>
 
-            <FactGrid facts={stats} />
+            <FactGrid facts={stats} columns={4} />
           </Card>
 
           {/* Where the request has actually got to. Real statuses only. */}
@@ -2046,6 +2047,9 @@ function FactGrid({ facts, columns = 2 }: { facts: Fact[]; columns?: number }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const lastRowStart = Math.floor((facts.length - 1) / columns) * columns;
+  // At three or four across a cell is ~72pt. The label stops sitting beside
+  // its icon and starts sitting under it, over two lines if it needs them.
+  const tight = columns >= 3;
 
   return (
     <View style={styles.grid}>
@@ -2054,6 +2058,7 @@ function FactGrid({ facts, columns = 2 }: { facts: Fact[]; columns?: number }) {
           key={fact.key}
           style={[
             styles.gridCell,
+            tight && styles.gridCellTight,
             { width: `${100 / columns}%` },
             // A rule only where there is actually a cell on the other side of
             // it — an odd last row must not trail a hairline into empty space.
@@ -2063,14 +2068,18 @@ function FactGrid({ facts, columns = 2 }: { facts: Fact[]; columns?: number }) {
           accessible
           accessibilityLabel={`${fact.label}: ${fact.value}${fact.sub ? `. ${fact.sub}` : ''}`}
         >
-          <View style={styles.gridHead}>
-            <Icon name={fact.icon} size={14} color={colors.textMuted} />
-            <Text style={styles.gridLabel} numberOfLines={1}>
+          <View style={[styles.gridHead, tight && styles.gridHeadTight]}>
+            <Icon name={fact.icon} size={tight ? 13 : 14} color={colors.textMuted} />
+            <Text style={styles.gridLabel} numberOfLines={2}>
               {fact.label}
             </Text>
           </View>
           <Text
-            style={[styles.gridValue, !!fact.valueColor && { color: fact.valueColor }]}
+            style={[
+              styles.gridValue,
+              tight && styles.gridValueTight,
+              !!fact.valueColor && { color: fact.valueColor },
+            ]}
             numberOfLines={2}
           >
             {fact.value}
@@ -2693,9 +2702,12 @@ const makeStyles = (c: Palette) =>
     /* Fact grid. */
     grid: { flexDirection: 'row', flexWrap: 'wrap' },
     gridCell: { padding: spacing.sm + 4, gap: 2 },
+    gridCellTight: { paddingHorizontal: spacing.sm, paddingVertical: spacing.sm + 2 },
     gridCellRule: { borderRightWidth: 1, borderRightColor: c.divider },
     gridCellRuleBottom: { borderBottomWidth: 1, borderBottomColor: c.divider },
     gridHead: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    // Icon over label, both left-aligned, so a two-word label can breathe.
+    gridHeadTight: { flexDirection: 'column', alignItems: 'flex-start', gap: 3 },
     gridLabel: {
       flexShrink: 1,
       fontFamily: typography.fontFamily.regular,
@@ -2707,6 +2719,7 @@ const makeStyles = (c: Palette) =>
       fontSize: typography.size.sm,
       color: c.textPrimary,
     },
+    gridValueTight: { fontSize: 12.5, lineHeight: 17 },
     gridSub: {
       fontFamily: typography.fontFamily.regular,
       fontSize: 11,

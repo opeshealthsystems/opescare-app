@@ -8024,7 +8024,8 @@
       "copy": "Copier",
       "call": "Appeler",
       "directions": "Itinéraire"
-    }
+    },
+    "neededByUnchanged": "Ne pas changer"
   },
   "donor": {
     "joinTitle": "Devenir donneur",

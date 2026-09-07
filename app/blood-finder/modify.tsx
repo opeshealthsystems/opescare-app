@@ -21,6 +21,7 @@ import {
   ScreenHeader,
   SectionHeader,
   StatusBadge,
+  formatDate,
   formatDateTime,
   radii,
   spacing,
@@ -124,6 +125,21 @@ function dial(number: string | null | undefined): void {
   void Linking.openURL(`tel:${number.replace(/\s+/g, '')}`);
 }
 
+/** `needed_by` is `after_or_equal:today`, so every offer starts at today. */
+const NEEDED_BY_OFFSETS = [0, 1, 3, 7] as const;
+
+function dayFromNow(offset: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d;
+}
+
+/** `YYYY-MM-DD` in the device's own zone — the API validates `date`. */
+function isoDay(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 export default function ModifyBloodRequestScreen() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -140,6 +156,9 @@ export default function ModifyBloodRequestScreen() {
   const [urgency, setUrgency] = useState<BloodUrgencyValue | null>(null);
   const [phone, setPhone] = useState<string>('');
   const [note, setNote] = useState<string>('');
+  // null = leave `needed_by` as it is; a number = that many days from today.
+  // Same offsets the request screen offers, so the two screens agree.
+  const [neededByOffset, setNeededByOffset] = useState<number | null>(null);
   /**
    * Which of the two cards is chosen. Choosing `cancel` does NOT cancel — it
    * shows what cancelling would do. Nothing leaves this screen without the
@@ -241,6 +260,9 @@ export default function ModifyBloodRequestScreen() {
         urgency: urgency ?? undefined,
         contact_phone: phone.trim() === '' ? null : phone.trim(),
         note: note.trim() === '' ? null : note.trim(),
+        // Untouched means untouched: sending nothing leaves the date alone,
+        // rather than overwriting it with today.
+        needed_by: neededByOffset === null ? undefined : isoDay(dayFromNow(neededByOffset)),
       },
       {
         onSuccess: () =>
@@ -573,6 +595,35 @@ export default function ModifyBloodRequestScreen() {
                   ))}
                 </View>
 
+                {/* Needed by — the reference's "Need By (Date)". Offsets rather
+                    than a calendar: the API takes a date and every offer has to
+                    be today or later, which a picker cannot promise on its own. */}
+                <Text style={[styles.fieldLabel, styles.fieldSpacer]}>
+                  {t('bloodStatus.neededBy')}
+                </Text>
+                <View style={styles.dayRow}>
+                  <Chip
+                    icon="calendar"
+                    label={t('bloodModify.neededByUnchanged')}
+                    selected={neededByOffset === null}
+                    onPress={() => setNeededByOffset(null)}
+                  />
+                  {NEEDED_BY_OFFSETS.map((offset) => (
+                    <Chip
+                      key={offset}
+                      label={
+                        offset === 0
+                          ? t('bloodFinder.request.neededByToday', { defaultValue: 'Today' })
+                          : offset === 1
+                            ? t('bloodFinder.request.neededByTomorrow', { defaultValue: 'Tomorrow' })
+                            : formatDate(dayFromNow(offset))
+                      }
+                      selected={neededByOffset === offset}
+                      onPress={() => setNeededByOffset(offset)}
+                    />
+                  ))}
+                </View>
+
                 {/* Row of two: the stepper beside the contact number. */}
                 <View style={styles.fieldRow}>
                   <View style={styles.fieldCol}>
@@ -874,6 +925,7 @@ const makeStyles = (c: Palette) =>
     phoneCol: { flex: 1, minWidth: 0, marginBottom: -spacing.md },
     phoneInput: { fontSize: typography.size.sm, paddingVertical: 10 },
 
+    dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
     segmentRow: { flexDirection: 'row', gap: 6 },
     segment: { flex: 1, minWidth: 0, justifyContent: 'center', paddingHorizontal: 6 },
 

@@ -2041,9 +2041,6 @@
     "pricingRange": "Price range",
     "pricingUnknown": "Not published",
     "pricingNote": "Every figure is what a pharmacy published, with its own timestamp. Prices are per pack and can change; confirm before you travel.",
-    "rxTitle": "This medicine needs a prescription",
-    "rxBody": "A pharmacy will ask to see it before dispensing. Prescriptions written on OpesCare are already in your record — show them from there.",
-    "rxAction": "Open my prescriptions",
     "whyPricesTitle": "Why prices vary",
     "whyPrices": {
       "brand": "Brand and manufacturer differ, even for the same generic.",

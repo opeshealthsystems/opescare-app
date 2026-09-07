@@ -2041,9 +2041,6 @@
     "pricingRange": "Fourchette de prix",
     "pricingUnknown": "Non publié",
     "pricingNote": "Chaque chiffre est ce qu’une pharmacie a publié, avec son propre horodatage. Les prix sont par boîte et peuvent changer ; confirmez avant de vous déplacer.",
-    "rxTitle": "Ce médicament nécessite une ordonnance",
-    "rxBody": "La pharmacie la demandera avant de délivrer. Les ordonnances rédigées sur OpesCare sont déjà dans votre dossier — présentez-les depuis là.",
-    "rxAction": "Ouvrir mes ordonnances",
     "whyPricesTitle": "Pourquoi les prix varient",
     "whyPrices": {
       "brand": "La marque et le fabricant diffèrent, même pour un même générique.",

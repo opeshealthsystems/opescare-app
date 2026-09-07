@@ -1382,32 +1382,6 @@ export default function MedicineDetailScreen() {
               </View>
             </View>
 
-            {/* MED-02's prescription panel. The upload itself has no
-                endpoint on this deployment, so the panel says what to do
-                instead of offering a button that would go nowhere — a
-                "Upload Prescription" control that silently fails is worse
-                than an honest instruction. */}
-            {medicine.data.prescription_required ? (
-              <Card accentColor={colors.statusWarning}>
-                <View style={styles.rxPanelRow}>
-                  <View style={[styles.rxPanelMark, { backgroundColor: colors.statusWarningBg }]}>
-                    <Icon name="document-text" size={20} color={colors.statusWarning} />
-                  </View>
-                  <View style={styles.rxPanelBody}>
-                    <Text style={styles.rxPanelTitle}>{t('pharmacy.rxTitle')}</Text>
-                    <Text style={styles.rxPanelText}>{t('pharmacy.rxBody')}</Text>
-                  </View>
-                </View>
-                <MedButton
-                  label={t('pharmacy.rxAction')}
-                  icon="document-text"
-                  variant="secondary"
-                  onPress={() => router.push('/prescriptions')}
-                  style={styles.rxPanelAction}
-                />
-              </Card>
-            ) : null}
-
             {/* MED-03's "Why prices may vary". Explanation, not data: the
                 same medicine legitimately costs different amounts at
                 different counters, and a patient comparing two prices
@@ -1793,29 +1767,6 @@ const makeStyles = (c: Palette) =>
       marginTop: spacing.sm,
     },
 
-    /* MED-02 prescription panel */
-    rxPanelRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
-    rxPanelMark: {
-      width: 42,
-      height: 42,
-      borderRadius: radii.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    rxPanelBody: { flex: 1 },
-    rxPanelTitle: {
-      fontFamily: typography.fontFamily.semiBold,
-      fontSize: typography.size.sm,
-      color: c.textPrimary,
-    },
-    rxPanelText: {
-      fontFamily: typography.fontFamily.regular,
-      fontSize: typography.size.xs,
-      lineHeight: typography.lineHeight.xs,
-      color: c.textSecondary,
-      marginTop: 3,
-    },
-    rxPanelAction: { marginTop: spacing.sm, alignSelf: 'flex-start' },
 
     /* MED-03 why prices vary */
     whyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },

@@ -53,8 +53,7 @@ import {
   useDenyConsent,
 } from '@/lib/api/queries';
 import { markConsentAnnounced, onConsentRequestSignal, wasConsentAnnounced } from '@/lib/push/consentSignal';
-import { presentLocalNotification } from '@/lib/push/local';
-import { playSoundOnWeb } from '@/lib/push/sounds';
+import { startConsentAlert } from '@/lib/push/consentAlert';
 import {
   ConsentPromptSheet,
   facilityNameOf,
@@ -148,26 +147,45 @@ function ActiveWatcher() {
   const [outcome, setOutcome] = useState<ConsentPromptOutcome | null>(null);
   const [busy, setBusy] = useState<ConsentPromptBusy>(null);
 
+  /**
+   * The alert currently running, so it can be silenced the instant the patient
+   * answers. Somebody is asking to open their record: it sounds three times and
+   * asks again, which is only tolerable because every way out of this sheet
+   * calls this.
+   */
+  const alertStop = useRef<null | (() => void)>(null);
+
+  const silence = useCallback(() => {
+    alertStop.current?.();
+    alertStop.current = null;
+  }, []);
+
+  // Leaving the screen with an alert running would keep sounding at somebody
+  // who can no longer answer it.
+  useEffect(() => silence, [silence]);
+
   const announce = useCallback(
     async (item: ConsentRequestItem) => {
       if (wasConsentAnnounced(item.id)) return;
       markConsentAnnounced(item.id);
 
-      if (Platform.OS === 'web') {
-        void playSoundOnWeb('consent');
-        return;
-      }
-      if (Date.now() - createdAtMs(item) > FRESH_MS) return;
+      // An old request that surfaced on a poll is not an emergency; it is
+      // history, and history must not set off an alarm.
+      if (Platform.OS !== 'web' && Date.now() - createdAtMs(item) > FRESH_MS) return;
 
       const facility = item.requesting_facility?.name?.trim() || item.requesting_facility_name?.trim() || null;
-      await presentLocalNotification({
-        channel: 'consent',
-        title: t('push.local.consentTitle'),
-        body: facility ? t('push.local.consentBody', { facility }) : t('push.local.consentBodyNoFacility'),
-        data: { type: 'consent_request', consent_request_id: item.id },
+
+      silence();
+      alertStop.current = startConsentAlert({
+        requestId: item.id,
+        notification: {
+          title: t('push.local.consentTitle'),
+          body: facility ? t('push.local.consentBody', { facility }) : t('push.local.consentBodyNoFacility'),
+          data: { type: 'consent_request', consent_request_id: item.id },
+        },
       });
     },
-    [t],
+    [silence, t],
   );
 
   // Bring up the newest request not yet shown — one at a time.
@@ -186,8 +204,12 @@ function ActiveWatcher() {
   // was open and untouched: it is no longer pending, so it quietly goes away.
   useEffect(() => {
     if (!current || outcome || busy || !listQuery.data) return;
-    if (!pendingItems.some((item) => item.id === current.id)) setCurrent(null);
-  }, [current, outcome, busy, listQuery.data, pendingItems]);
+    if (!pendingItems.some((item) => item.id === current.id)) {
+      // Answered on another device, or withdrawn. Stop asking.
+      silence();
+      setCurrent(null);
+    }
+  }, [current, outcome, busy, listQuery.data, pendingItems, silence]);
 
   const morePending = useMemo(
     () => pendingItems.filter((item) => !shown.current.has(item.id)).length,
@@ -203,6 +225,7 @@ function ActiveWatcher() {
   const decide = useCallback(
     (kind: 'approve' | 'deny') => {
       if (!current || busy) return;
+      silence();
       const item = current;
       const facility = facilityNameOf(t, item);
       setBusy(kind);
@@ -219,16 +242,17 @@ function ActiveWatcher() {
         onSettled: () => setBusy(null),
       });
     },
-    [approveMutation, busy, current, denyMutation, t],
+    [approveMutation, busy, current, denyMutation, silence, t],
   );
 
   const onApprove = useCallback(() => decide('approve'), [decide]);
   const onDeny = useCallback(() => decide('deny'), [decide]);
   const dismiss = useCallback(() => {
+    silence();
     setCurrent(null);
     setOutcome(null);
     setBusy(null);
-  }, []);
+  }, [silence]);
   const onOpenInbox = useCallback(() => {
     dismiss();
     router.push('/privacy');

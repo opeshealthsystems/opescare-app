@@ -24,6 +24,13 @@ export interface LocalNotificationInput {
   body: string;
   /** Same shape as a push's `data`, so a tap routes through the same handler. */
   data?: PushData;
+  /**
+   * A stable id for this notification. Presenting the same identifier again
+   * REPLACES the tray entry and alerts again, rather than stacking copies —
+   * which is how a repeating alert sounds more than once without burying the
+   * notification shade in duplicates of one request.
+   */
+  identifier?: string;
 }
 
 /**
@@ -41,6 +48,7 @@ export async function presentLocalNotification(input: LocalNotificationInput): P
 
     const sound = CHANNEL_SOUND_FILES[input.channel];
     await Notifications.scheduleNotificationAsync({
+      ...(input.identifier ? { identifier: input.identifier } : {}),
       content: {
         title: input.title,
         body: input.body,

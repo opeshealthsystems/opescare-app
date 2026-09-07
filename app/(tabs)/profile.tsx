@@ -59,6 +59,8 @@ type LinkTile = {
 };
 
 type Fact = {
+  /** Spans both columns — for the one field whose value runs to two lines. */
+  wide?: boolean;
   icon: IconName;
   tint: Tint;
   label: string;
@@ -393,9 +395,11 @@ export default function ProfileScreen() {
     { icon: 'person', tint: 'blue', label: t('profile.gender'), value: genderLabel, onPress: goEditProfile },
     { icon: 'calendar', tint: 'blue', label: t('profile.dob'), value: patient.dob ? formatDate(patient.dob) : t('profile.notProvided') },
     { icon: 'droplet', tint: 'red', label: t('profile.bloodGroup'), value: patient.blood_group || t('profile.notProvided'), onPress: goEditProfile },
-    { icon: 'id-card', tint: 'amber', label: t('profile.healthIdLabel'), value: patient.health_id ?? t('profile.notProvided') },
     { icon: 'location', tint: 'green', label: t('profile.location'), value: patient.address || t('profile.notProvided'), onPress: goEditProfile },
+    // Full width: it is the only field with two lines of value, and as a half
+    // cell it forced its whole row 95pt tall with a hole beside it.
     {
+      wide: true,
       icon: 'phone',
       tint: 'red',
       label: t('profile.emergencyContact'),
@@ -562,10 +566,11 @@ export default function ProfileScreen() {
               {/* Sex · age · blood group, on one line as drawn — each part
                   dropped rather than guessed when the record has no value. */}
               <IdentityLine icon="person" text={[genderLabel, ageLabel, patient.blood_group].filter(Boolean).join('   |   ')} />
+              {/* Contact only. The date of birth and the address belong to the
+                  grid below — printing them here as well was the same string
+                  twice on one screen. */}
               {!!patient.phone && <IdentityLine icon="phone" text={patient.phone} />}
               {!!patient.email && <IdentityLine icon="mail" text={patient.email} />}
-              {!!patient.dob && <IdentityLine icon="calendar" text={formatDate(patient.dob)} />}
-              {!!patient.address && <IdentityLine icon="location" text={patient.address} />}
 
               {/* The render closes the details column on the brand line. It is
                   our own copy, not a claim about the patient. */}
@@ -676,7 +681,14 @@ export default function ProfileScreen() {
           />
           <View style={styles.factGrid}>
             {facts.map((fact, index) => (
-              <FactCell key={fact.label} fact={fact} rule={index % 2 === 0} />
+              <FactCell
+                key={fact.label}
+                fact={fact}
+                // A rule only where a cell actually sits on the other side of
+                // it: never against a full-width field, and never trailing
+                // into the empty half of an odd last row.
+                rule={!fact.wide && index % 2 === 0 && !!facts[index + 1] && !facts[index + 1]!.wide}
+              />
             ))}
           </View>
         </Card>
@@ -855,7 +867,7 @@ function FactCell({ fact, rule }: { fact: Fact; rule: boolean }) {
         <Icon name={fact.icon} size={16} color={skin.fg} />
       </View>
       <View style={styles.factBody}>
-        <Text style={styles.factLabel} numberOfLines={2}>{fact.label}</Text>
+        <Text style={styles.factLabel} numberOfLines={1}>{fact.label}</Text>
         <Text style={styles.factValue} numberOfLines={2}>{fact.value}</Text>
         {fact.sub ? <Text style={styles.factSub} numberOfLines={1}>{fact.sub}</Text> : null}
       </View>
@@ -864,7 +876,7 @@ function FactCell({ fact, rule }: { fact: Fact; rule: boolean }) {
   );
 
   return (
-    <View style={[styles.factCell, rule && styles.factCellRule]}>
+    <View style={[styles.factCell, fact.wide && styles.factCellWide, rule && styles.factCellRule]}>
       {fact.onPress ? (
         <TouchableOpacity onPress={fact.onPress} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={`${fact.label}: ${fact.value}`} style={styles.factInner}>
           {body}
@@ -1073,6 +1085,12 @@ const makeStyles = (c: Palette) =>
     /* Fact grid */
     factGrid: { flexDirection: 'row', flexWrap: 'wrap' },
     factCell: { width: '50%', paddingVertical: spacing.sm },
+    factCellWide: {
+      width: '100%',
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: c.divider,
+      paddingTop: spacing.sm + 2,
+    },
     factCellRule: { borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: c.divider, paddingRight: spacing.sm },
     factInner: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, paddingLeft: 2 },
     factMark: { width: 30, height: 30, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center' },

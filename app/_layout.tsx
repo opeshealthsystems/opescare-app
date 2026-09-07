@@ -61,9 +61,23 @@ if (Platform.OS === 'web') {
 
 // The OPES ScreenHeader is navigation-agnostic; give it one app-wide back
 // action so headers without an explicit onBack still show a working chevron.
+//
+// The fallback — used when there is nothing to go back TO, which is every
+// cold start on a deep link — has to know which half of the app the session
+// belongs to. `/(tabs)/home` is not merely the wrong screen for a clinician:
+// the patient tabs mount and fire every `/mobile/*` patient query with a
+// PROVIDER token, each 401s, the retry calls `/mobile/auth/refresh` (a
+// patient-only endpoint, so it 401s too), and `lib/api/client.ts` then clears
+// the token and signs the clinician out of a session the server still calls
+// valid. Confirmed against the live build: loading `/home`, `/records` or
+// `/settings` with a provider token ends on the welcome screen with the token
+// erased. So a provider session falls back to its own home instead.
 setDefaultBackHandler(() => {
-  if (router.canGoBack()) router.back();
-  else router.replace('/(tabs)/home');
+  if (router.canGoBack()) {
+    router.back();
+    return;
+  }
+  router.replace(useAuthStore.getState().provider ? '/clinician/home' : '/(tabs)/home');
 });
 
 const queryClient = new QueryClient();

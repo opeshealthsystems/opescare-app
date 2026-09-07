@@ -55,18 +55,25 @@ import { useIsOnline } from '../lib/offline/connectivity';
  * Data: everything comes from GET /mobile/notifications. Two things the API
  * gives us are deliberately NOT rendered as-is:
  *
- *  - **`action_url` is a web-portal path** (`/portals/patient/logs`,
- *    `/portals/patient/health-id`), not an app route. Pushing it into the
- *    router would 404, so it is mapped to the equivalent screen in this app and
- *    ignored when there is no equivalent (`destinationFor`).
+ *  - **`action_url` is sometimes a web-portal path** (`/portals/patient/logs`,
+ *    `/portals/patient/health-id`) rather than an app route. Pushing one of
+ *    those into the router would 404, so they are mapped to the equivalent
+ *    screen here and ignored when there is no equivalent (`destinationFor`).
+ *    Most emitters, though, send a path this app really has — the live server
+ *    sends `/labs/<order>`, `/labs`, `/appointments`, `/privacy` and
+ *    `/prescriptions` — and those are honoured, but only after being matched
+ *    against `IN_APP_ROOTS`. An allow-list, not a passthrough: `action_url` is
+ *    server-supplied text and must never be able to steer the router at will.
  *  - **`action_label` is hardcoded English** on the API side ("View Access
  *    Logs"), so rendering it would put English into the French app. The label
  *    is taken from this app's own translations for the resolved destination and
  *    is spoken as the row's accessibility hint.
  *
- * The demo patient currently has zero notifications, so the empty state is the
- * state most sessions will show: it is a full `EmptyState` with a real next
- * step (notification preferences).
+ * A record with nothing in it still gets a real screen, not a blank one: the
+ * empty state is a full `EmptyState` with a next step (notification
+ * preferences). (The seeded demo patients DO carry notifications now — the
+ * note that used to say otherwise was written before the demo seeders landed.
+ * Checked 2026-09-07 against finder.opescare.cloud.)
  */
 
 type Category = 'all' | 'appointments' | 'health' | 'messages' | 'system';
@@ -87,6 +94,34 @@ const PORTAL_PATH_ROUTES: Record<string, Destination> = {
   '/portals/patient/health-id': { route: '/(tabs)/health-id', labelKey: 'notifications.action.healthId' },
 };
 
+/**
+ * The `action_url` shapes this app is willing to follow, and the translation
+ * that names where each one goes.
+ *
+ * The API's own `action_url` is usually a perfectly good in-app path — the
+ * live server sends `/labs/<order-id>`, `/labs`, `/appointments`, `/privacy`
+ * and `/prescriptions` — but it is server text, so it is matched against this
+ * table rather than pushed as given. Anything that does not match is dropped
+ * and the `type` fallback below decides instead.
+ *
+ * `child` says what may follow the root, and every accepted shape is a real
+ * file under `app/`:
+ *   'none'   the root only              (`/health-id`)
+ *   'id'     the root, or root + one id (`/labs`, `/labs/<order>` → labs/[id])
+ *   [names]  the root, or these exact children (`/privacy/access-logs`)
+ * A second segment is never waved through, so a path the app has no screen for
+ * cannot reach the router and land on expo-router's not-found page.
+ */
+const IN_APP_ROOTS: Record<string, { labelKey: string; child: 'none' | 'id' | readonly string[] }> = {
+  labs: { labelKey: 'notifications.action.labs', child: 'id' },
+  appointments: { labelKey: 'notifications.action.appointments', child: 'id' },
+  prescriptions: { labelKey: 'notifications.action.prescriptions', child: 'id' },
+  messages: { labelKey: 'notifications.action.messages', child: 'id' },
+  family: { labelKey: 'notifications.action.family', child: 'id' },
+  privacy: { labelKey: 'privacy.title', child: ['access', 'access-logs', 'export'] },
+  'health-id': { labelKey: 'notifications.action.healthId', child: 'none' },
+};
+
 /** Fallback by notification `type`, for the emitters that send no action at all. */
 const TYPE_ROUTES: { match: string; destination: Destination }[] = [
   { match: 'appointment', destination: { route: '/appointments', labelKey: 'notifications.action.appointments' } },
@@ -96,13 +131,45 @@ const TYPE_ROUTES: { match: string; destination: Destination }[] = [
   { match: 'family', destination: { route: '/family', labelKey: 'notifications.action.family' } },
   { match: 'emergency', destination: { route: '/privacy/access-logs', labelKey: 'notifications.action.accessLogs' } },
   { match: 'security', destination: { route: '/privacy/access-logs', labelKey: 'notifications.action.accessLogs' } },
+  // Laboratory and consent notifications carry no 'appointment'/'prescription'
+  // word, so before these two lines every `lab_*` and `consent_*` row on a real
+  // record was a tap that did nothing at all — four of the six the demo patient
+  // holds, the consent request among them.
+  { match: 'lab', destination: { route: '/labs', labelKey: 'notifications.action.labs' } },
+  { match: 'consent', destination: { route: '/privacy', labelKey: 'privacy.title' } },
 ];
 
-/** Every route above is a real file under `app/` — no dead taps. */
+/**
+ * An `action_url` this app can actually open, or null.
+ *
+ * Relative in-app path only: anything absolute (`http…`), protocol-relative
+ * (`//host`) or shaped unlike an entry in `IN_APP_ROOTS` is refused.
+ */
+function inAppDestination(actionUrl: string | null | undefined): Destination | null {
+  if (!actionUrl || !actionUrl.startsWith('/') || actionUrl.startsWith('//')) return null;
+  const segments = actionUrl.split('?')[0].split('#')[0].split('/').filter(Boolean);
+  if (segments.length === 0 || segments.length > 2) return null;
+  const entry = IN_APP_ROOTS[segments[0]];
+  if (!entry) return null;
+  const child = segments[1];
+  if (child !== undefined) {
+    if (entry.child === 'none') return null;
+    if (entry.child !== 'id' && !entry.child.includes(child)) return null;
+  }
+  // Rebuilt from the matched segments, not passed through: any query string or
+  // fragment the server appended is dropped rather than forwarded.
+  // (String concat, not a `/${…}` template — `scripts/nav-audit.mjs` reads one
+  // of those as a literal route and reports it as dangling.)
+  return { route: '/' + segments.join('/'), labelKey: entry.labelKey };
+}
+
+/** Every route this returns is a real file under `app/` — no dead taps. */
 function destinationFor(item: NotificationItem): Destination | null {
   if (item.action_url && PORTAL_PATH_ROUTES[item.action_url]) {
     return PORTAL_PATH_ROUTES[item.action_url];
   }
+  const inApp = inAppDestination(item.action_url);
+  if (inApp) return inApp;
   const type = item.type?.toLowerCase() ?? '';
   return TYPE_ROUTES.find((entry) => type.includes(entry.match))?.destination ?? null;
 }

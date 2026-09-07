@@ -808,7 +808,8 @@
       "people": "People-centered"
     },
     "ageYears_one": "{{count}} year",
-    "ageYears_other": "{{count}} years"
+    "ageYears_other": "{{count}} years",
+    "brandQuote": "“Better health. A brighter tomorrow.”"
   },
   "editProfile": {
     "title": "Edit Profile",

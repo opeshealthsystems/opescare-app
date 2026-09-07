@@ -808,7 +808,8 @@
       "people": "Centré sur la personne"
     },
     "ageYears_one": "{{count}} an",
-    "ageYears_other": "{{count}} ans"
+    "ageYears_other": "{{count}} ans",
+    "brandQuote": "« Une meilleure santé. Un avenir plus clair. »"
   },
   "editProfile": {
     "title": "Modifier le profil",

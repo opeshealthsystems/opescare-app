@@ -21,6 +21,7 @@ import {
   type Palette,
   type Tint,
 } from '@/components/opes-ui';
+import { HEALTH_ID_ART } from '@/components/health-id/assets';
 import { useAuthStore } from '../../lib/store/auth';
 import { useFamilyMembers, useMessageThreads } from '../../lib/api/queries';
 // Registers `profile.profileStrengthHint_one/_other` (and the consent chrome)
@@ -371,6 +372,18 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
+      {/* The render's paper: a wave field under the masthead, at watermark
+          strength. Behind everything, untappable, and invisible to a screen
+          reader — it carries nothing a reader would otherwise miss. */}
+      <Image
+        source={HEALTH_ID_ART.guillocheMesh}
+        style={styles.paperWave}
+        resizeMode="cover"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        alt=""
+      />
+
       {/* ── Brand bar ─────────────────────────────────────────────────── */}
       <View style={styles.topBar}>
         <TouchableOpacity
@@ -431,6 +444,13 @@ export default function ProfileScreen() {
             <Text style={styles.headingTitle}>{t('profile.title')}</Text>
             <Text style={styles.headingSub}>{t('profile.subtitle')}</Text>
           </View>
+          {/* The render carries a pale Africa silhouette behind this rule. Left
+              out on purpose: `africa.png` is an opaque square illustration for
+              the credential face (Cameroon picked out in flag colours), and at
+              watermark opacity it reads as a grey rectangle, not a continent.
+              The only other candidate in the library is a four-sided polygon
+              that does not read as Africa at all. A missing watermark is
+              invisible; a wrong one looks like a bug. */}
           <View style={styles.motto}>
             <Text style={styles.mottoText}>{t('profile.motto', { defaultValue: 'A HEALTHIER PEOPLE\nA STRONGER AFRICA' })}</Text>
           </View>
@@ -439,6 +459,7 @@ export default function ProfileScreen() {
         {/* ── 1. Identity card: portrait | details | Health ID panel ───── */}
         <Card style={styles.identity}>
           <View style={styles.identityMain}>
+            {/* left: portrait · middle: who you are · right: your Health ID */}
             <View>
               <View style={styles.portrait}>
                 {patient.photo_url ? (
@@ -477,33 +498,50 @@ export default function ProfileScreen() {
               {!!patient.email && <IdentityLine icon="mail" text={patient.email} />}
               {!!patient.dob && <IdentityLine icon="calendar" text={formatDate(patient.dob)} />}
               {!!patient.address && <IdentityLine icon="location" text={patient.address} />}
+
+              {/* The render closes the details column on the brand line. It is
+                  our own copy, not a claim about the patient. */}
+              <Text style={styles.identityQuote} numberOfLines={2}>
+                {t('profile.brandQuote', {
+                  defaultValue: '\u201cBetter health. A brighter tomorrow.\u201d',
+                })}
+              </Text>
             </View>
+
+            <View style={styles.identityRule} />
+
+            {/* The Health ID column. The QR itself lives on the Health ID tab,
+                which owns the permanent payload and the 15-minute temporary
+                token — this is the way in, not a second place that encodes an
+                identifier. */}
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/health-id')}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.healthIdCard')}
+              style={styles.idPanel}
+            >
+              <View style={styles.idPanelHead}>
+                <PulseLogo size={18} />
+                <Text style={styles.idPanelTitle} numberOfLines={2}>
+                  {t('profile.healthIdBrand', { defaultValue: 'OPESCARE HEALTH ID' })}
+                </Text>
+              </View>
+              <View style={styles.idPanelQr}>
+                <Icon name="qr" size={46} color={colors.textPrimary} />
+              </View>
+              <Text style={styles.idPanelCode} numberOfLines={2}>
+                {patient.health_id ?? '\u2014'}
+              </Text>
+              <View style={styles.idPanelAction}>
+                <Text style={styles.idPanelActionText}>
+                  {t('profile.tapToView', { defaultValue: 'Tap to view' })}
+                </Text>
+                <Icon name="chevron-right" size={12} color={colors.link} />
+              </View>
+            </TouchableOpacity>
           </View>
 
-          {/* The Health ID panel, divided off as in the render. The QR itself
-              lives on the Health ID tab, which owns the permanent payload and
-              the 15-minute temporary token — this panel is the way in, not a
-              second place that encodes an identifier. */}
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/health-id')}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={t('profile.healthIdCard')}
-            style={styles.idPanel}
-          >
-            <View style={styles.idPanelHead}>
-              <PulseLogo size={22} />
-              <Text style={styles.idPanelTitle} numberOfLines={2}>{t('profile.healthIdBrand', { defaultValue: 'OPESCARE HEALTH ID' })}</Text>
-            </View>
-            <View style={styles.idPanelQr}>
-              <Icon name="qr" size={54} color={colors.textPrimary} />
-            </View>
-            <Text style={styles.idPanelCode} numberOfLines={1}>{patient.health_id ?? '—'}</Text>
-            <View style={styles.idPanelAction}>
-              <Text style={styles.idPanelActionText}>{t('profile.tapToView', { defaultValue: 'Tap to view' })}</Text>
-              <Icon name="chevron-right" size={14} color={colors.link} />
-            </View>
-          </TouchableOpacity>
         </Card>
 
         {/* ── 2. Trust strip ──────────────────────────────────────────── */}
@@ -554,6 +592,16 @@ export default function ProfileScreen() {
             actionLabel={t('profile.edit', { defaultValue: 'Edit' })}
             actionIcon="edit"
             onAction={goEditProfile}
+          />
+          {/* Debossed into the corner like a paper seal — never a badge. This
+              screen verifies nothing; the mark is stationery, not a claim. */}
+          <Image
+            source={HEALTH_ID_ART.seal}
+            style={styles.panelSeal}
+            resizeMode="contain"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            alt=""
           />
           <View style={styles.factGrid}>
             {facts.map((fact, index) => (
@@ -786,6 +834,18 @@ function LinkTileView({ tile }: { tile: LinkTile }) {
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: c.page },
+    paperWave: {
+      pointerEvents: 'none',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 300,
+      // The asset is already drawn at watermark strength, so this is close to
+      // full — the restraint is in the artwork, not in a low alpha that would
+      // just grey it.
+      opacity: 0.75,
+    },
     content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg, gap: spacing.md },
     loadingText: { fontFamily: typography.fontFamily.regular, fontSize: typography.size.sm, color: c.textSecondary },
@@ -820,42 +880,60 @@ const makeStyles = (c: Palette) =>
 
     /* 1. Identity card */
     identity: { gap: spacing.md },
-    identityMain: { flexDirection: 'row', gap: spacing.md },
-    portrait: { width: 108, height: 128, borderRadius: radii.md, overflow: 'hidden', backgroundColor: c.primarySoft },
+    identityMain: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+    portrait: { width: 64, height: 84, borderRadius: radii.md, overflow: 'hidden', backgroundColor: c.primarySoft },
     portraitImg: { width: '100%', height: '100%' },
     portraitFallback: { alignItems: 'center', justifyContent: 'center' },
-    portraitInitials: { fontFamily: typography.fontFamily.bold, fontSize: 34, color: c.blue },
+    portraitInitials: { fontFamily: typography.fontFamily.bold, fontSize: 22, color: c.blue },
     portraitCamera: {
-      position: 'absolute', right: -6, bottom: -6, width: 32, height: 32, borderRadius: 16,
+      position: 'absolute', right: -7, bottom: -7, width: 28, height: 28, borderRadius: 14,
       alignItems: 'center', justifyContent: 'center', backgroundColor: c.blue,
       borderWidth: 2, borderColor: c.surface,
     },
     identityBody: { flex: 1, minWidth: 0, gap: 5 },
     identityNameRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-    identityName: { flexShrink: 1, fontFamily: typography.fontFamily.bold, fontSize: 20, lineHeight: 25, color: c.textPrimary },
+    identityName: { flexShrink: 1, fontFamily: typography.fontFamily.bold, fontSize: 16, lineHeight: 21, color: c.textPrimary },
+    identityQuote: {
+      marginTop: 2,
+      fontFamily: typography.fontFamily.regular,
+      fontStyle: 'italic',
+      fontSize: 11,
+      lineHeight: 15,
+      color: c.link,
+    },
+    // The render's vertical divider between "who you are" and "your ID".
+    identityRule: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: c.border },
     verifiedPill: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radii.pill },
     verifiedText: { fontFamily: typography.fontFamily.semiBold, fontSize: 12, lineHeight: 16 },
     identityLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-    identityLineText: { flexShrink: 1, fontFamily: typography.fontFamily.regular, fontSize: typography.size.xs, lineHeight: 19, color: c.textSecondary },
+    identityLineText: { flexShrink: 1, fontFamily: typography.fontFamily.regular, fontSize: 11, lineHeight: 17, color: c.textSecondary },
 
     /* Health ID panel */
-    idPanel: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border, paddingTop: spacing.md, alignItems: 'center', gap: 6 },
-    idPanelHead: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-    idPanelTitle: { fontFamily: typography.fontFamily.bold, fontSize: 12, letterSpacing: 0.6, color: c.textPrimary },
+    idPanel: { width: 92, alignItems: 'center', gap: 4, paddingLeft: 6 },
+    idPanelHead: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    idPanelTitle: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.bold,
+      fontSize: 9,
+      lineHeight: 12,
+      letterSpacing: 0.4,
+      color: c.textPrimary,
+    },
     idPanelQr: {
-      width: 92, height: 92, borderRadius: radii.sm, borderWidth: 1, borderColor: c.border,
+      width: 72, height: 72, borderRadius: radii.sm, borderWidth: 1, borderColor: c.border,
       backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center',
     },
     idPanelCode: {
       alignSelf: 'stretch',
       textAlign: 'center',
       fontFamily: typography.fontFamily.bold,
-      fontSize: 12,
-      letterSpacing: 0.3,
+      fontSize: 9.5,
+      lineHeight: 12,
+      letterSpacing: 0.1,
       color: c.textPrimary,
     },
     idPanelAction: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-    idPanelActionText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.xs, color: c.link },
+    idPanelActionText: { fontFamily: typography.fontFamily.semiBold, fontSize: 10, color: c.link },
 
     /* 2. Trust strip */
     trust: { flexDirection: 'row', alignItems: 'stretch', paddingVertical: spacing.sm },
@@ -889,7 +967,16 @@ const makeStyles = (c: Palette) =>
     ringText: { fontFamily: typography.fontFamily.bold, fontSize: 14, color: c.textPrimary },
 
     /* 4-6. Panels */
-    panel: { gap: spacing.md },
+    panel: { gap: spacing.md, overflow: 'hidden' },
+    panelSeal: {
+      pointerEvents: 'none',
+      position: 'absolute',
+      right: -22,
+      bottom: -26,
+      width: 132,
+      height: 132,
+      opacity: 0.07,
+    },
     panelHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     panelMark: { width: 38, height: 38, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: c.blue },
     panelHeadText: { flex: 1, minWidth: 0, gap: 1 },

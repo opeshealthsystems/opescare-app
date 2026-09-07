@@ -566,7 +566,7 @@ export default function PharmacyScreen() {
           style={styles.chipRail}
           contentContainerStyle={styles.chipRailContent}
         >
-          <Chip
+          <CategoryTile
             icon="grid"
             label={t('pharmacy.categoryAll')}
             selected={category === null}
@@ -575,7 +575,7 @@ export default function PharmacyScreen() {
           {(categories.data?.categories ?? [])
             .filter((c) => c.medicine_count > 0)
             .map((c) => (
-              <Chip
+              <CategoryTile
                 key={c.value}
                 icon={CATEGORY_ICONS[c.icon] ?? FALLBACK_CATEGORY_ICON}
                 label={t(`pharmacy.categories.${c.value}`, { defaultValue: c.label })}
@@ -946,6 +946,61 @@ export default function PharmacyScreen() {
 }
 
 /* ── Pieces ───────────────────────────────────────────────────────────────── */
+/**
+ * One tile of the reference's category rail (MED-01).
+ *
+ * The image draws these as boxed icon-over-label tiles rather than text chips,
+ * and the rail is the most recognisable thing on the Medicine Finder. The
+ * count rides in the corner so a category with nothing in it is visibly empty
+ * instead of silently returning no results.
+ */
+function CategoryTile({
+  icon,
+  label,
+  count,
+  selected,
+  onPress,
+}: {
+  icon: IconName;
+  label: string;
+  count?: number;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      accessibilityLabel={count === undefined ? label : `${label}, ${count}`}
+      style={[
+        styles.catTile,
+        {
+          borderColor: selected ? colors.statusNormal : colors.border,
+          backgroundColor: selected ? colors.statusNormalBg : colors.surface,
+        },
+      ]}
+    >
+      <Icon
+        name={icon}
+        size={21}
+        color={selected ? colors.statusNormal : colors.textSecondary}
+      />
+      <Text
+        style={[styles.catLabel, selected && { color: colors.statusNormal }]}
+        numberOfLines={2}
+      >
+        {label}
+      </Text>
+      {count !== undefined ? <Text style={styles.catCount}>{count}</Text> : null}
+    </TouchableOpacity>
+  );
+}
+
 
 /** Bordered picker used by the city / radius sheets. */
 function OptionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -1402,6 +1457,32 @@ function HoldFact({
 
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
+    /* MED-01 category rail */
+    catTile: {
+      width: 84,
+      minHeight: 78,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      paddingHorizontal: 6,
+      paddingVertical: spacing.sm,
+      marginRight: spacing.xs,
+    },
+    catLabel: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: 11,
+      lineHeight: 14,
+      textAlign: 'center',
+      color: c.textSecondary,
+    },
+    catCount: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: 10,
+      color: c.textMuted,
+    },
+
     screen: { flex: 1, backgroundColor: c.page },
     content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
     stack: { gap: spacing.md },

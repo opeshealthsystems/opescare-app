@@ -2032,6 +2032,43 @@
       "rejected": "Refusée",
       "cancelled": "Annulée",
       "expired": "Expirée"
+    },
+    "pricingTitle": "Disponibilité et prix",
+    "pricingStock": "Déclaré",
+    "pricingInStock": "En stock",
+    "pricingNotReported": "Non déclaré",
+    "pricingPharmacies": "Pharmacies",
+    "pricingRange": "Fourchette de prix",
+    "pricingUnknown": "Non publié",
+    "pricingNote": "Chaque chiffre est ce qu’une pharmacie a publié, avec son propre horodatage. Les prix sont par boîte et peuvent changer ; confirmez avant de vous déplacer.",
+    "rxTitle": "Ce médicament nécessite une ordonnance",
+    "rxBody": "La pharmacie la demandera avant de délivrer. Les ordonnances rédigées sur OpesCare sont déjà dans votre dossier — présentez-les depuis là.",
+    "rxAction": "Ouvrir mes ordonnances",
+    "whyPricesTitle": "Pourquoi les prix varient",
+    "whyPrices": {
+      "brand": "La marque et le fabricant diffèrent, même pour un même générique.",
+      "pack": "Les conditionnements diffèrent : une grande boîte coûte plus cher, mais moins par comprimé.",
+      "costs": "Chaque pharmacie fixe son prix et supporte ses propres coûts.",
+      "demand": "L’offre et la demande font varier les prix selon les zones et les périodes."
+    },
+    "howToTitle": "Comment obtenir votre médicament",
+    "howTo": {
+      "search": {
+        "title": "Le trouver",
+        "body": "Cherchez par nom de marque ou générique."
+      },
+      "compare": {
+        "title": "Comparer",
+        "body": "Comparez stock déclaré, prix et distance."
+      },
+      "reserve": {
+        "title": "Réserver",
+        "body": "Réservez une boîte pour qu’elle vous attende."
+      },
+      "collect": {
+        "title": "Retirer",
+        "body": "Appelez d’abord, puis allez-y. Une réservation n’est pas un achat."
+      }
     }
   },
   "careMap": {

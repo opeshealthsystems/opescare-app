@@ -744,6 +744,67 @@ export default function MedicineDetailScreen() {
               ) : null}
             </Card>
 
+            {/* MED-03's "Availability & Pricing". Three figures the patient
+                is actually deciding between: is it in stock anywhere, what the
+                range is, and how many pharmacies report it. Every one comes
+                from `availability` on the medicine payload — there is no
+                fourth invented from the others. */}
+            {medicine.data.availability ? (
+              <Card>
+                <SectionHeader title={t('pharmacy.pricingTitle')} />
+                <View style={styles.pricingRow}>
+                  <View style={styles.pricingCell}>
+                    <Icon
+                      name={medicine.data.availability.is_available ? 'check-circle' : 'info'}
+                      size={18}
+                      color={
+                        medicine.data.availability.is_available
+                          ? colors.statusNormal
+                          : colors.textMuted
+                      }
+                    />
+                    <Text style={styles.pricingLabel}>{t('pharmacy.pricingStock')}</Text>
+                    <Text
+                      style={[
+                        styles.pricingValue,
+                        {
+                          color: medicine.data.availability.is_available
+                            ? colors.statusNormal
+                            : colors.textMuted,
+                        },
+                      ]}
+                    >
+                      {medicine.data.availability.is_available
+                        ? t('pharmacy.pricingInStock')
+                        : t('pharmacy.pricingNotReported')}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.pricingCell, { borderLeftColor: colors.border }]}>
+                    <Icon name="store" size={18} color={colors.blue} />
+                    <Text style={styles.pricingLabel}>{t('pharmacy.pricingPharmacies')}</Text>
+                    <Text style={[styles.pricingValue, { color: colors.blue }]}>
+                      {medicine.data.availability.pharmacy_count}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.pricingCell, { borderLeftColor: colors.border }]}>
+                    <Icon name="wallet" size={18} color={colors.blue} />
+                    <Text style={styles.pricingLabel}>{t('pharmacy.pricingRange')}</Text>
+                    <Text style={[styles.pricingValue, { color: colors.blue }]}>
+                      {medicine.data.availability.price_min !== null &&
+                      medicine.data.availability.price_max !== null
+                        ? `${formatXafBare(medicine.data.availability.price_min)} – ${formatXafBare(
+                            medicine.data.availability.price_max,
+                          )}`
+                        : t('pharmacy.pricingUnknown')}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.pricingNote}>{t('pharmacy.pricingNote')}</Text>
+              </Card>
+            ) : null}
+
             {/* -- Stocking pharmacies -------------------------------------- */}
             <View>
               <SectionHeader title={t('pharmacy.pharmaciesStocking')} />
@@ -1321,6 +1382,69 @@ export default function MedicineDetailScreen() {
               </View>
             </View>
 
+            {/* MED-02's prescription panel. The upload itself has no
+                endpoint on this deployment, so the panel says what to do
+                instead of offering a button that would go nowhere — a
+                "Upload Prescription" control that silently fails is worse
+                than an honest instruction. */}
+            {medicine.data.prescription_required ? (
+              <Card accentColor={colors.statusWarning}>
+                <View style={styles.rxPanelRow}>
+                  <View style={[styles.rxPanelMark, { backgroundColor: colors.statusWarningBg }]}>
+                    <Icon name="document-text" size={20} color={colors.statusWarning} />
+                  </View>
+                  <View style={styles.rxPanelBody}>
+                    <Text style={styles.rxPanelTitle}>{t('pharmacy.rxTitle')}</Text>
+                    <Text style={styles.rxPanelText}>{t('pharmacy.rxBody')}</Text>
+                  </View>
+                </View>
+                <MedButton
+                  label={t('pharmacy.rxAction')}
+                  icon="document-text"
+                  variant="secondary"
+                  onPress={() => router.push('/prescriptions')}
+                  style={styles.rxPanelAction}
+                />
+              </Card>
+            ) : null}
+
+            {/* MED-03's "Why prices may vary". Explanation, not data: the
+                same medicine legitimately costs different amounts at
+                different counters, and a patient comparing two prices
+                deserves to know why before assuming one is wrong. */}
+            <Card>
+              <SectionHeader title={t('pharmacy.whyPricesTitle')} />
+              <View style={styles.whyGrid}>
+                {(['brand', 'pack', 'costs', 'demand'] as const).map((key) => (
+                  <View key={key} style={styles.whyCell}>
+                    <Icon name="info" size={17} color={colors.blue} />
+                    <Text style={styles.whyText}>{t(`pharmacy.whyPrices.${key}`)}</Text>
+                  </View>
+                ))}
+              </View>
+            </Card>
+
+            {/* MED-04's four-step strip. Numbered because it genuinely is a
+                sequence, and it ends on the step the app cannot do for you. */}
+            <Card>
+              <SectionHeader title={t('pharmacy.howToTitle')} />
+              <View style={styles.howList}>
+                {(['search', 'compare', 'reserve', 'collect'] as const).map((key, index) => (
+                  <View key={key} style={styles.howRow}>
+                    <View style={[styles.howIndex, { backgroundColor: colors.tintBlueBg }]}>
+                      <Text style={[styles.howIndexText, { color: colors.blue }]}>
+                        {index + 1}
+                      </Text>
+                    </View>
+                    <View style={styles.howBody}>
+                      <Text style={styles.howTitle}>{t(`pharmacy.howTo.${key}.title`)}</Text>
+                      <Text style={styles.howText}>{t(`pharmacy.howTo.${key}.body`)}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </Card>
+
             {loadedAt > 0 ? <LastUpdatedLine loadedAt={new Date(loadedAt)} /> : null}
 
             <View style={styles.notice} accessibilityRole="summary">
@@ -1640,6 +1764,95 @@ function SummaryLine({ label, value }: { label: string; value: string }) {
 
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
+    /* MED-03 availability & pricing */
+    pricingRow: { flexDirection: 'row', marginTop: spacing.xs },
+    pricingCell: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 3,
+      paddingHorizontal: 6,
+      borderLeftWidth: 0,
+    },
+    pricingLabel: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: 11,
+      lineHeight: 14,
+      textAlign: 'center',
+      color: c.textMuted,
+    },
+    pricingValue: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.sm,
+      textAlign: 'center',
+    },
+    pricingNote: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textMuted,
+      marginTop: spacing.sm,
+    },
+
+    /* MED-02 prescription panel */
+    rxPanelRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
+    rxPanelMark: {
+      width: 42,
+      height: 42,
+      borderRadius: radii.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    rxPanelBody: { flex: 1 },
+    rxPanelTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: c.textPrimary,
+    },
+    rxPanelText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textSecondary,
+      marginTop: 3,
+    },
+    rxPanelAction: { marginTop: spacing.sm, alignSelf: 'flex-start' },
+
+    /* MED-03 why prices vary */
+    whyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
+    whyCell: { flexGrow: 1, flexBasis: '45%', flexDirection: 'row', gap: 7, alignItems: 'flex-start' },
+    whyText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textSecondary,
+    },
+
+    /* MED-04 how to get your medicine */
+    howList: { gap: spacing.sm, marginTop: spacing.xs },
+    howRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
+    howIndex: {
+      width: 24,
+      height: 24,
+      borderRadius: 7,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    howIndexText: { fontFamily: typography.fontFamily.bold, fontSize: 12 },
+    howBody: { flex: 1 },
+    howTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: c.textPrimary,
+    },
+    howText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textSecondary,
+      marginTop: 2,
+    },
+
     screen: { flex: 1, backgroundColor: c.page },
     content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
     stack: { gap: spacing.md },

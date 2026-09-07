@@ -2032,6 +2032,43 @@
       "rejected": "Declined",
       "cancelled": "Cancelled",
       "expired": "Expired"
+    },
+    "pricingTitle": "Availability & pricing",
+    "pricingStock": "Reported",
+    "pricingInStock": "In stock",
+    "pricingNotReported": "Not reported",
+    "pricingPharmacies": "Pharmacies",
+    "pricingRange": "Price range",
+    "pricingUnknown": "Not published",
+    "pricingNote": "Every figure is what a pharmacy published, with its own timestamp. Prices are per pack and can change; confirm before you travel.",
+    "rxTitle": "This medicine needs a prescription",
+    "rxBody": "A pharmacy will ask to see it before dispensing. Prescriptions written on OpesCare are already in your record — show them from there.",
+    "rxAction": "Open my prescriptions",
+    "whyPricesTitle": "Why prices vary",
+    "whyPrices": {
+      "brand": "Brand and manufacturer differ, even for the same generic.",
+      "pack": "Pack sizes differ, so a bigger box costs more per box, less per tablet.",
+      "costs": "Each pharmacy sets its own price and carries its own costs.",
+      "demand": "Supply and demand move prices between areas and over time."
+    },
+    "howToTitle": "How to get your medicine",
+    "howTo": {
+      "search": {
+        "title": "Find it",
+        "body": "Search by brand or generic name."
+      },
+      "compare": {
+        "title": "Compare",
+        "body": "Check reported stock, price and distance."
+      },
+      "reserve": {
+        "title": "Reserve",
+        "body": "Hold a pack so it is there when you arrive."
+      },
+      "collect": {
+        "title": "Collect",
+        "body": "Call first, then go. A hold is not a purchase."
+      }
     }
   },
   "careMap": {

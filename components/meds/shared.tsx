@@ -454,7 +454,7 @@ export function FactCell({
     >
       <View style={[styles.factHead, align === 'center' && styles.factHeadCentre]}>
         <Icon name={icon} size={16} color={colors.blue} />
-        <Text style={styles.factLabel} numberOfLines={1}>
+        <Text style={styles.factLabel} numberOfLines={2}>
           {label}
         </Text>
       </View>
@@ -779,10 +779,20 @@ export const makeMedStyles = (c: Palette) =>
     factCentreText: { textAlign: 'center' },
     factDivided: { borderLeftWidth: 1, borderLeftColor: c.divider },
     factHead: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-    factHeadCentre: { justifyContent: 'center' },
+    /*
+     * Centred cells stack the icon ABOVE the label. Side by side, a three-up
+     * strip gives each label about 70pt at 375pt wide, which is not enough for
+     * "Pharmacies near you" — it overflowed and overlapped its neighbour.
+     * Stacking gives the label the full cell width.
+     */
+    factHeadCentre: { flexDirection: 'column', justifyContent: 'center', gap: 3 },
     factLabel: {
+      flexShrink: 1,
+      minWidth: 0,
+      textAlign: 'center',
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
       color: c.textSecondary,
     },
     factValue: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },

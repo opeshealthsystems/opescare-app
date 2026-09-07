@@ -173,3 +173,76 @@ export function useBloodComponentMatrix(args: {
       })),
   };
 }
+
+/**
+ * Per-GROUP availability across every facility in one search (SB-05).
+ *
+ * The availability map draws a small grid on each blood bank — O+, A+, B+, AB+
+ * and so on, each with its own figure. `GET blood/search` answers for one
+ * group at a time, so the grid is one request per group for the whole page,
+ * under the same query keys the finder uses.
+ *
+ * Same rule as everywhere else in this feature: a group a facility has not
+ * published comes back null and must be drawn as UNKNOWN. On this screen that
+ * matters twice over, because the reference colours its grid — and a red "0"
+ * on a group nobody reported would be the app inventing the one fact that
+ * stops somebody travelling.
+ */
+export function useBloodGroupMatrix(args: {
+  groups: readonly BloodGroupValue[];
+  componentType: BloodComponentValue;
+  lat: number;
+  lng: number;
+  radiusKm: number;
+  enabled?: boolean;
+}): {
+  isPending: boolean;
+  facilities: BloodBankResult[];
+  forFacility: (facilityId: string) => { group: BloodGroupValue; units: string | null }[];
+} {
+  const { groups, componentType, lat, lng, radiusKm, enabled = true } = args;
+
+  const results = useQueries({
+    queries: groups.map((group) => ({
+      queryKey: ['blood', 'search', group, componentType, lat, lng, radiusKm],
+      enabled,
+      queryFn: async () =>
+        (
+          await apiClient.get<{ data: BloodBankResult[] }>(endpoints.bloodSearch, {
+            params: {
+              blood_group: group,
+              component_type: componentType,
+              lat,
+              lng,
+              radius_km: radiusKm,
+            },
+          })
+        ).data.data,
+    })),
+  });
+
+  // Every distinct facility that reported ANY group, nearest first. A bank is
+  // on the map because it published something, not because it exists.
+  const seen = new Map<string, BloodBankResult>();
+  results.forEach((query) => {
+    query.data?.forEach((row) => {
+      if (!seen.has(row.id)) seen.set(row.id, row);
+    });
+  });
+
+  const facilities = [...seen.values()].sort(
+    (a, b) => (a.distance_km ?? Number.MAX_SAFE_INTEGER) - (b.distance_km ?? Number.MAX_SAFE_INTEGER),
+  );
+
+  return {
+    isPending: enabled && results.every((query) => query.isPending),
+    facilities,
+    forFacility: (facilityId: string) =>
+      groups.map((group, index) => ({
+        group,
+        units:
+          results[index]?.data?.find((row) => row.id === facilityId)?.availability?.units_range ??
+          null,
+      })),
+  };
+}

@@ -968,16 +968,8 @@ export default function BloodFinderScreen() {
                     ? t('bloodFinder.searching')
                     : t('bloodFinder.nearbyBanks', { count: results.length })
                 }
-                actionLabel={mappable.length > 0 ? t('bloodFinder.viewOnMap') : undefined}
-                onAction={
-                  mappable.length > 0
-                    ? () =>
-                        scrollRef.current?.scrollTo({
-                          y: Math.max(resultsY.current - 12, 0),
-                          animated: true,
-                        })
-                    : undefined
-                }
+                actionLabel={t('bloodFinder.viewOnMap')}
+                onAction={() => router.push('/blood-finder/map')}
               />
               <Text style={styles.sectionHint}>
                 {[
@@ -1177,7 +1169,7 @@ export default function BloodFinderScreen() {
             icon="droplet"
             tint="red"
             label={t('bloodFinder.quick.emergency')}
-            onPress={() => router.push('/blood-finder/request')}
+            onPress={() => router.push('/blood-finder/emergency')}
           />
           <QuickAction
             icon="users"

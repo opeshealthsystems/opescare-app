@@ -1478,9 +1478,9 @@ function QuickAction({
       style={styles.quickTile}
     >
       <View style={[styles.quickMark, { backgroundColor: toneBg }]}>
-        <Icon name={icon} size={19} color={tone} />
+        <Icon name={icon} size={17} color={tone} />
       </View>
-      <Text style={styles.quickLabel} numberOfLines={2}>
+      <Text style={styles.quickLabel} numberOfLines={3}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -2422,27 +2422,38 @@ const makeStyles = (c: Palette) =>
       gap: spacing.sm,
     },
     quickTile: {
+      // Four equal columns. flexBasis 0 (not a percentage) so the four share
+      // the row exactly; minWidth 0 so a long label wraps instead of pushing
+      // its neighbours off the edge.
       flexGrow: 1,
-      flexBasis: '46%',
+      flexShrink: 1,
+      flexBasis: 0,
+      minWidth: 0,
       minHeight: 76,
       borderRadius: radii.md,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.border,
       backgroundColor: c.surface,
-      padding: spacing.sm,
-      gap: 8,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: 8,
+      gap: 6,
+      alignItems: 'center',
       justifyContent: 'center',
     },
     quickMark: {
-      width: 34,
-      height: 34,
-      borderRadius: 10,
+      width: 30,
+      height: 30,
+      borderRadius: 9,
       alignItems: 'center',
       justifyContent: 'center',
     },
     quickLabel: {
+      // 11pt, not 13. At a quarter of the row each tile is ~80pt wide, and
+      // "Emergency" at 13pt broke mid-word into "Emergenc / y request".
       fontFamily: typography.fontFamily.semiBold,
-      fontSize: typography.size.sm,
+      fontSize: 11,
+      lineHeight: 14,
+      textAlign: 'center',
       color: c.textPrimary,
     },
 

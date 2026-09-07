@@ -7814,7 +7814,10 @@
       "interval": "At least three months since your last whole-blood donation"
     },
     "eligibilityNote": "These are the questions blood banks commonly ask. They are not a decision about you — the blood bank assesses every donor on the day.",
-    "backToFinder": "Back to Blood Finder"
+    "backToFinder": "Back to Blood Finder",
+    "ctaTitle": "Ready to make a difference?",
+    "ctaBody": "Join the volunteer register. You choose whether anyone can see you, and you can withdraw at any time.",
+    "ctaAction": "Become a donor"
   },
   "bloodBank": {
     "title": "Blood bank details",
@@ -8052,7 +8055,7 @@
       "consent": "Consent"
     },
     "stepOf": "Step {{current}} of {{total}}: {{label}}",
-    "groupPlaceholder": "Choose your group",
+    "groupPlaceholder": "Choose group",
     "eligibilityItems": {
       "age": {
         "title": "Aged 18 to 60",
@@ -8129,7 +8132,7 @@
     "howItWorks": "How it works",
     "retry": "Try again",
     "closeSheet": "Close",
-    "groupPlaceholder": "Choose a group",
+    "groupPlaceholder": "Choose group",
     "lastDonatedLabel": "Last donated",
     "lastDonated": {
       "any": "Any time",
@@ -8140,7 +8143,7 @@
     "sortLabel": "Sort",
     "sortSheetTitle": "Sort volunteers by",
     "sort": {
-      "since": "Longest since donating",
+      "since": "Longest wait",
       "area": "By area"
     },
     "filtersShow": "Show filters",

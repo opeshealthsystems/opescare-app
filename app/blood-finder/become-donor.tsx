@@ -754,7 +754,9 @@ const makeStyles = (c: Palette) =>
 
     steps: { flexDirection: 'row', alignItems: 'flex-start' },
     stepCol: { flex: 1, minWidth: 0 },
-    stepColLast: { flexGrow: 0, flexShrink: 0, alignItems: 'center' },
+    // The last stop has no connecting line, so it sizes to its content —
+    // which was the 22pt dot, leaving "Consent" with no room to render.
+    stepColLast: { flexGrow: 0, flexShrink: 0, minWidth: 76, alignItems: 'center' },
     stepHead: { flexDirection: 'row', alignItems: 'center' },
     stepDot: {
       width: 32,

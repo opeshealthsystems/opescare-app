@@ -415,12 +415,22 @@ export default function BloodRequestScreen() {
     radiusKm,
     enabled: !!bloodGroup && !fromNationwide,
   });
+  // A facility that is not inside the radius we happen to have been given is
+  // not the same thing as a facility that stopped reporting. Ask the national
+  // register before saying so.
+  const localMissed =
+    !fromNationwide &&
+    localSearch.isSuccess &&
+    !(localSearch.data ?? []).some((row) => row.id === facilityId);
+
   const nationwideSearch = useNationwideBloodSearch({
     bloodGroup,
     componentType,
-    enabled: !!bloodGroup && fromNationwide,
+    enabled: !!bloodGroup && (fromNationwide || localMissed),
   });
-  const search = fromNationwide ? nationwideSearch : localSearch;
+
+  // Loading and retry follow whichever search still has something to say.
+  const search = fromNationwide || localMissed ? nationwideSearch : localSearch;
   const createRequest = useCreateBloodRequest();
 
   const maxUnits = options.data?.max_units ?? 6;
@@ -434,8 +444,11 @@ export default function BloodRequestScreen() {
   }, [maxUnits]);
 
   const facility: BloodBankResult | null = useMemo(
-    () => (search.data ?? []).find((row) => row.id === facilityId) ?? null,
-    [search.data, facilityId],
+    () =>
+      (localSearch.data ?? []).find((row) => row.id === facilityId) ??
+      (nationwideSearch.data ?? []).find((row) => row.id === facilityId) ??
+      null,
+    [localSearch.data, nationwideSearch.data, facilityId],
   );
 
   const emergencyLine = facility?.emergency_contact ?? null;

@@ -7815,7 +7815,10 @@
       "interval": "Au moins trois mois depuis votre dernier don de sang total"
     },
     "eligibilityNote": "Ce sont les questions que posent habituellement les établissements. Ce n’est pas une décision vous concernant — chaque donneur est évalué sur place.",
-    "backToFinder": "Retour au Blood Finder"
+    "backToFinder": "Retour au Blood Finder",
+    "ctaTitle": "Prêt à faire la différence ?",
+    "ctaBody": "Rejoignez le registre des volontaires. Vous décidez si l'on peut vous voir, et vous pouvez vous retirer à tout moment.",
+    "ctaAction": "Devenir donneur"
   },
   "bloodBank": {
     "title": "Détails de la banque de sang",
@@ -8053,7 +8056,7 @@
       "consent": "Consentement"
     },
     "stepOf": "Étape {{current}} sur {{total}} : {{label}}",
-    "groupPlaceholder": "Choisir votre groupe",
+    "groupPlaceholder": "Choisir",
     "eligibilityItems": {
       "age": {
         "title": "De 18 à 60 ans",
@@ -8130,7 +8133,7 @@
     "howItWorks": "Comment ça marche",
     "retry": "Réessayer",
     "closeSheet": "Fermer",
-    "groupPlaceholder": "Choisir un groupe",
+    "groupPlaceholder": "Choisir",
     "lastDonatedLabel": "Dernier don",
     "lastDonated": {
       "any": "Peu importe",
@@ -8141,7 +8144,7 @@
     "sortLabel": "Trier",
     "sortSheetTitle": "Trier les volontaires par",
     "sort": {
-      "since": "Don le plus ancien",
+      "since": "Plus ancien",
       "area": "Par zone"
     },
     "filtersShow": "Afficher les filtres",

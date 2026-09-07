@@ -47,6 +47,13 @@ export function useBloodBankComponents(args: {
   lat: number;
   lng: number;
   radiusKm: number;
+  /**
+   * Search the whole country instead of the radius. Set when the facility was
+   * itself only found nationwide: asking within a radius it is not inside
+   * returns nothing, and "nothing" on this table renders as "Not reported",
+   * which is a statement about stock and would be false.
+   */
+  nationwide?: boolean;
   enabled?: boolean;
 }): { rows: ComponentAvailability[]; isPending: boolean; isError: boolean } {
   const {
@@ -56,6 +63,7 @@ export function useBloodBankComponents(args: {
     lat,
     lng,
     radiusKm,
+    nationwide = false,
     enabled = true,
   } = args;
 
@@ -63,20 +71,25 @@ export function useBloodBankComponents(args: {
 
   const results = useQueries({
     queries: components.map((component) => ({
-      // Deliberately the SAME key shape as useBloodSearch, so a component the
-      // finder already searched is served from cache instead of refetched.
-      queryKey: ['blood', 'search', bloodGroup, component, lat, lng, radiusKm],
+      // Deliberately the SAME key shape as useBloodSearch (or
+      // useNationwideBloodSearch), so a component the finder already searched
+      // is served from cache instead of refetched.
+      queryKey: nationwide
+        ? ['blood', 'search', 'nationwide', bloodGroup, component]
+        : ['blood', 'search', bloodGroup, component, lat, lng, radiusKm],
       enabled: active,
       queryFn: async () =>
         (
           await apiClient.get<{ data: BloodBankResult[] }>(endpoints.bloodSearch, {
-            params: {
-              blood_group: bloodGroup,
-              component_type: component,
-              lat,
-              lng,
-              radius_km: radiusKm,
-            },
+            params: nationwide
+              ? { blood_group: bloodGroup, component_type: component, limit: 50 }
+              : {
+                  blood_group: bloodGroup,
+                  component_type: component,
+                  lat,
+                  lng,
+                  radius_km: radiusKm,
+                },
           })
         ).data.data,
     })),

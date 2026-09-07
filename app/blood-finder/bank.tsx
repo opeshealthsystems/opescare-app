@@ -36,6 +36,7 @@ import {
   type BloodGroupValue,
 } from '@/lib/api/queries';
 import { useBloodBankComponents } from '@/lib/api/bloodBankQueries';
+import { useNationwideBloodSearch } from '@/lib/api/bloodQueries';
 
 /**
  * Blood Bank Details (PM-BLOOD-02) — one facility, everything it reports.
@@ -273,7 +274,7 @@ export default function BloodBankDetailScreen() {
   const lng = Number(params.lng ?? 0);
   const radiusKm = Number(params.radiusKm ?? 25);
 
-  const search = useBloodSearch({
+  const localSearch = useBloodSearch({
     bloodGroup,
     componentType,
     lat,
@@ -282,8 +283,24 @@ export default function BloodBankDetailScreen() {
     enabled: !!facilityId,
   });
 
+  // Outside the radius is not the same as gone. Fall back to the national
+  // register before the screen is allowed to say the listing was withdrawn.
+  const localMissed =
+    localSearch.isSuccess &&
+    !(localSearch.data ?? []).some((row) => row.id === facilityId);
+
+  const nationwideSearch = useNationwideBloodSearch({
+    bloodGroup,
+    componentType,
+    enabled: !!facilityId && !!bloodGroup && localMissed,
+  });
+
+  const search = localMissed ? nationwideSearch : localSearch;
+
   const facility: BloodBankResult | null =
-    search.data?.find((row) => row.id === facilityId) ?? null;
+    (localSearch.data ?? []).find((row) => row.id === facilityId) ??
+    (nationwideSearch.data ?? []).find((row) => row.id === facilityId) ??
+    null;
 
   const components = useBloodBankComponents({
     facilityId,
@@ -292,6 +309,7 @@ export default function BloodBankDetailScreen() {
     lat,
     lng,
     radiusKm,
+    nationwide: localMissed,
     enabled: !!facility,
   });
 
@@ -650,7 +668,7 @@ export default function BloodBankDetailScreen() {
 
             {mappable ? (
               <View style={styles.mapCol}>
-                <FacilityMap facilities={[facility]} height={168} />
+                <FacilityMap facilities={[facility]} height={168} variant="thumbnail" />
                 {/* The pill the reference floats over the thumbnail. Label
                     shortened to "Map" so it fits a 40% column at 375pt; the
                     full sentence is the accessibility label. */}

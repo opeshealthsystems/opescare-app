@@ -27,9 +27,11 @@ export function finderOrigin(): string {
 /**
  * @returns the /embed/map URL for these facilities, or null if none have coords.
  */
+export type MapVariant = 'thumbnail' | 'full';
+
 export function embedMapUrl(
   facilities: MapFacility[] | MapFacility | null | undefined,
-  opts?: { directions?: boolean },
+  opts?: { directions?: boolean; variant?: MapVariant },
 ): string | null {
   const list = Array.isArray(facilities) ? facilities : facilities ? [facilities] : [];
   const points = list
@@ -55,6 +57,11 @@ export function embedMapUrl(
   const params = new URLSearchParams();
   params.set('markers', JSON.stringify(points));
   if (opts?.directions) params.set('directions', '1');
+  // A thumbnail shows where a place is; it is not a map you drive. The embed
+  // drops its zoom / locate controls entirely for `static`, and moves them out
+  // of the top-left corner otherwise, where the app floats its own chip.
+  if (opts?.variant === 'thumbnail') params.set('ui', 'static');
+  else params.set('controls', 'topright');
   // A locale hint so the map's popups/labels match the app.
   return `${finderOrigin()}/embed/map?${params.toString()}`;
 }

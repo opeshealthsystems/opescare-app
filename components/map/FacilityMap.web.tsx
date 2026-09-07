@@ -1,12 +1,14 @@
 import React from 'react';
 import type { ViewStyle } from 'react-native';
 
-import { embedMapUrl, type MapFacility } from '../../lib/embedMapUrl';
+import { embedMapUrl, type MapFacility, type MapVariant } from '../../lib/embedMapUrl';
 
 type Props = {
   facilities: MapFacility[] | MapFacility;
   height?: number;
   directions?: boolean;
+  /** `thumbnail` drops the map's own controls — see embedMapUrl. */
+  variant?: MapVariant;
   style?: ViewStyle;
 };
 
@@ -15,8 +17,8 @@ type Props = {
  * real OpenStreetMap map (markers + in-app directions) without leaving the app.
  * (Native uses a WebView — see FacilityMap.tsx.)
  */
-export function FacilityMap({ facilities, height = 220, directions, style }: Props) {
-  const url = embedMapUrl(facilities, { directions });
+export function FacilityMap({ facilities, height = 220, directions, variant, style }: Props) {
+  const url = embedMapUrl(facilities, { directions, variant });
   if (!url) return null;
 
   return React.createElement('iframe', {

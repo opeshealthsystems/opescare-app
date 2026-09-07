@@ -731,7 +731,9 @@ const makeStyles = (c: Palette) =>
       position: 'absolute',
       top: spacing.sm,
       left: spacing.sm,
-      right: spacing.xl,
+      // Leave the top-right corner to the map's own zoom / locate buttons.
+      // Stretched to `right: spacing.xl` the chip sat underneath them.
+      maxWidth: '62%',
       flexDirection: 'row',
       alignItems: 'center',
       gap: 5,

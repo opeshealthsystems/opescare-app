@@ -1109,7 +1109,7 @@ export default function MedicineDetailScreen() {
             {pharmacy && pharmacy.latitude != null && pharmacy.longitude != null ? (
               <View onLayout={(e) => (mapY.current = e.nativeEvent.layout.y)}>
                 <Card variant="flush">
-                  <FacilityMap facilities={pharmacy} height={180} directions />
+                  <FacilityMap facilities={pharmacy} height={180} directions variant="thumbnail" />
                 </Card>
               </View>
             ) : null}

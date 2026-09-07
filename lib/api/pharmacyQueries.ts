@@ -127,15 +127,23 @@ export function reserveErrorCode(error: unknown): ReserveErrorCode | 'generic' {
     : 'generic';
 }
 
-/** XAF is quoted in whole francs, grouped with thin spaces — "12 500 FCFA". */
+/**
+ * XAF is quoted in whole francs, grouped with NO-BREAK spaces — "12 500 FCFA".
+ *
+ * The separator has to be U+00A0, not a plain space. A price range in a narrow
+ * column was wrapping inside its own number — "6 000 – 16" on one line and
+ * "000 FCFA" on the next — which reads as a different, much smaller price.
+ */
+const GROUP = ' ';
+
 export function formatXaf(value: number | null | undefined): string | null {
   if (value === null || value === undefined || Number.isNaN(value)) return null;
-  const grouped = String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  return `${grouped} FCFA`;
+  const grouped = String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, GROUP);
+  return `${grouped}${GROUP}FCFA`;
 }
 
-/** Bare grouped number, for the left half of a "200 – 500 FCFA" range. */
+/** Bare grouped number, for the left half of a "200 – 500 FCFA" range. */
 export function formatXafBare(value: number | null | undefined): string | null {
   if (value === null || value === undefined || Number.isNaN(value)) return null;
-  return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, GROUP);
 }

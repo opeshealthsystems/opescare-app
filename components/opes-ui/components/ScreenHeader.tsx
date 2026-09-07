@@ -91,7 +91,10 @@ export function ScreenHeader({
         <View style={[styles.titleWrap, align === 'center' && styles.titleWrapCenter]}>
           <Text
             style={[styles.title, align === 'center' && styles.titleCenter]}
-            numberOfLines={1}
+            // Two lines, not one. A title like "Emergency blood request" is
+            // longer than the bar at 375pt and was being cut to "Emergency
+            // blood req…" — the screen no longer said what it was for.
+            numberOfLines={2}
             // The one landmark on every screen: a screen reader's "next
             // heading" gesture should land here first.
             accessibilityRole="header"
@@ -155,6 +158,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   title: {
     fontFamily: typography.fontFamily.bold,
     fontSize: typography.size.xl,
+    lineHeight: Math.round(typography.size.xl * 1.25),
     color: colors.textPrimary,
   },
   titleCenter: { textAlign: 'center' },

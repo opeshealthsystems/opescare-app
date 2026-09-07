@@ -208,10 +208,29 @@ export default function BloodEducationScreen() {
           </Card>
         </View>
 
+        {/* ── The reference's closing call to action ───────────────────────── */}
+        <Card style={styles.ctaCard}>
+          <View style={styles.ctaRow}>
+            <View style={styles.ctaMark}>
+              <Icon name="heart-pulse" size={20} color={colors.statusCritical} />
+            </View>
+            <View style={styles.ctaBody}>
+              <Text style={styles.ctaTitle}>{t('bloodEducation.ctaTitle')}</Text>
+              <Text style={styles.ctaText}>{t('bloodEducation.ctaBody')}</Text>
+            </View>
+          </View>
+          <CareButton
+            label={t('bloodEducation.ctaAction')}
+            icon="droplet"
+            variant="dangerSolid"
+            onPress={() => router.push('/blood-finder/become-donor')}
+          />
+        </Card>
+
         <CareButton
           label={t('bloodEducation.backToFinder')}
           icon="search"
-          variant="primary"
+          variant="secondary"
           onPress={() => router.replace('/blood-finder')}
         />
       </ScrollView>
@@ -223,6 +242,29 @@ const makeStyles = (c: Palette) =>
   StyleSheet.create({
     content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
     stack: { gap: spacing.sm },
+
+    ctaCard: { backgroundColor: c.statusCriticalBg, borderColor: c.statusCritical, gap: spacing.md },
+    ctaRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
+    ctaMark: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    ctaBody: { flex: 1, minWidth: 0, gap: 2 },
+    ctaTitle: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.md,
+      color: c.statusCritical,
+    },
+    ctaText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: c.textSecondary,
+    },
 
     leadRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
     leadMark: {
@@ -286,7 +328,11 @@ const makeStyles = (c: Palette) =>
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
     },
-    groupCol: { flex: 0, width: 74 },
+    // Not `flex: 0, width: 74`. RN-web expands the `flex` shorthand to
+    // `0 1 0%`, and a flex-basis of 0 beats `width` on the main axis, so
+    // the group column collapsed to its text and the table read
+    // "ReceiverCan receive whole blood from" with no column at all.
+    groupCol: { flexGrow: 0, flexShrink: 0, flexBasis: 74 },
     groupCell: {
       fontFamily: typography.fontFamily.bold,
       fontSize: typography.size.md,

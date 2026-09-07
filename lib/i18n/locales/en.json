@@ -2540,7 +2540,7 @@
     },
     "heroSubtitle": "Find available blood. Save lives.",
     "verifiedBadge": "Verified",
-    "verifiedBadgeNote": "Screened facilities",
+    "verifiedBadgeNote": "Screened",
     "stepUrgency": "Urgency",
     "stepRange": "Range",
     "findBlood": "Find blood",
@@ -2561,6 +2561,15 @@
       "map": "Blood banks map",
       "education": "Blood education",
       "myRequests": "My requests"
+    },
+    "openBank": "Open this blood bank",
+    "unitsAvailable": "Units available",
+    "noComponentCounts": "No component figures published",
+    "componentShort": {
+      "whole_blood": "WB",
+      "red_cells": "PRBC",
+      "platelets": "PLT",
+      "plasma": "FFP"
     }
   },
   "appUpdate": {

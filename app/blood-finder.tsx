@@ -13,8 +13,10 @@ import {
   Icon,
   ListRow,
   PillInput,
+  PulseLogo,
   ScreenHeader,
   SectionHeader,
+  Wordmark,
   StaleNotice,
   StatusBadge,
   formatDateTime,
@@ -33,6 +35,7 @@ import {
 import { CareButton, LoadingBlock, NoticeBanner, SummaryLine } from '@/components/care/shared';
 import { useAuthStore } from '@/lib/store/auth';
 import { useNationwideBloodSearch } from '@/lib/api/bloodQueries';
+import { useBloodComponentMatrix, CARD_COMPONENTS } from '@/lib/api/bloodBankQueries';
 import {
   useBloodOptions,
   useBloodRequests,
@@ -428,6 +431,21 @@ export default function BloodFinderScreen() {
     [results],
   );
 
+  /*
+   * Per-component counts for every card on the page (PM-BLOOD-01).
+   *
+   * Four requests for the whole list, not four per bank: the sweep asks the
+   * same endpoint the finder already uses, under the same query keys, so the
+   * component currently selected is served from cache.
+   */
+  const componentMatrix = useBloodComponentMatrix({
+    bloodGroup,
+    lat: origin.lat,
+    lng: origin.lng,
+    radiusKm,
+    enabled: !!bloodGroup,
+  });
+
   const openRequests = requests.data ?? [];
   const nextRadius = RADIUS_OPTIONS.find((r) => r > radiusKm) ?? null;
   const truncated = rows.length >= LOCAL_RESULT_LIMIT;
@@ -584,12 +602,57 @@ export default function BloodFinderScreen() {
 
   return (
     <Screen className="px-0">
-      <ScreenHeader
-        title={t('bloodFinder.title')}
-        subtitle={t('bloodFinder.subtitle')}
-        onBack={goBack}
-        actions={headerActions}
-      />
+      {/*
+        The reference's top bar is the BRAND lockup, not a screen title — which
+        is precisely why its hero below is free to carry the name at full size.
+        Reproducing that here means the title is printed once, in the place the
+        design puts it, instead of twice.
+
+        `accessibilityLabel` on the bar keeps the screen announceable, which is
+        the one thing ScreenHeader's title was buying.
+      */}
+      <View
+        style={styles.topBar}
+        accessibilityRole="header"
+        accessibilityLabel={t('bloodFinder.title')}
+      >
+        <TouchableOpacity
+          onPress={goBack}
+          hitSlop={10}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back', { defaultValue: 'Back' })}
+          style={styles.topBarBack}
+        >
+          <Icon name="chevron-left" size={24} color={colors.textPrimary} />
+        </TouchableOpacity>
+
+        <View style={styles.topBarBrand}>
+          <PulseLogo size={34} />
+          <Wordmark size="md" showTagline />
+        </View>
+
+        <View style={styles.topBarActions}>
+          {headerActions.map((action) => (
+            <TouchableOpacity
+              key={action.accessibilityLabel}
+              onPress={action.onPress}
+              hitSlop={8}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={action.accessibilityLabel}
+              style={styles.topBarAction}
+            >
+              <Icon name={action.icon} size={20} color={colors.textPrimary} />
+              {action.badge ? (
+                <View style={[styles.topBarBadge, { backgroundColor: colors.blue }]}>
+                  <Text style={styles.topBarBadgeText}>{action.badge}</Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
       <ScrollView
         ref={scrollRef}
@@ -606,26 +669,26 @@ export default function BloodFinderScreen() {
             requires of a listed blood bank - never a promise about any
             individual unit - which is why the badge sits with the title and
             not on a result row. */}
-        {/*
-          The reference's hero carries four things: the droplet mark, the
-          screen name, a tagline and the assurance badge. This app's
-          ScreenHeader already gives the name and the tagline on every screen,
-          so repeating them here printed "Blood Finder" twice on one phone. The
-          band keeps what the header does NOT have - the mark and the badge -
-          and drops what it does. Same information, said once.
-        */}
+        {/* Hero, as the reference draws it: the droplet tile, the name at
+            full size, the tagline, and the assurance badge beside it. */}
         <View style={styles.hero}>
           <View style={[styles.heroMark, { backgroundColor: colors.tintBlueBg }]}>
-            <Icon name="droplet" size={26} color={colors.blue} />
+            <Icon name="droplet" size={30} color={colors.blue} />
           </View>
           <View style={styles.heroBody}>
-            <Text style={styles.heroTitle}>{t('bloodFinder.heroSubtitle')}</Text>
+            <Text style={styles.heroTitle} numberOfLines={1}>
+              {t('bloodFinder.title')}
+            </Text>
+            <Text style={styles.heroSubtitle}>{t('bloodFinder.heroSubtitle')}</Text>
           </View>
           <View style={[styles.heroBadge, { backgroundColor: colors.tintBlueBg }]}>
-            <Icon name="shield-check" size={16} color={colors.blue} />
-            <Text style={[styles.heroBadgeTitle, { color: colors.blue }]}>
-              {t('bloodFinder.verifiedBadge')}
-            </Text>
+            <Icon name="shield-check" size={18} color={colors.blue} />
+            <View style={styles.heroBadgeBody}>
+              <Text style={[styles.heroBadgeTitle, { color: colors.blue }]}>
+                {t('bloodFinder.verifiedBadge')}
+              </Text>
+              <Text style={styles.heroBadgeNote}>{t('bloodFinder.verifiedBadgeNote')}</Text>
+            </View>
           </View>
         </View>
 
@@ -1021,7 +1084,9 @@ export default function BloodFinderScreen() {
                   <BloodBankCard
                     key={facility.id}
                     facility={facility}
+                    components={componentMatrix.forFacility(facility.id)}
                     onOpen={() => goToBank(facility)}
+                    onCall={() => dial(facility.phone ?? facility.emergency_contact)}
                   />
                 ))}
                 {truncated ? (
@@ -1301,25 +1366,22 @@ function StockFacts({
  */
 function BloodBankCard({
   facility,
+  components,
   onOpen,
+  onCall,
 }: {
   facility: BloodBankResult;
-  /** Opens PM-BLOOD-02 for this facility. */
+  /** One entry per component; `units` is null when the facility said nothing. */
+  components: { component: BloodComponentValue; units: string | null }[];
   onOpen: () => void;
+  onCall: () => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const availability = facility.availability;
-  const lines = useMemo(() => phoneLines(facility), [facility]);
-
-  // `status` is the facility's own stock word; `unknown` keeps the badge from
-  // rendering an empty pill if a row ever arrives without one.
-  const stockKey = (availability?.status ?? '').toLowerCase() || 'unknown';
-  const stockLabel = t(`bloodFinder.stock.${stockKey}`, {
-    defaultValue: STOCK_FALLBACK[stockKey] ?? formatLabel(stockKey),
-  });
+  const phone = facility.phone ?? facility.emergency_contact ?? null;
 
   const freshnessKey = (availability?.freshness ?? '').toLowerCase() || 'stale';
   const freshnessLabel = t(`bloodFinder.freshness.${freshnessKey}`, {
@@ -1332,83 +1394,98 @@ function BloodBankCard({
       : t('bloodFinder.distanceKm', { km: facility.distance_km });
 
   const place = [facility.city, facility.region].filter(Boolean).join(', ') || null;
-  const typeLabel = facility.facility_type
-    ? t(`bloodFinder.facilityTypes.${facility.facility_type}`, {
-        defaultValue: formatLabel(facility.facility_type),
-      })
-    : null;
+  const verified = isVerified(facility.verification_status);
 
   return (
     <Card variant="flush">
-      <ListRow
-        icon={facilityIcon(facility.facility_type)}
-        tint={BLOOD_TINT}
-        title={facility.name}
-        meta={[typeLabel, place, stockLabel]}
-        trailing={
-          <View style={styles.rowAside}>
-            <Text style={styles.rowValue} numberOfLines={1}>
-              {distance}
-            </Text>
-            <StatusBadge
-              status={freshnessKey}
-              tone={FRESHNESS_TONE[freshnessKey] ?? 'neutral'}
-              label={freshnessLabel}
-              size="sm"
-            />
-          </View>
-        }
+      <TouchableOpacity
         onPress={onOpen}
-        accessibilityLabel={[facility.name, place, stockLabel, distance, freshnessLabel]
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={[facility.name, place, distance, freshnessLabel]
           .filter(Boolean)
           .join(', ')}
-        accessibilityHint={t('bloodFinder.requestUnits')}
-        divider
-      />
-
-      <StockFacts
-        availability={availability}
-        address={facility.address}
-        verification={facility.verification_status}
-      />
-
-      <View style={styles.cardFoot}>
-        {lines.length === 0 ? (
-          <CareButton
-            label={t('bloodFinder.noPhone')}
-            icon="phone"
-            variant="secondary"
-            size="sm"
-            disabled
-            onPress={() => undefined}
-            style={styles.footCall}
-          />
-        ) : (
-          lines.map((line) => (
-            <CareButton
-              key={line.key}
-              label={
-                line.key === 'emergency'
-                  ? t('bloodFinder.callEmergencyLine', { defaultValue: 'Emergency line' })
-                  : t('bloodFinder.callShort')
-              }
-              icon="phone"
-              variant={line.key === 'emergency' ? 'danger' : 'secondary'}
-              size="sm"
-              onPress={() => dial(line.number)}
-              style={styles.footCall}
-            />
-          ))
-        )}
-        <View style={styles.footCta}>
-          <GradientButton
-            label={t('bloodFinder.requestUnits')}
-            icon="none"
-            onPress={onOpen}
-            accessibilityHint={t('bloodFinder.request.subtitle')}
-          />
+        accessibilityHint={t('bloodFinder.openBank')}
+        style={styles.bankRow}
+      >
+        {/* Round mark, where the reference puts each bank's own logo. This
+            platform stores no facility logos, so the mark is the blood glyph
+            rather than an invented crest. */}
+        <View style={[styles.bankMark, { backgroundColor: colors.statusCriticalBg }]}>
+          <Icon name="droplet" size={22} color={colors.statusCritical} />
         </View>
-      </View>
+
+        <View style={styles.bankBody}>
+          <View style={styles.bankNameRow}>
+            <Text style={styles.bankName} numberOfLines={2}>
+              {facility.name}
+            </Text>
+            {verified ? <Icon name="shield-check" size={15} color={colors.blue} /> : null}
+          </View>
+
+          <Text style={styles.bankMeta} numberOfLines={1}>
+            {[place, distance].filter(Boolean).join('  •  ')}
+          </Text>
+
+          <View style={styles.bankFreshRow}>
+            <Icon name="clock" size={13} color={colors.textMuted} />
+            <Text style={styles.bankFresh}>{freshnessLabel}</Text>
+          </View>
+
+          {/* Per-component chips, the row the reference puts under the name.
+              A component the facility has not published is omitted rather than
+              shown as zero — see useBloodComponentMatrix. */}
+          <View style={styles.componentChips}>
+            {components.filter((row) => row.units).length === 0 ? (
+              <Text style={styles.bankFresh}>{t('bloodFinder.noComponentCounts')}</Text>
+            ) : (
+              components
+                .filter((row) => row.units)
+                .map((row) => (
+                  <View
+                    key={row.component}
+                    style={[styles.componentChip, { backgroundColor: colors.tintBlueBg }]}
+                  >
+                    <Text style={[styles.componentChipLabel, { color: colors.blue }]}>
+                      {t(`bloodFinder.componentShort.${row.component}`, {
+                        defaultValue: t(`bloodFinder.components.${row.component}`),
+                      })}
+                    </Text>
+                    <Text style={[styles.componentChipUnits, { color: colors.blue }]}>
+                      {row.units}
+                    </Text>
+                  </View>
+                ))
+            )}
+          </View>
+        </View>
+
+        {/* The reference's right-hand column: the headline figure stacked over
+            its label, and a round call button beneath. */}
+        <View style={styles.bankAside}>
+          <Text style={[styles.bankUnits, { color: colors.blue }]} numberOfLines={1}>
+            {availability?.units_range ?? '—'}
+          </Text>
+          <Text style={styles.bankUnitsLabel}>{t('bloodFinder.unitsAvailable')}</Text>
+          <TouchableOpacity
+            onPress={onCall}
+            disabled={!phone}
+            hitSlop={8}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={
+              phone ? t('bloodFinder.callShort') : t('bloodFinder.noPhone')
+            }
+            style={[
+              styles.bankCall,
+              { borderColor: colors.border },
+              !phone && styles.bankCallOff,
+            ]}
+          >
+            <Icon name="phone" size={17} color={phone ? colors.blue : colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
     </Card>
   );
 }
@@ -1629,7 +1706,13 @@ function NoStockPanel({
                   <BloodBankCard
                     key={facility.id}
                     facility={facility}
+                    /* The nationwide sweep runs without an origin and for one
+                       component only, so there are no per-component counts to
+                       show here. An empty list renders the honest "not
+                       reported" line rather than blank chips. */
+                    components={[]}
                     onOpen={() => onOpenFacility(facility)}
+                    onCall={() => dial(facility.phone ?? facility.emergency_contact)}
                   />
                 ))}
               </View>
@@ -1803,37 +1886,155 @@ function OpenRequestCard({
 
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
+    /* PM-BLOOD-01 bank card */
+    bankRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      padding: spacing.md,
+    },
+    bankMark: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    bankBody: { flex: 1, gap: 3 },
+    bankNameRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    bankName: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.md,
+      color: c.textPrimary,
+    },
+    bankMeta: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textSecondary,
+    },
+    bankFreshRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    bankFresh: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+    componentChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 4 },
+    componentChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      borderRadius: 6,
+    },
+    componentChipLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: 11,
+    },
+    componentChipUnits: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: 11,
+    },
+    bankAside: { alignItems: 'center', gap: 2, width: 62 },
+    bankUnits: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+    },
+    bankUnitsLabel: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: 10,
+      lineHeight: 13,
+      color: c.textMuted,
+      textAlign: 'center',
+    },
+    bankCall: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      borderWidth: StyleSheet.hairlineWidth,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 4,
+    },
+    bankCallOff: { opacity: 0.45 },
+
     /* PM-BLOOD-01 hero */
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xs,
+    },
+    topBarBack: { width: 28, alignItems: 'flex-start' },
+    topBarBrand: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+    topBarActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    topBarAction: { padding: 4 },
+    topBarBadge: {
+      position: 'absolute',
+      top: -2,
+      right: -4,
+      minWidth: 16,
+      height: 16,
+      borderRadius: 8,
+      paddingHorizontal: 4,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    topBarBadgeText: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: 10,
+      color: '#FFFFFF',
+    },
+
     hero: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
     },
     heroMark: {
-      width: 46,
-      height: 46,
+      width: 52,
+      height: 52,
       borderRadius: radii.lg,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    heroBody: { flex: 1 },
+    heroBody: { flex: 1, minWidth: 0 },
     heroTitle: {
-      fontFamily: typography.fontFamily.semiBold,
-      fontSize: typography.size.sm,
-      lineHeight: typography.lineHeight.sm,
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xl,
+      lineHeight: typography.lineHeight.xl,
       color: c.textPrimary,
     },
+    heroSubtitle: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textMuted,
+      marginTop: 1,
+    },
     heroBadge: {
+      // Capped so the title keeps the width it needs at 375pt. The reference
+      // is drawn on a wider phone; the badge is what gives way, not the name.
+      maxWidth: 104,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.xs,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs,
+      gap: 5,
+      paddingHorizontal: 7,
+      paddingVertical: 6,
       borderRadius: radii.md,
     },
+    heroBadgeBody: { flexShrink: 1 },
+    heroBadgeNote: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: 10,
+      color: c.textMuted,
+    },
     heroBadgeTitle: {
-      fontFamily: typography.fontFamily.semiBold,
-      fontSize: typography.size.sm,
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xs,
     },
 
     /* The numbered finder card */

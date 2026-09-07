@@ -2540,7 +2540,7 @@
     },
     "heroSubtitle": "Trouvez du sang disponible. Sauvez des vies.",
     "verifiedBadge": "Vérifié",
-    "verifiedBadgeNote": "Établissements contrôlés",
+    "verifiedBadgeNote": "Contrôlés",
     "stepUrgency": "Urgence",
     "stepRange": "Rayon",
     "findBlood": "Trouver du sang",
@@ -2561,6 +2561,15 @@
       "map": "Carte des banques",
       "education": "Le don de sang",
       "myRequests": "Mes demandes"
+    },
+    "openBank": "Ouvrir cette banque de sang",
+    "unitsAvailable": "Unités disponibles",
+    "noComponentCounts": "Aucun chiffre par composant publié",
+    "componentShort": {
+      "whole_blood": "ST",
+      "red_cells": "CGR",
+      "platelets": "CP",
+      "plasma": "PFC"
     }
   },
   "appUpdate": {

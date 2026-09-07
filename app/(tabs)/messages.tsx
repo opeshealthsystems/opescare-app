@@ -66,6 +66,7 @@ import {
   ListRow,
   PillInput,
   radii,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   spacing,
@@ -267,17 +268,18 @@ export default function MessagesScreen() {
               </View>
 
               {visibleThreads.length > 0 ? (
-                <Card variant="flush">
-                  {visibleThreads.map((thread, index) => (
-                    <ThreadRow
-                      key={thread.id}
-                      thread={thread}
-                      locale={i18n.language}
-                      divider={index < visibleThreads.length - 1}
-                      onPress={() => openThread(thread)}
-                    />
+                <ResultList>
+                  {visibleThreads.map((thread) => (
+                    <Card key={thread.id} variant="flush">
+                      <ThreadRow
+                        thread={thread}
+                        locale={i18n.language}
+                        divider={false}
+                        onPress={() => openThread(thread)}
+                      />
+                    </Card>
                   ))}
-                </Card>
+                </ResultList>
               ) : unreadOnly && !search.trim() ? (
                 // The Unread filter on an inbox with nothing unread is the
                 // common case — it deserves reassurance, not a search hint.
@@ -560,41 +562,42 @@ function ComposeSheet({
                       )}
                     />
                   ) : (
-                    <Card variant="flush">
-                      {facilities.map((facility, index) => {
+                    <ResultList>
+                      {facilities.map((facility) => {
                         const selected = selectedFacilityId === facility.id;
                         return (
-                          <ListRow
-                            key={facility.id}
-                            icon="building"
-                            tint="blue"
-                            title={facility.name}
-                            // `basis_label` arrives translated from the server —
-                            // the same rule that decides the row is allowed also
-                            // writes the sentence explaining it.
-                            meta={[facility.city, facility.basis_label]}
-                            chevron={false}
-                            divider={index < facilities.length - 1}
-                            onPress={() => onSelectFacility(facility.id)}
-                            style={selected ? styles.rowSelected : undefined}
-                            accessibilityLabel={a11yJoin(
-                              facility.name,
-                              facility.city,
-                              facility.basis_label,
-                              selected ? t('messagingRecipients.selectedA11y') : null,
-                            )}
-                            trailing={
-                              <Icon
-                                name="check-circle"
-                                size={22}
-                                color={selected ? colors.statusNormal : colors.border}
-                                strokeWidth={2}
-                              />
-                            }
-                          />
+                          <Card key={facility.id} variant="flush">
+                            <ListRow
+                              icon="building"
+                              tint="blue"
+                              title={facility.name}
+                              // `basis_label` arrives translated from the server —
+                              // the same rule that decides the row is allowed also
+                              // writes the sentence explaining it.
+                              meta={[facility.city, facility.basis_label]}
+                              chevron={false}
+                              divider={false}
+                              onPress={() => onSelectFacility(facility.id)}
+                              style={selected ? styles.rowSelected : undefined}
+                              accessibilityLabel={a11yJoin(
+                                facility.name,
+                                facility.city,
+                                facility.basis_label,
+                                selected ? t('messagingRecipients.selectedA11y') : null,
+                              )}
+                              trailing={
+                                <Icon
+                                  name="check-circle"
+                                  size={22}
+                                  color={selected ? colors.statusNormal : colors.border}
+                                  strokeWidth={2}
+                                />
+                              }
+                            />
+                          </Card>
                         );
                       })}
-                    </Card>
+                    </ResultList>
                   )}
                 </>
               ) : loading ? (
@@ -609,60 +612,61 @@ function ComposeSheet({
                   onAction={() => onChangeKind('facility')}
                 />
               ) : (
-                <Card variant="flush">
-                  {clinicians.map((clinician, index) => {
+                <ResultList>
+                  {clinicians.map((clinician) => {
                     const selected = selectedClinicianId === clinician.id;
                     // Authorised but with no inbox that can list the result.
                     // Shown, and shown as unusable: hiding it would leave the
                     // patient wondering where a name they know had gone.
                     const blocked = !clinician.deliverable;
                     return (
-                      <ListRow
-                        key={clinician.id}
-                        leading={<Avatar name={clinician.name} size={40} />}
-                        title={clinician.name}
-                        meta={[
-                          clinician.facility_name,
-                          blocked
-                            ? t('messagingRecipients.clinicianUnavailableHint', {
-                                name: clinician.name,
-                                facility: clinician.facility_name ?? t('messages.careTeam'),
-                              })
-                            : clinician.basis_label,
-                        ]}
-                        chevron={false}
-                        divider={index < clinicians.length - 1}
-                        onPress={blocked ? undefined : () => onSelectClinician(clinician.id)}
-                        style={selected ? styles.rowSelected : undefined}
-                        accessibilityLabel={a11yJoin(
-                          clinician.name,
-                          clinician.facility_name,
-                          blocked
-                            ? t('messagingRecipients.clinicianUnavailable')
-                            : clinician.basis_label,
-                          selected ? t('messagingRecipients.selectedA11y') : null,
-                        )}
-                        trailing={
-                          blocked ? (
-                            <StatusBadge
-                              status="unavailable"
-                              tone="neutral"
-                              size="sm"
-                              label={t('messagingRecipients.clinicianUnavailable')}
-                            />
-                          ) : (
-                            <Icon
-                              name="check-circle"
-                              size={22}
-                              color={selected ? colors.statusNormal : colors.border}
-                              strokeWidth={2}
-                            />
-                          )
-                        }
-                      />
+                      <Card key={clinician.id} variant="flush">
+                        <ListRow
+                          leading={<Avatar name={clinician.name} size={40} />}
+                          title={clinician.name}
+                          meta={[
+                            clinician.facility_name,
+                            blocked
+                              ? t('messagingRecipients.clinicianUnavailableHint', {
+                                  name: clinician.name,
+                                  facility: clinician.facility_name ?? t('messages.careTeam'),
+                                })
+                              : clinician.basis_label,
+                          ]}
+                          chevron={false}
+                          divider={false}
+                          onPress={blocked ? undefined : () => onSelectClinician(clinician.id)}
+                          style={selected ? styles.rowSelected : undefined}
+                          accessibilityLabel={a11yJoin(
+                            clinician.name,
+                            clinician.facility_name,
+                            blocked
+                              ? t('messagingRecipients.clinicianUnavailable')
+                              : clinician.basis_label,
+                            selected ? t('messagingRecipients.selectedA11y') : null,
+                          )}
+                          trailing={
+                            blocked ? (
+                              <StatusBadge
+                                status="unavailable"
+                                tone="neutral"
+                                size="sm"
+                                label={t('messagingRecipients.clinicianUnavailable')}
+                              />
+                            ) : (
+                              <Icon
+                                name="check-circle"
+                                size={22}
+                                color={selected ? colors.statusNormal : colors.border}
+                                strokeWidth={2}
+                              />
+                            )
+                          }
+                        />
+                      </Card>
                     );
                   })}
-                </Card>
+                </ResultList>
               )}
 
               {/* Every name on the list is real and none of them can be

@@ -55,6 +55,7 @@ import {
   EmptyState,
   Icon,
   ListRow,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   StaleNotice,
@@ -676,11 +677,13 @@ export default function DoctorHomeScreen() {
               actionLabel={tx('home.viewAll', 'View all')}
               onAction={() => router.push(doctorRoutes.results)}
             />
-            <Card variant="flush">
+            <ResultList>
               {data.urgent_results.map((r) => (
-                <ResultRow key={r.id} result={r} onPress={() => router.push(doctorRoutes.result(r.id))} />
+                <Card key={r.id} variant="flush">
+                  <ResultRow result={r} onPress={() => router.push(doctorRoutes.result(r.id))} />
+                </Card>
               ))}
-            </Card>
+            </ResultList>
           </>
         )}
 
@@ -703,10 +706,9 @@ export default function DoctorHomeScreen() {
                 message={tx('home.nothingTodayBody', 'You have no appointments scheduled for today.')}
               />
             ) : (
-              <Card variant="flush">
-                {data.next_appointments.map((a, i) => (
-                  <View key={a.id}>
-                    {i > 0 && <View style={styles.divider} />}
+              <ResultList>
+                {data.next_appointments.map((a) => (
+                  <Card key={a.id} variant="flush">
                     {a.scheduled_at ? (
                       <ScheduleRow
                         appointment={asScheduleRow(a, a.scheduled_at)}
@@ -727,9 +729,9 @@ export default function DoctorHomeScreen() {
                         onPress={() => router.push(doctorRoutes.appointment(a.id))}
                       />
                     )}
-                  </View>
+                  </Card>
                 ))}
-              </Card>
+              </ResultList>
             )}
           </>
         )}
@@ -921,7 +923,6 @@ const makeStyles = (colors: Palette) =>
     screen: { flex: 1, backgroundColor: colors.page },
     content: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
 
-    divider: { height: 1, backgroundColor: colors.divider, marginLeft: spacing.md },
 
     footer: {
       flexDirection: 'row',

@@ -83,6 +83,7 @@ import {
   EmptyState,
   LastUpdatedLine,
   ListRow,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   StatusBadge,
@@ -584,32 +585,33 @@ function ProblemsSection({
           : tx('chart.problemsEmpty', 'The problem list is empty.')
       }
     >
-      <Card variant="flush">
-        {shown.map((p, i) => (
-          <ListRow
-            key={p.id}
-            icon="clipboard"
-            tint="amber"
-            title={p.icd10_description}
-            meta={[
-              p.icd10_code,
-              fmtChartDate(p.onset_date)
-                ? tx('chart.onset', 'Onset {{date}}', { date: fmtChartDate(p.onset_date) as string })
-                : null,
-            ]}
-            trailing={
-              <StatusBadge
-                status={p.status}
-                label={problemStatusLabel(p.status)}
-                tone="warning"
-                size="sm"
-              />
-            }
-            chevron={false}
-            divider={i < shown.length - 1}
-          />
+      <ResultList>
+        {shown.map((p) => (
+          <Card key={p.id} variant="flush">
+            <ListRow
+              icon="clipboard"
+              tint="amber"
+              title={p.icd10_description}
+              meta={[
+                p.icd10_code,
+                fmtChartDate(p.onset_date)
+                  ? tx('chart.onset', 'Onset {{date}}', { date: fmtChartDate(p.onset_date) as string })
+                  : null,
+              ]}
+              trailing={
+                <StatusBadge
+                  status={p.status}
+                  label={problemStatusLabel(p.status)}
+                  tone="warning"
+                  size="sm"
+                />
+              }
+              chevron={false}
+              divider={false}
+            />
+          </Card>
         ))}
-      </Card>
+      </ResultList>
     </SectionShell>
   );
 }
@@ -659,27 +661,28 @@ function MedicationsSection({
           </Text>
         </Card>
       ) : (
-        <Card variant="flush">
-          {shown.map((m, i) => (
-            <ListRow
-              key={m.id}
-              icon="pill"
-              tint="green"
-              title={m.drug_name}
-              meta={[m.dosage, m.frequency, routeLabel(m.route) || null]}
-              trailing={
-                <StatusBadge
-                  status={m.status}
-                  label={prescriptionStatusLabel(m.status)}
-                  tone="normal"
-                  size="sm"
-                />
-              }
-              chevron={false}
-              divider={i < shown.length - 1}
-            />
+        <ResultList>
+          {shown.map((m) => (
+            <Card key={m.id} variant="flush">
+              <ListRow
+                icon="pill"
+                tint="green"
+                title={m.drug_name}
+                meta={[m.dosage, m.frequency, routeLabel(m.route) || null]}
+                trailing={
+                  <StatusBadge
+                    status={m.status}
+                    label={prescriptionStatusLabel(m.status)}
+                    tone="normal"
+                    size="sm"
+                  />
+                }
+                chevron={false}
+                divider={false}
+              />
+            </Card>
           ))}
-        </Card>
+        </ResultList>
       )}
     </View>
   );
@@ -748,22 +751,23 @@ function EncountersSection({
       tx={tx}
       emptyText={tx('chart.encountersEmpty', 'No encounters on record.')}
     >
-      <Card variant="flush">
-        {shown.map((e, i) => (
-          <ListRow
-            key={e.id}
-            icon="stethoscope"
-            tint={encounterTint(e.encounter_type)}
-            title={e.chief_complaint || encounterTypeLabel(e.encounter_type)}
-            meta={[fmtChartDate(e.encounter_date), encounterTypeLabel(e.encounter_type), e.doctor_name]}
-            trailing={
-              <StatusBadge status={e.status} label={encounterStatusLabel(e.status)} size="sm" />
-            }
-            chevron={false}
-            divider={i < shown.length - 1}
-          />
+      <ResultList>
+        {shown.map((e) => (
+          <Card key={e.id} variant="flush">
+            <ListRow
+              icon="stethoscope"
+              tint={encounterTint(e.encounter_type)}
+              title={e.chief_complaint || encounterTypeLabel(e.encounter_type)}
+              meta={[fmtChartDate(e.encounter_date), encounterTypeLabel(e.encounter_type), e.doctor_name]}
+              trailing={
+                <StatusBadge status={e.status} label={encounterStatusLabel(e.status)} size="sm" />
+              }
+              chevron={false}
+              divider={false}
+            />
+          </Card>
         ))}
-      </Card>
+      </ResultList>
     </SectionShell>
   );
 }
@@ -811,25 +815,26 @@ function OrdersSection({
           </Text>
         </Card>
       ) : (
-        <Card variant="flush">
-          {shown.map((o, i) => (
-            <ListRow
-              key={o.id}
-              icon={orderTypeIcon(o.order_type)}
-              tint={o.status === 'completed' ? 'green' : 'blue'}
-              title={o.name}
-              subtitle={
-                o.result_summary ??
-                metaLine(orderTypeLabel(o.order_type), fmtAgo(o.ordered_at ?? o.created_at))
-              }
-              trailing={
-                <StatusBadge status={o.status} label={orderStatusLabel(o.status)} size="sm" />
-              }
-              chevron={false}
-              divider={i < shown.length - 1}
-            />
+        <ResultList>
+          {shown.map((o) => (
+            <Card key={o.id} variant="flush">
+              <ListRow
+                icon={orderTypeIcon(o.order_type)}
+                tint={o.status === 'completed' ? 'green' : 'blue'}
+                title={o.name}
+                subtitle={
+                  o.result_summary ??
+                  metaLine(orderTypeLabel(o.order_type), fmtAgo(o.ordered_at ?? o.created_at))
+                }
+                trailing={
+                  <StatusBadge status={o.status} label={orderStatusLabel(o.status)} size="sm" />
+                }
+                chevron={false}
+                divider={false}
+              />
+            </Card>
           ))}
-        </Card>
+        </ResultList>
       )}
     </View>
   );

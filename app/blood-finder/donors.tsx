@@ -19,6 +19,7 @@ import {
   Card,
   EmptyState,
   Icon,
+  ResultList,
   ScreenHeader,
   radii,
   spacing,
@@ -381,7 +382,14 @@ export default function FindDonorsScreen() {
                 />
               </Card>
             ) : (
-              shown.map((donor) => <DonorCard key={donor.id} donor={donor} />)
+              /* Donors are separate people to compare and choose between.
+                 `DonorCard` already draws its own flush card, so it goes
+                 straight into the list; the gap does the separating. */
+              <ResultList>
+                {shown.map((donor) => (
+                  <DonorCard key={donor.id} donor={donor} />
+                ))}
+              </ResultList>
             )}
 
             {donors.length >= cappedAt ? (

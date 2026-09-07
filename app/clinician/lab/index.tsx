@@ -37,6 +37,7 @@ import {
   Chip,
   EmptyState,
   Icon,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   SegmentedTabs,
@@ -286,16 +287,17 @@ function LabDeskScreenBody() {
         );
       } else {
         body = (
-          <Card variant="flush">
-            {rows.map((o, i) => (
-              <LabOrderRow
-                key={o.id}
-                order={o}
-                divider={i < rows.length - 1}
-                onPress={() => router.push(labRoutes.order(o.id))}
-              />
+          <ResultList>
+            {rows.map((o) => (
+              <Card key={o.id} variant="flush">
+                <LabOrderRow
+                  order={o}
+                  divider={false}
+                  onPress={() => router.push(labRoutes.order(o.id))}
+                />
+              </Card>
             ))}
-          </Card>
+          </ResultList>
         );
       }
     }

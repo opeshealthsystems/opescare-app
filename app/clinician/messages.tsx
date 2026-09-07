@@ -41,6 +41,7 @@ import {
   Card,
   EmptyState,
   ListRow,
+  ResultList,
   ScreenHeader,
   SegmentedTabs,
   StaleNotice,
@@ -247,18 +248,19 @@ function DoctorMessagesScreenBody() {
     );
   } else {
     body = (
-      <Card variant="flush">
-        {rows.map((thread, i) => (
-          <ThreadRow
-            key={thread.id}
-            thread={thread}
-            divider={i < rows.length - 1}
-            styles={styles}
-            tx={tx}
-            onPress={() => router.push(doctorRoutes.thread(thread.id))}
-          />
+      <ResultList>
+        {rows.map((thread) => (
+          <Card key={thread.id} variant="flush">
+            <ThreadRow
+              thread={thread}
+              divider={false}
+              styles={styles}
+              tx={tx}
+              onPress={() => router.push(doctorRoutes.thread(thread.id))}
+            />
+          </Card>
         ))}
-      </Card>
+      </ResultList>
     );
   }
 

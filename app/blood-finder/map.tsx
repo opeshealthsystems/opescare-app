@@ -8,6 +8,7 @@ import {
   Card,
   EmptyState,
   Icon,
+  ResultList,
   ScreenHeader,
   radii,
   spacing,
@@ -453,9 +454,10 @@ export default function BloodMapScreen() {
               />
             </Card>
           ) : (
-            /* One card, rows divided — as the reference stacks its banks. */
-            <Card variant="flush">
-              {ordered.map((facility, index) => {
+            /* Results, not a fact table: each bank is its own card and the gap
+               between them is what says they are separate things to compare. */
+            <ResultList>
+              {ordered.map((facility) => {
                 const grid = matrix
                   .forFacility(facility.id)
                   .filter((cell) => GRID_GROUPS.includes(cell.group));
@@ -468,137 +470,136 @@ export default function BloodMapScreen() {
                 const address = bankAddress(facility);
 
                 return (
-                  <View
-                    key={facility.id}
-                    style={[styles.bankRow, index > 0 && styles.bankDivider]}
-                  >
-                    <TouchableOpacity
-                      onPress={() =>
-                        router.push({
-                          pathname: '/blood-finder/bank',
-                          params: {
-                            facilityId: facility.id,
-                            bloodGroup: 'O+',
-                            componentType: component,
-                            lat: String(city.lat),
-                            lng: String(city.lng),
-                            radiusKm: String(radiusKm),
-                          },
-                        })
-                      }
-                      activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityLabel={facility.name}
-                      style={styles.bankHead}
-                    >
-                      <View style={[styles.bankMark, { backgroundColor: colors.statusCriticalBg }]}>
-                        <Icon name="droplet" size={19} color={colors.statusCritical} />
-                        {/* Two-state, like the legend: reported / not reported. */}
-                        <View
-                          style={[
-                            styles.bankDot,
-                            {
-                              backgroundColor: anyReported ? colors.statusNormal : colors.textMuted,
-                              borderColor: colors.surface,
+                  <Card key={facility.id} variant="flush">
+                    <View style={styles.bankRow}>
+                      <TouchableOpacity
+                        onPress={() =>
+                          router.push({
+                            pathname: '/blood-finder/bank',
+                            params: {
+                              facilityId: facility.id,
+                              bloodGroup: 'O+',
+                              componentType: component,
+                              lat: String(city.lat),
+                              lng: String(city.lng),
+                              radiusKm: String(radiusKm),
                             },
-                          ]}
-                        />
-                      </View>
-
-                      <View style={styles.bankBody}>
-                        <View style={styles.bankTitleRow}>
-                          <Text style={styles.bankName} numberOfLines={2}>
-                            {facility.name}
-                          </Text>
-                          {facility.distance_km !== null && (
-                            <View style={styles.distancePill}>
-                              <Text style={styles.distanceText}>
-                                {t('bloodMap.distancePill', { km: facility.distance_km })}
+                          })
+                        }
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={facility.name}
+                        style={styles.bankHead}
+                      >
+                        <View style={[styles.bankMark, { backgroundColor: colors.statusCriticalBg }]}>
+                          <Icon name="droplet" size={19} color={colors.statusCritical} />
+                          {/* Two-state, like the legend: reported / not reported. */}
+                          <View
+                            style={[
+                              styles.bankDot,
+                              {
+                                backgroundColor: anyReported ? colors.statusNormal : colors.textMuted,
+                                borderColor: colors.surface,
+                              },
+                            ]}
+                          />
+                        </View>
+  
+                        <View style={styles.bankBody}>
+                          <View style={styles.bankTitleRow}>
+                            <Text style={styles.bankName} numberOfLines={2}>
+                              {facility.name}
+                            </Text>
+                            {facility.distance_km !== null && (
+                              <View style={styles.distancePill}>
+                                <Text style={styles.distanceText}>
+                                  {t('bloodMap.distancePill', { km: facility.distance_km })}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+  
+                          {!!address && (
+                            <View style={styles.bankMetaRow}>
+                              <Icon name="location" size={12} color={colors.textSecondary} />
+                              <Text style={styles.bankMeta} numberOfLines={1}>
+                                {address}
                               </Text>
                             </View>
                           )}
+  
+                          {/* Not opening hours — this platform has none. How
+                              fresh the facility's own stock report is. */}
+                          <Text
+                            style={[styles.bankFreshness, { color: freshnessColor }]}
+                            numberOfLines={1}
+                          >
+                            {freshness
+                              ? t(`bloodFinder.freshness.${freshness}`)
+                              : t('bloodMap.nothingReported')}
+                          </Text>
                         </View>
-
-                        {!!address && (
-                          <View style={styles.bankMetaRow}>
-                            <Icon name="location" size={12} color={colors.textSecondary} />
-                            <Text style={styles.bankMeta} numberOfLines={1}>
-                              {address}
-                            </Text>
-                          </View>
-                        )}
-
-                        {/* Not opening hours — this platform has none. How
-                            fresh the facility's own stock report is. */}
-                        <Text
-                          style={[styles.bankFreshness, { color: freshnessColor }]}
-                          numberOfLines={1}
-                        >
-                          {freshness
-                            ? t(`bloodFinder.freshness.${freshness}`)
-                            : t('bloodMap.nothingReported')}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-
-                    <View style={styles.bankFoot}>
-                      {/* The grid the reference is built around. */}
-                      <View style={styles.grid}>
-                        {grid.map((cell) => (
-                          <View key={cell.group} style={styles.gridCell}>
-                            <Text style={styles.gridGroup}>{cell.group}</Text>
-                            <View
-                              style={[
-                                styles.gridValueBox,
-                                {
-                                  backgroundColor: cell.units
-                                    ? colors.statusNormalBg
-                                    : colors.surfaceMuted,
-                                  borderColor: cell.units ? colors.statusNormal : colors.border,
-                                },
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.gridValue,
-                                  { color: cell.units ? colors.statusNormal : colors.textMuted },
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {/* Not reported is a dash, never a zero. */}
-                                {cell.units ?? '—'}
-                              </Text>
-                            </View>
-                          </View>
-                        ))}
-                      </View>
-
-                      <TouchableOpacity
-                        onPress={() => dial(number)}
-                        disabled={!number}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('bloodMap.callA11y', { name: facility.name })}
-                        accessibilityState={{ disabled: !number }}
-                        style={[
-                          styles.bankCall,
-                          {
-                            borderColor: number ? colors.statusCritical : colors.border,
-                            backgroundColor: number ? colors.statusCriticalBg : colors.surfaceMuted,
-                          },
-                        ]}
-                      >
-                        <Icon
-                          name="phone"
-                          size={16}
-                          color={number ? colors.statusCritical : colors.textMuted}
-                        />
                       </TouchableOpacity>
+  
+                      <View style={styles.bankFoot}>
+                        {/* The grid the reference is built around. */}
+                        <View style={styles.grid}>
+                          {grid.map((cell) => (
+                            <View key={cell.group} style={styles.gridCell}>
+                              <Text style={styles.gridGroup}>{cell.group}</Text>
+                              <View
+                                style={[
+                                  styles.gridValueBox,
+                                  {
+                                    backgroundColor: cell.units
+                                      ? colors.statusNormalBg
+                                      : colors.surfaceMuted,
+                                    borderColor: cell.units ? colors.statusNormal : colors.border,
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.gridValue,
+                                    { color: cell.units ? colors.statusNormal : colors.textMuted },
+                                  ]}
+                                  numberOfLines={1}
+                                >
+                                  {/* Not reported is a dash, never a zero. */}
+                                  {cell.units ?? '—'}
+                                </Text>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+  
+                        <TouchableOpacity
+                          onPress={() => dial(number)}
+                          disabled={!number}
+                          hitSlop={8}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('bloodMap.callA11y', { name: facility.name })}
+                          accessibilityState={{ disabled: !number }}
+                          style={[
+                            styles.bankCall,
+                            {
+                              borderColor: number ? colors.statusCritical : colors.border,
+                              backgroundColor: number ? colors.statusCriticalBg : colors.surfaceMuted,
+                            },
+                          ]}
+                        >
+                          <Icon
+                            name="phone"
+                            size={16}
+                            color={number ? colors.statusCritical : colors.textMuted}
+                          />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  </View>
+                  </Card>
                 );
               })}
-            </Card>
+            </ResultList>
           )}
         </View>
 
@@ -801,7 +802,6 @@ const makeStyles = (c: Palette) =>
 
     /* Bank rows */
     bankRow: { padding: spacing.md, gap: spacing.sm },
-    bankDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.divider },
     bankHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
     bankMark: {
       width: 40,

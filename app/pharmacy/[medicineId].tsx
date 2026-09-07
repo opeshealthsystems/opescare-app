@@ -21,6 +21,7 @@ import {
   Icon,
   LastUpdatedLine,
   ListRow,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   StaleNotice,
@@ -962,23 +963,27 @@ export default function MedicineDetailScreen() {
                 </Card>
               ) : (
                 <View style={styles.stack}>
-                  <Card variant="flush">
-                    {pharmacyRows.map((row, index) => (
-                      <PharmacyOptionRow
-                        key={row.id}
-                        pharmacy={row}
-                        selected={pharmacy?.id === row.id}
-                        divider={index < pharmacyRows.length - 1}
-                        onSelect={() => {
-                          setPharmacyId(row.id);
-                          setPackSize(null);
-                          setConfirmed(null);
-                          setErrorCode(null);
-                        }}
-                        onCall={(number) => callPharmacy(row.name, number)}
-                      />
+                  {/* Nearby pharmacies are separate places to compare and
+                      choose between, so each gets its own card and the gap
+                      does the separating. */}
+                  <ResultList>
+                    {pharmacyRows.map((row) => (
+                      <Card key={row.id} variant="flush">
+                        <PharmacyOptionRow
+                          pharmacy={row}
+                          selected={pharmacy?.id === row.id}
+                          divider={false}
+                          onSelect={() => {
+                            setPharmacyId(row.id);
+                            setPackSize(null);
+                            setConfirmed(null);
+                            setErrorCode(null);
+                          }}
+                          onCall={(number) => callPharmacy(row.name, number)}
+                        />
+                      </Card>
                     ))}
-                  </Card>
+                  </ResultList>
                   {withoutStockRow > 0 ? (
                     <Text style={styles.footNote}>
                       {t('pharmacy.nearbyNoStockRow', {

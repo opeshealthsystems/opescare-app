@@ -25,6 +25,7 @@ import {
   Icon,
   ListRow,
   PillInput,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   StatusBadge,
@@ -466,27 +467,28 @@ export default function HelpScreen() {
               />
             </Card>
           ) : (
-            <Card variant="flush">
-              {tickets.map((ticket, index) => (
-                <ListRow
-                  key={ticket.id}
-                  icon="clipboard"
-                  tint={statusTone(ticket.status) === 'critical' ? 'red' : 'blue'}
-                  title={ticket.subject}
-                  subtitle={ticketMeta(ticket.id, ticket.category, ticket.updated_at)}
-                  onPress={() => setActiveTicketId(ticket.id)}
-                  divider={index < tickets.length - 1}
-                  trailing={
-                    <StatusBadge
-                      status={ticket.status}
-                      tone={statusTone(ticket.status)}
-                      label={t(`help.status.${ticket.status}`, { defaultValue: ticket.status })}
-                      size="sm"
-                    />
-                  }
-                />
+            <ResultList>
+              {tickets.map((ticket) => (
+                <Card key={ticket.id} variant="flush">
+                  <ListRow
+                    icon="clipboard"
+                    tint={statusTone(ticket.status) === 'critical' ? 'red' : 'blue'}
+                    title={ticket.subject}
+                    subtitle={ticketMeta(ticket.id, ticket.category, ticket.updated_at)}
+                    onPress={() => setActiveTicketId(ticket.id)}
+                    divider={false}
+                    trailing={
+                      <StatusBadge
+                        status={ticket.status}
+                        tone={statusTone(ticket.status)}
+                        label={t(`help.status.${ticket.status}`, { defaultValue: ticket.status })}
+                        size="sm"
+                      />
+                    }
+                  />
+                </Card>
               ))}
-            </Card>
+            </ResultList>
           )}
         </View>
 

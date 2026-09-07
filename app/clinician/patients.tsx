@@ -63,6 +63,7 @@ import {
   Icon,
   ListRow,
   PillInput,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   StatusBadge,
@@ -580,19 +581,20 @@ function TodaySection({
     );
   } else {
     body = (
-      <Card variant="flush">
-        {rows.map((a, i) => (
-          <ListRow
-            key={a.id}
-            icon="person"
-            tint="blue"
-            title={patientName(a)}
-            meta={[a.patient_health_id, staffTypeLabel(a.appointment_type)]}
-            onPress={() => onOpen(a)}
-            divider={i < rows.length - 1}
-          />
+      <ResultList>
+        {rows.map((a) => (
+          <Card key={a.id} variant="flush">
+            <ListRow
+              icon="person"
+              tint="blue"
+              title={patientName(a)}
+              meta={[a.patient_health_id, staffTypeLabel(a.appointment_type)]}
+              onPress={() => onOpen(a)}
+              divider={false}
+            />
+          </Card>
         ))}
-      </Card>
+      </ResultList>
     );
   }
 

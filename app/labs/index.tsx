@@ -29,6 +29,7 @@ import {
   EmptyState,
   Icon,
   ListRow,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   StatusBadge,
@@ -293,36 +294,37 @@ export default function LabsDashboardScreen() {
               />
             </Card>
           ) : (
-            <Card variant="flush">
-              {orders.map((o, i) => (
-                <ListRow
-                  key={o.id}
-                  icon="flask"
-                  // Labs are the green tint (DESIGN_SPEC §1); only a critical
-                  // panel earns the red circle, the badge carries the flag.
-                  tint={o.overall_flag === 'critical' ? 'red' : 'green'}
-                  title={o.name}
-                  meta={[
-                    fmtDate(o.ordered_at),
-                    tx(
-                      'dashboard.resultCount',
-                      o.result_count === 1 ? '{{count}} result' : '{{count}} results',
-                      { count: o.result_count }
-                    ),
-                  ]}
-                  trailing={
-                    <StatusBadge
-                      status={o.overall_flag}
-                      label={resultFlagLabel(o.overall_flag, tx, tr)}
-                      tone={toneForFlag(o.overall_flag)}
-                      size="sm"
-                    />
-                  }
-                  onPress={() => openOrder(o.id)}
-                  divider={i < orders.length - 1}
-                />
+            <ResultList>
+              {orders.map((o) => (
+                <Card key={o.id} variant="flush">
+                  <ListRow
+                    icon="flask"
+                    // Labs are the green tint (DESIGN_SPEC §1); only a critical
+                    // panel earns the red circle, the badge carries the flag.
+                    tint={o.overall_flag === 'critical' ? 'red' : 'green'}
+                    title={o.name}
+                    meta={[
+                      fmtDate(o.ordered_at),
+                      tx(
+                        'dashboard.resultCount',
+                        o.result_count === 1 ? '{{count}} result' : '{{count}} results',
+                        { count: o.result_count }
+                      ),
+                    ]}
+                    trailing={
+                      <StatusBadge
+                        status={o.overall_flag}
+                        label={resultFlagLabel(o.overall_flag, tx, tr)}
+                        tone={toneForFlag(o.overall_flag)}
+                        size="sm"
+                      />
+                    }
+                    onPress={() => openOrder(o.id)}
+                    divider={false}
+                  />
+                </Card>
               ))}
-            </Card>
+            </ResultList>
           )}
         </View>
 

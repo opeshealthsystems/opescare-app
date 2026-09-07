@@ -74,6 +74,7 @@ import {
   Icon,
   LastUpdatedLine,
   ListRow,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   StatusBadge,
@@ -505,17 +506,18 @@ function DiagnosesFull({
                         count: group.length,
                       })}
                     </Text>
-                    <Card variant="flush">
-                      {group.map((p, i) => (
-                        <ProblemRow
-                          key={p.id}
-                          problem={p}
-                          tone={problemTone(key)}
-                          divider={i < group.length - 1}
-                          tx={tx}
-                        />
+                    <ResultList>
+                      {group.map((p) => (
+                        <Card key={p.id} variant="flush">
+                          <ProblemRow
+                            problem={p}
+                            tone={problemTone(key)}
+                            divider={false}
+                            tx={tx}
+                          />
+                        </Card>
                       ))}
-                    </Card>
+                    </ResultList>
                   </View>
                 );
               })}
@@ -528,17 +530,13 @@ function DiagnosesFull({
                       count: other.length,
                     })}
                   </Text>
-                  <Card variant="flush">
-                    {other.map((p, i) => (
-                      <ProblemRow
-                        key={p.id}
-                        problem={p}
-                        tone="neutral"
-                        divider={i < other.length - 1}
-                        tx={tx}
-                      />
+                  <ResultList>
+                    {other.map((p) => (
+                      <Card key={p.id} variant="flush">
+                        <ProblemRow problem={p} tone="neutral" divider={false} tx={tx} />
+                      </Card>
                     ))}
-                  </Card>
+                  </ResultList>
                 </View>
               )}
             </>
@@ -577,24 +575,25 @@ function DiagnosesFull({
               noun="opesDoctor.chart.nounDiagnoses"
               scanLimit={SECTION_ENCOUNTER_SCAN}
             />
-            <Card variant="flush">
-              {d.items.map((dx, i) => (
-                <ListRow
-                  key={dx.id}
-                  icon="first-aid"
-                  tint={dx.diagnosis_type === 'primary' ? 'amber' : 'blue'}
-                  title={dx.icd10_description}
-                  meta={[
-                    dx.icd10_code,
-                    dx.diagnosis_type ? titleCase(dx.diagnosis_type) : null,
-                    dx.diagnosis_nature ? titleCase(dx.diagnosis_nature) : null,
-                    fmtChartDate(dx.created_at),
-                  ]}
-                  chevron={false}
-                  divider={i < d.items.length - 1}
-                />
+            <ResultList>
+              {d.items.map((dx) => (
+                <Card key={dx.id} variant="flush">
+                  <ListRow
+                    icon="first-aid"
+                    tint={dx.diagnosis_type === 'primary' ? 'amber' : 'blue'}
+                    title={dx.icd10_description}
+                    meta={[
+                      dx.icd10_code,
+                      dx.diagnosis_type ? titleCase(dx.diagnosis_type) : null,
+                      dx.diagnosis_nature ? titleCase(dx.diagnosis_nature) : null,
+                      fmtChartDate(dx.created_at),
+                    ]}
+                    chevron={false}
+                    divider={false}
+                  />
+                </Card>
               ))}
-            </Card>
+            </ResultList>
           </>
         )}
       </SectionData>

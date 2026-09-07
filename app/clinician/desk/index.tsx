@@ -36,6 +36,7 @@ import { RoleGate } from '@/components/doctor/RoleGate';
 import {
   Card,
   EmptyState,
+  ResultList,
   ScreenHeader,
   SegmentedTabs,
   StaleNotice,
@@ -182,14 +183,13 @@ function DeskBookScreenBody() {
     );
   } else {
     body = (
-      <Card variant="flush">
-        {rows.map((a, i) => (
-          <View key={a.id}>
-            {i > 0 && <View style={styles.divider} />}
+      <ResultList>
+        {rows.map((a) => (
+          <Card key={a.id} variant="flush">
             <DeskAppointmentRow appointment={a} onPress={() => openRow(a)} />
-          </View>
+          </Card>
         ))}
-      </Card>
+      </ResultList>
     );
   }
 
@@ -292,7 +292,6 @@ const makeStyles = (colors: Palette) =>
     screen: { flex: 1, backgroundColor: colors.page },
     content: { padding: spacing.md, paddingTop: 0, paddingBottom: spacing.xxl, gap: spacing.md },
     dayRow: { flexDirection: 'row' },
-    divider: { height: 1, backgroundColor: colors.divider, marginLeft: spacing.md },
     actions: { flexDirection: 'row', gap: spacing.sm },
     action: { flex: 1 },
     countsMissing: {

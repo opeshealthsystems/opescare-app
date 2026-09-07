@@ -31,6 +31,7 @@ import {
   Icon,
   ListRow,
   PillInput,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   StatusBadge,
@@ -318,24 +319,25 @@ export default function DocumentsScreen() {
                   />
                 </Card>
               ) : (
-                <Card variant="flush">
-                  {visible.map((doc, i) => {
+                <ResultList>
+                  {visible.map((doc) => {
                     const meta = TYPE_META[doc.document_type] ?? DEFAULT_META;
                     return (
-                      <ListRow
-                        key={doc.id}
-                        icon={meta.icon}
-                        tint={meta.tint}
-                        title={doc.title}
-                        meta={[doc.facility_name, doc.issued_at ? fmtDocDate(doc.issued_at) : null]}
-                        trailing={<StatusBadge status={doc.document_type} tone="neutral" label={typeLabel(doc.document_type)} size="sm" />}
-                        onPress={() => openPreview(doc)}
-                        accessibilityHint={t('documents.view')}
-                        divider={i < visible.length - 1}
-                      />
+                      <Card key={doc.id} variant="flush">
+                        <ListRow
+                          icon={meta.icon}
+                          tint={meta.tint}
+                          title={doc.title}
+                          meta={[doc.facility_name, doc.issued_at ? fmtDocDate(doc.issued_at) : null]}
+                          trailing={<StatusBadge status={doc.document_type} tone="neutral" label={typeLabel(doc.document_type)} size="sm" />}
+                          onPress={() => openPreview(doc)}
+                          accessibilityHint={t('documents.view')}
+                          divider={false}
+                        />
+                      </Card>
                     );
                   })}
-                </Card>
+                </ResultList>
               )}
 
               {library.hasNextPage ? (

@@ -21,6 +21,7 @@ import {
   GradientButton,
   Icon,
   ListRow,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   StatusBadge,
@@ -1201,42 +1202,46 @@ export default function FacilityDetailScreen() {
               />
             </Card>
           ) : (
-            <Card variant="flush">
-              {providers.map((provider, index) => {
+            /* Clinicians are people to compare and choose between, so each
+               gets its own card and the gap separates them. The fact tables
+               further down this screen stay flush. */
+            <ResultList>
+              {providers.map((provider) => {
                 const registered =
                   provider.credentials.length > 0 || provider.licenses.length > 0;
                 return (
-                  <ListRow
-                    key={provider.id}
-                    leading={<ProviderAvatar name={provider.name} size={44} />}
-                    title={provider.name}
-                    meta={[
-                      provider.job_title,
-                      provider.department,
-                      professionLabel(provider.profession),
-                      employmentLabel(provider.employment_type),
-                    ]}
-                    trailing={
-                      registered ? (
-                        // Only shown when the registry really holds an active
-                        // licence or credential for this person.
-                        <StatusBadge
-                          status="verified"
-                          icon="shield-check"
-                          size="sm"
-                          label={t('opesCore.common.verified')}
-                        />
-                      ) : undefined
-                    }
-                    onPress={() => router.push(`/doctor/${provider.id}`)}
-                    accessibilityHint={t('facility.viewClinician', {
-                      defaultValue: "Opens this clinician's profile",
-                    })}
-                    divider={index < providers.length - 1}
-                  />
+                  <Card key={provider.id} variant="flush">
+                    <ListRow
+                      leading={<ProviderAvatar name={provider.name} size={44} />}
+                      title={provider.name}
+                      meta={[
+                        provider.job_title,
+                        provider.department,
+                        professionLabel(provider.profession),
+                        employmentLabel(provider.employment_type),
+                      ]}
+                      trailing={
+                        registered ? (
+                          // Only shown when the registry really holds an active
+                          // licence or credential for this person.
+                          <StatusBadge
+                            status="verified"
+                            icon="shield-check"
+                            size="sm"
+                            label={t('opesCore.common.verified')}
+                          />
+                        ) : undefined
+                      }
+                      onPress={() => router.push(`/doctor/${provider.id}`)}
+                      accessibilityHint={t('facility.viewClinician', {
+                        defaultValue: "Opens this clinician's profile",
+                      })}
+                      divider={false}
+                    />
+                  </Card>
                 );
               })}
-            </Card>
+            </ResultList>
           )}
         </View>
 

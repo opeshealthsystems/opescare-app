@@ -35,6 +35,7 @@ import {
   Card,
   EmptyState,
   Icon,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   StaleNotice,
@@ -401,14 +402,13 @@ function ScheduleBody({
       {groups.map((g) => (
         <View key={g.key} style={styles.group}>
           {!!g.label && <SectionHeader title={g.label} />}
-          <Card variant="flush">
-            {g.items.map((a, i) => (
-              <View key={a.id}>
-                {i > 0 && <View style={styles.divider} />}
+          <ResultList>
+            {g.items.map((a) => (
+              <Card key={a.id} variant="flush">
                 <ScheduleRow appointment={a} onPress={() => onOpen(a)} showDate={range === 'week'} />
-              </View>
+              </Card>
             ))}
-          </Card>
+          </ResultList>
         </View>
       ))}
     </>
@@ -469,7 +469,6 @@ const makeStyles = (colors: Palette) =>
     dayTextOn: { color: colors.textOnBrand },
 
     group: { gap: spacing.sm },
-    divider: { height: 1, backgroundColor: colors.divider, marginLeft: spacing.md },
 
     requestsLink: {
       flexDirection: 'row',

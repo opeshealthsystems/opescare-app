@@ -26,6 +26,7 @@ import {
   Card,
   Chip,
   EmptyState,
+  ResultList,
   ScreenHeader,
   StaleNotice,
   spacing,
@@ -213,11 +214,13 @@ function StockScreenBody() {
                   ? t('pharmacyDesk.stock.summaryWithLow', { count: rows.length, low: lowCount })
                   : t('pharmacyDesk.stock.summary', { count: rows.length })}
             </Text>
-            <Card variant="flush">
-              {rows.map((item, i) => (
-                <StockRow key={item.id} item={item} divider={i < rows.length - 1} onPress={() => open(item)} />
+            <ResultList>
+              {rows.map((item) => (
+                <Card key={item.id} variant="flush">
+                  <StockRow item={item} divider={false} onPress={() => open(item)} />
+                </Card>
               ))}
-            </Card>
+            </ResultList>
           </>
         )}
 

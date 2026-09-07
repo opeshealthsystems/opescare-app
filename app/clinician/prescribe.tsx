@@ -66,6 +66,7 @@ import {
   Icon,
   ListRow,
   PillInput,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   StatusBadge,
@@ -1454,29 +1455,30 @@ function WrittenList({
     );
   } else {
     body = (
-      <Card variant="flush">
+      <ResultList>
         {rows.map((row, index) => (
-          <ListRow
-            key={row.id ?? row.reference ?? `row-${index}`}
-            icon="pill"
-            tint="blue"
-            title={row.reference ?? tx('prescribe.referenceMissing', 'Reference not recorded')}
-            meta={[
-              row.patient_name,
-              row.patient_health_id,
-              row.prescribed_at ? formatDate(row.prescribed_at) : null,
-              row.item_count === null
-                ? null
-                : tx('prescribe.itemsN', row.item_count === 1 ? '1 medicine' : '{{count}} medicines', {
-                    count: row.item_count,
-                  }),
-            ]}
-            trailing={row.status ? <StatusBadge status={row.status} size="sm" /> : undefined}
-            chevron={false}
-            divider={index < rows.length - 1}
-          />
+          <Card key={row.id ?? row.reference ?? `row-${index}`} variant="flush">
+            <ListRow
+              icon="pill"
+              tint="blue"
+              title={row.reference ?? tx('prescribe.referenceMissing', 'Reference not recorded')}
+              meta={[
+                row.patient_name,
+                row.patient_health_id,
+                row.prescribed_at ? formatDate(row.prescribed_at) : null,
+                row.item_count === null
+                  ? null
+                  : tx('prescribe.itemsN', row.item_count === 1 ? '1 medicine' : '{{count}} medicines', {
+                      count: row.item_count,
+                    }),
+              ]}
+              trailing={row.status ? <StatusBadge status={row.status} size="sm" /> : undefined}
+              chevron={false}
+              divider={false}
+            />
+          </Card>
         ))}
-      </Card>
+      </ResultList>
     );
   }
 

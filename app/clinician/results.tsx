@@ -40,6 +40,7 @@ import {
   Card,
   Chip,
   EmptyState,
+  ResultList,
   ScreenHeader,
   StaleNotice,
   spacing,
@@ -301,15 +302,13 @@ function ResultsInboxScreenBody() {
             )}
           />
         )}
-        <Card variant="flush">
+        <ResultList>
           {rows.map((r) => (
-            <ResultRow
-              key={r.id}
-              result={r}
-              onPress={() => router.push(doctorRoutes.result(r.id))}
-            />
+            <Card key={r.id} variant="flush">
+              <ResultRow result={r} onPress={() => router.push(doctorRoutes.result(r.id))} />
+            </Card>
           ))}
-        </Card>
+        </ResultList>
       </>
     );
   }

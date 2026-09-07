@@ -91,6 +91,7 @@ import {
   EmptyState,
   Icon,
   ListRow,
+  ResultList,
   SectionHeader,
   initialsFrom,
   radii,
@@ -703,26 +704,33 @@ export default function FindDoctorScreen() {
               total: totalFacilities,
             })}
           />
-          <Card variant="flush">
-            {facilities.map((f, i) => {
+          {/* Facilities are separate things to compare and pick between, not
+              one object's properties. Each gets its own card; the gap is what
+              says they are separate. */}
+          <ResultList>
+            {facilities.map((f) => {
               const glyph = facilityGlyph(f.facility_type);
               const badge = rowValue(f);
               return (
-                <ListRow
-                  key={f.id}
-                  icon={glyph.icon}
-                  tint={glyph.tint}
-                  title={f.facility_name}
-                  meta={[facilityTypeLabel(f.facility_type), joinLocationParts(f.city, f.region)]}
-                  value={badge.text}
-                  valueColor={badge.color}
-                  onPress={() => chooseFacility(f)}
-                  accessibilityHint={t('appointments.book.select')}
-                  divider={i < facilities.length - 1}
-                />
+                <Card key={f.id} variant="flush">
+                  <ListRow
+                    icon={glyph.icon}
+                    tint={glyph.tint}
+                    title={f.facility_name}
+                    meta={[
+                      facilityTypeLabel(f.facility_type),
+                      joinLocationParts(f.city, f.region),
+                    ]}
+                    value={badge.text}
+                    valueColor={badge.color}
+                    onPress={() => chooseFacility(f)}
+                    accessibilityHint={t('appointments.book.select')}
+                    divider={false}
+                  />
+                </Card>
               );
             })}
-          </Card>
+          </ResultList>
           {facilitiesQuery.hasNextPage && (
             <View style={styles.loadMore}>
               <CareButton

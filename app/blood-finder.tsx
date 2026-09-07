@@ -14,6 +14,7 @@ import {
   ListRow,
   PillInput,
   PulseLogo,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   Wordmark,
@@ -1223,15 +1224,20 @@ export default function BloodFinderScreen() {
                     <FacilityMap facilities={mappable} height={240} />
                   </Card>
                 ) : null}
-                {results.map((facility) => (
-                  <BloodBankCard
-                    key={facility.id}
-                    facility={facility}
-                    components={componentMatrix.forFacility(facility.id)}
-                    onOpen={() => goToBank(facility)}
-                    onCall={() => dial(facility.phone ?? facility.emergency_contact)}
-                  />
-                ))}
+                {/* Six blood banks are six things to compare and pick between.
+                    `BloodBankCard` already draws its own flush card, so it goes
+                    straight into the list; the gap does the separating. */}
+                <ResultList>
+                  {results.map((facility) => (
+                    <BloodBankCard
+                      key={facility.id}
+                      facility={facility}
+                      components={componentMatrix.forFacility(facility.id)}
+                      onOpen={() => goToBank(facility)}
+                      onCall={() => dial(facility.phone ?? facility.emergency_contact)}
+                    />
+                  ))}
+                </ResultList>
                 {truncated ? (
                   <NoticeBanner
                     icon="info"

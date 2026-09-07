@@ -30,6 +30,7 @@ export * from './components/Chip';
 export * from './components/EmptyState';
 export * from './components/GradientButton';
 export * from './components/ListRow';
+export * from './components/ResultList';
 export * from './components/PulseLogo';
 export * from './components/StepProgress';
 export * from './components/StatusBadge';

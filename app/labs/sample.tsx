@@ -36,6 +36,7 @@ import {
   EmptyState,
   Icon,
   ListRow,
+  ResultList,
   ScreenHeader,
   StatusBadge,
   a11yJoin,
@@ -343,21 +344,22 @@ export default function SampleCollectionScreen() {
 
         {/* ── Other lab visits ───────────────────────────────────────── */}
         {others.length > 0 && (
-          <Card variant="flush">
-            <Overline label={tx('collection.otherVisits', 'Other lab visits')} style={styles.overlineFlush} />
-            {others.map((o, i) => (
-              <ListRow
-                key={o.id}
-                icon="syringe"
-                tint="blue"
-                title={fmtDateTime(o.scheduled_at)}
-                meta={[titleCase(o.status), o.facility_name]}
-                onPress={() => router.push({ pathname: '/labs/sample', params: { appointmentId: o.id } })}
-                accessibilityHint={tx('collection.otherVisitHint', 'Shows this visit instead')}
-                divider={i < others.length - 1}
-              />
+          <ResultList>
+            <Overline label={tx('collection.otherVisits', 'Other lab visits')} style={styles.overlineStandalone} />
+            {others.map((o) => (
+              <Card key={o.id} variant="flush">
+                <ListRow
+                  icon="syringe"
+                  tint="blue"
+                  title={fmtDateTime(o.scheduled_at)}
+                  meta={[titleCase(o.status), o.facility_name]}
+                  onPress={() => router.push({ pathname: '/labs/sample', params: { appointmentId: o.id } })}
+                  accessibilityHint={tx('collection.otherVisitHint', 'Shows this visit instead')}
+                  divider={false}
+                />
+              </Card>
             ))}
-          </Card>
+          </ResultList>
         )}
 
         <View style={styles.actions}>
@@ -458,6 +460,9 @@ const makeStyles = (colors: Palette) =>
 
     overlineGap: { marginBottom: spacing.sm },
     overlineFlush: { marginBottom: spacing.sm, paddingTop: spacing.md, paddingHorizontal: spacing.md },
+    // Outside a card now: the ResultList gap supplies the space the card
+    // padding used to, so only the horizontal inset is still needed.
+    overlineStandalone: { paddingHorizontal: spacing.xs },
 
     personRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     avatar: {

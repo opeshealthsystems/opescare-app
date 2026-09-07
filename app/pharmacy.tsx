@@ -19,6 +19,7 @@ import {
   Icon,
   LastUpdatedLine,
   ListRow,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   StaleNotice,
@@ -845,16 +846,20 @@ export default function PharmacyScreen() {
             </Card>
           ) : (
             <View style={styles.stack}>
-              <Card variant="flush">
-                {shownResults.map((medicine, index) => (
-                  <MedicineRow
-                    key={medicine.id}
-                    medicine={medicine}
-                    divider={index < shownResults.length - 1}
-                    onPress={() => openMedicine(medicine.id)}
-                  />
+              {/* Twelve medicines are twelve things to compare, not one
+                  object with twelve properties. Each gets its own card; the
+                  gap is what says they are separate. */}
+              <ResultList>
+                {shownResults.map((medicine) => (
+                  <Card key={medicine.id} variant="flush">
+                    <MedicineRow
+                      medicine={medicine}
+                      divider={false}
+                      onPress={() => openMedicine(medicine.id)}
+                    />
+                  </Card>
                 ))}
-              </Card>
+              </ResultList>
 
               {resultsTruncated ? (
                 <Text style={styles.footNote}>

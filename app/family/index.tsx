@@ -19,6 +19,7 @@ import {
   Icon,
   ListRow,
   PillInput,
+  ResultList,
   ScreenHeader,
   SectionHeader,
   SegmentedTabs,
@@ -451,14 +452,14 @@ export default function FamilyScreen() {
         {incoming.length > 0 ? (
           <View>
             <SectionHeader title={t('family.incoming.title')} variant="overline" />
-            <Card variant="flush">
-              <Text style={styles.cardIntro}>{t('family.incoming.explain')}</Text>
-              {incoming.map((invitation, index) => {
+            <ResultList>
+              <Text style={styles.introStandalone}>{t('family.incoming.explain')}</Text>
+              {incoming.map((invitation) => {
                 const busy = decidingId === invitation.id;
                 const guardian =
                   (invitation.guardian_name ?? '').trim() || t('family.incoming.unknownGuardian');
                 return (
-                  <View key={invitation.id}>
+                  <Card key={invitation.id} variant="flush">
                     <ListRow
                       leading={<Avatar name={guardian} size={40} />}
                       title={guardian}
@@ -510,11 +511,10 @@ export default function FamilyScreen() {
                         </Text>
                       </TouchableOpacity>
                     </View>
-                    {index < incoming.length - 1 ? <View style={styles.rowDivider} /> : null}
-                  </View>
+                  </Card>
                 );
               })}
-            </Card>
+            </ResultList>
           </View>
         ) : null}
 
@@ -719,8 +719,8 @@ export default function FamilyScreen() {
               />
             </Card>
           ) : (
-            <Card variant="flush">
-              {members.map((member, index) => {
+            <ResultList>
+              {members.map((member) => {
                 const who = dependentIdentity(member);
                 const name = who.name || t('family.member.title');
                 const ageLabel = who.age != null ? t('family.age', { age: who.age }) : undefined;
@@ -730,19 +730,20 @@ export default function FamilyScreen() {
                     })
                   : undefined;
                 return (
-                  <ListRow
-                    key={member.id}
-                    leading={<Avatar name={name} size={40} uri={who.photoUrl} />}
-                    title={name}
-                    meta={[relationshipLabelOf(t, member.relationship), ageLabel, statusLabel]}
-                    divider={index < members.length - 1}
-                    onPress={() => router.push(`/family/${member.id}`)}
-                    accessibilityHint={t('family.viewMemberHint')}
-                    trailing={<AccessBadge level={member.access_level} />}
-                  />
+                  <Card key={member.id} variant="flush">
+                    <ListRow
+                      leading={<Avatar name={name} size={40} uri={who.photoUrl} />}
+                      title={name}
+                      meta={[relationshipLabelOf(t, member.relationship), ageLabel, statusLabel]}
+                      divider={false}
+                      onPress={() => router.push(`/family/${member.id}`)}
+                      accessibilityHint={t('family.viewMemberHint')}
+                      trailing={<AccessBadge level={member.access_level} />}
+                    />
+                  </Card>
                 );
               })}
-            </Card>
+            </ResultList>
           )}
         </View>
 
@@ -761,51 +762,52 @@ export default function FamilyScreen() {
               />
             </Card>
           ) : (
-            <Card variant="flush">
-              {invitations.map((invitation, index) => {
+            <ResultList>
+              {invitations.map((invitation) => {
                 const busy = cancellingId === invitation.id;
                 const expires = t('family.expiresOn', {
                   date: formatDate(invitation.expires_at, t('opesCore.common.none')),
                 });
                 return (
-                  <ListRow
-                    key={invitation.id}
-                    icon="clock"
-                    tint="amber"
-                    title={invitation.contact}
-                    meta={[relationshipLabelOf(t, invitation.relationship), expires]}
-                    divider={index < invitations.length - 1}
-                    chevron={false}
-                    trailing={
-                      <View style={styles.inviteTrailing}>
-                        <StatusBadge
-                          status="pending"
-                          tone="pending"
-                          label={t('opesCore.home.statusPending')}
-                          size="sm"
-                        />
-                        <TouchableOpacity
-                          onPress={() => handleCancelInvitation(invitation)}
-                          disabled={busy}
-                          hitSlop={8}
-                          activeOpacity={0.7}
-                          accessibilityRole="button"
-                          accessibilityLabel={t('family.cancelInviteConfirm')}
-                          accessibilityState={{ disabled: busy, busy }}
-                          style={[styles.cancelButton, busy && styles.busy]}
-                        >
-                          {busy ? (
-                            <ActivityIndicator size="small" color={colors.statusCritical} />
-                          ) : (
-                            <Icon name="close" size={16} color={colors.statusCritical} />
-                          )}
-                        </TouchableOpacity>
-                      </View>
-                    }
-                  />
+                  <Card key={invitation.id} variant="flush">
+                    <ListRow
+                      icon="clock"
+                      tint="amber"
+                      title={invitation.contact}
+                      meta={[relationshipLabelOf(t, invitation.relationship), expires]}
+                      divider={false}
+                      chevron={false}
+                      trailing={
+                        <View style={styles.inviteTrailing}>
+                          <StatusBadge
+                            status="pending"
+                            tone="pending"
+                            label={t('opesCore.home.statusPending')}
+                            size="sm"
+                          />
+                          <TouchableOpacity
+                            onPress={() => handleCancelInvitation(invitation)}
+                            disabled={busy}
+                            hitSlop={8}
+                            activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('family.cancelInviteConfirm')}
+                            accessibilityState={{ disabled: busy, busy }}
+                            style={[styles.cancelButton, busy && styles.busy]}
+                          >
+                            {busy ? (
+                              <ActivityIndicator size="small" color={colors.statusCritical} />
+                            ) : (
+                              <Icon name="close" size={16} color={colors.statusCritical} />
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      }
+                    />
+                  </Card>
                 );
               })}
-            </Card>
+            </ResultList>
           )}
         </View>
       </ScrollView>
@@ -877,6 +879,16 @@ const makeStyles = (colors: Palette) =>
       marginTop: 2,
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
+      color: colors.textSecondary,
+    },
+
+    // The same intro, standing outside a card in a ResultList: the list gap
+    // supplies the space the card padding used to.
+    introStandalone: {
+      paddingHorizontal: spacing.xs,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
       color: colors.textSecondary,
     },
 
@@ -958,7 +970,6 @@ const makeStyles = (colors: Palette) =>
       justifyContent: 'center',
     },
     busy: { opacity: 0.5 },
-    rowDivider: { height: 1, backgroundColor: colors.divider, marginHorizontal: spacing.md },
 
     // Incoming decision buttons
     decisionRow: {

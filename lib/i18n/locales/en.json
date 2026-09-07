@@ -2537,6 +2537,30 @@
       "health_center": "Health Centre",
       "blood_bank": "Blood Bank",
       "laboratory": "Laboratory"
+    },
+    "heroSubtitle": "Find available blood. Save lives.",
+    "verifiedBadge": "Verified",
+    "verifiedBadgeNote": "Screened facilities",
+    "stepUrgency": "Urgency",
+    "stepRange": "Range",
+    "findBlood": "Find blood",
+    "viewOnMap": "View on map",
+    "urgency": {
+      "emergency": "Emergency",
+      "urgent": "Urgent",
+      "routine": "Routine"
+    },
+    "trust": {
+      "screened": "Screened & safe",
+      "realtime": "Reported availability",
+      "lives": "One donation, up to 3 lives",
+      "private": "Private & secure"
+    },
+    "quick": {
+      "emergency": "Emergency request",
+      "map": "Blood banks map",
+      "education": "Blood education",
+      "myRequests": "My requests"
     }
   },
   "appUpdate": {
@@ -7618,5 +7642,45 @@
       "safer_healthier": "A SAFER, HEALTHIER AFRICA",
       "people_united": "PEOPLE UNITED FOR BETTER HEALTH"
     }
+  },
+  "bloodEducation": {
+    "title": "Blood education",
+    "subtitle": "What donating involves, and who can receive from whom.",
+    "leadTitle": "One donation can help up to three people",
+    "leadBody": "A single unit of whole blood is separated into red cells, platelets and plasma, so one donation can reach more than one patient.",
+    "donatingTitle": "Donating blood",
+    "topics": {
+      "who": {
+        "title": "Who can donate",
+        "body": "Most healthy adults between 18 and 60 who weigh at least 50 kg. The blood bank asks a short set of health questions on the day and makes the final decision."
+      },
+      "before": {
+        "title": "Before you go",
+        "body": "Eat a normal meal and drink water. Avoid donating on an empty stomach, and bring an identity document."
+      },
+      "during": {
+        "title": "What happens",
+        "body": "The donation itself takes about 10 minutes and collects roughly 450 ml. A sterile, single-use needle and bag are used for every donor."
+      },
+      "after": {
+        "title": "Afterwards",
+        "body": "Rest for a few minutes, keep drinking water, and avoid heavy lifting or strenuous exercise for the rest of the day."
+      }
+    },
+    "compatibilityTitle": "Who can receive from whom",
+    "receiverColumn": "Receiver",
+    "donorColumn": "Can receive whole blood from",
+    "allGroups": "All groups",
+    "clinicalTitle": "This table does not decide a transfusion",
+    "clinicalBody": "Compatibility also depends on cross-matching, the component being given and the patient’s history. Only the treating clinician decides what is transfused.",
+    "eligibilityTitle": "Usually asked before donating",
+    "eligibility": {
+      "age": "Aged between 18 and 60",
+      "weight": "Weighing 50 kg or more",
+      "health": "In good health, with no illness in the past two weeks",
+      "interval": "At least three months since your last whole-blood donation"
+    },
+    "eligibilityNote": "These are the questions blood banks commonly ask. They are not a decision about you — the blood bank assesses every donor on the day.",
+    "backToFinder": "Back to Blood Finder"
   }
 }

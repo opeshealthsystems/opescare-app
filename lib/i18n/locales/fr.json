@@ -2537,6 +2537,30 @@
       "health_center": "Centre de santé",
       "blood_bank": "Banque de sang",
       "laboratory": "Laboratoire"
+    },
+    "heroSubtitle": "Trouvez du sang disponible. Sauvez des vies.",
+    "verifiedBadge": "Vérifié",
+    "verifiedBadgeNote": "Établissements contrôlés",
+    "stepUrgency": "Urgence",
+    "stepRange": "Rayon",
+    "findBlood": "Trouver du sang",
+    "viewOnMap": "Voir sur la carte",
+    "urgency": {
+      "emergency": "Urgence vitale",
+      "urgent": "Urgent",
+      "routine": "Programmé"
+    },
+    "trust": {
+      "screened": "Contrôlé et sûr",
+      "realtime": "Disponibilité déclarée",
+      "lives": "Un don, jusqu’à 3 vies",
+      "private": "Privé et sécurisé"
+    },
+    "quick": {
+      "emergency": "Demande urgente",
+      "map": "Carte des banques",
+      "education": "Le don de sang",
+      "myRequests": "Mes demandes"
     }
   },
   "appUpdate": {
@@ -7619,5 +7643,45 @@
       "safer_healthier": "UNE AFRIQUE PLUS SÛRE ET EN MEILLEURE SANTÉ",
       "people_united": "UNIS POUR UNE MEILLEURE SANTÉ"
     }
+  },
+  "bloodEducation": {
+    "title": "Le don de sang",
+    "subtitle": "Ce qu’implique un don, et qui peut recevoir de qui.",
+    "leadTitle": "Un don peut aider jusqu’à trois personnes",
+    "leadBody": "Une poche de sang total est séparée en globules rouges, plaquettes et plasma : un seul don peut donc atteindre plusieurs patients.",
+    "donatingTitle": "Donner son sang",
+    "topics": {
+      "who": {
+        "title": "Qui peut donner",
+        "body": "La plupart des adultes en bonne santé de 18 à 60 ans pesant au moins 50 kg. L’établissement pose quelques questions de santé le jour même et prend la décision finale."
+      },
+      "before": {
+        "title": "Avant de venir",
+        "body": "Prenez un repas normal et buvez de l’eau. Ne donnez pas à jeun, et munissez-vous d’une pièce d’identité."
+      },
+      "during": {
+        "title": "Comment cela se passe",
+        "body": "Le prélèvement dure environ 10 minutes et recueille près de 450 ml. Une aiguille et une poche stériles à usage unique sont utilisées pour chaque donneur."
+      },
+      "after": {
+        "title": "Après le don",
+        "body": "Reposez-vous quelques minutes, continuez à boire, et évitez de porter des charges lourdes ou de faire du sport intense le reste de la journée."
+      }
+    },
+    "compatibilityTitle": "Qui peut recevoir de qui",
+    "receiverColumn": "Receveur",
+    "donorColumn": "Peut recevoir du sang total de",
+    "allGroups": "Tous les groupes",
+    "clinicalTitle": "Ce tableau ne décide pas d’une transfusion",
+    "clinicalBody": "La compatibilité dépend aussi du test de compatibilité croisée, du composant transfusé et des antécédents du patient. Seul le soignant qui traite le patient décide de ce qui est transfusé.",
+    "eligibilityTitle": "Ce qui est généralement demandé avant un don",
+    "eligibility": {
+      "age": "Avoir entre 18 et 60 ans",
+      "weight": "Peser 50 kg ou plus",
+      "health": "Être en bonne santé, sans maladie durant les deux dernières semaines",
+      "interval": "Au moins trois mois depuis votre dernier don de sang total"
+    },
+    "eligibilityNote": "Ce sont les questions que posent habituellement les établissements. Ce n’est pas une décision vous concernant — chaque donneur est évalué sur place.",
+    "backToFinder": "Retour au Blood Finder"
   }
 }

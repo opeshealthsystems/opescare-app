@@ -262,6 +262,36 @@ function phoneLines(
 
 type SheetKey = 'city' | 'radius' | null;
 
+/**
+ * Urgency, as the reference finder card offers it (PM-BLOOD-01, step 3) and as
+ * `POST api/mobile/blood/requests` already accepts it.
+ *
+ * Emergency leads because the screen exists for emergencies; the tones follow
+ * the kit's semantic scale rather than the accent, so "routine" never borrows
+ * the alarm colour.
+ */
+type UrgencyValue = 'emergency' | 'urgent' | 'routine';
+
+const URGENCY_OPTIONS: { value: UrgencyValue; icon: IconName }[] = [
+  { value: 'emergency', icon: 'alert-triangle' },
+  { value: 'urgent', icon: 'clock' },
+  { value: 'routine', icon: 'clock' },
+];
+
+/**
+ * The four assurances the reference strips across the finder, under the search
+ * card. Each one is a claim this platform can actually stand behind: screening
+ * and verification are facility attributes the directory already carries, the
+ * freshness stamp is on every stock row, and the privacy line is the Health ID
+ * consent model. Nothing here is a number.
+ */
+const TRUST_POINTS: { key: string; icon: IconName }[] = [
+  { key: 'screened', icon: 'shield-check' },
+  { key: 'realtime', icon: 'clock' },
+  { key: 'lives', icon: 'heart-pulse' },
+  { key: 'private', icon: 'lock' },
+];
+
 export default function BloodFinderScreen() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -278,6 +308,11 @@ export default function BloodFinderScreen() {
   const [locating, setLocating] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
   const [radiusKm, setRadiusKm] = useState(25);
+  // Step 3 of the reference finder card. It is carried into the request rather
+  // than narrowing the search: a blood bank's reported stock does not change
+  // with how urgently it is wanted, and filtering it by urgency would hide
+  // units from the person who needs them most.
+  const [urgency, setUrgency] = useState<UrgencyValue>('emergency');
   const [term, setTerm] = useState('');
   const [debouncedTerm, setDebouncedTerm] = useState('');
   const [sheet, setSheet] = useState<SheetKey>(null);
@@ -289,6 +324,7 @@ export default function BloodFinderScreen() {
   // making someone scroll a list of banks to reach the thing they already did.
   const scrollRef = useRef<ScrollView>(null);
   const requestsY = useRef(0);
+  const resultsY = useRef(0);
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedTerm(term.trim().toLowerCase()), 300);
@@ -541,14 +577,251 @@ export default function BloodFinderScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.blue} />
         }
       >
-        {/*
-          Escalation, above everything else. Blood stock here is self-reported
-          and may be hours old; a patient who is actually in danger should be
-          moving toward a hospital, not filtering a list. No emergency hotline
-          number is hardcoded — none exists anywhere in this codebase and
-          inventing one would be dangerous — so both actions lead to real
-          screens that surface real, API-sourced numbers.
-        */}
+        {/* Hero (PM-BLOOD-01) --------------------------------------------
+            Droplet tile, title, and the assurance badge the reference puts
+            opposite it. "Verified" describes the SCREENING this platform
+            requires of a listed blood bank - never a promise about any
+            individual unit - which is why the badge sits with the title and
+            not on a result row. */}
+        <View style={styles.hero}>
+          <View style={[styles.heroMark, { backgroundColor: colors.tintBlueBg }]}>
+            <Icon name="droplet" size={30} color={colors.blue} />
+          </View>
+          <View style={styles.heroBody}>
+            <Text style={styles.heroTitle}>{t('bloodFinder.title')}</Text>
+            <Text style={styles.heroSubtitle}>{t('bloodFinder.heroSubtitle')}</Text>
+          </View>
+          <View style={[styles.heroBadge, { backgroundColor: colors.tintBlueBg }]}>
+            <Icon name="shield-check" size={20} color={colors.blue} />
+            <View style={styles.heroBadgeBody}>
+              <Text style={[styles.heroBadgeTitle, { color: colors.blue }]}>
+                {t('bloodFinder.verifiedBadge')}
+              </Text>
+              <Text style={styles.heroBadgeNote}>{t('bloodFinder.verifiedBadgeNote')}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* The finder card ------------------------------------------------
+            The reference gathers all five inputs into ONE numbered card rather
+            than the three separate sections this screen used to have, so the
+            whole search reads at a glance before anything is tapped. The
+            numbering is information, not decoration: it is the order the
+            fields are filled, and step 1 gates the results below. */}
+        <Card>
+          <View style={styles.finderStack}>
+            <FinderField index={1} label={t('bloodFinder.stepGroup')}>
+              {options.isPending ? (
+                <LoadingBlock label={t('bloodFinder.searching')} />
+              ) : options.isError ? (
+                <EmptyState
+                  icon="alert-circle"
+                  tint="red"
+                  title={t('bloodFinder.loadFailed')}
+                  message={t('bloodFinder.optionsFailedHint', {
+                    defaultValue:
+                      'The list of blood groups could not be loaded, so nothing can be searched yet.',
+                  })}
+                  actionLabel={t('bloodFinder.retry')}
+                  onAction={() => options.refetch()}
+                />
+              ) : (
+                <View style={styles.chipWrap}>
+                  {groupOptions.map((group) => (
+                    <Chip
+                      key={group.value}
+                      icon="droplet"
+                      label={group.label}
+                      count={group.facility_count > 0 ? group.facility_count : undefined}
+                      selected={group.value === bloodGroup}
+                      onPress={() =>
+                        setBloodGroup(group.value === bloodGroup ? null : group.value)
+                      }
+                      accessibilityLabel={`${group.label} - ${
+                        group.facility_count > 0
+                          ? t('bloodFinder.facilityCount', { count: group.facility_count })
+                          : t('bloodFinder.noSites')
+                      }`}
+                    />
+                  ))}
+                </View>
+              )}
+              {ownGroup ? (
+                <TouchableOpacity
+                  onPress={() => setBloodGroup(ownGroup.value)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  style={styles.ownGroup}
+                >
+                  <Icon name="person" size={15} color={colors.blue} />
+                  <Text style={[styles.ownGroupText, { color: colors.blue }]}>
+                    {t('bloodFinder.yourGroup', { group: ownGroup.label })}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </FinderField>
+
+            <FinderField index={2} label={t('bloodFinder.stepComponent')}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chipRailContent}
+              >
+                {(componentOptions.length > 0
+                  ? componentOptions.map((c) => ({
+                      value: c.value,
+                      icon: c.icon,
+                      count: c.facility_count,
+                    }))
+                  : COMPONENT_FALLBACK.map((value) => ({ value, icon: 'droplet', count: 0 }))
+                ).map(({ value, icon, count }) => (
+                  <Chip
+                    key={value}
+                    icon={COMPONENT_ICONS[icon] ?? 'droplet'}
+                    label={t(`bloodFinder.components.${value}`)}
+                    count={count > 0 ? count : undefined}
+                    selected={value === componentType}
+                    onPress={() => setComponentType(value)}
+                    accessibilityLabel={`${t(`bloodFinder.components.${value}`)} - ${
+                      count > 0
+                        ? t('bloodFinder.facilityCount', { count })
+                        : t('bloodFinder.noSites')
+                    }`}
+                  />
+                ))}
+              </ScrollView>
+            </FinderField>
+
+            <FinderField index={3} label={t('bloodFinder.stepUrgency')}>
+              <View style={styles.chipWrap}>
+                {URGENCY_OPTIONS.map((option) => (
+                  <Chip
+                    key={option.value}
+                    icon={option.icon}
+                    label={t(`bloodFinder.urgency.${option.value}`)}
+                    selected={option.value === urgency}
+                    onPress={() => setUrgency(option.value)}
+                  />
+                ))}
+              </View>
+            </FinderField>
+
+            <FinderField index={4} label={t('bloodFinder.stepWhere')}>
+              <View style={styles.chipWrap}>
+                <Chip
+                  icon="location"
+                  label={originLabel}
+                  selected={sheet === 'city'}
+                  onPress={() => setSheet((current) => (current === 'city' ? null : 'city'))}
+                  accessibilityLabel={t('bloodFinder.changeLocation')}
+                />
+                <Chip
+                  icon="location"
+                  label={locating ? t('bloodFinder.locating') : t('bloodFinder.myLocation')}
+                  selected={!!deviceCoords}
+                  onPress={() => {
+                    void useMyLocation();
+                  }}
+                  accessibilityLabel={t('bloodFinder.useMyLocation')}
+                />
+              </View>
+              {sheet === 'city' ? (
+                <OptionCard title={t('bloodFinder.changeLocation')}>
+                  {CITIES.map((option, index) => (
+                    <ListRow
+                      key={option.key}
+                      title={option.name}
+                      trailing={
+                        !deviceCoords && option.key === city.key ? (
+                          <Icon name="check" size={18} color={colors.blue} />
+                        ) : undefined
+                      }
+                      chevron={false}
+                      divider={index < CITIES.length - 1}
+                      onPress={() => {
+                        setCity(option);
+                        setDeviceCoords(null);
+                        setSheet(null);
+                      }}
+                    />
+                  ))}
+                </OptionCard>
+              ) : null}
+              {locationDenied ? (
+                <NoticeBanner
+                  icon="location"
+                  tone="warning"
+                  message={t('bloodFinder.locationDenied')}
+                />
+              ) : null}
+            </FinderField>
+
+            <FinderField index={5} label={t('bloodFinder.stepRange')}>
+              <View style={styles.chipWrap}>
+                {RADIUS_OPTIONS.map((option) => (
+                  <Chip
+                    key={option}
+                    icon="target"
+                    label={t('bloodFinder.radius', { km: option })}
+                    selected={option === radiusKm}
+                    onPress={() => setRadiusKm(option)}
+                  />
+                ))}
+              </View>
+            </FinderField>
+          </View>
+
+          {/* The reference's primary action. The list below is ALREADY live -
+              results refetch as the fields change - so this scrolls to them
+              rather than pretending to start a search that was never stopped.
+              A button that claims to do something it does not is the one thing
+              this screen cannot afford. */}
+          <CareButton
+            label={t('bloodFinder.findBlood')}
+            icon="search"
+            variant="primary"
+            onPress={() => {
+              scrollRef.current?.scrollTo({
+                y: Math.max(resultsY.current - 12, 0),
+                animated: true,
+              });
+            }}
+            disabled={!bloodGroup}
+            style={styles.findButton}
+          />
+        </Card>
+
+        {/* Trust strip ----------------------------------------------------
+            Four assurances, each one a claim this platform can stand behind:
+            screening and verification are facility attributes the directory
+            carries, the freshness stamp is on every stock row, and privacy is
+            the Health ID consent model. Deliberately no figures. */}
+        <Card variant="flush">
+          <View style={styles.trustRow}>
+            {TRUST_POINTS.map((point, index) => (
+              <View
+                key={point.key}
+                style={[
+                  styles.trustItem,
+                  index < TRUST_POINTS.length - 1 && {
+                    borderRightWidth: StyleSheet.hairlineWidth,
+                    borderRightColor: colors.border,
+                  },
+                ]}
+              >
+                <Icon name={point.icon} size={19} color={colors.blue} />
+                <Text style={styles.trustText}>{t(`bloodFinder.trust.${point.key}`)}</Text>
+              </View>
+            ))}
+          </View>
+        </Card>
+
+        {/* Escalation. Blood stock here is self-reported and may be hours old;
+            a patient who is actually in danger should be moving toward a
+            hospital, not filtering a list. No hotline number is hardcoded -
+            none exists in this codebase and inventing one would be dangerous -
+            so both actions lead to screens that surface real, API-sourced
+            numbers. */}
         <Card accentColor={colors.statusCritical}>
           <View style={styles.emergencyHead}>
             <View style={[styles.emergencyMark, { backgroundColor: colors.statusCriticalBg }]}>
@@ -581,188 +854,12 @@ export default function BloodFinderScreen() {
           </View>
         </Card>
 
-        {/* ── Step 1 — blood group ─────────────────────────────────────────── */}
-        <View>
-          <SectionHeader
-            title={t('bloodFinder.stepGroup')}
-            actionLabel={ownGroup ? t('bloodFinder.yourGroup', { group: ownGroup.label }) : undefined}
-            onAction={ownGroup ? () => setBloodGroup(ownGroup.value) : undefined}
-          />
-
-          {options.isPending ? (
-            <LoadingBlock label={t('bloodFinder.searching')} />
-          ) : options.isError ? (
-            <Card variant="flush">
-              <EmptyState
-                icon="alert-circle"
-                tint="red"
-                title={t('bloodFinder.loadFailed')}
-                message={t('bloodFinder.optionsFailedHint', {
-                  defaultValue:
-                    'The list of blood groups could not be loaded, so nothing can be searched yet.',
-                })}
-                actionLabel={t('bloodFinder.retry')}
-                onAction={() => options.refetch()}
-              />
-            </Card>
-          ) : (
-            <View style={styles.chipWrap}>
-              {groupOptions.map((group) => (
-                <Chip
-                  key={group.value}
-                  icon="droplet"
-                  label={group.label}
-                  count={group.facility_count > 0 ? group.facility_count : undefined}
-                  selected={group.value === bloodGroup}
-                  onPress={() => setBloodGroup(group.value === bloodGroup ? null : group.value)}
-                  accessibilityLabel={`${group.label} — ${
-                    group.facility_count > 0
-                      ? t('bloodFinder.facilityCount', { count: group.facility_count })
-                      : t('bloodFinder.noSites')
-                  }`}
-                />
-              ))}
-            </View>
-          )}
-        </View>
-
-        {/* Compatibility hint for the chosen group */}
-        {selectedGroup ? (
-          <NoticeBanner
-            icon="info"
-            tone="pending"
-            title={t('bloodFinder.compatibleTitle', { group: selectedGroup.label })}
-            message={t('bloodFinder.compatibleBody', {
-              group: selectedGroup.label,
-              groups: selectedGroup.can_receive_from.join(', '),
-            })}
-          />
-        ) : null}
-
-        {/* ── Step 2 — component ───────────────────────────────────────────── */}
-        <View>
-          <SectionHeader title={t('bloodFinder.stepComponent')} />
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chipRail}
-            contentContainerStyle={styles.chipRailContent}
-          >
-            {(componentOptions.length > 0
-              ? componentOptions.map((c) => ({
-                  value: c.value,
-                  icon: c.icon,
-                  count: c.facility_count,
-                }))
-              : COMPONENT_FALLBACK.map((value) => ({ value, icon: 'droplet', count: 0 }))
-            ).map(({ value, icon, count }) => (
-              <Chip
-                key={value}
-                icon={COMPONENT_ICONS[icon] ?? 'droplet'}
-                label={t(`bloodFinder.components.${value}`)}
-                count={count > 0 ? count : undefined}
-                selected={value === componentType}
-                onPress={() => setComponentType(value)}
-                accessibilityLabel={`${t(`bloodFinder.components.${value}`)} — ${
-                  count > 0
-                    ? t('bloodFinder.facilityCount', { count })
-                    : t('bloodFinder.noSites')
-                }`}
-              />
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* ── Step 3 — where ───────────────────────────────────────────────── */}
-        <View>
-          <SectionHeader title={t('bloodFinder.stepWhere')} />
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chipRail}
-            contentContainerStyle={styles.chipRailContent}
-          >
-            <Chip
-              icon="location"
-              label={originLabel}
-              selected={sheet === 'city'}
-              onPress={() => setSheet((s) => (s === 'city' ? null : 'city'))}
-              accessibilityLabel={t('bloodFinder.changeLocation')}
-            />
-            <Chip
-              icon="target"
-              label={t('bloodFinder.radius', { km: radiusKm })}
-              selected={sheet === 'radius'}
-              onPress={() => setSheet((s) => (s === 'radius' ? null : 'radius'))}
-            />
-            <Chip
-              icon="location"
-              label={locating ? t('bloodFinder.locating') : t('bloodFinder.myLocation')}
-              selected={!!deviceCoords}
-              onPress={() => {
-                void useMyLocation();
-              }}
-              accessibilityLabel={t('bloodFinder.useMyLocation')}
-            />
-          </ScrollView>
-
-          {sheet === 'city' ? (
-            <OptionCard title={t('bloodFinder.changeLocation')}>
-              {CITIES.map((option, index) => (
-                <ListRow
-                  key={option.key}
-                  title={option.name}
-                  trailing={
-                    !deviceCoords && option.key === city.key ? (
-                      <Icon name="check" size={18} color={colors.blue} />
-                    ) : undefined
-                  }
-                  chevron={false}
-                  divider={index < CITIES.length - 1}
-                  onPress={() => {
-                    setCity(option);
-                    setDeviceCoords(null);
-                    setSheet(null);
-                  }}
-                />
-              ))}
-            </OptionCard>
-          ) : null}
-
-          {sheet === 'radius' ? (
-            <OptionCard title={t('bloodFinder.radius', { km: radiusKm })}>
-              {RADIUS_OPTIONS.map((option, index) => (
-                <ListRow
-                  key={option}
-                  title={t('bloodFinder.radius', { km: option })}
-                  trailing={
-                    option === radiusKm ? (
-                      <Icon name="check" size={18} color={colors.blue} />
-                    ) : undefined
-                  }
-                  chevron={false}
-                  divider={index < RADIUS_OPTIONS.length - 1}
-                  onPress={() => {
-                    setRadiusKm(option);
-                    setSheet(null);
-                  }}
-                />
-              ))}
-            </OptionCard>
-          ) : null}
-
-          {locationDenied ? (
-            <View style={styles.afterRail}>
-              <NoticeBanner
-                icon="location"
-                tone="warning"
-                message={t('bloodFinder.locationDenied')}
-              />
-            </View>
-          ) : null}
-        </View>
-
         {/* ── Results ──────────────────────────────────────────────────────── */}
+        <View
+          onLayout={(event) => {
+            resultsY.current = event.nativeEvent.layout.y;
+          }}
+        />
         {!bloodGroup ? (
           <Card variant="flush">
             <EmptyState
@@ -780,6 +877,16 @@ export default function BloodFinderScreen() {
                   search.isPending
                     ? t('bloodFinder.searching')
                     : t('bloodFinder.nearbyBanks', { count: results.length })
+                }
+                actionLabel={mappable.length > 0 ? t('bloodFinder.viewOnMap') : undefined}
+                onAction={
+                  mappable.length > 0
+                    ? () =>
+                        scrollRef.current?.scrollTo({
+                          y: Math.max(resultsY.current - 12, 0),
+                          animated: true,
+                        })
+                    : undefined
                 }
               />
               <Text style={styles.sectionHint}>
@@ -962,6 +1069,43 @@ export default function BloodFinderScreen() {
           )}
         </View>
 
+        {/* The reference's four-up entry grid. Only the two destinations that
+            exist are live; the donor screens are deliberately absent until the
+            donor-privacy question behind them is answered (see
+            docs/finder-screens-plan.md), because a tile that opens a list of
+            named donors is the thing this platform must not ship. */}
+        <View style={styles.quickGrid}>
+          <QuickAction
+            icon="droplet"
+            tint="red"
+            label={t('bloodFinder.quick.emergency')}
+            onPress={() => router.push('/blood-finder/request')}
+          />
+          <QuickAction
+            icon="location"
+            tint="blue"
+            label={t('bloodFinder.quick.map')}
+            onPress={() => router.push('/care-map')}
+          />
+          <QuickAction
+            icon="book"
+            tint="blue"
+            label={t('bloodFinder.quick.education')}
+            onPress={() => router.push('/blood-finder/education')}
+          />
+          <QuickAction
+            icon="receipt"
+            tint="blue"
+            label={t('bloodFinder.quick.myRequests')}
+            onPress={() =>
+              scrollRef.current?.scrollTo({
+                y: Math.max(requestsY.current - 12, 0),
+                animated: true,
+              })
+            }
+          />
+        </View>
+
         {/* Safety notice */}
         <View style={styles.notice} accessibilityRole="summary">
           <Icon name="shield-check" size={20} color={colors.blue} />
@@ -978,6 +1122,74 @@ export default function BloodFinderScreen() {
 }
 
 /* ── Pieces ───────────────────────────────────────────────────────────────── */
+
+/**
+ * One numbered row of the finder card (PM-BLOOD-01).
+ *
+ * The number is carried in its own tinted square exactly as the reference
+ * draws it, and it means something: these are ordered steps, and the results
+ * below stay closed until step 1 is answered. A numbered marker on content
+ * that is not a sequence would be decoration; here it is the sequence.
+ */
+function FinderField({
+  index,
+  label,
+  children,
+}: {
+  index: number;
+  label: string;
+  children: React.ReactNode;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  return (
+    <View style={styles.finderField}>
+      <View style={styles.finderFieldHead}>
+        <View style={[styles.finderIndex, { backgroundColor: colors.tintBlueBg }]}>
+          <Text style={[styles.finderIndexText, { color: colors.blue }]}>{index}</Text>
+        </View>
+        <Text style={styles.finderLabel}>{label}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+/** One tile of the reference's four-up entry grid. */
+function QuickAction({
+  icon,
+  tint,
+  label,
+  onPress,
+}: {
+  icon: IconName;
+  tint: Tint;
+  label: string;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const tone = tint === 'red' ? colors.statusCritical : colors.blue;
+  const toneBg = tint === 'red' ? colors.statusCriticalBg : colors.tintBlueBg;
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={styles.quickTile}
+    >
+      <View style={[styles.quickMark, { backgroundColor: toneBg }]}>
+        <Icon name={icon} size={19} color={tone} />
+      </View>
+      <Text style={styles.quickLabel} numberOfLines={2}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
 
 /** Bordered picker used by the city / radius sheets. */
 function OptionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -1563,6 +1775,139 @@ function OpenRequestCard({
 
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
+    /* PM-BLOOD-01 hero */
+    hero: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    heroMark: {
+      width: 58,
+      height: 58,
+      borderRadius: radii.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroBody: { flex: 1 },
+    heroTitle: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xl,
+      lineHeight: typography.lineHeight.xl,
+      color: c.textPrimary,
+    },
+    heroSubtitle: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: c.textMuted,
+      marginTop: 2,
+    },
+    heroBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: radii.md,
+    },
+    heroBadgeBody: { flexShrink: 1 },
+    heroBadgeTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
+    heroBadgeNote: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
+
+    /* The numbered finder card */
+    finderStack: { gap: spacing.md },
+    finderField: { gap: spacing.xs },
+    finderFieldHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    finderIndex: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    finderIndexText: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xs,
+    },
+    finderLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: c.textPrimary,
+    },
+    ownGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      paddingVertical: 4,
+    },
+    ownGroupText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
+    findButton: { marginTop: spacing.md },
+
+    /* Trust strip */
+    trustRow: {
+      flexDirection: 'row',
+      paddingVertical: spacing.sm,
+    },
+    trustItem: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 6,
+    },
+    trustText: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textSecondary,
+      textAlign: 'center',
+    },
+
+    /* Four-up entry grid */
+    quickGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
+    quickTile: {
+      flexGrow: 1,
+      flexBasis: '46%',
+      minHeight: 76,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      padding: spacing.sm,
+      gap: 8,
+      justifyContent: 'center',
+    },
+    quickMark: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    quickLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: c.textPrimary,
+    },
+
     content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
     stack: { gap: spacing.md },
 

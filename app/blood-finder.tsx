@@ -606,22 +606,26 @@ export default function BloodFinderScreen() {
             requires of a listed blood bank - never a promise about any
             individual unit - which is why the badge sits with the title and
             not on a result row. */}
+        {/*
+          The reference's hero carries four things: the droplet mark, the
+          screen name, a tagline and the assurance badge. This app's
+          ScreenHeader already gives the name and the tagline on every screen,
+          so repeating them here printed "Blood Finder" twice on one phone. The
+          band keeps what the header does NOT have - the mark and the badge -
+          and drops what it does. Same information, said once.
+        */}
         <View style={styles.hero}>
           <View style={[styles.heroMark, { backgroundColor: colors.tintBlueBg }]}>
-            <Icon name="droplet" size={30} color={colors.blue} />
+            <Icon name="droplet" size={26} color={colors.blue} />
           </View>
           <View style={styles.heroBody}>
-            <Text style={styles.heroTitle}>{t('bloodFinder.title')}</Text>
-            <Text style={styles.heroSubtitle}>{t('bloodFinder.heroSubtitle')}</Text>
+            <Text style={styles.heroTitle}>{t('bloodFinder.heroSubtitle')}</Text>
           </View>
           <View style={[styles.heroBadge, { backgroundColor: colors.tintBlueBg }]}>
-            <Icon name="shield-check" size={20} color={colors.blue} />
-            <View style={styles.heroBadgeBody}>
-              <Text style={[styles.heroBadgeTitle, { color: colors.blue }]}>
-                {t('bloodFinder.verifiedBadge')}
-              </Text>
-              <Text style={styles.heroBadgeNote}>{t('bloodFinder.verifiedBadgeNote')}</Text>
-            </View>
+            <Icon name="shield-check" size={16} color={colors.blue} />
+            <Text style={[styles.heroBadgeTitle, { color: colors.blue }]}>
+              {t('bloodFinder.verifiedBadge')}
+            </Text>
           </View>
         </View>
 
@@ -1806,25 +1810,18 @@ const makeStyles = (c: Palette) =>
       gap: spacing.sm,
     },
     heroMark: {
-      width: 58,
-      height: 58,
+      width: 46,
+      height: 46,
       borderRadius: radii.lg,
       alignItems: 'center',
       justifyContent: 'center',
     },
     heroBody: { flex: 1 },
     heroTitle: {
-      fontFamily: typography.fontFamily.bold,
-      fontSize: typography.size.xl,
-      lineHeight: typography.lineHeight.xl,
-      color: c.textPrimary,
-    },
-    heroSubtitle: {
-      fontFamily: typography.fontFamily.regular,
+      fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.sm,
       lineHeight: typography.lineHeight.sm,
-      color: c.textMuted,
-      marginTop: 2,
+      color: c.textPrimary,
     },
     heroBadge: {
       flexDirection: 'row',
@@ -1834,15 +1831,9 @@ const makeStyles = (c: Palette) =>
       paddingVertical: spacing.xs,
       borderRadius: radii.md,
     },
-    heroBadgeBody: { flexShrink: 1 },
     heroBadgeTitle: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.sm,
-    },
-    heroBadgeNote: {
-      fontFamily: typography.fontFamily.regular,
-      fontSize: typography.size.xs,
-      color: c.textMuted,
     },
 
     /* The numbered finder card */

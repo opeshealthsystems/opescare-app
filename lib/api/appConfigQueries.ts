@@ -14,6 +14,7 @@
 import { useMemo } from 'react';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import * as Application from 'expo-application';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { endpoints } from './endpoints';
@@ -51,15 +52,27 @@ export function useAppConfig() {
 // ---------------------------------------------------------------------------
 
 /**
- * The build number of the binary we are running, read from the Expo config
- * embedded at build time (`android.versionCode` / `ios.buildNumber` in
- * app.json).
+ * The build number of the binary we are running, read from the OS
+ * (`expo-application`) and only falling back to the config embedded at build
+ * time. See the body for why the config alone is not safe to trust.
  *
  * Returns `null` whenever it cannot be determined — Expo Go, web, a dev client
  * with no versionCode set, or a malformed value. Callers MUST treat `null` as
  * "unknown, do not block".
  */
 export function runningBuildNumber(): number | null {
+  // The OS first. `eas.json` uses `appVersionSource: "remote"`, so EAS owns the
+  // version and stamps it into the native manifest at build time, while
+  // `app.json` — and therefore the config embedded in the bundle — stays at
+  // whatever it last said. Trusting the config would freeze this number and
+  // eventually hard-block people who are already on the newest build.
+  const native = Application.nativeBuildVersion;
+  if (native !== null && native !== undefined) {
+    const parsed = Number.parseInt(String(native), 10);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  // Web and Expo Go have no native layer; the config is the only thing there.
   const config = Constants.expoConfig;
   if (!config) return null;
 
@@ -78,7 +91,9 @@ export function runningBuildNumber(): number | null {
 
 /** The marketing version of the running binary (app.json `version`), or null. */
 export function runningVersion(): string | null {
-  return Constants.expoConfig?.version ?? null;
+  // Same reasoning as runningBuildNumber: the installed binary's own version
+  // beats the one baked into the bundle.
+  return Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? null;
 }
 
 /**

@@ -2067,6 +2067,36 @@
         "title": "Retirer",
         "body": "Appelez d’abord, puis allez-y. Une réservation n’est pas un achat."
       }
+    },
+    "filters": "Filtres",
+    "filtersTitle": "Filtrer les résultats",
+    "pharmacyType": "Pharmacies",
+    "change": "Modifier",
+    "yourLocation": "Votre position",
+    "detailTitle": "Disponibilité du médicament",
+    "detailSubtitle": "Vérifiez la disponibilité et les prix, puis réservez votre médicament.",
+    "availabilityChanges": "La disponibilité peut changer. Confirmez auprès de la pharmacie avant de vous déplacer.",
+    "nearestPharmacies": "Pharmacies les plus proches ({{count}})",
+    "reserveShort": "Réserver",
+    "verifiedShort": "Vérifiée",
+    "privacyTitle": "Votre santé. Vos données. Votre confidentialité.",
+    "privacyBody": "Une réservation ne transmet à la pharmacie que ce qui lui est nécessaire pour garder votre médicament — jamais le reste de votre dossier.",
+    "learnMore": "En savoir plus",
+    "stockAtPharmacy": "Stock ici",
+    "pricingHere": "Prix dans cette pharmacie",
+    "pricePerPack": "par {{size}}",
+    "viewComparison": "Voir la comparaison",
+    "importantTitle": "Important",
+    "importantBody": "Ne dépassez pas la dose qui vous a été indiquée. Lisez la notice avant de le prendre.",
+    "choosePackSize": "Choisissez le conditionnement",
+    "priceNotQuoted": "Prix non indiqué pour ce conditionnement",
+    "strength": "Dosage",
+    "totalShort": "Total",
+    "whyPricesShort": {
+      "brand": "Marque et fabricant",
+      "pack": "Conditionnement",
+      "costs": "Coûts de la pharmacie",
+      "demand": "Offre et demande"
     }
   },
   "careMap": {
@@ -2488,7 +2518,62 @@
       "stepReview": "Vérification",
       "stepSent": "Envoyée",
       "tooManyHint": "Annulez-en une dont vous n’avez plus besoin, ou patientez : une demande sans réponse expire d’elle-même au bout de 24 heures et libère une place.",
-      "useMyNumber": "Utiliser mon numéro"
+      "useMyNumber": "Utiliser mon numéro",
+      "titleShort": "Demander du sang",
+      "secure": "Sécurisé",
+      "stepDetailsLong": "Détails de la demande",
+      "stepReviewLong": "Vérifier et confirmer",
+      "stepOfTwo": "Étape {{step}} sur 2 · {{label}}",
+      "patientTitle": "Informations du patient",
+      "healthIdLine": "Identifiant santé : {{id}}",
+      "dobLabel": "Naissance",
+      "ageYears": "{{years}} ans",
+      "forSomeoneElse": "Demande pour quelqu’un d’autre",
+      "forWhoLabel": "Pour qui est cette demande ?",
+      "forWhoPlaceholder": "Nom et lien de parenté",
+      "forWhoHint": "OpesCare n’a pas de champ dédié pour cela : l’information est envoyée à la banque de sang en première ligne de votre note.",
+      "forWhoLine": "Demande pour : {{who}}",
+      "receivingFacility": "Établissement destinataire",
+      "requirementTitle": "Besoin en sang",
+      "changeInSearch": "Modifiez ceci dans la recherche",
+      "chooseOption": "Ouvre la liste des choix",
+      "unitsWord": "unités",
+      "onlyWhatIsNeeded": "Ne demandez que ce qui est nécessaire.",
+      "requiredDate": "Date souhaitée",
+      "contextTitle": "Contexte de la demande",
+      "clinicalIndication": "Indication clinique / motif",
+      "noteFoldHint": "Vos réponses ci-dessus sont ajoutées en tête de cette note avant l’envoi.",
+      "contactTitle": "Préférence de contact",
+      "contactQuestion": "Comment la banque de sang doit-elle vous joindre ?",
+      "contactChoices": {
+        "phone": "Appel",
+        "sms": "SMS",
+        "in_app": "Dans l’app"
+      },
+      "contactFoldNote": "Il n’existe pas de champ dédié : votre choix est envoyé sous forme de ligne dans votre note.",
+      "contactAppHint": "Aucun numéro n’est transmis. La banque de sang répond uniquement dans l’application.",
+      "contactLine": "Contact préféré : {{choice}}",
+      "confirmedTitle": "Demande confirmée",
+      "confirmedSubtitle": "Votre demande a bien été créée.",
+      "confirmedHero": "Demande de sang confirmée",
+      "confirmedThanks": "Merci de contribuer à sauver des vies.",
+      "requestIdLabel": "N° de demande",
+      "statDate": "Date",
+      "statStatus": "Statut",
+      "statOnHold": "En attente",
+      "statUnits": "Unités réservées",
+      "statExpires": "Réservation expire",
+      "summaryTitle": "Récapitulatif de la demande",
+      "viewDetails": "Voir le détail",
+      "patientLabel": "Patient",
+      "requestForLabel": "Demande pour",
+      "requestForSelf": "Moi-même",
+      "instructionsTitle": "Consignes importantes",
+      "instructionCall": "Appelez la banque de sang avant de vous déplacer pour confirmer que les unités sont toujours là.",
+      "instructionBring": "Apportez cette référence et l’identifiant santé du patient au comptoir.",
+      "viewStatus": "Suivre ma demande",
+      "share": "Partager",
+      "shareMessage": "Demande de sang OpesCare {{reference}} — {{units}} × {{group}} {{component}} à {{facility}}."
     },
     "errors": {
       "BLOOD_NOT_AVAILABLE": "Cet établissement ne signale plus ce groupe sanguin comme disponible.",
@@ -7765,7 +7850,17 @@
     "listingLabel": "Référencement",
     "notRecorded": "Non renseigné",
     "noMap": "Cet établissement n’a pas de coordonnées enregistrées : il ne peut pas être placé sur la carte.",
-    "distanceUnknown": "Distance inconnue"
+    "distanceUnknown": "Distance inconnue",
+    "verifiedPill": "Vérifié",
+    "unitsAvailable": "Unités disponibles",
+    "unitsSuffix": "unités",
+    "typeShort": "Type",
+    "mapShort": "Carte",
+    "mapA11y": "Voir cette banque de sang sur la carte",
+    "directionsShort": "Itinéraire",
+    "directionsA11y": "Obtenir l’itinéraire vers cette banque de sang",
+    "share": "Partager",
+    "shareA11y": "Partager les coordonnées de cette banque de sang"
   },
   "bloodStatus": {
     "title": "Suivi de la demande",
@@ -7805,7 +7900,45 @@
     "facilityTitle": "Où retirer",
     "call": "Appeler la banque de sang",
     "noPhone": "Aucun numéro publié",
-    "modify": "Modifier ou annuler"
+    "modify": "Modifier ou annuler",
+    "requestId": "N° de demande",
+    "copyId": "Copier le n° de demande",
+    "copied": "Copié",
+    "share": "Partager",
+    "shareMessage": "Demande de sang OpesCare {{reference}} — {{facility}}.",
+    "currentStatus": "Statut actuel",
+    "checkedAt": "Vérifié à {{when}}",
+    "track": {
+      "onTrackTitle": "Dans les temps",
+      "onTrackBody": "Ouverte et non expirée.",
+      "attentionTitle": "À vérifier",
+      "attentionBody": "La réservation a expiré.",
+      "closedTitle": "Clôturée",
+      "closedBody": "Elle n’est plus en cours."
+    },
+    "component": "Composant",
+    "bank": "Banque de sang",
+    "expiresLabel": "Fin de réservation",
+    "notGiven": "Non renseigné",
+    "unitsWord": "Unités",
+    "unitsReservedNote": "Réservées pour vous",
+    "collectionTitle": "Informations de retrait",
+    "collectionLocation": "Lieu de retrait",
+    "bankMessage": "Message de la banque de sang",
+    "summaryTitle": "Récapitulatif de la réservation",
+    "addressUnknown": "Adresse non publiée",
+    "actions": {
+      "refresh": "Actualiser",
+      "share": "Partager",
+      "copy": "Copier",
+      "directions": "Itinéraire",
+      "call": "Appeler",
+      "refreshA11y": "Actualiser cette demande",
+      "shareA11y": "Partager cette demande",
+      "copyA11y": "Copier le n° de demande",
+      "directionsA11y": "Ouvrir cette banque de sang sur la carte",
+      "callA11y": "Appeler cette banque de sang"
+    }
   },
   "bloodModify": {
     "title": "Modifier ou annuler",
@@ -7835,7 +7968,37 @@
     "cancelling": "Annulation…",
     "cancelConfirmTitle": "Annuler cette demande ?",
     "cancelConfirmBody": "La demande {{reference}} sera annulée et les unités libérées. C’est irréversible.",
-    "cancelConfirmAction": "Oui, annuler"
+    "cancelConfirmAction": "Oui, annuler",
+    "subtitle": "N° de demande : {{reference}}",
+    "windowBodyNoExpiry": "Aucune date de fin n’est encore fixée pour cette réservation. Une fois que la banque de sang a répondu, la demande ne peut plus être modifiée.",
+    "overviewTitle": "Aperçu de la demande",
+    "choiceTitle": "Que souhaitez-vous faire ?",
+    "choose": {
+      "modifyTitle": "Modifier la demande",
+      "modifyBody": "Modifier les détails de cette demande, sous réserve de disponibilité.",
+      "cancelTitle": "Annuler la demande",
+      "cancelBody": "Annuler cette demande et libérer les unités réservées."
+    },
+    "modifyPoints": {
+      "units": "Changer le nombre d’unités",
+      "urgency": "Changer l’urgence",
+      "contact": "Changer le numéro de contact",
+      "note": "Ajouter ou modifier une note"
+    },
+    "editableBadge": "Champs modifiables",
+    "detailsTitle": "Détails à modifier",
+    "cancelPanelTitle": "Ce qu’entraîne l’annulation",
+    "approvalTitle": "Sous réserve de la banque de sang",
+    "approvalBody": "Les modifications sont soumises à l’accord de la banque de sang et à la disponibilité réelle. Vous serez informé du résultat.",
+    "keep": "Conserver ma demande",
+    "statusLabel": "Statut",
+    "quickTitle": "Actions rapides",
+    "quick": {
+      "status": "Statut",
+      "copy": "Copier",
+      "call": "Appeler",
+      "directions": "Itinéraire"
+    }
   },
   "donor": {
     "joinTitle": "Devenir donneur",
@@ -7881,7 +8044,55 @@
     "savedListedBody": "Les personnes qui cherchent votre groupe dans votre zone voient maintenant que vous êtes volontaire. Vous pouvez faire une pause ou vous retirer à tout moment.",
     "savedUnlistedTitle": "Enregistré, non visible",
     "savedUnlistedBody": "Vos informations sont enregistrées mais personne ne peut vous trouver tant que vous n’activez pas la visibilité.",
-    "footNote": "Vous pouvez faire une pause ou vous retirer à tout moment ; le retrait vous enlève immédiatement de toutes les recherches."
+    "footNote": "Vous pouvez faire une pause ou vous retirer à tout moment ; le retrait vous enlève immédiatement de toutes les recherches.",
+    "help": "Aide",
+    "closeSheet": "Fermer",
+    "livesBox": "Un don peut aider jusqu’à 3 personnes",
+    "steps": {
+      "details": "Vos informations",
+      "consent": "Consentement"
+    },
+    "stepOf": "Étape {{current}} sur {{total}} : {{label}}",
+    "groupPlaceholder": "Choisir votre groupe",
+    "eligibilityItems": {
+      "age": {
+        "title": "De 18 à 60 ans",
+        "sub": "La tranche d’âge habituelle pour donner"
+      },
+      "weight": {
+        "title": "50 kg ou plus",
+        "sub": "Pesé à la banque de sang le jour même"
+      },
+      "health": {
+        "title": "En bonne santé",
+        "sub": "Aucune maladie depuis deux semaines"
+      },
+      "interval": {
+        "title": "3 mois depuis votre dernier don",
+        "sub": "Pour le sang total ; d’autres composants diffèrent"
+      }
+    },
+    "eligibilityExpand": "Voir tous les critères",
+    "readEducation": "En savoir plus sur le don",
+    "why": {
+      "title": "Pourquoi devenir donneur ?",
+      "lives": {
+        "title": "Jusqu’à 3 patients",
+        "sub": "Un don est séparé en globules rouges, plaquettes et plasma."
+      },
+      "community": {
+        "title": "Votre communauté",
+        "sub": "Le sang donné est utilisé par les hôpitaux proches du lieu du don."
+      },
+      "control": {
+        "title": "Vous gardez la main",
+        "sub": "Mettez votre inscription en pause ou retirez-vous à tout moment."
+      },
+      "free": {
+        "title": "Jamais à vendre",
+        "sub": "Le don est volontaire et non rémunéré. Personne ne doit payer pour du sang."
+      }
+    }
   },
   "donorSearch": {
     "title": "Trouver des donneurs",
@@ -7914,7 +8125,32 @@
     "noLuckTitle": "Vous ne trouvez pas le bon donneur ?",
     "noLuckBody": "Une banque de sang dispose de son propre fichier de donneurs et peut appeler pour vous. Cela fonctionne même si personne ici n’a publié de numéro.",
     "askBloodBank": "Demander à une banque de sang",
-    "becomeDonor": "Devenir donneur"
+    "becomeDonor": "Devenir donneur",
+    "help": "Aide",
+    "howItWorks": "Comment ça marche",
+    "retry": "Réessayer",
+    "closeSheet": "Fermer",
+    "groupPlaceholder": "Choisir un groupe",
+    "lastDonatedLabel": "Dernier don",
+    "lastDonated": {
+      "any": "Peu importe",
+      "m3": "Pas depuis 3 mois",
+      "m6": "Pas depuis 6 mois"
+    },
+    "safetyPill": "Prudence",
+    "sortLabel": "Trier",
+    "sortSheetTitle": "Trier les volontaires par",
+    "sort": {
+      "since": "Don le plus ancien",
+      "area": "Par zone"
+    },
+    "filtersShow": "Afficher les filtres",
+    "filtersHide": "Masquer les filtres",
+    "filterEmptyTitle": "Personne ne correspond à ce filtre",
+    "filterEmptyBody": "Des volontaires existent pour ce groupe sanguin, mais aucun ne correspond au filtre sur le dernier don. Élargissez-le pour les voir.",
+    "filterClear": "Effacer le filtre",
+    "viaBloodBank": "Demander à une banque",
+    "viaBloodBankHint": "Ouvre la recherche de banques de sang. Une banque peut contacter ce volontaire pour vous."
   },
   "bloodEmergency": {
     "title": "Demande de sang urgente",
@@ -7948,7 +8184,28 @@
     "sending": "Envoi…",
     "needAll": "Choisissez un groupe sanguin, une banque de sang, et indiquez un motif clinique.",
     "failedTitle": "Demande non envoyée",
-    "failedBody": "Rien n’a été envoyé. Vérifiez votre connexion et réessayez — ou appelez directement la banque de sang."
+    "failedBody": "Rien n’a été envoyé. Vérifiez votre connexion et réessayez — ou appelez directement la banque de sang.",
+    "priorityPill": "PRIORITAIRE",
+    "learn": "Guide du sang",
+    "useMyProfile": "Utiliser mon profil",
+    "profileFilled": "Rempli à partir de votre profil.",
+    "profileEmpty": "Votre profil n’a encore ni numéro de téléphone ni groupe sanguin enregistré.",
+    "groupPlaceholder": "Choisir un groupe sanguin",
+    "wardHint": "Repris dans la note que lit la banque de sang.",
+    "neededByLabel": "Nécessaire avant le",
+    "neededByPlaceholder": "Choisir un jour",
+    "neededByToday": "Aujourd’hui",
+    "neededByTomorrow": "Demain",
+    "neededByInDays": "Dans {{days}} jours",
+    "pickupLabel": "Banque de sang de retrait",
+    "pickupNone": "Pas encore choisie",
+    "urgencyLabel": "Niveau d’urgence",
+    "urgencyValue": "URGENCE VITALE",
+    "urgencyFixed": "Fixé sur cet écran",
+    "callBank": "Appeler la banque de sang",
+    "callBankNone": "Aucun numéro publié",
+    "privacyFooter": "Votre demande n’est transmise qu’à la banque de sang que vous choisissez.",
+    "componentGroupA11y": "Composant sanguin"
   },
   "bloodMap": {
     "title": "Carte des disponibilités",
@@ -7967,7 +8224,20 @@
     "widen": "Élargir la recherche",
     "ctaTitle": "Vous ne trouvez pas ce qu’il vous faut ?",
     "ctaBody": "Cherchez par groupe et composant exacts, et réservez des unités.",
-    "ctaAction": "Ouvrir le Blood Finder"
+    "ctaAction": "Ouvrir le Blood Finder",
+    "learn": "Guide du sang",
+    "howItWorks": "Comment ça marche",
+    "placeLabel": "Zone",
+    "radiusLabel": "Rayon",
+    "componentLabel": "Composant",
+    "aroundChip": "{{km}} km autour de {{place}}",
+    "filterNote": "Chaque filtre s’applique dès que vous le choisissez : il n’y a rien à valider ensuite.",
+    "sortLabel": "Trier par",
+    "sortNearest": "Le plus proche",
+    "sortName": "Nom (A–Z)",
+    "nothingReported": "Aucun groupe signalé ici",
+    "callA11y": "Appeler {{name}}",
+    "distancePill": "{{km}} km"
   },
   "about": {
     "title": "À propos d’OpesCare",
@@ -8004,5 +8274,8 @@
     "terms": "Conditions d’utilisation",
     "deletion": "Supprimer mon compte",
     "foot": "OpesCare ne pose aucun diagnostic, ne prescrit aucun traitement et ne donne pas d’avis médical ; l’application ne remplace pas une consultation."
+  },
+  "common": {
+    "back": "Retour"
   }
 }

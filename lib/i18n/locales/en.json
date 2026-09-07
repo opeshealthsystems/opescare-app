@@ -2067,6 +2067,36 @@
         "title": "Collect",
         "body": "Call first, then go. A hold is not a purchase."
       }
+    },
+    "filters": "Filters",
+    "filtersTitle": "Filter results",
+    "pharmacyType": "Pharmacies",
+    "change": "Change",
+    "yourLocation": "Your location",
+    "detailTitle": "Medicine availability",
+    "detailSubtitle": "Check availability, prices and reserve your medicine.",
+    "availabilityChanges": "Availability can change. Confirm with the pharmacy before you travel.",
+    "nearestPharmacies": "Nearest pharmacies ({{count}})",
+    "reserveShort": "Reserve",
+    "verifiedShort": "Verified",
+    "privacyTitle": "Your health. Your data. Your privacy.",
+    "privacyBody": "A reservation shares only what the pharmacy needs to hold your medicine — never the rest of your record.",
+    "learnMore": "Learn more",
+    "stockAtPharmacy": "Stock here",
+    "pricingHere": "Price in this pharmacy",
+    "pricePerPack": "per {{size}}",
+    "viewComparison": "View comparison",
+    "importantTitle": "Important",
+    "importantBody": "Do not exceed the dose you were given. Read the leaflet before you take it.",
+    "choosePackSize": "Choose pack size",
+    "priceNotQuoted": "Price not quoted for this pack size",
+    "strength": "Strength",
+    "totalShort": "Total",
+    "whyPricesShort": {
+      "brand": "Brand & manufacturer",
+      "pack": "Pack size",
+      "costs": "Pharmacy costs",
+      "demand": "Supply & demand"
     }
   },
   "careMap": {
@@ -2488,7 +2518,62 @@
       "stepReview": "Review",
       "stepSent": "Sent",
       "tooManyHint": "Cancel one you no longer need, or wait — an unanswered request lapses on its own after 24 hours and frees the slot.",
-      "useMyNumber": "Use my number"
+      "useMyNumber": "Use my number",
+      "titleShort": "Request blood",
+      "secure": "Secure",
+      "stepDetailsLong": "Request details",
+      "stepReviewLong": "Review & confirm",
+      "stepOfTwo": "Step {{step}} of 2 · {{label}}",
+      "patientTitle": "Patient information",
+      "healthIdLine": "Health ID: {{id}}",
+      "dobLabel": "DOB",
+      "ageYears": "{{years}} yrs",
+      "forSomeoneElse": "Request for someone else",
+      "forWhoLabel": "Who is this for?",
+      "forWhoPlaceholder": "Name and relationship",
+      "forWhoHint": "OpesCare has no separate field for this, so it is sent to the blood bank as the first line of your note.",
+      "forWhoLine": "Requesting for: {{who}}",
+      "receivingFacility": "Receiving facility",
+      "requirementTitle": "Blood requirement",
+      "changeInSearch": "Change this in the search",
+      "chooseOption": "Opens the list of choices",
+      "unitsWord": "units",
+      "onlyWhatIsNeeded": "Please request only what is needed.",
+      "requiredDate": "Required date",
+      "contextTitle": "Request context",
+      "clinicalIndication": "Clinical indication / reason",
+      "noteFoldHint": "Your answers above are added to the top of this note before it is sent.",
+      "contactTitle": "Contact preference",
+      "contactQuestion": "How should the blood bank reach you?",
+      "contactChoices": {
+        "phone": "Phone call",
+        "sms": "SMS",
+        "in_app": "In-app"
+      },
+      "contactFoldNote": "There is no separate field for this, so your choice is sent as a line in your note.",
+      "contactAppHint": "No phone number is sent. The blood bank answers in the app only.",
+      "contactLine": "Preferred contact: {{choice}}",
+      "confirmedTitle": "Request confirmed",
+      "confirmedSubtitle": "Your request has been created.",
+      "confirmedHero": "Blood request confirmed",
+      "confirmedThanks": "Thank you for helping save lives.",
+      "requestIdLabel": "Request ID",
+      "statDate": "Date",
+      "statStatus": "Status",
+      "statOnHold": "On hold",
+      "statUnits": "Units reserved",
+      "statExpires": "Reservation expires",
+      "summaryTitle": "Request summary",
+      "viewDetails": "View details",
+      "patientLabel": "Patient",
+      "requestForLabel": "Request for",
+      "requestForSelf": "Self",
+      "instructionsTitle": "Important instructions",
+      "instructionCall": "Call the blood bank before travelling to confirm the units are still there.",
+      "instructionBring": "Bring this reference and the patient's Health ID to the counter.",
+      "viewStatus": "View request status",
+      "share": "Share",
+      "shareMessage": "OpesCare blood request {{reference}} — {{units}} × {{group}} {{component}} at {{facility}}."
     },
     "errors": {
       "BLOOD_NOT_AVAILABLE": "This facility is no longer reporting that blood type as available.",
@@ -7764,7 +7849,17 @@
     "listingLabel": "Listing",
     "notRecorded": "Not recorded",
     "noMap": "This facility has no coordinates on file, so it cannot be mapped.",
-    "distanceUnknown": "Distance unknown"
+    "distanceUnknown": "Distance unknown",
+    "verifiedPill": "Verified",
+    "unitsAvailable": "Units available",
+    "unitsSuffix": "units",
+    "typeShort": "Type",
+    "mapShort": "Map",
+    "mapA11y": "View this blood bank on the map",
+    "directionsShort": "Directions",
+    "directionsA11y": "Get directions to this blood bank",
+    "share": "Share",
+    "shareA11y": "Share this blood bank's details"
   },
   "bloodStatus": {
     "title": "Request status",
@@ -7804,7 +7899,45 @@
     "facilityTitle": "Where to collect",
     "call": "Call the blood bank",
     "noPhone": "No number published",
-    "modify": "Modify or cancel"
+    "modify": "Modify or cancel",
+    "requestId": "Request ID",
+    "copyId": "Copy the request ID",
+    "copied": "Copied",
+    "share": "Share",
+    "shareMessage": "OpesCare blood request {{reference}} — {{facility}}.",
+    "currentStatus": "Current status",
+    "checkedAt": "Checked {{when}}",
+    "track": {
+      "onTrackTitle": "On track",
+      "onTrackBody": "Open, and not expired.",
+      "attentionTitle": "Check this",
+      "attentionBody": "The hold has run out.",
+      "closedTitle": "Closed",
+      "closedBody": "No longer live."
+    },
+    "component": "Component",
+    "bank": "Blood bank",
+    "expiresLabel": "Hold expires",
+    "notGiven": "Not given",
+    "unitsWord": "Units",
+    "unitsReservedNote": "Reserved for you",
+    "collectionTitle": "Collection information",
+    "collectionLocation": "Collection location",
+    "bankMessage": "Message from the blood bank",
+    "summaryTitle": "Reservation summary",
+    "addressUnknown": "Address not published",
+    "actions": {
+      "refresh": "Refresh",
+      "share": "Share",
+      "copy": "Copy ID",
+      "directions": "Directions",
+      "call": "Call",
+      "refreshA11y": "Refresh this request",
+      "shareA11y": "Share this request",
+      "copyA11y": "Copy the request ID",
+      "directionsA11y": "Open this blood bank on the map",
+      "callA11y": "Call this blood bank"
+    }
   },
   "bloodModify": {
     "title": "Modify or cancel",
@@ -7834,7 +7967,37 @@
     "cancelling": "Cancelling…",
     "cancelConfirmTitle": "Cancel this request?",
     "cancelConfirmBody": "Request {{reference}} will be cancelled and the units released. This cannot be undone.",
-    "cancelConfirmAction": "Yes, cancel it"
+    "cancelConfirmAction": "Yes, cancel it",
+    "subtitle": "Request ID: {{reference}}",
+    "windowBodyNoExpiry": "No end date has been set on this hold yet. Once the blood bank has answered, the request can no longer be changed.",
+    "overviewTitle": "Current request overview",
+    "choiceTitle": "What would you like to do?",
+    "choose": {
+      "modifyTitle": "Modify request",
+      "modifyBody": "Change the details of this request, subject to availability.",
+      "cancelTitle": "Cancel request",
+      "cancelBody": "Cancel this request and release the reserved units."
+    },
+    "modifyPoints": {
+      "units": "Change how many units",
+      "urgency": "Change the urgency",
+      "contact": "Change the contact number",
+      "note": "Add or edit a note"
+    },
+    "editableBadge": "Editable fields",
+    "detailsTitle": "Modify request details",
+    "cancelPanelTitle": "What cancelling does",
+    "approvalTitle": "Subject to the blood bank",
+    "approvalBody": "Changes are subject to the blood bank’s approval and to what is actually available. You will be told the outcome.",
+    "keep": "Keep my request",
+    "statusLabel": "Status",
+    "quickTitle": "Quick actions",
+    "quick": {
+      "status": "Status",
+      "copy": "Copy ID",
+      "call": "Call",
+      "directions": "Directions"
+    }
   },
   "donor": {
     "joinTitle": "Become a donor",
@@ -7880,7 +8043,55 @@
     "savedListedBody": "People searching for your blood group in your area can now see that you volunteer. You can pause or withdraw at any time.",
     "savedUnlistedTitle": "Saved, not listed",
     "savedUnlistedBody": "Your details are saved but nobody can find you until you turn listing on.",
-    "footNote": "You can pause or withdraw at any time, and withdrawing removes you from every search immediately."
+    "footNote": "You can pause or withdraw at any time, and withdrawing removes you from every search immediately.",
+    "help": "Help",
+    "closeSheet": "Close",
+    "livesBox": "One donation can help up to 3 people",
+    "steps": {
+      "details": "Your details",
+      "consent": "Consent"
+    },
+    "stepOf": "Step {{current}} of {{total}}: {{label}}",
+    "groupPlaceholder": "Choose your group",
+    "eligibilityItems": {
+      "age": {
+        "title": "Aged 18 to 60",
+        "sub": "The usual age range for donating"
+      },
+      "weight": {
+        "title": "50 kg or more",
+        "sub": "Weighed at the blood bank on the day"
+      },
+      "health": {
+        "title": "In good health",
+        "sub": "No illness in the past two weeks"
+      },
+      "interval": {
+        "title": "3 months since your last donation",
+        "sub": "For whole blood; other components differ"
+      }
+    },
+    "eligibilityExpand": "View full eligibility criteria",
+    "readEducation": "Read what donating involves",
+    "why": {
+      "title": "Why become a donor?",
+      "lives": {
+        "title": "Up to 3 patients",
+        "sub": "One donation is separated into red cells, platelets and plasma."
+      },
+      "community": {
+        "title": "Your own community",
+        "sub": "Donated blood is used by hospitals near where it is given."
+      },
+      "control": {
+        "title": "You stay in control",
+        "sub": "Pause or withdraw from the register at any time."
+      },
+      "free": {
+        "title": "Never for sale",
+        "sub": "Donating is voluntary and unpaid. Nobody should pay for blood."
+      }
+    }
   },
   "donorSearch": {
     "title": "Find donors",
@@ -7913,7 +8124,32 @@
     "noLuckTitle": "Can't find the right donor?",
     "noLuckBody": "A blood bank holds its own donor list and can call on your behalf. That works even when nobody here has published a number.",
     "askBloodBank": "Ask a blood bank",
-    "becomeDonor": "Become a donor"
+    "becomeDonor": "Become a donor",
+    "help": "Help",
+    "howItWorks": "How it works",
+    "retry": "Try again",
+    "closeSheet": "Close",
+    "groupPlaceholder": "Choose a group",
+    "lastDonatedLabel": "Last donated",
+    "lastDonated": {
+      "any": "Any time",
+      "m3": "Not in 3 months",
+      "m6": "Not in 6 months"
+    },
+    "safetyPill": "Stay safe",
+    "sortLabel": "Sort",
+    "sortSheetTitle": "Sort volunteers by",
+    "sort": {
+      "since": "Longest since donating",
+      "area": "By area"
+    },
+    "filtersShow": "Show filters",
+    "filtersHide": "Hide filters",
+    "filterEmptyTitle": "Nobody matches that filter",
+    "filterEmptyBody": "Volunteers were found for this blood group, but none of them fits the last-donated filter. Widen it to see them.",
+    "filterClear": "Clear the filter",
+    "viaBloodBank": "Ask a blood bank",
+    "viaBloodBankHint": "Opens the blood bank finder. A blood bank can contact this volunteer for you."
   },
   "bloodEmergency": {
     "title": "Emergency blood request",
@@ -7947,7 +8183,28 @@
     "sending": "Sending…",
     "needAll": "Choose a blood group, a blood bank, and give a clinical reason.",
     "failedTitle": "Request not sent",
-    "failedBody": "Nothing was sent. Check your connection and try again — or call the blood bank directly."
+    "failedBody": "Nothing was sent. Check your connection and try again — or call the blood bank directly.",
+    "priorityPill": "PRIORITY",
+    "learn": "Blood guide",
+    "useMyProfile": "Use my profile",
+    "profileFilled": "Filled in from your profile.",
+    "profileEmpty": "Your profile has no phone number or blood group saved yet.",
+    "groupPlaceholder": "Select blood group",
+    "wardHint": "Goes into the note the blood bank reads.",
+    "neededByLabel": "Needed by",
+    "neededByPlaceholder": "Select a day",
+    "neededByToday": "Today",
+    "neededByTomorrow": "Tomorrow",
+    "neededByInDays": "In {{days}} days",
+    "pickupLabel": "Pickup blood bank",
+    "pickupNone": "Not chosen yet",
+    "urgencyLabel": "Urgency level",
+    "urgencyValue": "EMERGENCY",
+    "urgencyFixed": "Fixed on this screen",
+    "callBank": "Call the blood bank",
+    "callBankNone": "No number published",
+    "privacyFooter": "Your request goes only to the blood bank you choose.",
+    "componentGroupA11y": "Blood component"
   },
   "bloodMap": {
     "title": "Blood availability map",
@@ -7966,7 +8223,20 @@
     "widen": "Widen the search",
     "ctaTitle": "Can't find what you need?",
     "ctaBody": "Search by your exact group and component, and reserve units.",
-    "ctaAction": "Open Blood Finder"
+    "ctaAction": "Open Blood Finder",
+    "learn": "Blood guide",
+    "howItWorks": "How it works",
+    "placeLabel": "Area",
+    "radiusLabel": "Radius",
+    "componentLabel": "Component",
+    "aroundChip": "{{km}} km around {{place}}",
+    "filterNote": "Every filter applies the moment you choose it, so there is nothing to apply afterwards.",
+    "sortLabel": "Sort by",
+    "sortNearest": "Nearest",
+    "sortName": "Name (A–Z)",
+    "nothingReported": "No group reported here",
+    "callA11y": "Call {{name}}",
+    "distancePill": "{{km}} km"
   },
   "about": {
     "title": "About OpesCare",
@@ -8003,5 +8273,8 @@
     "terms": "Terms of service",
     "deletion": "Delete my account",
     "foot": "OpesCare does not diagnose, treat or give medical advice, and it does not replace seeing a health professional."
+  },
+  "common": {
+    "back": "Back"
   }
 }

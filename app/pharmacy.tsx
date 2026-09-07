@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -14,12 +15,10 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
-  Chip,
   EmptyState,
   Icon,
   LastUpdatedLine,
   ListRow,
-  PillInput,
   ScreenHeader,
   SectionHeader,
   StaleNotice,
@@ -34,7 +33,7 @@ import {
   type Palette,
   type StatusTone,
 } from '@/components/opes-ui';
-import { FactCell, MedButton, TintCircle } from '@/components/meds/shared';
+import { MedButton, TintCircle } from '@/components/meds/shared';
 import { FacilityMap } from '@/components/map/FacilityMap';
 import {
   useCancelMedicineReservation,
@@ -52,13 +51,32 @@ import { formatXaf, formatXafBare, useMedicineCatalog } from '@/lib/api/pharmacy
  * Medicine Finder — search the national catalogue, see where a medicine is
  * stocked, and manage the holds you already have.
  *
- * Presentation: the OPES kit (`ScreenHeader` → `PillInput` search → filter and
- * category `Chip`s → results as `Card variant="flush"` + `ListRow`s → nearby
- * pharmacies with the embedded `FacilityMap` → safety strip), in the app's own
- * palette via `useTheme()`. Layout reference: `UIUX/src/screens/meds/
- * OrderFromPharmacyScreen.tsx`. The reference's two-column desktop split (list
- * on the left, "Selected Medicine" on the right) is a drill-in on a phone:
- * tapping a medicine opens app/pharmacy/[medicineId].tsx.
+ * Presentation follows the MED-01 render `reference/medicine/medicine_finder.png`:
+ * a large rounded search field with a clear button → a row of outlined dropdown
+ * pills (location | radius | pharmacy type | Filters) → the boxed category rail
+ * → medicine cards drawn as the reference's green-tinted hero (product mark,
+ * name, generic, indication tags, prescription line, then availability / price
+ * range / pack size) → the nearby-pharmacy list (mark, name, open pill,
+ * distance + hours, "View Details") → the safety strip. Colours come from
+ * `useTheme()`; green is the medicine accent, as in the render.
+ *
+ * ── 375pt COMPROMISES (the render is drawn at ~430pt, in two columns) ───────
+ *  • The render's two-column split — pharmacy list on the left, "Selected
+ *    Medicine" panel on the right — is a drill-in on a phone: tapping a
+ *    medicine opens app/pharmacy/[medicineId].tsx, which carries the whole
+ *    right-hand panel. This screen stays single column.
+ *  • The hero card's right-hand column (availability, price range, pack size)
+ *    cannot sit beside a drug name at 375pt without clipping the name (see the
+ *    `MedicineRow` note below), so it becomes a full-width tier underneath.
+ *  • The render's "Sort by: Distance" dropdown is rendered as a static pill:
+ *    GET /mobile/pharmacy/nearby only ever orders by distance, and a chevron
+ *    that opens a menu with one item is a control that lies.
+ *  • Pharmacy PHOTOS in the render are not in any payload this app receives —
+ *    `NearbyPharmacy` carries no image field at all — so each row shows a
+ *    tinted storefront mark instead. Nothing is fabricated to fill the slot.
+ *  • The render's "Learn More" button on the safety strip has no destination
+ *    that is actually about buying safely, so it is not drawn. (The detail
+ *    screen's privacy panel does have one — /privacy — and keeps its link.)
  *
  * Data layer is untouched: `useMedicineCatalog`, `useMedicineCategories`,
  * `useNearbyPharmacies`, `useMedicineReservations`, `useCancelMedicineReservation`.
@@ -167,7 +185,12 @@ const RESERVATION_TONES: Record<string, StatusTone> = {
   expired: 'critical',
 };
 
-type SheetKey = 'city' | 'radius' | null;
+/**
+ * Which dropdown pill is currently open. The MED-01 render draws these four
+ * controls as dropdowns, not as toggle chips, so only one panel is open at a
+ * time and the pill that owns it shows a chevron-up.
+ */
+type SheetKey = 'city' | 'radius' | 'type' | 'filters' | null;
 /** null = both kinds, true = prescription-only, false = over-the-counter. */
 type RxFilter = boolean | null;
 
@@ -307,6 +330,8 @@ export default function PharmacyScreen() {
   const pharmaciesTruncated = allPharmacyRows.length >= NEARBY_API_LIMIT;
 
   const filtersActive = !!debouncedTerm || category !== null || rxFilter !== null || reportedOnly;
+  /** Badge on the render's "Filters" pill — only what that panel itself owns. */
+  const activeFilterCount = (reportedOnly ? 1 : 0) + (rxFilter !== null ? 1 : 0);
   const hasMappable = pharmacyRows.some((p) => p.latitude != null && p.longitude != null);
   const atHoldCap = openHolds.length >= MAX_OPEN_HOLDS;
 
@@ -320,6 +345,10 @@ export default function PharmacyScreen() {
         lat: String(city.lat),
         lng: String(city.lng),
         radiusKm: String(radiusKm),
+        // The detail screen draws the render's "Your location" cell. It has
+        // only coordinates otherwise, and "4.051, 9.768" is not a place a
+        // patient recognises — so the chosen origin travels by name too.
+        city: city.name,
       },
     });
 
@@ -407,111 +436,144 @@ export default function PharmacyScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.blue} />
         }
       >
-        {/* At-a-glance counts */}
-        <Card>
-          <View style={styles.factRow}>
-            <FactCell
-              icon="pill"
-              label={t('pharmacy.resultsTitle')}
-              value={catalog.isPending ? '—' : String(reportedOnly ? shownResults.length : total)}
-              valueColor={colors.link}
-              align="center"
-            />
-            <FactCell
-              icon="store"
-              label={t('pharmacy.nearbyTitle')}
-              value={pharmacies.isPending ? '—' : String(pharmacyRows.length)}
-              valueColor={colors.link}
-              align="center"
-              divided
-            />
-            <FactCell
-              icon="receipt"
-              label={t('pharmacy.reservationsTitle')}
-              value={reservations.isPending ? '—' : String(openHolds.length)}
-              valueColor={openHolds.length > 0 ? colors.statusWarning : colors.link}
-              align="center"
-              divided
-            />
-          </View>
-        </Card>
+        {/* Search — the render's big rounded field with a clear button.
+            Built here rather than with the kit `PillInput`, whose hexagon
+            icon badge is a login-screen mark the render does not draw. */}
+        <SearchField
+          value={term}
+          onChangeText={setTerm}
+          placeholder={t('pharmacy.searchPlaceholder')}
+          clearLabel={t('pharmacy.clearSearch', { defaultValue: 'Clear search' })}
+        />
 
-        {/* Search */}
-        <View style={styles.searchWrap}>
-          <PillInput
-            icon={<Icon name="search" size={18} color={colors.blue} />}
-            value={term}
-            onChangeText={setTerm}
-            placeholder={t('pharmacy.searchPlaceholder')}
-            autoCorrect={false}
-            autoCapitalize="none"
-            returnKeyType="search"
-            accessibilityLabel={t('pharmacy.searchPlaceholder')}
-          />
-          {term.length > 0 ? (
-            <TouchableOpacity
-              onPress={() => setTerm('')}
-              hitSlop={10}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={t('pharmacy.clearSearch', { defaultValue: 'Clear search' })}
-              style={styles.searchClear}
-            >
-              <Icon name="x-circle" size={20} color={colors.textMuted} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {/* Filter chips */}
+        {/* Filter row — four outlined dropdown pills, exactly as the render:
+            location | radius | pharmacy type | Filters. The prescription and
+            in-stock toggles live behind "Filters" rather than as loose chips. */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.chipRail}
           contentContainerStyle={styles.chipRailContent}
         >
-          <Chip
+          <DropPill
             icon="location"
             label={city.name}
-            selected={sheet === 'city'}
+            open={sheet === 'city'}
             onPress={() => setSheet((s) => (s === 'city' ? null : 'city'))}
-            accessibilityLabel={t('pharmacy.cityPickerTitle')}
+            accessibilityLabel={`${t('pharmacy.cityPickerTitle')}: ${city.name}`}
           />
-          <Chip
+          <DropPill
             icon="target"
             label={t('pharmacy.radius', { km: radiusKm })}
-            selected={sheet === 'radius'}
+            open={sheet === 'radius'}
             onPress={() => setSheet((s) => (s === 'radius' ? null : 'radius'))}
-            accessibilityLabel={t('pharmacy.radiusPickerTitle')}
+            accessibilityLabel={`${t('pharmacy.radiusPickerTitle')}: ${t('pharmacy.radius', { km: radiusKm })}`}
           />
-          <Chip
+          <DropPill
             icon={openNowOnly ? 'clock' : 'store'}
             label={openNowOnly ? t('pharmacy.openNow') : t('pharmacy.allPharmacies')}
-            selected={openNowOnly}
-            onPress={() => setOpenNowOnly((only) => !only)}
+            open={sheet === 'type'}
+            onPress={() => setSheet((s) => (s === 'type' ? null : 'type'))}
+            accessibilityLabel={t('pharmacy.pharmacyType')}
           />
-          <Chip
-            icon="check-double"
-            label={t('pharmacy.stockingOnly')}
-            selected={reportedOnly}
-            onPress={() => setReportedOnly((only) => !only)}
-            accessibilityHint={t('pharmacy.catalogueScopeHint', {
-              defaultValue:
-                'Availability counts every pharmacy in the national directory that reports stock — not only those near you.',
-            })}
-          />
-          <Chip
-            icon="document-text"
-            label={t('pharmacy.filterRx')}
-            selected={rxFilter === true}
-            onPress={() => setRxFilter((v) => (v === true ? null : true))}
-          />
-          <Chip
-            icon="check-circle"
-            label={t('pharmacy.filterOtc')}
-            selected={rxFilter === false}
-            onPress={() => setRxFilter((v) => (v === false ? null : false))}
+          <DropPill
+            icon="filter"
+            label={t('pharmacy.filters')}
+            open={sheet === 'filters'}
+            count={activeFilterCount}
+            chevron={false}
+            onPress={() => setSheet((s) => (s === 'filters' ? null : 'filters'))}
+            accessibilityLabel={t('pharmacy.filtersTitle')}
           />
         </ScrollView>
+
+        {sheet === 'type' ? (
+          <OptionCard title={t('pharmacy.pharmacyType')}>
+            <ListRow
+              title={t('pharmacy.allPharmacies')}
+              trailing={!openNowOnly ? <Icon name="check" size={18} color={colors.blue} /> : undefined}
+              chevron={false}
+              divider
+              onPress={() => {
+                setOpenNowOnly(false);
+                setSheet(null);
+              }}
+            />
+            <ListRow
+              title={t('pharmacy.openNow')}
+              trailing={openNowOnly ? <Icon name="check" size={18} color={colors.blue} /> : undefined}
+              chevron={false}
+              divider={false}
+              onPress={() => {
+                setOpenNowOnly(true);
+                setSheet(null);
+              }}
+            />
+          </OptionCard>
+        ) : null}
+
+        {sheet === 'filters' ? (
+          <OptionCard title={t('pharmacy.filtersTitle')}>
+            <ListRow
+              title={t('pharmacy.stockingOnly')}
+              meta={[
+                t('pharmacy.catalogueScopeHint', {
+                  defaultValue:
+                    'Availability counts every pharmacy in the national directory that reports stock — not only those near you.',
+                }),
+              ]}
+              trailing={
+                <Icon
+                  name={reportedOnly ? 'check-circle' : 'circle'}
+                  size={20}
+                  color={reportedOnly ? colors.statusNormal : colors.textMuted}
+                />
+              }
+              chevron={false}
+              divider
+              onPress={() => setReportedOnly((only) => !only)}
+            />
+            <ListRow
+              title={t('pharmacy.filterRx')}
+              trailing={
+                <Icon
+                  name={rxFilter === true ? 'check-circle' : 'circle'}
+                  size={20}
+                  color={rxFilter === true ? colors.statusNormal : colors.textMuted}
+                />
+              }
+              chevron={false}
+              divider
+              onPress={() => setRxFilter((v) => (v === true ? null : true))}
+            />
+            <ListRow
+              title={t('pharmacy.filterOtc')}
+              trailing={
+                <Icon
+                  name={rxFilter === false ? 'check-circle' : 'circle'}
+                  size={20}
+                  color={rxFilter === false ? colors.statusNormal : colors.textMuted}
+                />
+              }
+              chevron={false}
+              divider={filtersActive}
+              onPress={() => setRxFilter((v) => (v === false ? null : false))}
+            />
+            {filtersActive ? (
+              <ListRow
+                icon="close"
+                tint="red"
+                title={t('pharmacy.clearFilters')}
+                chevron={false}
+                divider={false}
+                onPress={() => {
+                  clearFilters();
+                  setSheet(null);
+                }}
+              />
+            ) : null}
+          </OptionCard>
+        ) : null}
 
         {sheet === 'city' ? (
           <OptionCard title={t('pharmacy.cityPickerTitle')}>
@@ -559,7 +621,8 @@ export default function PharmacyScreen() {
           </OptionCard>
         ) : null}
 
-        {/* Category chips */}
+        {/* The render's category rail: boxed icon-over-label tiles, "All"
+            first, selected tile outlined and filled green. */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -784,27 +847,26 @@ export default function PharmacyScreen() {
 
         {/* Pharmacies near the chosen origin */}
         <View>
-          <SectionHeader
-            title={
-              pharmacies.isSuccess
+          {/* "Nearby Pharmacies (12)" with the render's sort control on the
+              right. It is a STATIC pill, not a dropdown: the endpoint orders
+              by distance and offers no other ordering, and a chevron opening a
+              one-item menu would be a control that lies. */}
+          <View style={styles.listHead}>
+            <Text style={styles.listHeadTitle} accessibilityRole="header" numberOfLines={1}>
+              {pharmacies.isSuccess
                 ? t('pharmacy.nearbyPharmacies', { count: pharmacyRows.length })
-                : t('pharmacy.nearbyTitle')
-            }
-            actionLabel={showAllPharmacies ? t('pharmacy.showLess') : t('pharmacy.showAll')}
-            actionChevron
-            onAction={
-              pharmacyRows.length > NEARBY_PREVIEW
-                ? () => setShowAllPharmacies((open) => !open)
-                : undefined
-            }
-          />
+                : t('pharmacy.nearbyTitle')}
+            </Text>
+            <View style={styles.sortPill}>
+              <Icon name="arrow-down" size={13} color={colors.textMuted} />
+              <Text style={styles.sortPillText}>{t('pharmacy.sortByDistance')}</Text>
+            </View>
+          </View>
           <Text style={styles.sectionHint}>
             {t('pharmacy.radiusSearched', {
               km: radiusKm,
               defaultValue: 'Searched within {{km}} km',
             })}
-            {'  ·  '}
-            {t('pharmacy.sortByDistance')}
             {'\n'}
             {/* This list carries no stock rows at all (no medicine_id was sent),
                 so it must not be read as "these pharmacies have your medicine". */}
@@ -924,9 +986,11 @@ export default function PharmacyScreen() {
         {/* When the figures on this screen were actually loaded. */}
         {loadedAt > 0 ? <LastUpdatedLine loadedAt={new Date(loadedAt)} /> : null}
 
-        {/* Safety notice */}
+        {/* Safety notice — the render's blue strip, shield inside a round mark. */}
         <View style={styles.notice} accessibilityRole="summary">
-          <Icon name="shield-check" size={20} color={colors.blue} />
+          <View style={styles.noticeMark}>
+            <Icon name="shield-check" size={20} color={colors.blue} />
+          </View>
           <View style={styles.noticeBody}>
             <Text style={styles.noticeTitle}>{t('pharmacy.safetyTitle')}</Text>
             <Text style={styles.noticeText}>{t('pharmacy.safetyBody')}</Text>
@@ -946,6 +1010,113 @@ export default function PharmacyScreen() {
 }
 
 /* ── Pieces ───────────────────────────────────────────────────────────────── */
+
+/**
+ * The render's big rounded search field: magnifier, field, clear button.
+ *
+ * Local rather than the kit `PillInput` because that control wraps its icon in
+ * the hexagon badge from the login screens, which MED-01 does not draw. Every
+ * colour and token still comes from the theme.
+ */
+function SearchField({
+  value,
+  onChangeText,
+  placeholder,
+  clearLabel,
+}: {
+  value: string;
+  onChangeText: (next: string) => void;
+  placeholder: string;
+  clearLabel: string;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [focused, setFocused] = useState(false);
+
+  return (
+    <View style={[styles.search, focused && { borderColor: colors.borderFocus }]}>
+      <Icon name="search" size={20} color={focused ? colors.blue : colors.textMuted} />
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        autoCorrect={false}
+        autoCapitalize="none"
+        returnKeyType="search"
+        accessibilityLabel={placeholder}
+        style={styles.searchInput}
+      />
+      {value.length > 0 ? (
+        <TouchableOpacity
+          onPress={() => onChangeText('')}
+          hitSlop={10}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={clearLabel}
+        >
+          <Icon name="x-circle" size={20} color={colors.textMuted} />
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * One of the render's outlined dropdown pills: icon, current value, chevron.
+ *
+ * Not the kit `Chip` — a chip is a filled on/off toggle, and MED-01 draws
+ * these as white bordered controls that OPEN something. The chevron flips to
+ * `chevron-up` while its panel is open so the pill says which one is showing.
+ */
+function DropPill({
+  icon,
+  label,
+  open,
+  count,
+  chevron = true,
+  onPress,
+  accessibilityLabel,
+}: {
+  icon: IconName;
+  label: string;
+  open: boolean;
+  count?: number;
+  chevron?: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const fg = open ? colors.blue : colors.textSecondary;
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ expanded: open }}
+      style={[styles.dropPill, open && { borderColor: colors.blue, backgroundColor: colors.primarySoft }]}
+    >
+      <Icon name={icon} size={15} color={fg} />
+      <Text style={[styles.dropPillText, open && { color: colors.blue }]} numberOfLines={1}>
+        {label}
+      </Text>
+      {count ? (
+        <View style={styles.dropPillCount}>
+          <Text style={styles.dropPillCountText}>{count}</Text>
+        </View>
+      ) : null}
+      {chevron ? (
+        <Icon name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textMuted} />
+      ) : null}
+    </TouchableOpacity>
+  );
+}
+
 /**
  * One tile of the reference's category rail (MED-01).
  *
@@ -1048,11 +1219,17 @@ function NoticeStrip({
 }
 
 /**
- * One catalogue row. Everything the medicines payload actually carries is on
- * it — brand, generic, strength/form, category, prescription and controlled
- * status, default pack — with the national availability figure underneath.
+ * One catalogue row, drawn as the MED-01 render's green-tinted medicine hero:
+ * a product mark on the left, then name / "Generic: …" / indication tag pills /
+ * the prescription line, with availability, price range and pack size below.
  *
- * ── Why this is not a `ListRow` ───────────────────────────────────────────
+ * ── What is NOT here, and why ─────────────────────────────────────────────
+ * The render shows a photograph of the box. No medicine payload this app
+ * receives carries an image of any kind (see `Medicine` in lib/api/queries.ts),
+ * so the slot holds a tinted category mark rather than a stock photo of some
+ * other manufacturer's packet.
+ *
+ * ── Why the render's right-hand column is a tier, not a column ─────────────
  * `ListRow` is a three-column layout — tint circle, flexible centre, trailing
  * block allowed up to 45 % of the row — and it clamps its title to one line.
  * This row's trailing block carried a price range, a "catalogue price" caption
@@ -1091,11 +1268,8 @@ function MedicineRow({
   const { pharmacy_count: count, is_available: available } = medicine.availability;
   const quote = priceQuote(medicine, t);
   const dose = strengthForm(medicine, t);
+  const rx = medicine.prescription_required;
 
-  // The row carries the facts that decide whether to open it — identity, dose,
-  // whether it needs a prescription, and how widely it is reported. Brand,
-  // category and pack size are on the detail screen.
-  //
   // The catalogue frequently repeats the generic as the display name; printing
   // "Generic: Paracetamol" under "Paracetamol" is noise, so it is dropped and
   // the brand takes the slot when there is one to show.
@@ -1109,15 +1283,11 @@ function MedicineRow({
         ? t('pharmacy.brand', { name: medicine.brand_name, defaultValue: 'Brand: {{name}}' })
         : null;
 
-  const meta = [
-    identity,
-    dose,
-    medicine.prescription_required ? t('pharmacy.filterRx') : null,
-    medicine.is_controlled ? t('pharmacy.controlled') : null,
-    available ? t('pharmacy.pharmacyCount', { count }) : null,
-  ]
-    .filter(Boolean)
-    .join('  •  ');
+  // The render's three tag pills. These are the medicine's own `indications`;
+  // when the catalogue carries none the row simply has no tags — nothing is
+  // synthesised from the category to fill the space. Capped at three because
+  // that is what fits on one line at 375pt.
+  const tags = (medicine.indications ?? []).slice(0, 3);
 
   return (
     <TouchableOpacity
@@ -1126,8 +1296,10 @@ function MedicineRow({
       accessibilityRole="button"
       accessibilityLabel={[
         medicine.name,
+        identity,
         dose,
-        medicine.prescription_required ? t('pharmacy.prescriptionRequired') : null,
+        rx ? t('pharmacy.prescriptionRequired') : t('pharmacy.prescriptionNotRequired'),
+        medicine.is_controlled ? t('pharmacy.controlled') : null,
         quote?.label,
         available
           ? t('pharmacy.pharmacyCount', { count })
@@ -1138,48 +1310,149 @@ function MedicineRow({
         .filter(Boolean)
         .join(', ')}
       accessibilityHint={t('pharmacy.viewDetails')}
-      style={[styles.medRow, divider && styles.medRowDivider]}
+      style={[
+        styles.medRow,
+        // The render tints the hero card green. Here that tint carries the one
+        // fact it is honest for it to carry: a pharmacy somewhere has reported
+        // this medicine. Rows nobody has reported stay on the plain surface.
+        available && styles.medRowAvailable,
+        divider && styles.medRowDivider,
+      ]}
     >
       <View style={styles.medHead}>
-        <TintCircle
-          icon={CATEGORY_ICONS[medicine.category_icon] ?? 'pill'}
-          tint={medicine.is_controlled ? 'amber' : available ? 'green' : 'blue'}
-        />
+        {/* Product mark — the render's photograph has no payload behind it. */}
+        <View
+          style={[
+            styles.medShot,
+            {
+              backgroundColor: medicine.is_controlled
+                ? colors.tintAmberBg
+                : available
+                  ? colors.tintGreenBg
+                  : colors.tintBlueBg,
+            },
+          ]}
+        >
+          <Icon
+            name={CATEGORY_ICONS[medicine.category_icon] ?? 'pill'}
+            size={30}
+            color={
+              medicine.is_controlled
+                ? colors.tintAmber
+                : available
+                  ? colors.tintGreen
+                  : colors.tintBlue
+            }
+          />
+        </View>
+
         <View style={styles.medBody}>
           <Text style={styles.medName} numberOfLines={3}>
             {medicine.name}
           </Text>
-          {meta ? (
-            <Text style={styles.medMeta} numberOfLines={2}>
-              {meta}
+          {identity ? (
+            <Text style={styles.medMeta} numberOfLines={1}>
+              {identity}
             </Text>
           ) : null}
+          {dose ? (
+            <Text style={styles.medMeta} numberOfLines={1}>
+              {dose}
+            </Text>
+          ) : null}
+
+          {tags.length > 0 ? (
+            <View style={styles.tagRow}>
+              {tags.map((tag) => (
+                <View key={tag} style={styles.tag}>
+                  <Text style={styles.tagText} numberOfLines={1}>
+                    {tag}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {/* The render's green tick + "Prescription not required" line. */}
+          <View style={styles.rxLine}>
+            <Icon
+              name={rx ? 'alert-circle' : 'check-circle'}
+              size={15}
+              color={rx ? colors.statusWarning : colors.statusNormal}
+            />
+            <Text
+              style={[
+                styles.rxLineText,
+                { color: rx ? colors.statusWarning : colors.statusNormal },
+              ]}
+              numberOfLines={2}
+            >
+              {rx ? t('pharmacy.prescriptionRequired') : t('pharmacy.prescriptionNotRequired')}
+            </Text>
+            {medicine.is_controlled ? (
+              <StatusBadge
+                status="controlled"
+                tone="warning"
+                label={t('pharmacy.controlled')}
+                size="sm"
+              />
+            ) : null}
+          </View>
         </View>
+
         <Icon name="chevron-right" size={18} color={colors.textMuted} />
       </View>
 
-      {/* Second tier: what used to squeeze the name. It wraps, so a long price
-          range and a long badge label stack instead of clipping each other. */}
+      {/* The render's right-hand column, carried as a full-width tier: the
+          availability claim, the price range, the pack size. It wraps, so a
+          long range and a long badge stack instead of clipping each other. */}
       <View style={styles.medFoot}>
-        <StatusBadge
-          status={available ? 'available' : 'unknown'}
-          tone={available ? 'normal' : 'neutral'}
-          label={
-            available
+        <View style={styles.medFootCell}>
+          <View style={styles.medFootHead}>
+            <Icon
+              name={available ? 'check-circle' : 'info'}
+              size={14}
+              color={available ? colors.statusNormal : colors.textMuted}
+            />
+            <Text style={styles.medFootLabel} numberOfLines={1}>
+              {t('pharmacy.pricingStock')}
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.medFootValue,
+              { color: available ? colors.statusNormal : colors.textMuted },
+            ]}
+            numberOfLines={2}
+          >
+            {available
               ? t('pharmacy.available')
-              : t('pharmacy.notReported', { defaultValue: 'Not reported' })
-          }
-          size="sm"
-        />
+              : t('pharmacy.notReported', { defaultValue: 'Not reported' })}
+          </Text>
+        </View>
+
         {quote ? (
-          <View style={styles.medPrice}>
-            <Text style={styles.rowPrice}>{quote.label}</Text>
-            {/* A figure nobody is charging must not look like a quote. */}
-            {!quote.reported ? (
-              <Text style={styles.rowCaption}>
-                {t('pharmacy.priceIndicative', { defaultValue: 'Catalogue price' })}
-              </Text>
-            ) : null}
+          <View style={[styles.medFootCell, styles.medFootCellDivided]}>
+            <Text style={styles.medFootLabel} numberOfLines={1}>
+              {/* A figure nobody is charging must not look like a quote. */}
+              {quote.reported
+                ? t('pharmacy.priceRange')
+                : t('pharmacy.priceIndicative', { defaultValue: 'Catalogue price' })}
+            </Text>
+            <Text style={styles.medFootPrice} numberOfLines={2}>
+              {quote.label}
+            </Text>
+          </View>
+        ) : null}
+
+        {medicine.default_pack_size ? (
+          <View style={[styles.medFootCell, styles.medFootCellDivided]}>
+            <Text style={styles.medFootLabel} numberOfLines={1}>
+              {t('pharmacy.packSizeLabel', { defaultValue: 'Pack size' })}
+            </Text>
+            <Text style={styles.medFootValue} numberOfLines={2}>
+              {medicine.default_pack_size}
+            </Text>
           </View>
         ) : null}
       </View>
@@ -1188,11 +1461,18 @@ function MedicineRow({
 }
 
 /**
- * Directory row. This list is fetched without a `medicine_id`, and
- * MedicineFinderService only loads stock rows when a medicine is supplied, so
- * `stock` is always null here by construction — per-medicine stock, price and
- * the reserve action all live on the detail screen instead. Nothing on this
- * row therefore claims anything about what the pharmacy has on the shelf.
+ * Directory row, drawn as the MED-01 render's pharmacy card: mark on the left,
+ * then name with an Open / Closed pill beside it, the distance-and-hours line,
+ * and a "View Details" outlined button.
+ *
+ * ── Two things the render draws that this row must not ────────────────────
+ *  • The PHOTO. `NearbyPharmacy` carries no image field; a storefront picture
+ *    would have to be invented. The slot holds a tinted mark instead.
+ *  • The STOCK LINE and the PRICE PILL. This list is fetched without a
+ *    `medicine_id`, and MedicineFinderService only loads stock rows when a
+ *    medicine is supplied, so `stock` is always null here by construction.
+ *    Per-medicine stock, price and the reserve action live on the detail
+ *    screen. Nothing on this row claims anything about the shelf.
  */
 function PharmacyRow({
   pharmacy,
@@ -1233,28 +1513,62 @@ function PharmacyRow({
 
   const verification = verificationLine(pharmacy.verification_status, t);
   // The street address already names the town on most rows; city/region is the
-  // fallback for a listing that carries only an area. Two lines of metadata is
-  // the room `ListRow` gives, so only one place line goes in.
+  // fallback for a listing that carries only an area.
   const place = pharmacy.address ?? ([pharmacy.city, pharmacy.region].filter(Boolean).join(', ') || null);
 
+  // "1.2 km  •  Closes 8:00 PM" — the render's second line, verbatim.
+  const distanceHours = [t('pharmacy.distanceKm', { km: pharmacy.distance_km }), hoursLine]
+    .filter(Boolean)
+    .join('  •  ');
+
   return (
-    <ListRow
-      icon="store"
-      tint="blue"
-      title={pharmacy.name}
-      meta={[verification, hoursLine, place]}
-      trailing={
-        <View style={styles.rowAside}>
-          <Text style={styles.rowValue} numberOfLines={1}>
-            {t('pharmacy.distanceKm', { km: pharmacy.distance_km })}
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={[pharmacy.name, openLabel, distanceHours, verification]
+        .filter(Boolean)
+        .join(', ')}
+      accessibilityHint={t('pharmacy.viewPharmacy')}
+      style={[styles.phRow, divider && styles.phRowDivider]}
+    >
+      {/* Storefront mark. The render shows a photo; no payload carries one. */}
+      <View style={styles.phShot}>
+        <Icon name="store" size={26} color={colors.tintBlue} />
+      </View>
+
+      <View style={styles.phBody}>
+        <View style={styles.phTitleRow}>
+          <Text style={styles.phName} numberOfLines={2}>
+            {pharmacy.name}
           </Text>
           <StatusBadge status={openLabel} tone={openTone} label={openLabel} size="sm" />
         </View>
-      }
-      divider={divider}
-      onPress={onPress}
-      accessibilityHint={t('pharmacy.viewPharmacy')}
-    />
+
+        <Text style={styles.phMeta} numberOfLines={1}>
+          {distanceHours}
+        </Text>
+        {verification ? (
+          <Text style={styles.phMeta} numberOfLines={1}>
+            {verification}
+          </Text>
+        ) : null}
+        {place ? (
+          <Text style={styles.phMeta} numberOfLines={1}>
+            {place}
+          </Text>
+        ) : null}
+
+        <MedButton
+          label={t('pharmacy.viewDetails')}
+          icon="store"
+          variant="secondary"
+          size="sm"
+          onPress={onPress}
+          style={styles.phAction}
+        />
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -1487,17 +1801,89 @@ const makeStyles = (c: Palette) =>
     content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
     stack: { gap: spacing.md },
 
-    factRow: { flexDirection: 'row', alignItems: 'flex-start' },
+    /* MED-01 search field */
+    search: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 2,
+      minHeight: 52,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.md,
+      borderWidth: 1.4,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+    },
+    searchInput: {
+      flex: 1,
+      minWidth: 0,
+      paddingVertical: 0,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: c.textPrimary,
+    },
 
-    // PillInput carries its own bottom margin; the scroll container already
-    // spaces siblings, so cancel the double gap.
-    searchWrap: { position: 'relative', marginBottom: -spacing.md },
-    searchClear: {
-      position: 'absolute',
-      right: spacing.md,
-      top: 0,
-      bottom: spacing.md,
-      justifyContent: 'center',
+    /* MED-01 filter dropdown pills */
+    dropPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      maxWidth: 210,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+      borderRadius: radii.pill,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+    },
+    dropPillText: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.xs,
+      color: c.textSecondary,
+    },
+    dropPillCount: {
+      minWidth: 18,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+      borderRadius: radii.pill,
+      backgroundColor: c.statusNormalBg,
+    },
+    dropPillCountText: {
+      textAlign: 'center',
+      fontFamily: typography.fontFamily.bold,
+      fontSize: 10,
+      color: c.statusNormal,
+    },
+
+    /* Section head with the render's static "Sort by: Distance" pill */
+    listHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+      marginBottom: spacing.sm + 2,
+    },
+    listHeadTitle: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: c.textPrimary,
+    },
+    sortPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: radii.pill,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+    },
+    sortPillText: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: 11,
+      color: c.textMuted,
     },
 
     chipRail: { marginHorizontal: -spacing.md },
@@ -1558,13 +1944,21 @@ const makeStyles = (c: Palette) =>
       color: c.textSecondary,
     },
 
-    /* Catalogue row — the name owns the full width and wraps; price and
-       availability sit on their own tier underneath. `medBody` needs
-       `minWidth: 0` or the flex child refuses to shrink and the text overflows
-       the row instead of wrapping inside it. */
-    medRow: { paddingVertical: 14, paddingHorizontal: spacing.md, gap: spacing.sm },
+    /* MED-01 medicine hero card — the name owns the full width and wraps;
+       availability, price and pack size sit on their own tier underneath.
+       `medBody` needs `minWidth: 0` or the flex child refuses to shrink and
+       the text overflows the row instead of wrapping inside it. */
+    medRow: { paddingVertical: 14, paddingHorizontal: spacing.md, gap: spacing.sm + 2 },
+    medRowAvailable: { backgroundColor: c.statusNormalBg },
     medRowDivider: { borderBottomWidth: 1, borderBottomColor: c.divider },
-    medHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    medHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+    medShot: {
+      width: 62,
+      height: 62,
+      borderRadius: radii.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     medBody: { flex: 1, minWidth: 0, gap: 2 },
     medName: {
       fontFamily: typography.fontFamily.semiBold,
@@ -1577,31 +1971,89 @@ const makeStyles = (c: Palette) =>
       fontSize: typography.size.sm,
       color: c.textSecondary,
     },
+    /* The render's indication tag pills. */
+    tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 5 },
+    tag: {
+      maxWidth: 130,
+      paddingHorizontal: 9,
+      paddingVertical: 4,
+      borderRadius: radii.pill,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+    },
+    tagText: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: 11,
+      color: c.textSecondary,
+    },
+    rxLine: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+    rxLineText: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+    },
+    /* The render's right-hand column, carried as a tier at 375pt. */
     medFoot: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       flexWrap: 'wrap',
-      gap: spacing.sm,
-      paddingLeft: 52,
+      rowGap: spacing.sm,
+      paddingTop: spacing.sm + 2,
+      borderTopWidth: 1,
+      borderTopColor: c.divider,
     },
-    medPrice: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 6 },
-
-    rowAside: { alignItems: 'flex-end', gap: 4, maxWidth: 132 },
-    rowPrice: {
-      fontFamily: typography.fontFamily.semiBold,
-      fontSize: typography.size.sm,
-      color: c.link,
-    },
-    rowCaption: {
+    medFootCell: { flexGrow: 1, flexBasis: '30%', minWidth: 92, gap: 2, paddingRight: 8 },
+    medFootCellDivided: { borderLeftWidth: 1, borderLeftColor: c.divider, paddingLeft: 10 },
+    medFootHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    medFootLabel: {
       fontFamily: typography.fontFamily.regular,
-      fontSize: typography.size.xs,
+      fontSize: 11,
+      lineHeight: 14,
       color: c.textMuted,
     },
-    rowValue: {
+    medFootValue: {
       fontFamily: typography.fontFamily.semiBold,
-      fontSize: typography.size.sm,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
       color: c.textPrimary,
     },
+    medFootPrice: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: c.statusNormal,
+    },
+
+    /* MED-01 pharmacy card */
+    phRow: { flexDirection: 'row', gap: 12, paddingVertical: 14, paddingHorizontal: spacing.md },
+    phRowDivider: { borderBottomWidth: 1, borderBottomColor: c.divider },
+    phShot: {
+      width: 56,
+      height: 56,
+      borderRadius: radii.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.tintBlueBg,
+    },
+    phBody: { flex: 1, minWidth: 0, gap: 2 },
+    phTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    phName: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: c.textPrimary,
+    },
+    phMeta: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: c.textSecondary,
+    },
+    phAction: { alignSelf: 'flex-start', marginTop: spacing.sm },
 
     holdHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 4 },
     holdBody: { flex: 1, minWidth: 0, gap: 2 },
@@ -1657,6 +2109,14 @@ const makeStyles = (c: Palette) =>
       padding: spacing.md - 2,
       borderRadius: radii.md,
       backgroundColor: c.primarySoft,
+    },
+    noticeMark: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.surface,
     },
     noticeBody: { flex: 1, minWidth: 0, gap: 4 },
     noticeTitle: {

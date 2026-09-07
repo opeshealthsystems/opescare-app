@@ -26,6 +26,7 @@
       }
     },
     "preview": {
+      "autoIncrement": true,
       "distribution": "internal",
       "android": {
         "buildType": "apk"
@@ -40,6 +41,7 @@
       }
     },
     "demo": {
+      "autoIncrement": true,
       "distribution": "internal",
       "android": {
         "buildType": "apk"

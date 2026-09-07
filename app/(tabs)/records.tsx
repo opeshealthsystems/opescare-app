@@ -1,3 +1,4 @@
+import React from 'react';
 /**
  * Records hub — the patient's longitudinal clinical record.
  *
@@ -32,6 +33,7 @@ import {
   Icon,
   ListRow,
   ScreenHeader,
+  ResultList,
   SectionHeader,
   StaleNotice,
   StatusBadge,
@@ -457,11 +459,12 @@ export default function RecordsScreen() {
                     preview={TIMELINE_PREVIEW}
                     expanded={!!showAll.timeline}
                     onToggle={() => toggle('timeline')}
+                    variant="results"
                   >
                     {feed.length === 0 ? (
                       <EmptyState icon="history" tint="blue" title={t('opesRecords.timeline.empty')} />
                     ) : (
-                      limit(feed, 'timeline', TIMELINE_PREVIEW).map((item, i, arr) => {
+                      limit(feed, 'timeline', TIMELINE_PREVIEW).map((item) => {
                         const meta = FEED_META[item.type];
                         return (
                           <ListRow
@@ -472,7 +475,7 @@ export default function RecordsScreen() {
                             meta={[item.descriptor, item.facility ?? t('records.item.unknownFacility'), item.dateLabel]}
                             onPress={item.href ? () => router.push(item.href as string) : undefined}
                             accessibilityHint={item.actionLabel ?? undefined}
-                            divider={i < arr.length - 1}
+                            divider={false}
                           />
                         );
                       })
@@ -502,13 +505,28 @@ export default function RecordsScreen() {
 
 /* ------------------------------------------------------------------ pieces */
 
-/** Section header + flush card; "View all" toggles past the preview. */
+/**
+ * Section header + body; "View all" toggles past the preview.
+ *
+ * `variant` decides how the body is drawn, and the two cases are genuinely
+ * different things:
+ *
+ *  - `facts` (default) keeps the joined flush card. Allergies, conditions,
+ *    immunisations and vitals are this patient's clinical facts — one table
+ *    about one person, where the hairline between rows is what says they
+ *    belong together.
+ *  - `results` gives each child its own card. The timeline is a feed of
+ *    separate records — a lab result, a prescription, a visit — each opening
+ *    somewhere different. Those are picked from, not read down, so they get
+ *    the same treatment as every other result list in the app.
+ */
 function Section({
   title,
   count,
   preview = PREVIEW,
   expanded,
   onToggle,
+  variant = 'facts',
   children,
 }: {
   title: string;
@@ -516,6 +534,7 @@ function Section({
   preview?: number;
   expanded: boolean;
   onToggle: () => void;
+  variant?: 'facts' | 'results';
   children: React.ReactNode;
 }) {
   const { t } = useTranslation();
@@ -528,7 +547,23 @@ function Section({
         actionLabel={expanded ? t('opesRecords.hub.showFewer', { defaultValue: 'Show fewer' }) : undefined}
         actionChevron
       />
-      <Card variant="flush">{children}</Card>
+      {variant === 'results' ? (
+        <ResultList>
+          {React.Children.map(children, (child, index) =>
+            // An EmptyState is one panel, not a row — it must not be sliced
+            // into per-child cards.
+            React.isValidElement(child) ? (
+              <Card key={index} variant="flush">
+                {child}
+              </Card>
+            ) : (
+              child
+            ),
+          )}
+        </ResultList>
+      ) : (
+        <Card variant="flush">{children}</Card>
+      )}
     </View>
   );
 }

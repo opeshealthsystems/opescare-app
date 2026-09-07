@@ -784,7 +784,31 @@
     "profileStrengthHint_one": "{{count}} information encore manquante",
     "profileStrengthHint_other": "{{count}} informations encore manquantes",
     "payments": "Paiements",
-    "paymentsDesc": "Factures des établissements, et ce que vous avez réglé"
+    "paymentsDesc": "Factures des établissements, et ce que vous avez réglé",
+    "changePhoto": "Changer la photo",
+    "dob": "Date de naissance",
+    "edit": "Modifier",
+    "familyAccount": "Famille et compte",
+    "familyAccountDesc": "Gérez votre famille, vos paiements et les réglages.",
+    "healthIdBrand": "OPESCARE HEALTH ID",
+    "healthIdLabel": "Identifiant santé",
+    "healthRecord": "Dossier de santé",
+    "healthRecordDesc": "Consultez et gérez vos informations de santé.",
+    "motto": "UN PEUPLE EN MEILLEURE SANTÉ\nUNE AFRIQUE PLUS FORTE",
+    "notifications": "Notifications",
+    "personalInfo": "Informations personnelles",
+    "personalInfoDesc": "Vos informations de base et votre contact d’urgence.",
+    "privacyMotto": "SÉCURISÉ\nINTEROPÉRABLE\nCENTRÉ SUR LA PERSONNE",
+    "quickOverview": "Aperçu rapide",
+    "viewFullRecord": "Voir le dossier complet",
+    "trust": {
+      "identity": "Identité vérifiée",
+      "encrypted": "Données chiffrées",
+      "interoperable": "Interopérable",
+      "people": "Centré sur la personne"
+    },
+    "ageYears_one": "{{count}} an",
+    "ageYears_other": "{{count}} ans"
   },
   "editProfile": {
     "title": "Modifier le profil",
@@ -8322,6 +8346,7 @@
     "foot": "OpesCare ne pose aucun diagnostic, ne prescrit aucun traitement et ne donne pas d’avis médical ; l’application ne remplace pas une consultation."
   },
   "common": {
-    "back": "Retour"
+    "back": "Retour",
+    "viewAll": "Tout voir"
   }
 }

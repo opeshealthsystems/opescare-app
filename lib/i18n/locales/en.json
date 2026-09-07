@@ -784,7 +784,31 @@
     "profileStrengthHint_one": "{{count}} detail still missing",
     "profileStrengthHint_other": "{{count}} details still missing",
     "payments": "Payments",
-    "paymentsDesc": "Bills from facilities, and what you have paid"
+    "paymentsDesc": "Bills from facilities, and what you have paid",
+    "changePhoto": "Change photo",
+    "dob": "Date of birth",
+    "edit": "Edit",
+    "familyAccount": "Family & account",
+    "familyAccountDesc": "Manage your family, payments and app settings.",
+    "healthIdBrand": "OPESCARE HEALTH ID",
+    "healthIdLabel": "Health ID",
+    "healthRecord": "Health record",
+    "healthRecordDesc": "Access and manage your health information.",
+    "motto": "A HEALTHIER PEOPLE\nA STRONGER AFRICA",
+    "notifications": "Notifications",
+    "personalInfo": "Personal information",
+    "personalInfoDesc": "Your basic details and emergency contact.",
+    "privacyMotto": "SECURE\nINTEROPERABLE\nPEOPLE-CENTERED",
+    "quickOverview": "Quick overview",
+    "viewFullRecord": "View full record",
+    "trust": {
+      "identity": "Verified identity",
+      "encrypted": "Encrypted data",
+      "interoperable": "Interoperable",
+      "people": "People-centered"
+    },
+    "ageYears_one": "{{count}} year",
+    "ageYears_other": "{{count}} years"
   },
   "editProfile": {
     "title": "Edit Profile",
@@ -8321,6 +8345,7 @@
     "foot": "OpesCare does not diagnose, treat or give medical advice, and it does not replace seeing a health professional."
   },
   "common": {
-    "back": "Back"
+    "back": "Back",
+    "viewAll": "View all"
   }
 }

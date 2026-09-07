@@ -2607,7 +2607,9 @@
       "red_cells": "CGR",
       "platelets": "CP",
       "plasma": "PFC"
-    }
+    },
+    "more": "Plus",
+    "moreGroups": "Tous les groupes sanguins"
   },
   "appUpdate": {
     "blockedTitle": "Mise à jour requise",

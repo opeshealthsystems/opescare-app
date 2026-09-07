@@ -2607,7 +2607,9 @@
       "red_cells": "PRBC",
       "platelets": "PLT",
       "plasma": "FFP"
-    }
+    },
+    "more": "More",
+    "moreGroups": "All blood groups"
   },
   "appUpdate": {
     "blockedTitle": "Update required",

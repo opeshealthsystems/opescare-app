@@ -105,8 +105,8 @@ interface City {
 }
 
 const CITIES: City[] = [
-  { key: 'douala', name: 'Douala, Cameroon', lat: 4.0511, lng: 9.7679 },
-  { key: 'yaounde', name: 'Yaounde, Cameroon', lat: 3.848, lng: 11.5021 },
+  { key: 'douala', name: 'Douala', lat: 4.0511, lng: 9.7679 },
+  { key: 'yaounde', name: 'Yaounde', lat: 3.848, lng: 11.5021 },
   { key: 'bafoussam', name: 'Bafoussam, Cameroon', lat: 5.4737, lng: 10.4179 },
   { key: 'bamenda', name: 'Bamenda, Cameroon', lat: 5.9631, lng: 10.1591 },
   { key: 'buea', name: 'Buea, Cameroon', lat: 4.1527, lng: 9.292 },
@@ -263,7 +263,7 @@ function phoneLines(
   return out;
 }
 
-type SheetKey = 'city' | 'radius' | null;
+type SheetKey = 'city' | 'radius' | 'component' | 'group' | null;
 
 /**
  * Urgency, as the reference finder card offers it (PM-BLOOD-01, step 3) and as
@@ -445,6 +445,26 @@ export default function BloodFinderScreen() {
     radiusKm,
     enabled: !!bloodGroup,
   });
+
+  /*
+   * Four groups in the row and the rest behind "More", as the reference draws
+   * it. The patient's own group is pinned into the four so the commonest
+   * choice is never the hidden one, and a chosen group is always visible.
+   */
+  const visibleGroups = useMemo(() => {
+    const pinned = [ownGroup?.value, bloodGroup].filter(Boolean) as BloodGroupValue[];
+    const head = groupOptions.filter((g) => pinned.includes(g.value));
+    const rest = groupOptions.filter((g) => !pinned.includes(g.value));
+    return [...head, ...rest].slice(0, 4);
+  }, [groupOptions, ownGroup, bloodGroup]);
+
+  const componentChoices = useMemo(
+    () =>
+      componentOptions.length > 0
+        ? componentOptions.map((c) => ({ value: c.value, icon: c.icon, count: c.facility_count }))
+        : COMPONENT_FALLBACK.map((value) => ({ value, icon: 'droplet', count: 0 })),
+    [componentOptions],
+  );
 
   const openRequests = requests.data ?? [];
   const nextRadius = RADIUS_OPTIONS.find((r) => r > radiusKm) ?? null;
@@ -692,184 +712,305 @@ export default function BloodFinderScreen() {
           </View>
         </View>
 
-        {/* The finder card ------------------------------------------------
-            The reference gathers all five inputs into ONE numbered card rather
-            than the three separate sections this screen used to have, so the
-            whole search reads at a glance before anything is tapped. The
-            numbering is information, not decoration: it is the order the
-            fields are filled, and step 1 gates the results below. */}
+        {/* The finder card, as PM-BLOOD-01 draws it: two columns for
+            1|2 and 4|5, urgency across the middle, and four different
+            controls because each field is a different kind of choice. */}
         <Card>
           <View style={styles.finderStack}>
-            <FinderField index={1} label={t('bloodFinder.stepGroup')}>
-              {options.isPending ? (
-                <LoadingBlock label={t('bloodFinder.searching')} />
-              ) : options.isError ? (
-                <EmptyState
-                  icon="alert-circle"
-                  tint="red"
-                  title={t('bloodFinder.loadFailed')}
-                  message={t('bloodFinder.optionsFailedHint', {
-                    defaultValue:
-                      'The list of blood groups could not be loaded, so nothing can be searched yet.',
-                  })}
-                  actionLabel={t('bloodFinder.retry')}
-                  onAction={() => options.refetch()}
+            {/* ── 1 | 2 ────────────────────────────────────────────────── */}
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldWide}>
+                <FieldLabel index={1} label={t('bloodFinder.stepGroup')} />
+                {options.isPending ? (
+                  <LoadingBlock label={t('bloodFinder.searching')} />
+                ) : options.isError ? (
+                  <EmptyState
+                    icon="alert-circle"
+                    tint="red"
+                    title={t('bloodFinder.loadFailed')}
+                    actionLabel={t('bloodFinder.retry')}
+                    onAction={() => options.refetch()}
+                  />
+                ) : (
+                  <View style={styles.groupRow}>
+                    {/* Four in the row, as drawn, and the rest behind More —
+                        the patient's own group is always one of the four so
+                        the commonest choice is never hidden. */}
+                    {visibleGroups.map((group) => (
+                      <TouchableOpacity
+                        key={group.value}
+                        onPress={() =>
+                          setBloodGroup(group.value === bloodGroup ? null : group.value)
+                        }
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: group.value === bloodGroup }}
+                        style={[
+                          styles.groupPill,
+                          {
+                            borderColor:
+                              group.value === bloodGroup ? colors.blue : colors.border,
+                            backgroundColor:
+                              group.value === bloodGroup ? colors.blue : colors.surface,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.groupPillText,
+                            {
+                              color:
+                                group.value === bloodGroup ? '#FFFFFF' : colors.textPrimary,
+                            },
+                          ]}
+                        >
+                          {group.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                    <TouchableOpacity
+                      onPress={() => setSheet((c) => (c === 'group' ? null : 'group'))}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('bloodFinder.moreGroups')}
+                      style={[styles.groupPill, styles.groupMore, { borderColor: colors.border }]}
+                    >
+                      <Icon name="grid" size={15} color={colors.textSecondary} />
+                      <Text style={styles.groupMoreText}>{t('bloodFinder.more')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.fieldNarrow}>
+                <FieldLabel index={2} label={t('bloodFinder.stepComponent')} />
+                <FieldSelect
+                  icon="droplet"
+                  value={selectedComponentLabel}
+                  open={sheet === 'component'}
+                  onPress={() => setSheet((c) => (c === 'component' ? null : 'component'))}
+                  accessibilityLabel={t('bloodFinder.stepComponent')}
                 />
-              ) : (
-                <View style={styles.chipWrap}>
-                  {groupOptions.map((group) => (
-                    <Chip
-                      key={group.value}
-                      icon="droplet"
-                      label={group.label}
-                      count={group.facility_count > 0 ? group.facility_count : undefined}
-                      selected={group.value === bloodGroup}
-                      onPress={() =>
-                        setBloodGroup(group.value === bloodGroup ? null : group.value)
-                      }
-                      accessibilityLabel={`${group.label} - ${
-                        group.facility_count > 0
-                          ? t('bloodFinder.facilityCount', { count: group.facility_count })
-                          : t('bloodFinder.noSites')
-                      }`}
+              </View>
+            </View>
+
+            {sheet === 'group' ? (
+              <OptionCard title={t('bloodFinder.stepGroup')}>
+                {groupOptions.map((group, index) => (
+                  <ListRow
+                    key={group.value}
+                    title={group.label}
+                    meta={[
+                      group.facility_count > 0
+                        ? t('bloodFinder.facilityCount', { count: group.facility_count })
+                        : t('bloodFinder.noSites'),
+                    ]}
+                    trailing={
+                      group.value === bloodGroup ? (
+                        <Icon name="check" size={18} color={colors.blue} />
+                      ) : undefined
+                    }
+                    chevron={false}
+                    divider={index < groupOptions.length - 1}
+                    onPress={() => {
+                      setBloodGroup(group.value);
+                      setSheet(null);
+                    }}
+                  />
+                ))}
+              </OptionCard>
+            ) : null}
+
+            {sheet === 'component' ? (
+              <OptionCard title={t('bloodFinder.stepComponent')}>
+                {componentChoices.map((choice, index) => (
+                  <ListRow
+                    key={choice.value}
+                    icon={COMPONENT_ICONS[choice.icon] ?? 'droplet'}
+                    tint={BLOOD_TINT}
+                    title={t(`bloodFinder.components.${choice.value}`)}
+                    meta={[
+                      choice.count > 0
+                        ? t('bloodFinder.facilityCount', { count: choice.count })
+                        : t('bloodFinder.noSites'),
+                    ]}
+                    trailing={
+                      choice.value === componentType ? (
+                        <Icon name="check" size={18} color={colors.blue} />
+                      ) : undefined
+                    }
+                    chevron={false}
+                    divider={index < componentChoices.length - 1}
+                    onPress={() => {
+                      setComponentType(choice.value);
+                      setSheet(null);
+                    }}
+                  />
+                ))}
+              </OptionCard>
+            ) : null}
+
+            {/* ── 3 ────────────────────────────────────────────────────── */}
+            <View>
+              <FieldLabel index={3} label={t('bloodFinder.stepUrgency')} />
+              <View style={styles.urgencyRow}>
+                {URGENCY_OPTIONS.map((option) => {
+                  const active = option.value === urgency;
+                  const tone =
+                    option.value === 'emergency'
+                      ? colors.statusCritical
+                      : option.value === 'urgent'
+                        ? colors.statusWarning
+                        : colors.blue;
+                  const toneBg =
+                    option.value === 'emergency'
+                      ? colors.statusCriticalBg
+                      : option.value === 'urgent'
+                        ? colors.statusWarningBg
+                        : colors.tintBlueBg;
+
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      onPress={() => setUrgency(option.value)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      style={[
+                        styles.urgencyButton,
+                        {
+                          borderColor: active ? tone : colors.border,
+                          backgroundColor: active ? toneBg : colors.surface,
+                        },
+                      ]}
+                    >
+                      <Icon
+                        name={option.icon}
+                        size={16}
+                        color={active ? tone : colors.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          styles.urgencyText,
+                          { color: active ? tone : colors.textPrimary },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {t(`bloodFinder.urgency.${option.value}`)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* ── 4 | 5 ────────────────────────────────────────────────── */}
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldWide}>
+                <FieldLabel index={4} label={t('bloodFinder.stepWhere')} />
+                <View style={[styles.locationField, { borderColor: colors.border }]}>
+                  <Icon name="location" size={17} color={colors.textSecondary} />
+                  <Text style={styles.locationText} numberOfLines={1}>
+                    {originLabel}
+                  </Text>
+                  {/* The reference's crosshair: one tap for a real GPS fix. */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      void useMyLocation();
+                    }}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('bloodFinder.useMyLocation')}
+                    style={styles.locateButton}
+                  >
+                    <Icon
+                      name="target"
+                      size={18}
+                      color={locating ? colors.textMuted : colors.blue}
                     />
-                  ))}
+                  </TouchableOpacity>
                 </View>
-              )}
-              {ownGroup ? (
                 <TouchableOpacity
-                  onPress={() => setBloodGroup(ownGroup.value)}
-                  activeOpacity={0.7}
+                  onPress={() => setSheet((c) => (c === 'city' ? null : 'city'))}
                   accessibilityRole="button"
-                  style={styles.ownGroup}
+                  style={styles.changeCity}
                 >
-                  <Icon name="person" size={15} color={colors.blue} />
-                  <Text style={[styles.ownGroupText, { color: colors.blue }]}>
-                    {t('bloodFinder.yourGroup', { group: ownGroup.label })}
+                  <Text style={[styles.changeCityText, { color: colors.blue }]}>
+                    {t('bloodFinder.changeLocation')}
                   </Text>
                 </TouchableOpacity>
-              ) : null}
-            </FinderField>
-
-            <FinderField index={2} label={t('bloodFinder.stepComponent')}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.chipRailContent}
-              >
-                {(componentOptions.length > 0
-                  ? componentOptions.map((c) => ({
-                      value: c.value,
-                      icon: c.icon,
-                      count: c.facility_count,
-                    }))
-                  : COMPONENT_FALLBACK.map((value) => ({ value, icon: 'droplet', count: 0 }))
-                ).map(({ value, icon, count }) => (
-                  <Chip
-                    key={value}
-                    icon={COMPONENT_ICONS[icon] ?? 'droplet'}
-                    label={t(`bloodFinder.components.${value}`)}
-                    count={count > 0 ? count : undefined}
-                    selected={value === componentType}
-                    onPress={() => setComponentType(value)}
-                    accessibilityLabel={`${t(`bloodFinder.components.${value}`)} - ${
-                      count > 0
-                        ? t('bloodFinder.facilityCount', { count })
-                        : t('bloodFinder.noSites')
-                    }`}
-                  />
-                ))}
-              </ScrollView>
-            </FinderField>
-
-            <FinderField index={3} label={t('bloodFinder.stepUrgency')}>
-              <View style={styles.chipWrap}>
-                {URGENCY_OPTIONS.map((option) => (
-                  <Chip
-                    key={option.value}
-                    icon={option.icon}
-                    label={t(`bloodFinder.urgency.${option.value}`)}
-                    selected={option.value === urgency}
-                    onPress={() => setUrgency(option.value)}
-                  />
-                ))}
               </View>
-            </FinderField>
 
-            <FinderField index={4} label={t('bloodFinder.stepWhere')}>
-              <View style={styles.chipWrap}>
-                <Chip
-                  icon="location"
-                  label={originLabel}
-                  selected={sheet === 'city'}
-                  onPress={() => setSheet((current) => (current === 'city' ? null : 'city'))}
-                  accessibilityLabel={t('bloodFinder.changeLocation')}
-                />
-                <Chip
-                  icon="location"
-                  label={locating ? t('bloodFinder.locating') : t('bloodFinder.myLocation')}
-                  selected={!!deviceCoords}
-                  onPress={() => {
-                    void useMyLocation();
-                  }}
-                  accessibilityLabel={t('bloodFinder.useMyLocation')}
+              <View style={styles.fieldNarrow}>
+                <FieldLabel index={5} label={t('bloodFinder.stepRange')} />
+                <FieldSelect
+                  value={t('bloodFinder.radius', { km: radiusKm })}
+                  open={sheet === 'radius'}
+                  onPress={() => setSheet((c) => (c === 'radius' ? null : 'radius'))}
+                  accessibilityLabel={t('bloodFinder.stepRange')}
                 />
               </View>
-              {sheet === 'city' ? (
-                <OptionCard title={t('bloodFinder.changeLocation')}>
-                  {CITIES.map((option, index) => (
-                    <ListRow
-                      key={option.key}
-                      title={option.name}
-                      trailing={
-                        !deviceCoords && option.key === city.key ? (
-                          <Icon name="check" size={18} color={colors.blue} />
-                        ) : undefined
-                      }
-                      chevron={false}
-                      divider={index < CITIES.length - 1}
-                      onPress={() => {
-                        setCity(option);
-                        setDeviceCoords(null);
-                        setSheet(null);
-                      }}
-                    />
-                  ))}
-                </OptionCard>
-              ) : null}
-              {locationDenied ? (
-                <NoticeBanner
-                  icon="location"
-                  tone="warning"
-                  message={t('bloodFinder.locationDenied')}
-                />
-              ) : null}
-            </FinderField>
+            </View>
 
-            <FinderField index={5} label={t('bloodFinder.stepRange')}>
-              <View style={styles.chipWrap}>
-                {RADIUS_OPTIONS.map((option) => (
-                  <Chip
+            {sheet === 'city' ? (
+              <OptionCard title={t('bloodFinder.changeLocation')}>
+                {CITIES.map((option, index) => (
+                  <ListRow
+                    key={option.key}
+                    title={option.name}
+                    trailing={
+                      !deviceCoords && option.key === city.key ? (
+                        <Icon name="check" size={18} color={colors.blue} />
+                      ) : undefined
+                    }
+                    chevron={false}
+                    divider={index < CITIES.length - 1}
+                    onPress={() => {
+                      setCity(option);
+                      setDeviceCoords(null);
+                      setSheet(null);
+                    }}
+                  />
+                ))}
+              </OptionCard>
+            ) : null}
+
+            {sheet === 'radius' ? (
+              <OptionCard title={t('bloodFinder.stepRange')}>
+                {RADIUS_OPTIONS.map((option, index) => (
+                  <ListRow
                     key={option}
-                    icon="target"
-                    label={t('bloodFinder.radius', { km: option })}
-                    selected={option === radiusKm}
-                    onPress={() => setRadiusKm(option)}
+                    title={t('bloodFinder.radius', { km: option })}
+                    trailing={
+                      option === radiusKm ? (
+                        <Icon name="check" size={18} color={colors.blue} />
+                      ) : undefined
+                    }
+                    chevron={false}
+                    divider={index < RADIUS_OPTIONS.length - 1}
+                    onPress={() => {
+                      setRadiusKm(option);
+                      setSheet(null);
+                    }}
                   />
                 ))}
-              </View>
-            </FinderField>
+              </OptionCard>
+            ) : null}
+
+            {locationDenied ? (
+              <NoticeBanner
+                icon="location"
+                tone="warning"
+                message={t('bloodFinder.locationDenied')}
+              />
+            ) : null}
           </View>
 
-          {/* The reference's primary action. The list below is ALREADY live -
-              results refetch as the fields change - so this scrolls to them
-              rather than pretending to start a search that was never stopped.
-              A button that claims to do something it does not is the one thing
-              this screen cannot afford. */}
-          <CareButton
-            label={t('bloodFinder.findBlood')}
-            icon="search"
-            variant="primary"
+          {/* The reference's primary action: search glyph, centred label, and
+              a chevron. It scrolls to the results, which are already live —
+              a button that claimed to start a search that was never stopped
+              would be the one lie this screen cannot afford. */}
+          <TouchableOpacity
             onPress={() => {
               scrollRef.current?.scrollTo({
                 y: Math.max(resultsY.current - 12, 0),
@@ -877,8 +1018,18 @@ export default function BloodFinderScreen() {
               });
             }}
             disabled={!bloodGroup}
-            style={styles.findButton}
-          />
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={t('bloodFinder.findBlood')}
+            style={[
+              styles.findButton,
+              { backgroundColor: bloodGroup ? colors.blue : colors.border },
+            ]}
+          >
+            <Icon name="search" size={19} color="#FFFFFF" />
+            <Text style={styles.findButtonText}>{t('bloodFinder.findBlood')}</Text>
+            <Icon name="chevron-right" size={19} color="#FFFFFF" />
+          </TouchableOpacity>
         </Card>
 
         {/* Trust strip ----------------------------------------------------
@@ -1207,6 +1358,66 @@ export default function BloodFinderScreen() {
 }
 
 /* ── Pieces ───────────────────────────────────────────────────────────────── */
+
+/** The numbered label above each field of the finder card (PM-BLOOD-01). */
+function FieldLabel({ index, label }: { index: number; label: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <View style={styles.fieldLabelRow}>
+      <Text style={styles.fieldNumber}>{index}.</Text>
+      <Text style={styles.fieldLabelText} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * A dropdown field — the control the reference uses for Component and Range.
+ *
+ * A bordered box showing the current value with a chevron, not a chip: the
+ * point of the reference's card is that each field looks like the kind of
+ * choice it is, and these two are "one of a list", not "toggle some tags".
+ * Tapping opens the same OptionCard sheet the location picker uses, so there
+ * is one selection pattern on the screen rather than two.
+ */
+function FieldSelect({
+  icon,
+  value,
+  open,
+  onPress,
+  accessibilityLabel,
+}: {
+  icon?: IconName;
+  value: string;
+  open: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityState={{ expanded: open }}
+      accessibilityLabel={`${accessibilityLabel}: ${value}`}
+      style={[
+        styles.selectField,
+        { borderColor: open ? colors.blue : colors.border },
+      ]}
+    >
+      {icon ? <Icon name={icon} size={17} color={colors.blue} /> : null}
+      <Text style={styles.selectValue} numberOfLines={2}>
+        {value}
+      </Text>
+      <Icon name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSecondary} />
+    </TouchableOpacity>
+  );
+}
 
 /**
  * One numbered row of the finder card (PM-BLOOD-01).
@@ -1883,6 +2094,112 @@ function OpenRequestCard({
 
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
+    /* PM-BLOOD-01 finder card */
+    fieldRow: { flexDirection: 'row', gap: spacing.sm },
+    fieldWide: { flex: 1.2, minWidth: 0 },
+    fieldNarrow: { flex: 1, minWidth: 0 },
+    fieldLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
+    fieldNumber: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.sm,
+      color: c.textPrimary,
+    },
+    fieldLabelText: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: c.textPrimary,
+    },
+
+    groupRow: { flexDirection: 'row', gap: 5 },
+    groupPill: {
+      flex: 1,
+      minWidth: 0,
+      height: 46,
+      borderRadius: radii.sm,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    groupPillText: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.sm,
+    },
+    groupMore: { gap: 1 },
+    groupMoreText: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: 10,
+      color: c.textSecondary,
+    },
+
+    selectField: {
+      height: 46,
+      borderRadius: radii.sm,
+      borderWidth: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+    },
+    selectValue: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      lineHeight: 14,
+      color: c.textPrimary,
+    },
+
+    urgencyRow: { flexDirection: 'row', gap: 6 },
+    urgencyButton: {
+      flex: 1,
+      minWidth: 0,
+      height: 46,
+      borderRadius: radii.sm,
+      borderWidth: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      paddingHorizontal: 3,
+    },
+    urgencyText: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: 11,
+    },
+
+    locationField: {
+      height: 46,
+      borderRadius: radii.sm,
+      borderWidth: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+      paddingHorizontal: 10,
+    },
+    locationText: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: c.textPrimary,
+    },
+    locateButton: { padding: 2 },
+    changeCity: { paddingTop: 5, alignSelf: 'flex-start' },
+    changeCityText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+    },
+
+    findButtonText: {
+      flex: 1,
+      textAlign: 'center',
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.md,
+      color: '#FFFFFF',
+    },
+
     /* PM-BLOOD-01 bank card */
     bankRow: {
       flexDirection: 'row',
@@ -2069,7 +2386,15 @@ const makeStyles = (c: Palette) =>
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.sm,
     },
-    findButton: { marginTop: spacing.md },
+    findButton: {
+      marginTop: spacing.md,
+      height: 56,
+      borderRadius: radii.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      gap: spacing.xs,
+    },
 
     /* Trust strip */
     trustRow: {

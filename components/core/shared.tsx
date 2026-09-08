@@ -24,6 +24,7 @@ import {
   spacing,
   typography,
   useTheme,
+  Wordmark,
   type IconName,
   type Palette,
 } from '@/components/opes-ui';
@@ -40,8 +41,6 @@ export type BrandHeaderProps = {
   bellBadge?: number;
   /** Right-most slot: the avatar on Home, the kebab on Health ID. */
   right?: React.ReactNode;
-  /** Line under the wordmark. Defaults to the app tagline (`auth.tagline`). */
-  tagline?: string;
 };
 
 /**
@@ -51,7 +50,7 @@ export type BrandHeaderProps = {
  * `ScreenHeader` covers title-led screens; this one is logo-led, so it is a
  * local composition rather than a fork of that component.
  */
-export function BrandHeader({ onBack, onBell, bellBadge = 0, right, tagline }: BrandHeaderProps) {
+export function BrandHeader({ onBack, onBell, bellBadge = 0, right }: BrandHeaderProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -70,21 +69,12 @@ export function BrandHeader({ onBack, onBell, bellBadge = 0, right, tagline }: B
         </TouchableOpacity>
       ) : null}
 
+      {/* One brand bar for the whole app: the mark BESIDE the wordmark, the
+          tagline under the word — the same `PulseLogo 34 + Wordmark md`
+          lockup the finder top bars use, not a local re-cut of it. */}
       <View style={styles.lockup}>
-        <PulseLogo size={44} />
-        <View style={styles.lockupText}>
-          <Text style={styles.wordmark} numberOfLines={1}>
-            <Text style={styles.wordmarkOpes}>Opes</Text>
-            <Text style={styles.wordmarkCare}>Care</Text>
-          </Text>
-          <View style={styles.taglineRow}>
-            <View style={styles.taglineLine} />
-            <Text style={styles.tagline} numberOfLines={1}>
-              {tagline ?? t('auth.tagline')}
-            </Text>
-            <View style={styles.taglineLine} />
-          </View>
-        </View>
+        <PulseLogo size={34} />
+        <Wordmark size="md" showTagline />
       </View>
 
       <View style={styles.headerActions}>
@@ -241,33 +231,6 @@ const makeStyles = (colors: Palette) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
-    },
-    lockupText: { flexShrink: 1, minWidth: 0 },
-    wordmark: { fontFamily: typography.fontFamily.bold },
-    wordmarkOpes: {
-      fontFamily: typography.fontFamily.bold,
-      fontSize: 22,
-      color: colors.navy,
-    },
-    wordmarkCare: {
-      fontFamily: typography.fontFamily.bold,
-      fontSize: 22,
-      color: colors.blue,
-    },
-    taglineRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      marginTop: 1,
-    },
-    taglineLine: { flex: 1, minWidth: 6, height: 1, backgroundColor: colors.border },
-    tagline: {
-      flexShrink: 1,
-      fontFamily: typography.fontFamily.medium,
-      fontSize: 7,
-      letterSpacing: 0.9,
-      textTransform: 'uppercase',
-      color: colors.textSecondary,
     },
     headerActions: {
       flexDirection: 'row',

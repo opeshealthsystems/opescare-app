@@ -809,7 +809,8 @@
     },
     "ageYears_one": "{{count}} an",
     "ageYears_other": "{{count}} ans",
-    "brandQuote": "« Une meilleure santé. Un avenir plus clair. »"
+    "brandQuote": "« Une meilleure santé. Un avenir plus clair. »",
+    "unreadBadge": "{{n}} non lus"
   },
   "editProfile": {
     "title": "Modifier le profil",

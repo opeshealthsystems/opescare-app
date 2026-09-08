@@ -1,5 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -98,6 +107,11 @@ export default function ProfileScreen() {
   // back to initials instead of leaving a grey hole.
   const [photoFailed, setPhotoFailed] = useState(false);
   const [showAllAccount, setShowAllAccount] = useState(false);
+  // The overview row and the tile grids are measured for the same reason the
+  // identity row is: their cell sizes were numbers that only held at 375pt.
+  const [overviewWidth, setOverviewWidth] = useState(0);
+  const [gridWidth, setGridWidth] = useState(0);
+  const { width: windowWidth } = useWindowDimensions();
 
   // Opening this tab is itself a reason to try again: if the boot-time fetch
   // failed (no signal, a deploy in progress), the person should not have to
@@ -185,6 +199,60 @@ export default function ProfileScreen() {
       panel: clamp(84, inner * 0.3, 124),
     };
   }, [cardWidth]);
+
+  /**
+   * Quick-overview cells. Four across needs ~72pt each before the labels start
+   * breaking words ("Dependents" is 55pt of text at 10pt inside 16pt of
+   * padding); a 320pt screen only offers 67.5pt, so it wraps to a 2x2 instead
+   * of clipping. The ring is sized from the cell rather than pinned at 58pt,
+   * which overflowed the 51pt of usable cell a 320pt screen leaves.
+   */
+  const overviewGrid = useMemo(() => {
+    const gap = spacing.sm - 2;
+    const w = overviewWidth || windowWidth - spacing.md * 2;
+    const fourUp = (w - gap * 3) / 4;
+    const cols = fourUp >= 72 ? 4 : 2;
+    const cell = Math.floor((w - gap * (cols - 1)) / cols);
+    const ring = Math.max(44, Math.min(58, cell - spacing.sm * 2 - 4));
+    return { cell, ring, stroke: ring >= 52 ? 5 : 4 };
+  }, [overviewWidth, windowWidth]);
+
+  /**
+   * Link tiles. `flexBasis: 22%` with `minWidth: 76` measured 76pt per tile,
+   * so four of them plus three 8pt gaps came to 328pt and wrapped inside the
+   * 311pt a 375pt screen gives — three tiles and one stretched full-width
+   * orphan. Columns and an exact tile width are computed from the measured
+   * grid instead, and the tiles do not grow, so a short last row sits
+   * left-aligned rather than stretching to fill a hole.
+   */
+  const tileGrid = useMemo(() => {
+    const gap = spacing.sm;
+    const w = gridWidth || windowWidth - spacing.md * 4;
+    const cols = Math.max(2, Math.min(4, Math.floor((w + gap) / (68 + gap))));
+    const tile = Math.min(132, Math.floor((w - gap * (cols - 1)) / cols));
+    return { cols, tile };
+  }, [gridWidth, windowWidth]);
+
+  /**
+   * The trust strip's four cells need ~70pt each: "Interoperable" is 71pt of
+   * 10pt text and a 320pt screen leaves 60pt of cell, which broke the word in
+   * half. Below that it becomes a 2x2 — and the vertical rules go, because a
+   * rule between wrapped cells divides nothing.
+   */
+  const trustCols = (windowWidth - spacing.md * 4) / 4 >= 70 ? 4 : 2;
+
+  // The motto rule beside the heading was capped at a flat 122pt. On a 320pt
+  // screen that is 42% of the row; on a tablet it stayed a thin ribbon.
+  const mottoWidth = Math.round(
+    Math.max(96, Math.min(150, (windowWidth - spacing.md * 2) * 0.36)),
+  );
+
+  // The privacy footer's motto column is 88pt of intrinsic text ("PEOPLE-
+  // CENTERED"); with the 42pt mark, the gaps and the 120pt minimum on the body
+  // it needs 274pt and a 320pt screen gives the row 256pt, so it was clipped
+  // against the edge. Below 360pt the decorative column drops — the trust
+  // strip already says the same three words.
+  const showPrivacyMotto = windowWidth >= 360;
 
   const showPhoto = !!patient?.photo_url && !photoFailed;
 
@@ -439,12 +507,13 @@ export default function ProfileScreen() {
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => router.push('/settings')}
-          hitSlop={10}
+          // 21pt glyph in a 30pt box: 12pt all round takes the target to 54pt.
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel={t('profile.settings')}
           style={styles.topBarSide}
         >
-          <Icon name="settings" size={21} color={colors.textPrimary} />
+          <Icon name="gear" size={21} color={colors.textPrimary} />
         </TouchableOpacity>
 
         <View style={styles.topBarBrand}>
@@ -455,9 +524,14 @@ export default function ProfileScreen() {
         <View style={styles.topBarActions}>
           <TouchableOpacity
             onPress={() => router.push('/notifications')}
-            hitSlop={8}
+            // 20pt glyph + 2pt padding = 24pt; 8pt of slop left a 40pt target.
+            hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel={t('profile.notifications', { defaultValue: 'Notifications' })}
+            accessibilityLabel={
+              unreadCount > 0
+                ? `${t('profile.notifications', { defaultValue: 'Notifications' })}, ${t('profile.unreadBadge', { n: unreadCount, defaultValue: '{{n}} unread' })}`
+                : t('profile.notifications', { defaultValue: 'Notifications' })
+            }
             style={styles.topBarBell}
           >
             <Icon name="bell" size={20} color={colors.textPrimary} />
@@ -476,13 +550,12 @@ export default function ProfileScreen() {
             style={styles.topAvatarWrap}
           >
             {showPhoto ? (
-              <Image
-                source={{ uri: patient.photo_url as string }}
-                style={styles.topAvatar}
-                resizeMode="cover"
-                onError={() => setPhotoFailed(true)}
-                accessibilityIgnoresInvertColors
-                alt=""
+              <CoverPhoto
+                uri={patient.photo_url as string}
+                width={34}
+                height={34}
+                radius={17}
+                onFail={() => setPhotoFailed(true)}
               />
             ) : (
               <View style={[styles.topAvatar, styles.topAvatarFallback]}>
@@ -509,7 +582,7 @@ export default function ProfileScreen() {
               The only other candidate in the library is a four-sided polygon
               that does not read as Africa at all. A missing watermark is
               invisible; a wrong one looks like a bug. */}
-          <View style={styles.motto}>
+          <View style={[styles.motto, { maxWidth: mottoWidth }]}>
             <Text style={styles.mottoText}>{t('profile.motto', { defaultValue: 'A HEALTHIER PEOPLE\nA STRONGER AFRICA' })}</Text>
           </View>
         </View>
@@ -529,13 +602,12 @@ export default function ProfileScreen() {
                 ]}
               >
                 {showPhoto ? (
-                  <Image
-                    source={{ uri: patient.photo_url as string }}
-                    style={styles.portraitImg}
-                    resizeMode="cover"
-                    onError={() => setPhotoFailed(true)}
-                    accessibilityIgnoresInvertColors
-                    alt=""
+                  <CoverPhoto
+                    uri={patient.photo_url as string}
+                    width={columns.portrait}
+                    height={columns.portraitHeight}
+                    radius={radii.md}
+                    onFail={() => setPhotoFailed(true)}
                   />
                 ) : (
                   <View style={[styles.portraitImg, styles.portraitFallback]}>
@@ -556,6 +628,9 @@ export default function ProfileScreen() {
                 onPress={goEditProfile}
                 accessibilityRole="button"
                 accessibilityLabel={t('profile.changePhoto', { defaultValue: 'Change photo' })}
+                // The button is 28pt by design (it overlaps the portrait
+                // corner); 10pt of slop is what makes it a 48pt target.
+                hitSlop={10}
                 style={styles.portraitCamera}
               >
                 <Icon name="camera" size={14} color={colors.textOnBrand} />
@@ -573,9 +648,13 @@ export default function ProfileScreen() {
                 <Text style={[styles.verifiedText, { color: statusSkin.fg }]} numberOfLines={1}>{statusLabel}</Text>
               </View>
 
-              {/* Sex · age · blood group, on one line as drawn — each part
-                  dropped rather than guessed when the record has no value. */}
-              <IdentityLine icon="person" text={[genderLabel, ageLabel, patient.blood_group].filter(Boolean).join('   |   ')} />
+              {/* Age only. The render draws sex · age · blood group here, but
+                  sex and blood group are both rows of the grid below — the
+                  same two strings twice on one screen, exactly like the date
+                  of birth and the Health ID that were already pulled out.
+                  Age is the one part of that line the grid does not carry
+                  (it is derived, and the grid prints the date itself). */}
+              {!!ageLabel && <IdentityLine icon="person" text={ageLabel} />}
               {/* Contact only. The date of birth and the address belong to the
                   grid below — printing them here as well was the same string
                   twice on one screen. */}
@@ -649,8 +728,9 @@ export default function ProfileScreen() {
         <Card style={styles.trust}>
           {TRUST.map((item, index) => (
             <React.Fragment key={item.key}>
-              {index > 0 && <View style={styles.trustRule} />}
-              <View style={styles.trustCell}>
+              {/* A rule only between cells that actually sit side by side. */}
+              {index > 0 && trustCols === 4 ? <View style={styles.trustRule} /> : null}
+              <View style={[styles.trustCell, trustCols === 2 && styles.trustCellHalf]}>
                 <Icon name={item.icon} size={19} color={colors.blue} />
                 <Text style={styles.trustText} numberOfLines={2}>{t(`profile.trust.${item.key}`)}</Text>
               </View>
@@ -665,17 +745,23 @@ export default function ProfileScreen() {
               <Icon name="bar-chart" size={18} color={colors.blue} />
               <Text style={styles.blockTitle}>{t('profile.quickOverview', { defaultValue: 'Quick overview' })}</Text>
             </View>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/records')} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('profile.viewFullRecord', { defaultValue: 'View full record' })} style={styles.blockAction}>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/records')} hitSlop={14} accessibilityRole="button" accessibilityLabel={t('profile.viewFullRecord', { defaultValue: 'View full record' })} style={styles.blockAction}>
               <Text style={styles.blockActionText}>{t('profile.viewFullRecord', { defaultValue: 'View full record' })}</Text>
               <Icon name="chevron-right" size={14} color={colors.link} />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.overviewRow}>
+          <View
+            style={styles.overviewRow}
+            onLayout={(e) => setOverviewWidth(e.nativeEvent.layout.width)}
+          >
             {overview.map((tile) => (
-              <OverviewCard key={tile.key} tile={tile} />
+              <OverviewCard key={tile.key} tile={tile} width={overviewGrid.cell} />
             ))}
             <ProfileRingCard
+              width={overviewGrid.cell}
+              ring={overviewGrid.ring}
+              stroke={overviewGrid.stroke}
               percent={completeness.percent}
               label={t('profile.profileStrength')}
               hint={completeness.filled === completeness.total ? t('profile.profileStrengthComplete') : t('profile.profileStrengthHint', { count: completeness.total - completeness.filled, missing: completeness.total - completeness.filled })}
@@ -727,9 +813,12 @@ export default function ProfileScreen() {
             actionLabel={showAllRecord ? t('opesRecords.hub.showFewer', { defaultValue: 'Show fewer' }) : t('common.viewAll', { defaultValue: 'View all' })}
             onAction={() => setShowAllRecord((v) => !v)}
           />
-          <View style={styles.tileGrid}>
+          <View
+            style={styles.tileGrid}
+            onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}
+          >
             {recordTiles.filter((tile) => showAllRecord || !tile.extra).map((tile) => (
-              <LinkTileView key={tile.label} tile={tile} />
+              <LinkTileView key={tile.label} tile={tile} width={tileGrid.tile} />
             ))}
           </View>
         </Card>
@@ -745,7 +834,7 @@ export default function ProfileScreen() {
           />
           <View style={styles.tileGrid}>
             {accountTiles.filter((tile) => showAllAccount || !tile.extra).map((tile) => (
-              <LinkTileView key={tile.label} tile={tile} />
+              <LinkTileView key={tile.label} tile={tile} width={tileGrid.tile} />
             ))}
           </View>
         </Card>
@@ -759,8 +848,12 @@ export default function ProfileScreen() {
             <Text style={styles.privacyTitle}>{t('profile.privacyTitle')}</Text>
             <Text style={styles.privacyText}>{t('profile.privacyBody')}</Text>
           </View>
-          <View style={styles.privacyRule} />
-          <Text style={styles.privacyMotto}>{t('profile.privacyMotto', { defaultValue: 'SECURE\nINTEROPERABLE\nPEOPLE-CENTERED' })}</Text>
+          {showPrivacyMotto ? (
+            <>
+              <View style={styles.privacyRule} />
+              <Text style={styles.privacyMotto}>{t('profile.privacyMotto', { defaultValue: 'SECURE\nINTEROPERABLE\nPEOPLE-CENTERED' })}</Text>
+            </>
+          ) : null}
         </View>
 
         {/* Sign out stays the last thing on the screen. */}
@@ -784,6 +877,80 @@ export default function ProfileScreen() {
 
 // ── Pieces ──────────────────────────────────────────────────────────────────
 
+/**
+ * A photo that fills its frame without distorting, computed rather than
+ * declared.
+ *
+ * This exists because react-native-web 0.21 ignores `resizeMode` here — every
+ * <Image> on the page computes to `object-fit: fill`, including ones asking
+ * for `contain`. So instead of trusting a fit mode we measure the source with
+ * `Image.getSize`, scale it so the SHORTER side matches the frame, and centre
+ * the overflow. The parent clips it.
+ *
+ * While the size is unknown nothing is drawn: a photo shown at the wrong
+ * aspect for even a moment is the bug this replaces. If the source cannot be
+ * measured or cannot load, `onFail` hands the caller back its initials.
+ */
+function CoverPhoto({
+  uri,
+  width,
+  height,
+  radius,
+  onFail,
+}: {
+  uri: string;
+  width: number;
+  height: number;
+  radius: number;
+  onFail: () => void;
+}) {
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setNatural(null);
+    Image.getSize(
+      uri,
+      (w, h) => {
+        if (alive && w > 0 && h > 0) setNatural({ w, h });
+      },
+      () => {
+        if (alive) onFail();
+      },
+    );
+    return () => {
+      alive = false;
+    };
+    // `onFail` is a stable setState updater at every call site.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uri]);
+
+  if (!natural) return null;
+
+  // Scale so the image covers the frame, then centre what spills over.
+  const scale = Math.max(width / natural.w, height / natural.h);
+  const w = natural.w * scale;
+  const h = natural.h * scale;
+
+  return (
+    <View style={{ width, height, borderRadius: radius, overflow: 'hidden' }}>
+      <Image
+        source={{ uri }}
+        style={{
+          position: 'absolute',
+          width: w,
+          height: h,
+          left: (width - w) / 2,
+          top: (height - h) / 2,
+        }}
+        onError={onFail}
+        accessibilityIgnoresInvertColors
+        alt=""
+      />
+    </View>
+  );
+}
+
 /** One glyph-and-text line in the identity card. */
 function IdentityLine({ icon, text }: { icon: IconName; text: string }) {
   const { colors } = useTheme();
@@ -798,7 +965,7 @@ function IdentityLine({ icon, text }: { icon: IconName; text: string }) {
 }
 
 /** A counted overview tile: tinted mark, chevron, figure, label, hint. */
-function OverviewCard({ tile }: { tile: OverviewTile }) {
+function OverviewCard({ tile, width }: { tile: OverviewTile; width: number }) {
   const { colors, tintMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const skin = tintMap[tile.tint];
@@ -808,7 +975,7 @@ function OverviewCard({ tile }: { tile: OverviewTile }) {
       activeOpacity={0.85}
       accessibilityRole="button"
       accessibilityLabel={`${tile.value} ${tile.label}. ${tile.hint}`}
-      style={styles.overviewCard}
+      style={[styles.overviewCard, { width }]}
     >
       <View style={styles.overviewTop}>
         <View style={[styles.overviewMark, { backgroundColor: skin.bg }]}>
@@ -829,7 +996,23 @@ function OverviewCard({ tile }: { tile: OverviewTile }) {
  * arc rotated per 25%, capped at four — honest at the granularity it can
  * actually draw, with the exact figure printed in the middle either way.
  */
-function ProfileRingCard({ percent, label, hint, onPress }: { percent: number; label: string; hint: string; onPress: () => void }) {
+function ProfileRingCard({
+  percent,
+  label,
+  hint,
+  onPress,
+  width,
+  ring,
+  stroke,
+}: {
+  percent: number;
+  label: string;
+  hint: string;
+  onPress: () => void;
+  width: number;
+  ring: number;
+  stroke: number;
+}) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
@@ -838,13 +1021,21 @@ function ProfileRingCard({ percent, label, hint, onPress }: { percent: number; l
       activeOpacity={0.85}
       accessibilityRole="button"
       accessibilityLabel={`${label}: ${percent}%. ${hint}`}
-      style={styles.overviewCard}
+      style={[styles.overviewCard, { width }]}
     >
-      <View style={styles.ringWrap}>
-        <View style={styles.ringTrack} />
+      {/* Sized from the measured cell: a flat 58pt ring overflowed the ~51pt
+          of usable cell a 320pt screen leaves. */}
+      <View style={[styles.ringWrap, { width: ring, height: ring }]}>
+        <View
+          style={[
+            styles.ringTrack,
+            { width: ring, height: ring, borderRadius: ring / 2, borderWidth: stroke },
+          ]}
+        />
         <View
           style={[
             styles.ringFill,
+            { width: ring, height: ring, borderRadius: ring / 2, borderWidth: stroke },
             { borderTopColor: percent >= 25 ? colors.statusNormal : 'transparent',
               borderRightColor: percent >= 50 ? colors.statusNormal : 'transparent',
               borderBottomColor: percent >= 75 ? colors.statusNormal : 'transparent',
@@ -914,7 +1105,8 @@ function FactCell({ fact, rule }: { fact: Fact; rule: boolean }) {
 }
 
 /** One tinted square tile in the Health record / Family groups. */
-function LinkTileView({ tile }: { tile: LinkTile }) {
+function LinkTileView({ tile, width }: { tile: LinkTile; width: number }) {
+  const { t } = useTranslation();
   const { colors, tintMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const skin = tintMap[tile.tint];
@@ -923,8 +1115,12 @@ function LinkTileView({ tile }: { tile: LinkTile }) {
       onPress={tile.onPress}
       activeOpacity={0.85}
       accessibilityRole="button"
-      accessibilityLabel={tile.badge ? `${tile.label}, ${tile.badge}` : tile.label}
-      style={[styles.linkTile, { backgroundColor: skin.bg }]}
+      accessibilityLabel={
+        tile.badge
+          ? `${tile.label}, ${t('profile.unreadBadge', { n: tile.badge, defaultValue: '{{n}} unread' })}`
+          : tile.label
+      }
+      style={[styles.linkTile, { width, backgroundColor: skin.bg }]}
     >
       <View style={styles.linkTileTop}>
         <Icon name={tile.icon} size={22} color={skin.fg} />
@@ -934,7 +1130,9 @@ function LinkTileView({ tile }: { tile: LinkTile }) {
           </View>
         ) : null}
       </View>
-      <Text style={styles.linkTileLabel} numberOfLines={2}>{tile.label}</Text>
+      {/* Three lines: at 4 columns a tile label box is ~60pt, and
+          "Download My Records" needs the room rather than an ellipsis. */}
+      <Text style={styles.linkTileLabel} numberOfLines={3}>{tile.label}</Text>
     </TouchableOpacity>
   );
 }
@@ -991,6 +1189,9 @@ const makeStyles = (c: Palette) =>
     identityMain: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, flexWrap: 'wrap' },
     // width/height come from the measured card — see `columns`.
     portrait: { borderRadius: radii.md, overflow: 'hidden', backgroundColor: c.primarySoft },
+    // objectFit, not resizeMode: on RN 0.86 / rn-web 0.21 the style
+    // property is `objectFit`, and the prop alone left this at
+    // object-fit: fill, stretching a square photo into a 3:4 frame.
     portraitImg: { width: '100%', height: '100%' },
     portraitFallback: { alignItems: 'center', justifyContent: 'center' },
     portraitInitials: { fontFamily: typography.fontFamily.bold, color: c.blue },
@@ -1055,7 +1256,8 @@ const makeStyles = (c: Palette) =>
     idPanelActionText: { fontFamily: typography.fontFamily.semiBold, fontSize: 10, color: c.link },
 
     /* 2. Trust strip */
-    trust: { flexDirection: 'row', alignItems: 'stretch', paddingVertical: spacing.sm },
+    trust: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'stretch', paddingVertical: spacing.sm },
+    trustCellHalf: { flexGrow: 0, flexShrink: 0, flexBasis: '50%', paddingVertical: spacing.sm },
     trustCell: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0, alignItems: 'center', gap: 5, paddingHorizontal: 2 },
     trustRule: { width: StyleSheet.hairlineWidth, backgroundColor: c.border, marginVertical: 2 },
     trustText: { fontFamily: typography.fontFamily.medium, fontSize: 10, lineHeight: 13, textAlign: 'center', color: c.textSecondary },
@@ -1067,9 +1269,10 @@ const makeStyles = (c: Palette) =>
     blockTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.size.md, color: c.textPrimary },
     blockAction: { flexDirection: 'row', alignItems: 'center', gap: 3 },
     blockActionText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.xs, color: c.link },
-    overviewRow: { flexDirection: 'row', gap: spacing.sm - 2 },
+    overviewRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm - 2 },
+    // Width comes from the measured row — see `overviewGrid`.
     overviewCard: {
-      flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0, gap: 3,
+      gap: 3,
       padding: spacing.sm, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.border, backgroundColor: c.surface,
     },
@@ -1080,9 +1283,9 @@ const makeStyles = (c: Palette) =>
     overviewHint: { fontFamily: typography.fontFamily.regular, fontSize: 10, lineHeight: 13, color: c.textMuted },
 
     /* Completeness ring */
-    ringWrap: { width: 58, height: 58, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 4 },
-    ringTrack: { position: 'absolute', width: 58, height: 58, borderRadius: 29, borderWidth: 5, borderColor: c.divider },
-    ringFill: { position: 'absolute', width: 58, height: 58, borderRadius: 29, borderWidth: 5, transform: [{ rotate: '45deg' }] },
+    ringWrap: { alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 4 },
+    ringTrack: { position: 'absolute', borderColor: c.divider },
+    ringFill: { position: 'absolute', transform: [{ rotate: '45deg' }] },
     ringText: { fontFamily: typography.fontFamily.bold, fontSize: 14, color: c.textPrimary },
 
     /* 4-6. Panels */
@@ -1126,9 +1329,13 @@ const makeStyles = (c: Palette) =>
 
     /* Link tiles */
     tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    // Width comes from the measured grid — see `tileGrid`. The tiles do not
+    // grow, so a short last row stays left-aligned instead of stretching one
+    // orphan across the panel.
     linkTile: {
-      flexGrow: 1, flexBasis: '22%', minWidth: 76, minHeight: 82, borderRadius: radii.md,
-      padding: spacing.sm, alignItems: 'center', justifyContent: 'center', gap: 7,
+      minHeight: 82, borderRadius: radii.md,
+      paddingHorizontal: 6, paddingVertical: spacing.sm,
+      alignItems: 'center', justifyContent: 'center', gap: 7,
     },
     linkTileTop: { position: 'relative' },
     linkTileBadge: {

@@ -809,7 +809,8 @@
     },
     "ageYears_one": "{{count}} year",
     "ageYears_other": "{{count}} years",
-    "brandQuote": "“Better health. A brighter tomorrow.”"
+    "brandQuote": "“Better health. A brighter tomorrow.”",
+    "unreadBadge": "{{n}} unread"
   },
   "editProfile": {
     "title": "Edit Profile",

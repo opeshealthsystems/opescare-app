@@ -61,7 +61,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   tagline: {
     fontFamily: typography.fontFamily.medium,
     fontSize: 10,
-    letterSpacing: 1.5,
+    // 1.5 on a 10px face stretched "One Health ID. Connected Care." to 204pt
+    // and the words came apart. 0.6 still reads as a spaced sub-brand line.
+    letterSpacing: 0.6,
     color: colors.textSecondary,
   },
 });

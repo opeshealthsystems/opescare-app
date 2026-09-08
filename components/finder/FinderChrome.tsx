@@ -403,7 +403,7 @@ const makeStyles = (c: Palette) =>
       gap: spacing.sm,
     },
     topBarBack: { width: 32, alignItems: 'flex-start' },
-    topBarBrand: { flex: 1, alignItems: 'center', gap: 2 },
+    topBarBrand: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
     topBarActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minWidth: 32 },
     topBarAction: { position: 'relative', padding: 2 },
     topBarBadge: {

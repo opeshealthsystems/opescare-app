@@ -21,9 +21,10 @@ import {
   type Palette,
   type Tint,
 } from '@/components/opes-ui';
+import QRCode from 'react-native-qrcode-svg';
 import { HEALTH_ID_ART } from '@/components/health-id/assets';
 import { useAuthStore } from '../../lib/store/auth';
-import { useFamilyMembers, useMessageThreads } from '../../lib/api/queries';
+import { useFamilyMembers, useHealthIdCard, useMessageThreads } from '../../lib/api/queries';
 // Registers `profile.profileStrengthHint_one/_other` (and the consent chrome)
 // from lib/i18n/pending/ until those keys are folded into locales/{en,fr}.json.
 import '../../lib/i18n/consentCopyStrings';
@@ -199,6 +200,15 @@ export default function ProfileScreen() {
     if (years < 0 || years > 130) return null;
     return t('profile.ageYears', { count: years, defaultValue: '{{count}} years' });
   }, [patient?.dob, t]);
+
+  /**
+   * The permanent Health ID QR, from the same hook the Health ID tab uses —
+   * one payload, so the two screens can never encode different codes for the
+   * same person. Nothing is drawn until it arrives: a QR that scans to the
+   * wrong thing is worse at a counter than no QR at all.
+   */
+  const healthIdCard = useHealthIdCard();
+  const qrPayload = healthIdCard.data?.qr_payload ?? null;
 
   // The bell badge and the Messages tile read the same real figure.
   const threads = useMessageThreads();
@@ -434,11 +444,11 @@ export default function ProfileScreen() {
           accessibilityLabel={t('profile.settings')}
           style={styles.topBarSide}
         >
-          <Icon name="menu" size={22} color={colors.textPrimary} />
+          <Icon name="settings" size={21} color={colors.textPrimary} />
         </TouchableOpacity>
 
         <View style={styles.topBarBrand}>
-          <PulseLogo size={30} />
+          <PulseLogo size={34} />
           <Wordmark size="md" showTagline />
         </View>
 
@@ -604,7 +614,22 @@ export default function ProfileScreen() {
                 </Text>
               </View>
               <View style={styles.idPanelQr}>
-                <Icon name="qr" size={46} color={colors.textPrimary} />
+                {qrPayload ? (
+                  <QRCode
+                    value={qrPayload}
+                    size={62}
+                    color={colors.textPrimary}
+                    backgroundColor={colors.surface}
+                  />
+                ) : (
+                  /* Not yet, or not at all — either way this is a placeholder
+                     and must not be mistaken for something scannable. */
+                  <Icon
+                    name="qr"
+                    size={40}
+                    color={healthIdCard.isError ? colors.textMuted : colors.border}
+                  />
+                )}
               </View>
               <Text style={styles.idPanelCode} numberOfLines={2}>
                 {patient.health_id ?? '\u2014'}
@@ -936,7 +961,7 @@ const makeStyles = (c: Palette) =>
     /* Brand bar */
     topBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
     topBarSide: { width: 30, alignItems: 'flex-start' },
-    topBarBrand: { flex: 1, alignItems: 'center', gap: 1 },
+    topBarBrand: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
     topBarActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     topBarBell: { position: 'relative', padding: 2 },
     topBarBadge: {

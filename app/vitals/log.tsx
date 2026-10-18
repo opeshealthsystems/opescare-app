@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Log a reading — `/vitals/log`.
  *
@@ -95,6 +96,7 @@ const CLINICAL_MEASURE_KEY: Record<string, string> = {
 };
 
 export default function LogVitalScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);

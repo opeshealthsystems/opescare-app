@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Doctor — Emergency access / BREAK-GLASS (`/clinician/break-glass`).
  *
@@ -141,6 +142,7 @@ const ACK_COPY: Record<Ack, { icon: IconName; en: string }> = {
  * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
  */
 export default function BreakGlassScreen() {
+  usePrivateScreen();
   return (
     <RoleGate need={['emergency_access']}>
       <BreakGlassScreenBody />

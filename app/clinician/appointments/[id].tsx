@@ -1,7 +1,8 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Doctor — Appointment record (`/clinician/appointments/[id]`).
  *
- * Port of `UIUX/src/screens/doctor/DoctorAppointmentDetailScreen.tsx` onto
+ * Port of design reference `src/screens/doctor/DoctorAppointmentDetailScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) onto
  * expo-router, the OPES UI kit and this app's doctor foundation.
  *
  * The full visit record plus the actions a clinician actually takes on it.
@@ -137,6 +138,7 @@ function canEdit(a: StaffAppointment): boolean {
  * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
  */
 export default function DoctorAppointmentDetailScreen() {
+  usePrivateScreen();
   return (
     <RoleGate need={['schedule']}>
       <DoctorAppointmentDetailScreenBody />

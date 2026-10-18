@@ -12,7 +12,7 @@
  * It is a UI gate, NOT a security boundary. The server authorises every
  * request on the token it was given; this only decides what is worth drawing.
  *
- * ── THE BAR (UIUX/DESIGN_SPEC.md §11) ─────────────────────────────────────
+ * ── THE BAR (design reference DESIGN_SPEC.md (archived prototype, see docs/DESIGN_REFERENCE.md) §11) ─────────────────────────────────────
  * Five slots at most, no centre FAB — a clinician's bar has no Quick Add.
  * Height `62 + insets.bottom`, `colors.surface` on a 1px `colors.border` top
  * line, active `colors.blue`, inactive `colors.textMuted`, 11px medium labels,

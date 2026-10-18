@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Lab Report (full) — `/labs/[id]/report`.
  *
@@ -128,6 +129,7 @@ function fmtBytes(bytes: number | null | undefined): string {
 }
 
 export default function LabReportFullScreen() {
+  usePrivateScreen();
   const { t, tx, tr } = useLabsT();
   const router = useRouter();
   const { colors } = useTheme();

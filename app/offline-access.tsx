@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -104,6 +105,7 @@ type Mode = 'full' | 'emergency';
 type ScreenNotice = { tone: StatusTone; icon: IconName; body: string };
 
 export default function OfflineAccessScreen() {
+  usePrivateScreen();
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const isOnline = useIsOnline();

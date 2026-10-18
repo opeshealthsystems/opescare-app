@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Doctor — One chart section, in full (`/clinician/patient/[id]/[section]`).
  *
@@ -190,6 +191,7 @@ type Tx = (key: string, defaultValue: string, params?: Record<string, unknown>) 
  * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
  */
 export default function PatientChartSectionScreen() {
+  usePrivateScreen();
   return (
     <RoleGate need={['clinical_chart']}>
       <PatientChartSectionScreenBody />

@@ -1,6 +1,6 @@
 /**
  * Messages tab — the inbox. The Finder port of OPES MSG-001
- * (`UIUX/src/screens/messaging/MessagesScreen.tsx`), laid out as a
+ * (design reference `src/screens/messaging/MessagesScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md)), laid out as a
  * `ScreenHeader` + search + filter chips + one flush `Card` of `ListRow`s.
  *
  * Opening a thread pushes `/messages/[id]` (app/messages/[id].tsx). Starting a

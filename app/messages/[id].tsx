@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Message thread — `/messages/[id]`. The Finder port of OPES MSG-002
  * (`UIUX/src/screens/chat/MessageThreadScreen.tsx`).
@@ -51,6 +52,7 @@ const MESSAGE_MAX = 4000;
 type QuickAction = { icon: IconName; label: string; tint: Tint; href: Href };
 
 export default function MessageThreadRoute() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();

@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -95,6 +96,7 @@ const RETRACTED_STATUSES = ['voided', 'entered_in_error'];
 type TFunc = (key: string, params?: Record<string, unknown>) => string;
 
 export default function PrescriptionsListScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();

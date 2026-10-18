@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Doctor — Write a prescription (`/clinician/prescribe`).
  *
@@ -150,6 +151,7 @@ const PAIR_COLUMN_BASIS = 140;
  * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
  */
 export default function PrescribeScreen() {
+  usePrivateScreen();
   return (
     <RoleGate need={['prescribe']}>
       <PrescribeScreenBody />

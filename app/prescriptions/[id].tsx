@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Platform,
@@ -130,6 +131,7 @@ function lineStateOf(item: PrescriptionItemDetail): LineState {
 }
 
 export default function PrescriptionDetailScreen() {
+  usePrivateScreen();
   const params = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { t } = useTranslation();

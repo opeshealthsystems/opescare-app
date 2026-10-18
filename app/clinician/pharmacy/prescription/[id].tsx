@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Pharmacy desk — one prescription (`/clinician/pharmacy/prescription/[id]`).
  *
@@ -82,6 +83,7 @@ function itemIsDone(it: DeskPrescriptionItem): boolean {
 }
 
 export default function DeskPrescriptionScreen() {
+  usePrivateScreen();
   return (
     <RoleGate need={['dispense']}>
       <DeskPrescriptionBody />

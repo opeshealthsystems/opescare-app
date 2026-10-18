@@ -1,7 +1,7 @@
 /**
  * Today (`/clinician/home`) — one screen, drawn per role.
  *
- * Port of `UIUX/src/screens/doctor/DoctorHomeScreen.tsx` onto expo-router,
+ * Port of design reference `src/screens/doctor/DoctorHomeScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) onto expo-router,
  * the OPES UI kit and this app's doctor foundation — then widened to every
  * professional with a posting.
  *

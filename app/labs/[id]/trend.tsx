@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Lab Result Trend — `/labs/[id]/trend?analyte=…`.
  *
@@ -102,6 +103,7 @@ function directionLabel(direction: LabTrend['direction'], tx: Tx): string {
 }
 
 export default function LabResultTrendScreen() {
+  usePrivateScreen();
   const { t, tx, tr } = useLabsT();
   const router = useRouter();
   const { colors } = useTheme();

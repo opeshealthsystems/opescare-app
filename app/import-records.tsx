@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -70,6 +71,7 @@ const KINDS: KindSpec[] = [
 ];
 
 export default function ImportRecordsScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const router = useRouter();
   const { colors, statusMap } = useTheme();

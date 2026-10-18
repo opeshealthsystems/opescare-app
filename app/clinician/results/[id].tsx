@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Doctor — Result detail + acknowledgement (`/clinician/results/[id]`).
  *
@@ -152,6 +153,7 @@ function toneForFlag(flag: string | null | undefined): StatusTone {
  * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
  */
 export default function ResultDetailScreen() {
+  usePrivateScreen();
   return (
     <RoleGate need={['clinical_chart', 'lab_results']}>
       <ResultDetailScreenBody />

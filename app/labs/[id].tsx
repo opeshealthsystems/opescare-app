@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Lab Result Detail — `/labs/[id]`.
  *
@@ -92,6 +93,7 @@ function resultDate(order: LabOrderDetail): string | null {
 }
 
 export default function LabResultDetailScreen() {
+  usePrivateScreen();
   const { t, tx, tr } = useLabsT();
   const router = useRouter();
   const { colors } = useTheme();

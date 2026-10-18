@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -160,6 +161,7 @@ const BASIS_ICON: Record<CareRelationshipItem['basis'], IconName> = {
 };
 
 export default function ConsentLedgerScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();

@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Sample Collection — `/labs/sample[?appointmentId=…]`.
  *
@@ -72,6 +73,7 @@ function duration(minutes: number | null | undefined, tx: Tx): string {
 }
 
 export default function SampleCollectionScreen() {
+  usePrivateScreen();
   const { t, tx } = useLabsT();
   const router = useRouter();
   const { colors } = useTheme();

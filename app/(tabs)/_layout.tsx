@@ -1,5 +1,5 @@
 /**
- * Tab group — the OPES bottom bar (UIUX/DESIGN_SPEC.md §11):
+ * Tab group — the OPES bottom bar (design reference DESIGN_SPEC.md (archived prototype, see docs/DESIGN_REFERENCE.md) §11):
  *
  *     Home   |   Health ID   |   ( + )   |   Messages•   |   Profile
  *

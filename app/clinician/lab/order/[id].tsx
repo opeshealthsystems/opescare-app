@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Lab desk — one order (`/clinician/lab/order/[id]`).
  *
@@ -88,6 +89,7 @@ import {
 } from '@/lib/api/labDeskQueries';
 
 export default function LabOrderScreen() {
+  usePrivateScreen();
   return (
     <RoleGate need={['lab_results', 'sample_collection']}>
       <LabOrderScreenBody />

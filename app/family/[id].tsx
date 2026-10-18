@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Family member detail — a dependent's Health ID card and records, seen by
  * their guardian.
@@ -141,6 +142,7 @@ function labBadgeLabel(t: (key: string) => string, order: PortalLabOrder): strin
 }
 
 export default function FamilyMemberScreen() {
+  usePrivateScreen();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const router = useRouter();

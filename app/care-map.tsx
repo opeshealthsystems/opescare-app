@@ -1,7 +1,7 @@
 /**
  * Care Access — the patient-facing facility directory (screen 41 "Care Access
  * Map" / 45 "Search & Filter" in the app plan), presented with the OPES UI kit
- * in the layout of `UIUX/src/screens/care/FindFacilityScreen.tsx` (CARE-007).
+ * in the layout of design reference `src/screens/care/FindFacilityScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) (CARE-007).
  *
  * The port is presentation only. The data and domain layer is untouched:
  * `useFacilityDirectory` pages `GET /mobile/facilities` (903 real Cameroonian

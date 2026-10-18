@@ -10,7 +10,7 @@
  * band. Nothing here is placeholder; every empty section is a deliberate
  * `EmptyState`.
  *
- * Layout, top to bottom (UIUX/src/screens/core/HomeDashboardScreen.tsx):
+ * Layout, top to bottom (design reference src/screens/core/HomeDashboardScreen.tsx (archived prototype, see docs/DESIGN_REFERENCE.md)):
  *   BrandHeader (bell + avatar) → greeting + compact Health ID card →
  *   Health Summary band → Quick Actions tiles → Upcoming (AppointmentRow) →
  *   Recent records (flush Card + ListRows) → Health Vitals → care-plan card.

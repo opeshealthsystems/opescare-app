@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Doctor — Results Inbox (`/clinician/results`).
  *
@@ -131,6 +132,7 @@ function isNotServed(e: unknown): boolean {
  * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
  */
 export default function ResultsInboxScreen() {
+  usePrivateScreen();
   return (
     <RoleGate need={['clinical_chart', 'lab_results']}>
       <ResultsInboxScreenBody />

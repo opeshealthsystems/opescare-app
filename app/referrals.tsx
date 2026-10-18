@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Referral cases — read-only (GET /mobile/referrals).
  *
@@ -101,6 +102,7 @@ const REQUEST_TONE: Record<ReferralRequestStatus, StatusTone> = {
 };
 
 export default function ReferralsScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);

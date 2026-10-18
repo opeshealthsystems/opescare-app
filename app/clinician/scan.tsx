@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Clinician — Scan a patient's Health ID code (`/clinician/scan`).
  *
@@ -81,6 +82,7 @@ const webHasBarcodeDetector = () =>
   Platform.OS !== 'web' || typeof (globalThis as { BarcodeDetector?: unknown }).BarcodeDetector !== 'undefined';
 
 export default function ScanPatientScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();

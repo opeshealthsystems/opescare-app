@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -127,6 +128,7 @@ const FALLBACK_STATUS: { tone: StatusTone; icon: IconName; tint: Tint } = {
 type ScreenNotice = { tone: StatusTone; icon: IconName; body: string };
 
 export default function PrivacyExportScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();

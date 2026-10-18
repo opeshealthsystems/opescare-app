@@ -1,7 +1,8 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Appointment detail — OPES CARE-003 ported onto this route.
  *
- * Layout from `UIUX/src/screens/care/AppointmentDetailScreen.tsx`: state
+ * Layout from design reference `src/screens/care/AppointmentDetailScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md): state
  * banners (`NoticeBanner`), the summary card (type glyph, status pill,
  * reference, date / time / status facts), the provider card with its
  * "Message" action, an "Appointment Information" card of `InfoRow`s, the
@@ -132,6 +133,7 @@ const PRE_VISIT: { icon: IconName; key: string }[] = [
 ];
 
 export default function AppointmentDetailScreen() {
+  usePrivateScreen();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const { t: uiT } = useKitTranslation();

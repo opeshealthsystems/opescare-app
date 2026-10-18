@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Care plans — read-only (GET /mobile/care-plans, GET /mobile/care-plans/{id}).
  *
@@ -109,6 +110,7 @@ function weeksBetween(start: string | null, end: string | null): number | null {
 }
 
 export default function CarePlansScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);

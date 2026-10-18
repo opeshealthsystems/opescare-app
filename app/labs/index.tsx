@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Labs — `/labs`.
  *
@@ -134,6 +135,7 @@ export function resultFlagLabel(flag: string, tx: Tx, tr: Translate): string {
 }
 
 export default function LabsDashboardScreen() {
+  usePrivateScreen();
   const { t, tx, tr } = useLabsT();
   const router = useRouter();
   const { colors } = useTheme();

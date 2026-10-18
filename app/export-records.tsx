@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -129,6 +130,7 @@ const OUTCOME_TITLE_KEY: Record<FileDeliveryOutcome, string> = {
 };
 
 export default function ExportRecordsScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const router = useRouter();
   const { colors, tintMap } = useTheme();

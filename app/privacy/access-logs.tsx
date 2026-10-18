@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -141,6 +142,7 @@ function relativeTime(date: Date, t: TFn): string {
 }
 
 export default function AccessLogsScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();

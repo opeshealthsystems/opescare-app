@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Doctor — one conversation (`/clinician/messages/[id]`).
  *
@@ -117,6 +118,7 @@ function startsNewDay(previous: DoctorThreadMessage | undefined, message: Doctor
  * would refuse (`lib/staffCapabilities.ts`, mirror of config/staff_capabilities.php).
  */
 export default function DoctorMessageThreadScreen() {
+  usePrivateScreen();
   return (
     <RoleGate need={['messaging']}>
       <DoctorMessageThreadScreenBody />

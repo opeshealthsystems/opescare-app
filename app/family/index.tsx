@@ -1,3 +1,4 @@
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -138,6 +139,7 @@ function isValidPastDate(value: string): boolean {
 type Mode = 'invite' | 'register';
 
 export default function FamilyScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();

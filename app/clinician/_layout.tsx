@@ -81,6 +81,7 @@ import { WrongAppScreen } from './wrong-app';
  * falls back to the kit's default colour rather than crashing.
  */
 function tabIcon(name: IconName) {
+  // eslint-disable-next-line react/display-name -- render callback for tabBarIcon, not a named component
   return ({ color, size }: { color: ColorValue; size: number; focused: boolean }) => (
     <Icon
       name={name}

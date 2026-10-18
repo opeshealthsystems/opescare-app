@@ -26,6 +26,7 @@ const SLOTS = ['home', 'health-id', QUICK_ADD_SLOT, 'messages', 'profile'] as co
  * default colour.
  */
 function tabIcon(name: IconName) {
+  // eslint-disable-next-line react/display-name -- render callback for tabBarIcon, not a named component
   return ({ color, size }: { color: ColorValue; size: number; focused: boolean }) => (
     <Icon
       name={name}

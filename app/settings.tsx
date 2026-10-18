@@ -1,4 +1,5 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { appLockSupported, deviceCanLock, useAppLock } from '@/lib/security/appLock';
 import {
   ActivityIndicator,
   Platform,
@@ -57,9 +58,9 @@ import { useAuthStore } from '../lib/store/auth';
  *    kit's brand-palette switch (OpesCare ↔ OPES), which is a device-local
  *    presentation choice, persisted under `PALETTE_STORAGE_KEY` and never
  *    written to the API.
- *  - **No biometric-login toggle.** `biometric_login_enabled` is likewise real
- *    on the API, but `expo-local-authentication` is not installed and no login
- *    path consults it.
+ *  - **App lock is device-local.** Fingerprint / face / PIN lock lives on
+ *    this phone (lib/security/appLock.ts); it is not the API's
+ *    `biometric_login_enabled`, which no login path consults.
  *  - **No date/time-format or temperature rows.** The API has no such fields.
  *  - **No "Delete account" row.** There is no mobile account-deletion endpoint;
  *    data rights live under Privacy, which is wired.
@@ -164,6 +165,11 @@ export default function SettingsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors, palette, togglePalette, tintMap } = useTheme();
+  const appLock = useAppLock();
+  const [lockAvailable, setLockAvailable] = useState(false);
+  useEffect(() => {
+    void deviceCanLock().then(setLockAvailable).catch(() => setLockAvailable(false));
+  }, []);
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const patient = useAuthStore((s) => s.patient);
@@ -423,6 +429,19 @@ export default function SettingsScreen() {
             <View>
               <SectionHeader title={t('settings.group.device')} variant="overline" />
               <Card variant="flush">
+                {appLockSupported && lockAvailable ? (
+                  <ToggleRow
+                    icon="lock"
+                    tint="blue"
+                    title={t('appLock.settingLabel')}
+                    subtitle={t('appLock.settingBody')}
+                    value={appLock.ready ? appLock.enabled : null}
+                    onChange={(next) => void appLock.setEnabled(next, String(t('appLock.prompt')))}
+                    busy={false}
+                    unknownLabel={t('settings.device.pushChecking')}
+                    divider
+                  />
+                ) : null}
                 <ToggleRow
                   icon="bell"
                   tint="amber"

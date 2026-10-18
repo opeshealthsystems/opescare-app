@@ -13,6 +13,7 @@
  * `is_mine`, `body`, `status`, `created_at` per message — so the outgoing tick
  * is a single "sent" mark, not a pretend read receipt.
  */
+import { PaperWave } from '@/components/ui/PaperWave';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
@@ -115,6 +116,7 @@ export default function MessageThreadRoute() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
+      <PaperWave />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ChatHeader
           name={title}

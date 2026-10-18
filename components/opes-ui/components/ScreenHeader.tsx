@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { PaperWave } from '@/components/ui/PaperWave';
 import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useTranslation } from '../i18n';
 import { spacing, typography, type Palette } from '../theme';
@@ -72,6 +73,7 @@ export function ScreenHeader({
 
   return (
     <View style={[styles.wrap, style]}>
+      <PaperWave />
       <View style={styles.bar}>
         {showBack && backHandler ? (
           <TouchableOpacity

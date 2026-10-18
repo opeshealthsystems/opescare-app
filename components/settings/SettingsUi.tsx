@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { PaperWave } from '@/components/ui/PaperWave';
 import { ActivityIndicator, Pressable, Switch, Text, View } from 'react-native';
 import { ChevronLeft, type LucideIcon } from 'lucide-react-native';
 import { colors, radii, sizing, spacing, typography } from '../../theme/tokens';
@@ -41,6 +42,7 @@ export function ScreenHeader({
 }) {
   return (
     <View style={{ marginTop: spacing.sm }}>
+      <PaperWave />
       <Pressable
         onPress={onBack}
         hitSlop={10}

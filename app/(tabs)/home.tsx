@@ -32,6 +32,7 @@
  *   - Cards are bordered, not shadowed (DESIGN_SPEC §4).
  *   - Colours come from `useTheme()` so the screen follows the palette switch.
  */
+import { PaperWave } from '@/components/ui/PaperWave';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -271,6 +272,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.screen}>
+      <PaperWave />
       <SafeAreaView edges={['top']} style={styles.safe}>
         <BrandHeader
           onBell={() => router.push('/notifications')}

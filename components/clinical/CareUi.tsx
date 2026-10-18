@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
+import { PaperWave } from '@/components/ui/PaperWave';
 import { ArrowLeft, type LucideIcon } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 
@@ -37,6 +38,7 @@ export function ScreenHeader({
 }) {
   return (
     <View className="flex-row items-center px-6 pt-2">
+      <PaperWave />
       <Pressable
         onPress={onBack}
         hitSlop={8}

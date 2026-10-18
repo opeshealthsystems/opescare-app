@@ -13,7 +13,8 @@
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://opescare.com/api",
         "EXPO_PUBLIC_DEMO_LOGINS": "1"
-      }
+      },
+      "channel": "development"
     },
     "local-api": {
       "distribution": "internal",
@@ -38,7 +39,8 @@
         "EXPO_PUBLIC_API_BASE_URL": "https://opescare.com/api",
         "EXPO_PUBLIC_DEMO_LOGINS": "1",
         "EXPO_PUBLIC_DOCTOR_PERSONA": "0"
-      }
+      },
+      "channel": "preview"
     },
     "demo": {
       "autoIncrement": true,
@@ -51,7 +53,8 @@
         "EXPO_PUBLIC_DEMO_LOGINS": "1",
         "EXPO_PUBLIC_DOCTOR_PERSONA": "0",
         "OPESCARE_BUILD_WITHOUT_PUSH": "1"
-      }
+      },
+      "channel": "demo"
     },
     "production": {
       "android": {
@@ -64,7 +67,8 @@
         "EXPO_PUBLIC_API_BASE_URL": "https://opescare.com/api",
         "OPESCARE_ALLOW_DEMO_BACKEND": "1",
         "OPESCARE_BUILD_WITHOUT_PUSH": "1"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {

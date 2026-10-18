@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { PaperWave } from '@/components/ui/PaperWave';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -57,6 +58,7 @@ export default function WelcomeScreen() {
 
   return (
     <Screen className="px-0">
+      <PaperWave />
       <Watermark />
 
       <ScrollView

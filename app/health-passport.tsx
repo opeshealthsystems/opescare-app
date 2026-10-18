@@ -27,6 +27,7 @@
  * targets, bottom page controls and a page-index sheet, no desktop shell and
  * no A4 spread.
  */
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useCallback, useMemo, useState } from 'react';
 import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -57,6 +58,7 @@ import {
 } from '@/lib/api/passportQueries';
 
 export default function HealthPassportScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const router = useRouter();
 

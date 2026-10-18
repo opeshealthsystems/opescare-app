@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PaperWave } from '@/components/ui/PaperWave';
 import {
   ActivityIndicator,
   Image,
@@ -494,14 +495,7 @@ export default function ProfileScreen() {
       {/* The render's paper: a wave field under the masthead, at watermark
           strength. Behind everything, untappable, and invisible to a screen
           reader — it carries nothing a reader would otherwise miss. */}
-      <Image
-        source={HEALTH_ID_ART.guillocheMesh}
-        style={styles.paperWave}
-        resizeMode="cover"
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        alt=""
-      />
+      <PaperWave />
 
       {/* ── Brand bar ─────────────────────────────────────────────────── */}
       <View style={styles.topBar}>

@@ -22,6 +22,7 @@ import React from 'react';
  * the record failed or the phone is offline — so a section is never shown as
  * empty when it merely failed.
  */
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -140,6 +141,7 @@ const ms = (iso: string | null | undefined): number => {
 };
 
 export default function RecordsScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const router = useRouter();
   const { colors, statusMap } = useTheme();

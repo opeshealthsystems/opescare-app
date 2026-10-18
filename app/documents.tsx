@@ -18,6 +18,7 @@
  * affordance. GET /mobile/documents is empty for most patients, so the empty
  * state reads as "nothing has been issued yet" with a real next step.
  */
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { openExternal } from '@/lib/openExternal';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -74,6 +75,7 @@ type NoticeTone = 'pending' | 'warning' | 'critical' | 'normal';
 type Notice = { tone: NoticeTone; message: string };
 
 export default function DocumentsScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();

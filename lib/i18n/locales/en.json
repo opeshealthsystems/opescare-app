@@ -8349,5 +8349,13 @@
   "common": {
     "back": "Back",
     "viewAll": "View all"
+  },
+  "appLock": {
+    "title": "OpesCare is locked",
+    "body": "Your health record is protected. Unlock with your fingerprint, face or phone PIN.",
+    "unlock": "Unlock",
+    "prompt": "Unlock OpesCare",
+    "settingLabel": "App lock",
+    "settingBody": "Ask for your fingerprint, face or phone PIN when OpesCare opens."
   }
 }

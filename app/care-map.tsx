@@ -25,6 +25,7 @@
  * which is a question about one facility, so it lives on the facility profile
  * — a list of 903 pins answers nothing and pushes the results off the screen.
  */
+import { PaperWave } from '@/components/ui/PaperWave';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Linking,
@@ -797,6 +798,7 @@ export default function CareMapScreen() {
 
   return (
     <Screen className="px-0">
+      <PaperWave />
       <View style={styles.screen}>
         <FinderTopBar
           onBack={() => router.back()}

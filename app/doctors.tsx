@@ -79,6 +79,7 @@
  * facility's clinicians (the facility page and booking flow can send patients
  * here without making them pick again).
  */
+import { PaperWave } from '@/components/ui/PaperWave';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -1045,6 +1046,7 @@ export default function FindDoctorScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
+      <PaperWave />
       <FinderTopBar onBack={goBack} backLabel={t('common.back')} actions={topActions} />
       <ScrollView
         contentContainerStyle={styles.content}

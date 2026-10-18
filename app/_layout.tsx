@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Stack, router, useRouter, useSegments } from 'expo-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '../lib/session/wipe';
+import { AppLockGate } from '../components/security/AppLockGate';
 import * as SplashScreen from 'expo-splash-screen';
 import {
   useFonts,
@@ -235,6 +236,8 @@ export default function RootLayout() {
             <ConsentPromptWatcher />
           </>
         ) : null}
+        {/* Last, so it covers everything — the version gate included. */}
+        <AppLockGate active={status === 'authenticated'} />
       </QueryClientProvider>
       </AppBackground>
       </ThemeProvider>

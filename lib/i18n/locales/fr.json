@@ -8350,5 +8350,13 @@
   "common": {
     "back": "Retour",
     "viewAll": "Tout voir"
+  },
+  "appLock": {
+    "title": "OpesCare est verrouillé",
+    "body": "Votre dossier de santé est protégé. Déverrouillez avec votre empreinte, votre visage ou le code de votre téléphone.",
+    "unlock": "Déverrouiller",
+    "prompt": "Déverrouiller OpesCare",
+    "settingLabel": "Verrouillage de l'application",
+    "settingBody": "Demander votre empreinte, votre visage ou le code du téléphone à l'ouverture d'OpesCare."
   }
 }

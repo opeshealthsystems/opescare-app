@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PaperWave } from '@/components/ui/PaperWave';
 import { Linking, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
@@ -623,6 +624,7 @@ export default function BloodFinderScreen() {
 
   return (
     <Screen className="px-0">
+      <PaperWave />
       {/*
         The reference's top bar is the BRAND lockup, not a screen title — which
         is precisely why its hero below is free to carry the name at full size.

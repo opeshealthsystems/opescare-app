@@ -124,6 +124,12 @@
           "cameraPermission": "OpesCare uses the camera so a clinician can scan a patient's Health ID code.",
           "recordAudioAndroid": false
         }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "OpesCare uses Face ID to unlock the app so only you can open your health record."
+        }
       ]
     ],
     "extra": {
@@ -136,6 +142,14 @@
     "owner": "opesware",
     "experiments": {
       "baseUrl": "/finder"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d45f34e5-c4d7-4612-960f-844584a7054d",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     }
   }
 }

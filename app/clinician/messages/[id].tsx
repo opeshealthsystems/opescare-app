@@ -36,6 +36,7 @@
  * i18n: `opesDoctor.thread.*`. Every string carries a `defaultValue`.
  * Locale files are not edited here.
  */
+import { PaperWave } from '@/components/ui/PaperWave';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -371,6 +372,7 @@ function DoctorMessageThreadScreenBody() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
+      <PaperWave />
       <KeyboardAvoidingView
         style={styles.flex}
         // `padding` on web shifts the whole page under the keyboard-less

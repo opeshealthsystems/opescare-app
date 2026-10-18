@@ -26,6 +26,7 @@
  * blood-group nudge · temporary-access panel · quick-action tiles ·
  * Presentation Mode sheet.
  */
+import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -86,6 +87,7 @@ import {
 const PANEL_QR_SIZE = 168;
 
 export default function HealthIdScreen() {
+  usePrivateScreen();
   const { t } = useTranslation();
   const router = useRouter();
   const { colors, statusMap, tintMap } = useTheme();

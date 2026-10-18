@@ -2,7 +2,7 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Doctor — one conversation (`/clinician/messages/[id]`).
  *
- * Port of `UIUX/src/screens/doctor/DoctorMessageThreadScreen.tsx` onto
+ * Port of design reference `src/screens/doctor/DoctorMessageThreadScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) onto
  * expo-router, the OPES UI kit and this app's doctor foundation.
  *
  * The deliberate twin of the patient's `app/messages/[id].tsx`: the SAME

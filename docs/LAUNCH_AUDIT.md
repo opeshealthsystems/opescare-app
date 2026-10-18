@@ -1,6 +1,9 @@
 # Launch audit — Google Play, 2026-10-18
 
-**App:** OpesCare · `com.opescare.patientid` · 1.4.0 · Expo SDK 57 / RN 0.86 · target SDK 36
+**App:** OpesCare · `com.opescare.patientid` · **1.5.0** (builds 14/15) · Expo SDK 57 / RN 0.86 · target SDK 36
+**API:** `https://opescare.com/api` (the Finder backend, formerly finder.opescare.cloud; still demo mode) ·
+**EAS:** `opesware/opescare-finder` · **OTA:** expo-updates, channels `production` / `demo`, runtime = appVersion
+**Refreshed:** 2026-10-18, after the 1.5.0 release — see §2b.
 **Supersedes:** `play-store-readiness.md` (September record, kept for history).
 
 Three independent read-only audits ran in parallel (Play policy & config,
@@ -33,6 +36,22 @@ verified against code or a command, not documentation.
 | High | No TLS pinning: a user-installed or rogue CA could intercept API traffic on Android | `plugins/withNetworkSecurityConfig.js` writes `network_security_config.xml`: `opescare.com` + subdomains pinned to the SPKI SHA-256 of Let's Encrypt roots ISRG X1, X2 and Root YE (never the leaf, so renewals are safe); pin-set expires 2027-10-18 and then fails open — refresh before then. Cleartext stays off except the `local-api` http profile |
 | Hygiene | No quality scripts | `npm run typecheck`, `audit:nav`, `doctor`, `verify` |
 
+## 2b. Fixed since the first pass (1.5.0, 2026-10-18)
+
+| Finding | State |
+| --- | --- |
+| TLS pinning targeted the old host | **Fixed.** Pins apply to `opescare.com` + subdomains (`plugins/withNetworkSecurityConfig.js`, e5ced30); expiry 2027-10-18 |
+| Web build kept the token in `localStorage` | **Fixed.** Memory + tab-scoped `sessionStorage`, legacy copies purged, offline cache disabled in browsers (`lib/api/tokenStorage.ts`, 4196985) |
+| Offline cache policy outlived the session on the server | **Fixed.** Purge and session wipe revoke it server-side, best effort, before the token is dropped (7646604, 53cc4cf; backend `feat(offline): server-side revocation...`) |
+| Patient FHIR R4 export failed the HL7 validator (62 errors) | **Fixed** in the backend: 0 errors (`fix(fhir): patient R4 export passes the HL7 validator`) |
+| No way to bring outside records in | **Fixed.** `app/import-records.tsx`: FHIR R4 bundle or PDF/photo, stored as patient-provided and unverified (34ae3be) |
+| No app lock | **Fixed.** Biometric / device-PIN lock on cold start and after 60 s in background, opt-in in Settings (`lib/security/appLock.ts`, f6449e5) |
+| No screenshot protection on health screens | **Fixed.** `usePrivateScreen()` (expo-screen-capture) on Health ID, record, passport, documents (f6449e5) |
+| No over-the-air update path | **Fixed.** expo-updates live; first OTA updates published on `production` and `demo` (runtime 1.5.0). Builds 1–13 have no updater or runtime 1.4.0 and receive no OTA |
+| Clinician, provider and dependent profiles each looked different | **Fixed.** One shared profile design kit (bde7667) |
+| Health ID card QR encoded base64 JSON of name and birth date | **Fixed** in the backend: the QR is now a verification link (`fix(health-id): card QR is a verification link`) |
+| Google / Apple sign-in rows with no backend | **Removed** (dbfad85) |
+
 ## 3. Passing as-is
 
 Permissions after merge: INTERNET, VIBRATE, COARSE + FINE location, POST_NOTIFICATIONS, CAMERA
@@ -47,19 +66,21 @@ Lucide icons only · EN/FR locale parity · tokens in SecureStore · single-flig
 
 | # | Item | Why / how |
 | --- | --- | --- |
-| O1 | **Feature graphic 1024×500** and **≥ 2 phone screenshots** | Play will not publish the listing without them. `playstore/graphics/README.md` has the specs |
-| O2 | **Production API decision** | A production build refuses to start until `EXPO_PUBLIC_API_BASE_URL` is set, or `OPESCARE_ALLOW_DEMO_BACKEND=1` says shipping against finder.opescare.cloud (demo mode) is intended |
+| O1 | **≥ 2 phone screenshots** | The feature graphic 1024×500 is done (1157a07); Play still needs phone screenshots. `playstore/graphics/README.md` has the specs |
+| O2 | **Production API decision** | A production build refuses to start until `EXPO_PUBLIC_API_BASE_URL` is set, or `OPESCARE_ALLOW_DEMO_BACKEND=1` says shipping against opescare.com (demo mode) is intended. The production profile currently sets that flag, so 1.5.0 ships against the demo backend on purpose — a real production API is still the owner's decision |
 | O3 | **Health apps declaration** (App content → Health apps) | Tick medical records / clinician features; privacy policy already covers health data |
 | O4 | **Data Safety "ephemeral" tick for location** | Only if nginx access logs on the API are not kept with query strings (coordinates are in the GET URL) |
 | O5 | **Reviewer access** | Give Play `demo.reviewer@` credentials in App access — the in-app demo buttons are off in production |
 | O6 | **First upload is manual**; then `eas.json` `submit.production` can get a service-account key | |
 | O7 | After the listing is live, point the backend `store_url` at `details?id=com.opescare.patientid` | The update gate currently opens the sideload page |
+| O8 | **Push credentials** (Firebase `google-services.json`, APNs) | `production` and `demo` set `OPESCARE_BUILD_WITHOUT_PUSH=1`; no store build receives remote push until `docs/push-delivery-runbook.md` is done |
+| O9 | **Refresh the TLS pin-set before 2027-10-18** | After that date pinning silently turns off (fails open); re-check the hashes and bump `PIN_EXPIRATION` in a release well before |
 
 ## 5. Known follow-ups (not launch blockers)
 
 - npm audit reports advisories mostly in build-time tooling (metro, expo CLI); the
   runtime ones clear with the next SDK 57 patch release. Re-run `npm audit --omit=dev` after each `expo install --fix`.
-- Web build keeps the token in `localStorage` (native uses SecureStore).
-- `lib/i18n/pending/*` bundles should be merged into the main locale files.
-- No screenshot protection on Health ID / records screens (optional `expo-screen-capture`).
-- No unit-test suite yet; typecheck + nav audit + expo-doctor are the gate.
+- `lib/i18n/pending/*` bundles (46 files) are still registered piecemeal rather than merged into `lib/i18n/locales/`.
+- Android only: there is no iOS certificate pinning; iOS has not been submitted.
+- Tests / CI / lint configuration are being added separately; until they land, typecheck + nav audit + expo-doctor are the gate.
+- Design prototype `UIUX/` moved out of the repo (see `docs/DESIGN_REFERENCE.md`).

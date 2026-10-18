@@ -3,6 +3,11 @@
 **Written:** 2026-09-06 · **App:** `com.opescare.patientid`, Expo SDK 57 ·
 **Server half:** `App\Services\ExpoPushService` in the API repo
 
+> **2026-10-18:** the API host is now `opescare.com` (formerly
+> `finder.opescare.cloud`); the app is 1.5.0. The `production` and `demo`
+> profiles still set `OPESCARE_BUILD_WITHOUT_PUSH=1`, so no store build
+> receives remote push yet.
+
 This is the list of things only the **owner** can do to turn the app's push
 notifications on, in order, with the exact commands. Everything the repository
 could do without credentials is already done (see §A at the end for what that
@@ -259,7 +264,7 @@ Install from the build page link on the registered iPhone.
 
 ## 8. Verify the token row on the server
 
-On the API host (`finder.opescare.cloud`), find the patient's row. Replace the
+On the API host (`opescare.com`), find the patient's row. Replace the
 Health ID with the one shown on the patient's Health ID card:
 
 ```sql
@@ -431,7 +436,8 @@ Reference for whoever maintains this; nothing here needs the owner.
 - **`eas.json`** — `development` (dev client, internal), `preview`
   (internal APK / ad-hoc IPA, demo logins on), `production` (store, demo
   logins pinned off), `local-api`. API base URL pinned to
-  `https://finder.opescare.cloud/api` for preview/production. **That host is a
+  `https://opescare.com/api` for development/preview/demo/production (it was
+  `finder.opescare.cloud` when this runbook was written). **That host is a
   demo server** — see `docs/STORE_SUBMISSION.md` B1 before any store build.
 - **`lib/push/capability.ts`** — the four gates that decide whether this
   build can receive push (web → native module present → not Expo Go on

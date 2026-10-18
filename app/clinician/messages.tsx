@@ -1,7 +1,7 @@
 /**
  * Doctor — Messages inbox (`/clinician/messages`).
  *
- * Port of `UIUX/src/screens/doctor/DoctorMessagesScreen.tsx` onto expo-router,
+ * Port of design reference `src/screens/doctor/DoctorMessagesScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) onto expo-router,
  * the OPES UI kit and this app's doctor foundation.
  *
  * The clinician's conversations, in the server's own order — unread first, so

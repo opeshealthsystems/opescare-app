@@ -3,6 +3,13 @@
 **Audited:** 2026-09-05 · **Build audited:** `master`, app version `1.0.0` ·
 **Bundle ID / package:** `com.opescare.patientid`
 
+> **Status update 2026-10-18.** This audit was written against 1.0.0. The app is
+> now **1.5.0** and talks to **opescare.com** (`https://opescare.com/api`) — the
+> Finder backend was renamed; `finder.opescare.cloud` is no longer the host. That
+> host still runs in demo mode, so B1 below still stands with the new name: the
+> `production` profile deliberately sets `OPESCARE_ALLOW_DEMO_BACKEND=1`. For the
+> current Play status see `docs/LAUNCH_AUDIT.md`; Apple has not been attempted.
+
 ---
 
 ## 1. Verdict
@@ -19,7 +26,7 @@ What blocks submission is **product state**, not packaging:
 | Are the assets ready? | **Icons yes, screenshots no** (§5). |
 
 The single most important sentence in this document: **the production build
-points at `finder.opescare.cloud`, which is a demo server running
+points at `opescare.com` (formerly `finder.opescare.cloud`), which is a demo server running
 `APP_ENV=demo` / `OPESCARE_DEMO_MODE=true`.** Shipping a medical-records app
 against a demo backend is not a store-policy problem first — it is a patient-
 safety problem. Everything else in §2 is downstream of it.
@@ -31,7 +38,7 @@ safety problem. Everything else in §2 is downstream of it.
 ### B1 — Production build points at a demo backend · **CRITICAL**
 
 `eas.json` → `build.production.env.EXPO_PUBLIC_API_BASE_URL` =
-`https://finder.opescare.cloud/api`, the same host the `preview` profile uses.
+`https://opescare.com/api`, the same host the `preview` profile uses.
 Per project memory that host runs `APP_ENV=demo`, `OPESCARE_DEMO_MODE=true`,
 and applies an `IsDemoRecord` scope that hides non-demo patients — which is why
 a real patient signing in there fails with a misleading "no internet" error.
@@ -42,7 +49,7 @@ ones.
 
 **Fix:** stand up a production API host, point `build.production.env` at it,
 and confirm `APP_ENV=production` with demo mode off. Do not ship against
-`finder.opescare.cloud`.
+`opescare.com` while it runs in demo mode.
 
 > **Good news, and it is worth stating precisely:** the *app-side* demo
 > scaffolding is already gated correctly. `SHOW_DEMO_LOGINS` in
@@ -557,7 +564,7 @@ The demo credentials currently hard-coded in `app/(auth)/login.tsx` are:
 
 **Do not submit these as-is.** Three reasons:
 
-1. They exist only on `finder.opescare.cloud`, the demo server. Once B1 is
+1. They exist only on `opescare.com`, the demo server. Once B1 is
    fixed and the build points at production, they will not resolve.
 2. `@opescare.test` is not a routable domain; a reviewer who tries a password
    reset gets nowhere.

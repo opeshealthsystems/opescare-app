@@ -31,7 +31,7 @@ DEMO TESTER APK. Same as `preview` but it does not require push credentials, so 
 
 ## `build.production`
 
-STORE BUILD. The demo flags below are pinned OFF on purpose: Expo inlines every EXPO_PUBLIC_* value at bundle time, and although `.env` is now gitignored, a developer's local `.env` is still loaded by the CLI on their machine, so without an explicit '0' here a leftover EXPO_PUBLIC_DEMO_LOGINS=1 would ship the demo sign-in menu and the clinician-preview override to the App Store. An explicit '0' in this block always wins. Still points at finder.opescare.cloud, which is a DEMO host — docs/STORE_SUBMISSION.md B1 must be fixed before this profile is submitted.
+STORE BUILD. The demo flags below are pinned OFF on purpose: Expo inlines every EXPO_PUBLIC_* value at bundle time, and although `.env` is now gitignored, a developer's local `.env` is still loaded by the CLI on their machine, so without an explicit '0' here a leftover EXPO_PUBLIC_DEMO_LOGINS=1 would ship the demo sign-in menu and the clinician-preview override to the App Store. An explicit '0' in this block always wins. Points at `https://opescare.com/api` (formerly finder.opescare.cloud), which is still a DEMO-mode host, so the profile sets OPESCARE_ALLOW_DEMO_BACKEND=1 to say so out loud (app.config.js refuses a production build aimed at the demo host without it). It also sets OPESCARE_BUILD_WITHOUT_PUSH=1 until Firebase is configured. Channel `production`; OTA updates go out with `eas update --channel production --environment production` and reach only builds of the same runtime (runtimeVersion policy appVersion, so 1.5.0 builds).
 
 ## `submit`
 

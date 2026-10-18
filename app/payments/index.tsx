@@ -73,7 +73,7 @@ export default function PaymentsScreen() {
   // a fact about the account rather than a fact about the current request.
   const invoices = useInvoices();
 
-  const all = invoices.data ?? [];
+  const all = useMemo(() => invoices.data ?? [], [invoices.data]);
   const outstanding = useMemo(() => all.filter((i) => !isSettled(i.status)), [all]);
   const settled = useMemo(() => all.filter((i) => isSettled(i.status)), [all]);
 
@@ -129,7 +129,7 @@ export default function PaymentsScreen() {
         />
       </Card>
     ),
-    [colors, router, styles, symbol, t],
+    [router, styles, t],
   );
 
   // The host cannot take money at all — say that instead of an empty list.

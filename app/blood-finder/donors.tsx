@@ -125,7 +125,7 @@ export default function FindDonorsScreen() {
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/blood-finder'));
 
   const groupOptions = options.data?.blood_groups ?? [];
-  const donors = search.data?.data ?? [];
+  const donors = useMemo(() => search.data?.data ?? [], [search.data]);
   const cappedAt = search.data?.meta?.capped_at ?? 20;
 
   /**

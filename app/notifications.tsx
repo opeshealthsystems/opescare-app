@@ -284,7 +284,7 @@ export default function NotificationsScreen() {
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
-  const items = data?.data ?? [];
+  const items = useMemo(() => data?.data ?? [], [data]);
   const unreadCount = data ? (data.unread_count ?? 0) : badgeCount;
 
   const counts = useMemo(() => {

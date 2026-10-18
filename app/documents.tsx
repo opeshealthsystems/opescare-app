@@ -25,7 +25,6 @@ import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import * as Linking from 'expo-linking';
 import {
   Card,
   Chip,
@@ -92,7 +91,7 @@ export default function DocumentsScreen() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [query, setQuery] = useState('');
 
-  const documents = library.data?.documents ?? [];
+  const documents = useMemo(() => library.data?.documents ?? [], [library.data]);
   const total = library.data?.total ?? 0;
 
   const typeLabel = (type: string) =>

@@ -83,12 +83,6 @@ export default function HealthPassportScreen() {
     [pages.length]
   );
 
-  const stateLabel = useMemo(() => {
-    if (page.isFetching) return t('passport.loadingShort');
-    if (page.isError) return t('passport.errorShort');
-    return t('passport.current');
-  }, [page.isFetching, page.isError, t]);
-
   // The passport index itself could not be read: say which failure it was.
   if (summary.isPending) {
     return (

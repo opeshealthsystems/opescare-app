@@ -2,7 +2,6 @@ import { openExternal } from '@/lib/openExternal';
 import { useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
-  Linking,
   RefreshControl,
   ScrollView,
   Share,
@@ -13,7 +12,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { Screen } from '@/components/ui/Screen';
 import { FacilityMap } from '@/components/map/FacilityMap';
 import {
@@ -443,7 +442,7 @@ export default function FacilityDetailScreen() {
 
   const facility = facilityQuery.data as ConnectedFacilityDetail | undefined;
   const roster = providersQuery.data as FacilityRoster | undefined;
-  const providers = roster?.data ?? [];
+  const providers = useMemo(() => roster?.data ?? [], [roster]);
   const insurances = facility?.insurances ?? [];
   const services = facility?.services ?? [];
 
@@ -627,7 +626,7 @@ export default function FacilityDetailScreen() {
   /* ── State 1 — no id in the route, or the directory has no such row ── */
   const isNotFound =
     !facilityId ||
-    (axios.isAxiosError(facilityQuery.error) && facilityQuery.error.response?.status === 404);
+    (isAxiosError(facilityQuery.error) && facilityQuery.error.response?.status === 404);
 
   if (isNotFound) {
     return (

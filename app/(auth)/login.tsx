@@ -23,7 +23,6 @@ import {
   spacing,
   typography,
   useTheme,
-  type IconName,
   type Palette,
 } from '@/components/opes-ui';
 import { FieldLabel, FormError, Note } from '@/components/enrol/shared';

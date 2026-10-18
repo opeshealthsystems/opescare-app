@@ -33,7 +33,6 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { openExternal } from '@/lib/openExternal';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Linking,
   RefreshControl,
   ScrollView,
   Share,

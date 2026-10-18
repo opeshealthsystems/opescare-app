@@ -151,7 +151,7 @@ export default function AccessLogsScreen() {
   const [filter, setFilter] = useState<FilterValue>('all');
 
   const history = useAccessLogHistory();
-  const entries = history.data?.entries ?? [];
+  const entries = useMemo(() => history.data?.entries ?? [], [history.data]);
   const total = history.data?.total ?? 0;
   const complete = history.data?.complete ?? false;
 

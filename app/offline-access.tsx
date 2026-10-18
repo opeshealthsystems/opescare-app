@@ -199,7 +199,7 @@ export default function OfflineAccessScreen() {
       tone: 'warning',
       onConfirm: () => handleEnable(),
     });
-  }, [dialog, handleEnable, mode, status, t]);
+  }, [dialog, handleEnable, mode, t]);
 
   /** The opt-out confirm — the full "this cannot be undone" consent string. */
   const confirmErase = useCallback(() => {

@@ -13,7 +13,6 @@ import {
   SegmentedTabs,
   StatusBadge,
   a11yJoin,
-  formatLabel,
   radii,
   spacing,
   typography,

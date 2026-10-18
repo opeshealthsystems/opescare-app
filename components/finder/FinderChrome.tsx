@@ -19,7 +19,7 @@
  * themselves. Never a literal.
  */
 import { useMemo, type ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import {
   Icon,
   PulseLogo,

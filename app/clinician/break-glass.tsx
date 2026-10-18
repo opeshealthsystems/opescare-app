@@ -96,7 +96,6 @@ import {
 import {
   GRANT_TTL_HOURS,
   MAX_REASON_LENGTH,
-  MIN_REASON_LENGTH,
   breakGlassMessage,
   breakGlassRetryAfter,
   formatRemaining,

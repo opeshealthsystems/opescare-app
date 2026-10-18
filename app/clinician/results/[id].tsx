@@ -47,7 +47,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { RoleGate } from '@/components/doctor/RoleGate';
 import { useStaffCapability } from '@/lib/staffCapabilities';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import {
   Card,
   EmptyState,
@@ -111,7 +111,7 @@ import { InterpretationCard } from '@/components/results/InterpretationCard';
  * throw away the only specific thing anyone knows about the failure.
  */
 function serverMessage(e: unknown): string | null {
-  if (!axios.isAxiosError(e)) return null;
+  if (!isAxiosError(e)) return null;
   const body = e.response?.data as { message?: string } | undefined;
   return typeof body?.message === 'string' && body.message !== '' ? body.message : null;
 }

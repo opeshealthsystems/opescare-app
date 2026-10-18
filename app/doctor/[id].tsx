@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { Screen } from '@/components/ui/Screen';
 import {
   CredentialPanelContent,
@@ -302,7 +302,7 @@ export default function DoctorDetailScreen() {
   // (PROVIDER_NOT_FOUND) rather than an empty body, so "no longer listed" is
   // distinguishable from a network failure and gets its own copy.
   const isNotFound =
-    axios.isAxiosError(providerQuery.error) && providerQuery.error.response?.status === 404;
+    isAxiosError(providerQuery.error) && providerQuery.error.response?.status === 404;
 
   const goBack = () => {
     if (router.canGoBack()) router.back();

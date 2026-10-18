@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useInfiniteQuery, useQueries } from '@tanstack/react-query';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { apiClient } from './client';
 import { endpoints } from './endpoints';
 import type {
@@ -272,7 +272,7 @@ export function groupSlotsByPeriod(
  * 401/403 auth, anything else network/unknown.
  */
 export function bookingErrorKey(error: unknown): string {
-  if (!axios.isAxiosError(error)) return 'bookErrorUnknown';
+  if (!isAxiosError(error)) return 'bookErrorUnknown';
   if (!error.response) return 'bookErrorNetwork';
   const status = error.response.status;
   const code = (error.response.data as { error_code?: string } | undefined)?.error_code;

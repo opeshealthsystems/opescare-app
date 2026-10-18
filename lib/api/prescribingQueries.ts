@@ -46,7 +46,7 @@
  * 404 and nothing here fakes a result: `isPrescribingUnavailable()` lets the
  * screen say "this server cannot issue prescriptions yet" out loud.
  */
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { HEALTH_ID_MIN_LENGTH, isPlausibleHealthId, normaliseHealthId } from './doctorQueries';
@@ -347,7 +347,7 @@ function parseList(body: unknown): IssuedPrescription[] {
  * Screens read it with `isRoleForbidden` first.
  */
 export function isPrescribingUnavailable(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   if (isRoleForbidden(error)) return false;
   const status = error.response?.status;
   return status === 404 || status === 501 || status === 401 || status === 403;
@@ -363,7 +363,7 @@ export function isPrescribingUnavailable(error: unknown): boolean {
  * reference that does not exist. Only a real HTTP status is evidence either way.
  */
 export function issueOutcomeIsUncertain(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   return error.response === undefined;
 }
 

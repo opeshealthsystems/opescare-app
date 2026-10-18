@@ -36,7 +36,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { RoleGate } from '@/components/doctor/RoleGate';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import {
   Card,
   Chip,
@@ -118,7 +118,7 @@ const ROUTE_FILTER: Record<string, InboxFilter> = {
  * ever returns.
  */
 function isNotServed(e: unknown): boolean {
-  if (!axios.isAxiosError(e)) return false;
+  if (!isAxiosError(e)) return false;
   const status = e.response?.status;
   if (status === 501) return true;
   if (status !== 404) return false;

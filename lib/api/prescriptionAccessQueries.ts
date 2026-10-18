@@ -33,7 +33,7 @@
  *      no longer visible when it still is would be the worst bug here.
  */
 import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { apiClient } from './client';
 
 /**
@@ -90,7 +90,7 @@ export function parseGrant(body: ShareResponse): PrescriptionAccessGrant | null 
 
 /** HTTP status behind a failure, or null when it never reached the server. */
 export function httpStatus(error: unknown): number | null {
-  return axios.isAxiosError(error) ? (error.response?.status ?? null) : null;
+  return isAxiosError(error) ? (error.response?.status ?? null) : null;
 }
 
 /**

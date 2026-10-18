@@ -15,7 +15,7 @@
  * it is the only thing an empty page is ever allowed to say.
  */
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { apiClient } from './client';
 
 const PASSPORT_PREFIX = '/mobile/health-passport';
@@ -103,7 +103,7 @@ export type PassportSummary = {
 
 /** A server that does not serve the passport yet, as opposed to a real failure. */
 export function isPassportUnserved(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   if (status === 405 || status === 501) return true;
   if (status !== 404) return false;

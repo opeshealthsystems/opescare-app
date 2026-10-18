@@ -34,7 +34,7 @@
  *     the last-resort fallback only.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { apiClient } from './client';
 import type { AppointmentDetail } from './queries';
 
@@ -213,7 +213,7 @@ export function rescheduleCodeKey(code: string | null | undefined): string {
  * `errors`), auth, server faults, and no-response-at-all.
  */
 export function rescheduleFailure(error: unknown): RescheduleFailure {
-  if (!axios.isAxiosError(error)) {
+  if (!isAxiosError(error)) {
     return { key: 'errUnknown', appointment: null, serverMessage: null };
   }
 

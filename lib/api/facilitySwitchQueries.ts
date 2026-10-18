@@ -52,7 +52,7 @@
  * slot's session-kind marker — `lib/store/auth.ts` does. A switch never changes
  * either: a provider session stays a provider session, at a different address.
  */
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { tokenStorage } from './tokenStorage';
@@ -117,7 +117,7 @@ export interface ProviderFacilitySwitchResponse {
 
 /** True when this server has no facility switching — missing route, or no answer at all. */
 export function isFacilitySwitchUnavailable(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   if (status === undefined) return true;
   return status === 404 || status === 405 || status === 501 || status >= 502;
@@ -131,17 +131,17 @@ export function isFacilitySwitchUnavailable(error: unknown): boolean {
  * refresh the list.
  */
 export function isFacilityNotAssigned(error: unknown): boolean {
-  return axios.isAxiosError(error) && error.response?.status === 403;
+  return isAxiosError(error) && error.response?.status === 403;
 }
 
 /** 409 — the facility exists and is the clinician's, but it is suspended. */
 export function isFacilitySuspended(error: unknown): boolean {
-  return axios.isAxiosError(error) && error.response?.status === 409;
+  return isAxiosError(error) && error.response?.status === 409;
 }
 
 /** The server's own words where it gave some, else the caller's fallback. */
 export function facilitySwitchErrorMessage(error: unknown, fallback: string): string {
-  if (axios.isAxiosError(error)) {
+  if (isAxiosError(error)) {
     const body = error.response?.data as { message?: string } | undefined;
     if (typeof body?.message === 'string' && body.message.trim()) return body.message;
   }
@@ -150,7 +150,7 @@ export function facilitySwitchErrorMessage(error: unknown, fallback: string): st
 
 /** `error_code` where the server sent one — lets the phone translate a /api/* refusal. */
 export function facilitySwitchErrorCode(error: unknown): string | null {
-  if (axios.isAxiosError(error)) {
+  if (isAxiosError(error)) {
     const body = error.response?.data as { error_code?: string } | undefined;
     if (typeof body?.error_code === 'string' && body.error_code) return body.error_code;
   }

@@ -52,7 +52,7 @@
  *      writes are appointment decisions, result acknowledgement, messaging and
  *      the doctor's own profile. Prescribing/ordering stay off the phone.
  */
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { isRoleForbidden } from './roleErrors';
@@ -231,7 +231,7 @@ export interface PageQuery {
  * which is what a screen choosing an `EmptyState` should call.
  */
 export function isDoctorApiUnavailable(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   return status === 404 || status === 501 || status === 401;
 }
@@ -253,7 +253,7 @@ export function isDoctorApiUnavailable(error: unknown): boolean {
  * server that wants to say "this route is gone" in words.
  */
 export function isDoctorRecordNotFound(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   if (error.response?.status !== 404) return false;
 
   const body = error.response?.data as { error_code?: string; message?: string } | undefined;
@@ -288,7 +288,7 @@ export function isDoctorRecordNotFound(error: unknown): boolean {
  */
 export function isDoctorFeatureUnserved(error: unknown): boolean {
   if (!isDoctorApiUnavailable(error)) return false;
-  if (axios.isAxiosError(error) && error.response?.status === 401) return false;
+  if (isAxiosError(error) && error.response?.status === 401) return false;
 
   return !isDoctorRecordNotFound(error);
 }
@@ -302,7 +302,7 @@ export function isDoctorFeatureUnserved(error: unknown): boolean {
  * server, so a refusal is asked exactly once.
  */
 export function isDoctorRequestFinal(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   return status === 401 || status === 403 || status === 404 || status === 501;
 }
@@ -350,7 +350,7 @@ export interface DoctorAccessRefusal {
  * `isRoleForbidden` and say "not part of your role".
  */
 export function doctorAccessRefusal(error: unknown): DoctorAccessRefusal | null {
-  if (!axios.isAxiosError(error)) return null;
+  if (!isAxiosError(error)) return null;
   if (error.response?.status !== 403) return null;
   if (isRoleForbidden(error)) return null;
 
@@ -372,7 +372,7 @@ export function isDoctorAccessRefused(error: unknown): boolean {
 
 /** Message from an API error body, else a neutral fallback. Never leaks a stack. */
 export function doctorErrorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
-  if (axios.isAxiosError(error)) {
+  if (isAxiosError(error)) {
     const body = error.response?.data as { message?: string } | undefined;
     if (body?.message) return body.message;
   }

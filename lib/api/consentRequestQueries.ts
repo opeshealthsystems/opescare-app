@@ -59,7 +59,7 @@
  * answers 404. Nothing retries it and nothing fakes a result:
  * `isConsentRequestSurfaceUnavailable()` lets the screen say so out loud.
  */
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { HEALTH_ID_MIN_LENGTH, isPlausibleHealthId, normaliseHealthId } from './doctorQueries';
@@ -350,7 +350,7 @@ function parseList(body: unknown): FacilityConsentRequest[] {
  * `error: 'PATIENT_NOT_FOUND'`, and a bare 404 does not.
  */
 export function isConsentRequestSurfaceUnavailable(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   if (status === 501 || status === 401) return true;
   if (status === 404) return errorCode(error) === null;
@@ -379,7 +379,7 @@ export type ConsentRequestConflict =
  * own codes is what identifies it.
  */
 export function consentRequestConflict(error: unknown): ConsentRequestConflict | null {
-  if (!axios.isAxiosError(error) || error.response?.status !== 409) return null;
+  if (!isAxiosError(error) || error.response?.status !== 409) return null;
 
   const body = isRecord(error.response?.data) ? error.response.data : {};
   const message = str(body.message);
@@ -411,13 +411,13 @@ export function consentRequestConflict(error: unknown): ConsentRequestConflict |
  * may not exist. Only a real HTTP status is evidence either way.
  */
 export function askOutcomeIsUncertain(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   return error.response === undefined;
 }
 
 /** The server's own message, when it sent one. Never a stack. */
 export function consentRequestErrorMessage(error: unknown, fallback: string): string {
-  if (axios.isAxiosError(error)) {
+  if (isAxiosError(error)) {
     const body = isRecord(error.response?.data) ? error.response.data : undefined;
     const message = body ? str(body.message) : null;
     if (message) return message;
@@ -428,7 +428,7 @@ export function consentRequestErrorMessage(error: unknown, fallback: string): st
 
 /** Our own `error` code from a response body, or null. */
 function errorCode(error: unknown): string | null {
-  if (!axios.isAxiosError(error)) return null;
+  if (!isAxiosError(error)) return null;
   const body = isRecord(error.response?.data) ? error.response.data : undefined;
   return body ? str(body.error) : null;
 }

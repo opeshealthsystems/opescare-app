@@ -42,12 +42,11 @@
  * Nothing here ever fabricates a row: a failed read is an error state, never
  * an empty list; a 200 without the expected shape is a failure too.
  */
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { endpoints } from './endpoints';
-import { isRoleForbidden } from './roleErrors';
 // Import ONLY — the Health-ID hygiene rules are the doctor layer's and are
 // reused verbatim so the desk never sends a prefix or a name.
 import { isPlausibleHealthId, normaliseHealthId } from './doctorQueries';
@@ -199,7 +198,7 @@ interface Envelope<T> {
  * here yet, or no longer here", never one of the two alone.
  */
 export function isPharmacyDeskNotServed(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   return status === 404 || status === 405 || status === 501;
 }
@@ -213,18 +212,18 @@ export const INVALID_TRANSITION_CODE = 'invalid_transition';
  * a transition route means the same thing and is treated the same way.
  */
 export function isInvalidTransition(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   return error.response?.status === 409;
 }
 
 /** A 422: the write was refused on its merits. The first field message is written for people. */
 export function isValidationRefusal(error: unknown): boolean {
-  return axios.isAxiosError(error) && error.response?.status === 422;
+  return isAxiosError(error) && error.response?.status === 422;
 }
 
 /** The server's own sentence when it sent one — never a stack, never a library string. */
 export function deskServerMessage(error: unknown): string | null {
-  if (!axios.isAxiosError(error)) return null;
+  if (!isAxiosError(error)) return null;
   const body = error.response?.data as
     | { message?: unknown; errors?: Record<string, unknown> }
     | undefined;
@@ -237,7 +236,7 @@ export function deskServerMessage(error: unknown): string | null {
 
 /** True when a retry cannot change the answer. */
 export function isDeskRequestFinal(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   return (
     status === 401 ||
@@ -260,7 +259,7 @@ export const deskRetry = (failureCount: number, error: unknown): boolean =>
  * before doing it again", never "failed".
  */
 export function isOutcomeUnknown(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return true;
+  if (!isAxiosError(error)) return true;
   const status = error.response?.status;
   return status === undefined || status >= 500;
 }

@@ -13,7 +13,7 @@
  * Kept out of `doctorQueries.ts` (a contended foundation file); it imports
  * the prefix and the patient type from there so the shapes cannot drift.
  */
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { useMutation } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { DOCTOR_API_PREFIX, type PatientLookupResult } from './doctorQueries';
@@ -50,7 +50,7 @@ export function useScanPatient() {
 }
 
 export function scanFailureKind(err: unknown): ScanFailureKind {
-  if (axios.isAxiosError(err)) {
+  if (isAxiosError(err)) {
     if (!err.response) return 'offline';
     const code = (err.response.data as { error_code?: string } | undefined)?.error_code;
     switch (code) {

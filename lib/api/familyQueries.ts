@@ -29,14 +29,13 @@
  * That is surfaced as "not served yet" (isFamilyNotServed) and the screens
  * print exactly that — nothing here fabricates a member, a card or a count.
  */
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { endpoints } from './endpoints';
 import { LABS_ENDPOINTS, type LabPage, type PortalLabOrder } from './labsQueries';
 import type { PaginatedPrescriptions } from './queries';
-import type { TemporaryQrCode } from './types';
-import type {
+import type { TemporaryQrCode ,
   FamilyAccessLevel,
   FamilyDependentPatient,
   FamilyIncomingInvitation,
@@ -85,19 +84,19 @@ export function useMintDependentTemporaryQr() {
 // ---------------------------------------------------------------------------
 
 export function httpStatusOf(error: unknown): number | undefined {
-  return axios.isAxiosError(error) ? error.response?.status : undefined;
+  return isAxiosError(error) ? error.response?.status : undefined;
 }
 
 /** The backend's machine-readable `error_code`, when the body carries one. */
 export function apiErrorCode(error: unknown): string | null {
-  if (!axios.isAxiosError(error)) return null;
+  if (!isAxiosError(error)) return null;
   const body = error.response?.data as { error_code?: unknown } | undefined;
   return typeof body?.error_code === 'string' ? body.error_code : null;
 }
 
 /** The backend's human message, else the caller's fallback. */
 export function apiErrorMessage(error: unknown, fallback: string): string {
-  if (!axios.isAxiosError(error)) return fallback;
+  if (!isAxiosError(error)) return fallback;
   const body = error.response?.data as { message?: unknown } | undefined;
   return typeof body?.message === 'string' && body.message.trim() ? body.message : fallback;
 }
@@ -131,7 +130,7 @@ export function isFamilyLinkGone(error: unknown): boolean {
 /** Retry only what a retry can fix; every 4xx is final on the first response. */
 function retryPolicy(failureCount: number, error: unknown): boolean {
   if (failureCount >= 2) return false;
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   if (status === undefined) return true; // network / timeout
   return status >= 500 && status !== 501;

@@ -46,7 +46,7 @@
  *    known allergies".
  * 4. **It never searches.** The patient is named by an EXACT Health ID.
  */
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { isPlausibleHealthId, normaliseHealthId } from './doctorQueries';
@@ -359,14 +359,14 @@ function parsePatientEvents(raw: unknown): PatientEmergencyEvent[] {
 
 /** The server's own `error_code`, when it sent one. */
 export function breakGlassErrorCode(error: unknown): string | null {
-  if (!axios.isAxiosError(error)) return null;
+  if (!isAxiosError(error)) return null;
   const body = error.response?.data as { error_code?: unknown } | undefined;
   return typeof body?.error_code === 'string' ? body.error_code : null;
 }
 
 /** The server's human message, when it sent one — already localised. */
 export function breakGlassMessage(error: unknown): string | null {
-  if (!axios.isAxiosError(error)) return null;
+  if (!isAxiosError(error)) return null;
   const body = error.response?.data as { message?: unknown; errors?: Record<string, string[]> } | undefined;
   const firstField = body?.errors ? Object.values(body.errors)[0]?.[0] : undefined;
   if (typeof firstField === 'string' && firstField) return firstField;
@@ -375,7 +375,7 @@ export function breakGlassMessage(error: unknown): string | null {
 
 /** Seconds the server said to wait, from a 423 or a 429. */
 export function breakGlassRetryAfter(error: unknown): number | null {
-  if (!axios.isAxiosError(error)) return null;
+  if (!isAxiosError(error)) return null;
   const body = error.response?.data as { retry_after?: unknown } | undefined;
   if (typeof body?.retry_after === 'number') return body.retry_after;
   const header = error.response?.headers?.['retry-after'];
@@ -385,7 +385,7 @@ export function breakGlassRetryAfter(error: unknown): number | null {
 
 /** The route is not served by this deployment (404 with no error_code). */
 export function isBreakGlassUnavailable(error: unknown): boolean {
-  return axios.isAxiosError(error) && error.response?.status === 404 && !breakGlassErrorCode(error);
+  return isAxiosError(error) && error.response?.status === 404 && !breakGlassErrorCode(error);
 }
 
 /** The patient's Health ID matched no record. */
@@ -415,7 +415,7 @@ export function isGrantClosed(error: unknown): boolean {
  * patient) or "opened" (which it cannot know).
  */
 export function openOutcomeIsUncertain(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   if (error.response) return false;
   return (
     error.code === 'ECONNABORTED' ||

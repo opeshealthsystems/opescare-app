@@ -49,12 +49,11 @@
  *   3. A write's answer is written back into the cache and the lists are
  *      re-read from the server — never an optimistic repaint.
  */
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { endpoints } from './endpoints';
 import { isPlausibleHealthId, normaliseHealthId, toClinicWallClock } from './doctorQueries';
-import { isRoleForbidden } from './roleErrors';
 
 // One import for a desk screen: the role predicate and the Health-ID helpers
 // travel with the desk hooks (they are only re-exported here, never re-implemented).
@@ -321,7 +320,7 @@ export function deskAbilities(a: DeskAppointment): DeskAbilities {
 
 /** The `error_code` the finder's JSON handler or a controller put on the body, else null. */
 export function deskErrorCode(error: unknown): string | null {
-  if (!axios.isAxiosError(error)) return null;
+  if (!isAxiosError(error)) return null;
   const body = error.response?.data as { error_code?: unknown } | undefined;
   return typeof body?.error_code === 'string' ? body.error_code : null;
 }
@@ -336,7 +335,7 @@ export function deskErrorCode(error: unknown): string | null {
  * `isDeskRecordNotFound`.
  */
 export function isNotServed(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   if (status === 405 || status === 501) return true;
   if (status !== 404) return false;
@@ -349,24 +348,24 @@ export function isNotServed(error: unknown): boolean {
 
 /** A 404 the APP answered: this Health ID / appointment is not here. */
 export function isDeskRecordNotFound(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   return error.response?.status === 404 && !isNotServed(error);
 }
 
 /** `409 duplicate_identity` from `POST /patients` — the person may already hold a Health ID. */
 export function isDuplicateIdentity(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   return error.response?.status === 409 && deskErrorCode(error) === 'duplicate_identity';
 }
 
 /** Any other 409 — the row changed since the book was read (already checked in, already cancelled…). */
 export function isStateConflict(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   return error.response?.status === 409 && !isDuplicateIdentity(error);
 }
 
 export function isValidationFailure(error: unknown): boolean {
-  return axios.isAxiosError(error) && error.response?.status === 422;
+  return isAxiosError(error) && error.response?.status === 422;
 }
 
 /**
@@ -374,7 +373,7 @@ export function isValidationFailure(error: unknown): boolean {
  * form that can put the sentence under the right input. Empty for anything else.
  */
 export function deskFieldErrors(error: unknown): Record<string, string> {
-  if (!isValidationFailure(error) || !axios.isAxiosError(error)) return {};
+  if (!isValidationFailure(error) || !isAxiosError(error)) return {};
   const body = error.response?.data as { errors?: Record<string, unknown> } | undefined;
   const out: Record<string, string> = {};
   for (const [field, messages] of Object.entries(body?.errors ?? {})) {
@@ -386,7 +385,7 @@ export function deskFieldErrors(error: unknown): Record<string, string> {
 
 /** The server's own sentence for a failure, else `fallback`. Never a stack, never a raw library string. */
 export function deskErrorMessage(error: unknown, fallback: string): string {
-  if (axios.isAxiosError(error)) {
+  if (isAxiosError(error)) {
     const body = error.response?.data as { message?: unknown } | undefined;
     if (typeof body?.message === 'string' && body.message) return body.message;
   }
@@ -395,7 +394,7 @@ export function deskErrorMessage(error: unknown, fallback: string): string {
 
 /** True when retrying cannot change the answer — a refusal is asked exactly once. */
 export function isDeskRequestFinal(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   return status === 401 || status === 403 || status === 404 || status === 405 || status === 501;
 }

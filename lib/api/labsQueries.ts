@@ -53,7 +53,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { apiClient } from './client';
 import type { Appointment } from './types';
 
@@ -319,7 +319,7 @@ interface One<T> {
  * of a generic error, and the retry policy uses it to stop immediately.
  */
 export function isLabsUnavailable(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   return status === 404 || status === 405 || status === 501;
 }
@@ -331,7 +331,7 @@ export function isLabsUnavailable(error: unknown): boolean {
  */
 function retryPolicy(failureCount: number, error: unknown): boolean {
   if (failureCount >= 2) return false;
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   if (status === undefined) return true; // network / timeout
   return status >= 500 && status !== 501;

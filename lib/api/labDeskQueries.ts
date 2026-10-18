@@ -33,11 +33,10 @@
  * Hooks never fabricate a row: a failed endpoint is an error state, never an
  * empty list. Final answers (401/403/404/405/409) are never retried.
  */
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { endpoints } from './endpoints';
-import { isRoleForbidden } from './roleErrors';
 
 export { isRoleForbidden, roleForbiddenRequired } from './roleErrors';
 
@@ -180,7 +179,7 @@ export interface LabTestRequest {
  * is not here" and is deliberately NOT in this set.
  */
 export function isNotServed(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   if (status === 405 || status === 501) return true;
   if (status !== 404) return false;
@@ -199,7 +198,7 @@ export const ALREADY_RELEASED_CODE = 'already_released';
  * conflict is not mistaken for this one.
  */
 export function isAlreadyReleased(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   if (error.response?.status !== 409) return false;
   const body = error.response?.data as { error_code?: string } | undefined;
   return !body?.error_code || body.error_code === ALREADY_RELEASED_CODE;
@@ -207,14 +206,14 @@ export function isAlreadyReleased(error: unknown): boolean {
 
 /** A 404 the app itself answered — "no such order at this facility". */
 export function isLabRecordNotFound(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   if (error.response?.status !== 404) return false;
   return !isNotServed(error);
 }
 
 /** True when the answer is FINAL — retrying it cannot change it. */
 export function isLabRequestFinal(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   return (
     status === 401 ||
@@ -233,7 +232,7 @@ export const labRetry = (failureCount: number, error: unknown): boolean =>
 
 /** The server's own sentence from an error body, or null. Never a stack trace. */
 export function labServerMessage(error: unknown): string | null {
-  if (!axios.isAxiosError(error)) return null;
+  if (!isAxiosError(error)) return null;
   const body = error.response?.data as { message?: string } | undefined;
   return typeof body?.message === 'string' && body.message !== '' ? body.message : null;
 }

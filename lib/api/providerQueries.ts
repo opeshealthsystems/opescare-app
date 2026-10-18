@@ -28,7 +28,7 @@
  * shows. `lib/store/auth.ts` owns both, because the token slot is shared with
  * the patient session and exactly one of the two may ever be live.
  */
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from './client';
 
@@ -82,7 +82,7 @@ export interface ProviderLoginResponse {
  * clinician UI preview. A 401 means the endpoint IS there and said no.
  */
 export function isProviderAuthUnavailable(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   // No response at all: the request never got an answer to disbelieve.
   if (status === undefined) return true;
@@ -99,17 +99,17 @@ export function isProviderAuthUnavailable(error: unknown): boolean {
  * dropped line and must not be retried as one.
  */
 export function isProviderConnectionFailure(error: unknown): boolean {
-  return axios.isAxiosError(error) && error.response === undefined;
+  return isAxiosError(error) && error.response === undefined;
 }
 
 /** 401 — bad credentials, or an account that is not a clinician. The API does not distinguish. */
 export function isProviderCredentialsRejected(error: unknown): boolean {
-  return axios.isAxiosError(error) && error.response?.status === 401;
+  return isAxiosError(error) && error.response?.status === 401;
 }
 
 /** 409 — a real clinician with no facility. Nothing the app can fix; the server must attach one. */
 export function isProviderWithoutFacility(error: unknown): boolean {
-  return axios.isAxiosError(error) && error.response?.status === 409;
+  return isAxiosError(error) && error.response?.status === 409;
 }
 
 /**
@@ -125,7 +125,7 @@ export function isProviderWithoutFacility(error: unknown): boolean {
  * translatable, and a 404 from that route has no other meaning.
  */
 export function looksLikeProviderAccount(error: unknown): boolean {
-  return axios.isAxiosError(error) && error.response?.status === 404;
+  return isAxiosError(error) && error.response?.status === 404;
 }
 
 /** The server's own words where it gave some, else a neutral fallback. Never leaks a stack. */
@@ -133,7 +133,7 @@ export function providerAuthErrorMessage(
   error: unknown,
   fallback = 'Something went wrong. Please try again.',
 ): string {
-  if (axios.isAxiosError(error)) {
+  if (isAxiosError(error)) {
     const body = error.response?.data as { message?: string } | undefined;
     if (typeof body?.message === 'string' && body.message.trim()) return body.message;
   }
@@ -142,7 +142,7 @@ export function providerAuthErrorMessage(
 
 /** React-query `retry` for provider hooks: never retry an answer, one retry for a dropped line. */
 export const providerRetry = (failureCount: number, error: unknown): boolean => {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   if (status !== undefined && status >= 400 && status < 500) return false;
   return failureCount < 1;

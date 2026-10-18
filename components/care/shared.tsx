@@ -39,7 +39,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { isRoleForbidden } from '@/lib/api/roleErrors';
@@ -123,7 +123,7 @@ export function lastMutationAt(): number {
 /** True for the 409 every clinical endpoint answers when no record is linked. */
 export function isNotLinkedError(e: unknown): boolean {
   if (e instanceof Error && e.name === 'NotLinkedError') return true;
-  return axios.isAxiosError(e) && e.response?.status === 409;
+  return isAxiosError(e) && e.response?.status === 409;
 }
 
 export type FailureKind =
@@ -157,7 +157,7 @@ const failure = (kind: FailureKind, titleKey: string, bodyKey: string): Failure 
 export function describeFailure(e: unknown, fallbackMessage?: string): Failure {
   if (isNotLinkedError(e)) return failure('notLinked', 'notLinkedTitle', 'notLinkedBody');
 
-  if (axios.isAxiosError(e)) {
+  if (isAxiosError(e)) {
     const status = e.response?.status;
     if (status === undefined) {
       if (e.code === 'ECONNABORTED' || e.code === 'ETIMEDOUT' || /timeout/i.test(e.message)) {

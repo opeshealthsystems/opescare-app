@@ -34,7 +34,7 @@
  * `patient_health_id`, its test) — the same facts, not invented ones.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import { apiClient } from './client';
 import {
   DOCTOR_API_PREFIX,
@@ -173,7 +173,7 @@ function compactBody(body: AcknowledgeResultBody): AcknowledgeResultBody {
  * found") and is reported through `resultStepFailureMessage` instead.
  */
 export function isResultStepUnserved(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status;
   if (status === 405) return true;
   if (status === 404) {
@@ -189,7 +189,7 @@ export function isResultStepUnserved(error: unknown): boolean {
 
 /** True for a 422 — the server named what was wrong with the form. */
 export function isResultStepInvalid(error: unknown): boolean {
-  return axios.isAxiosError(error) && error.response?.status === 422;
+  return isAxiosError(error) && error.response?.status === 422;
 }
 
 /**
@@ -197,7 +197,7 @@ export function isResultStepInvalid(error: unknown): boolean {
  * top-level `message`. Null when the server said nothing usable.
  */
 export function resultStepFailureMessage(error: unknown): string | null {
-  if (!axios.isAxiosError(error)) return null;
+  if (!isAxiosError(error)) return null;
   const body = error.response?.data as
     | { message?: string; errors?: Record<string, string[] | string> }
     | undefined;

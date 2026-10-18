@@ -27,7 +27,7 @@
  * wrong".
  */
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 import i18next from 'i18next';
 import { apiClient } from './client';
 
@@ -484,7 +484,7 @@ export interface RefusalBody {
 }
 
 function refusalBodyOf(error: unknown): RefusalBody | null {
-  if (!axios.isAxiosError(error)) return null;
+  if (!isAxiosError(error)) return null;
   const body = error.response?.data as RefusalBody | undefined;
   if (!body || typeof body !== 'object') return null;
   return body;
@@ -519,7 +519,7 @@ export function refusalMessageOf(error: unknown): string | null {
 
 /** True when the server refused the content, rather than failing to receive it. */
 export function isRefusal(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   const status = error.response?.status ?? 0;
   return status === 409 || status === 422 || status === 404;
 }

@@ -28,14 +28,14 @@
  * interstitial carries no `error_code` and must not be dressed up as a role
  * decision the server never made.
  */
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 
 /** The wire spelling of the middleware's refusal code. */
 export const ROLE_FORBIDDEN_CODE = 'role_forbidden';
 
 /** True exactly when the server refused this request for the account's ROLE. */
 export function isRoleForbidden(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) return false;
+  if (!isAxiosError(error)) return false;
   if (error.response?.status !== 403) return false;
   const body = error.response?.data as { error_code?: unknown } | undefined;
   return body?.error_code === ROLE_FORBIDDEN_CODE;
@@ -48,7 +48,7 @@ export function isRoleForbidden(error: unknown): boolean {
  * what to draw; this is what the server actually asked for.
  */
 export function roleForbiddenRequired(error: unknown): string[] {
-  if (!isRoleForbidden(error) || !axios.isAxiosError(error)) return [];
+  if (!isRoleForbidden(error) || !isAxiosError(error)) return [];
   const body = error.response?.data as { required?: unknown } | undefined;
   return Array.isArray(body?.required)
     ? body.required.filter((v): v is string => typeof v === 'string')

@@ -146,3 +146,18 @@ sha256sum playstore/artifacts/<file>
 | **Package / versionName / versionCode** | `com.opescare.patientid` / `1.4.0` / `6` |
 | **Commit** | `817c139` |
 | **EAS URL** | `https://expo.dev/artifacts/eas/OHaOR1w59py6l8C8IOUxNEpdVULU0qgAWxzVOBKeuc8.aab` |
+
+---
+
+## Builds 8 and 9 — opescare.com (supersede build 6)
+
+| | AAB (Play upload) | APK (testers) |
+| --- | --- | --- |
+| **EAS build id** | `ef7b7b37-6ef4-4f99-a353-1e8a6f0ef61c` | `26991966-8c34-41b9-98cd-91c6e1845486` |
+| **Profile** | `production` | `demo` (demo logins on) |
+| **versionCode** | 8 | 9 |
+| **API** | `https://opescare.com/api` | `https://opescare.com/api` |
+| **Commit** | `1032965` | `1032965` |
+| **EAS URL** | `https://expo.dev/artifacts/eas/lvnPR_CGioQykTsMV_BG_j9AB5mhYFdxy5orhHbbBEY.aab` | `https://expo.dev/artifacts/eas/XN35qrQAtk4WSHfG6rUDHN0k2LLJ_FnPPmYF1ABcSdc.apk` |
+
+Build 6 targeted finder.opescare.cloud and must not be uploaded.

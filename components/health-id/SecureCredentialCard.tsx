@@ -37,7 +37,8 @@ import {
   type Palette,
   type StatusTone,
 } from '@/components/opes-ui';
-import { HEALTH_ID_ART, anatomicalArt } from './assets';
+import { HEALTH_ID_ART } from './assets';
+import { LiveEcg, LivingAnatomy } from './LivingAnatomy';
 import { Art, CornerBrackets, DECORATIVE, FILL, PulseArt, QrPanel, SealSystem, qrPanelExtent } from './Layers';
 import { ageFrom, presentOrNull, titleCase, type CredentialModel } from './model';
 
@@ -86,7 +87,6 @@ export function SecureCredentialCard({
     : t('healthId.notSet');
   const sexKey = (model.sex ?? '').toLowerCase();
   const sexLabel = sexKey ? t(`healthId.sexValues.${sexKey}`, { defaultValue: titleCase(sexKey) }) : t('healthId.notSet');
-  const hologram = anatomicalArt(model.anatomicalProfile);
   const statusKey = model.statusKey ?? '';
 
   // The on-device copy has no identity status; its badge says how old it is.
@@ -181,7 +181,7 @@ export function SecureCredentialCard({
             {/* Anatomical WATERMARK: a security/health motif behind the holder's
                 details, never a portrait. 3–7% on the quiet card, 6–12% when the
                 card is presented — it must not compete with patient data. */}
-            <Art source={hologram} style={styles.hologram} resizeMode="contain" opacity={presentation ? 0.1 : 0.06} />
+            <LivingAnatomy profile={model.anatomicalProfile} style={styles.hologram} opacity={presentation ? 0.26 : 0.2} />
           </View>
 
           <View style={styles.holderRow}>
@@ -225,7 +225,7 @@ export function SecureCredentialCard({
                 <Field styles={styles} label={t('healthId.sex')} value={sexLabel} half />
                 <Field styles={styles} label={t('healthId.bloodType')} value={model.bloodType ?? t('healthId.notSet')} half />
               </View>
-              <Art source={HEALTH_ID_ART.ecgLine} style={styles.ecg} resizeMode="stretch" opacity={0.9} />
+              <LiveEcg source={HEALTH_ID_ART.ecgLine} style={styles.ecg} opacity={0.9} />
             </View>
 
             <View style={styles.qrCol}>

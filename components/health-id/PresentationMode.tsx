@@ -34,6 +34,7 @@ import {
 } from '@/components/opes-ui';
 import type { TemporaryQrCode } from '@/lib/api/types';
 import { HEALTH_ID_ART, HEALTH_ID_INDICATORS, anatomicalArt } from './assets';
+import { LivingAnatomy } from './LivingAnatomy';
 import { Art, CornerBrackets, DECORATIVE, FILL, PulseArt, QrPanel, SealSystem, qrPanelExtent } from './Layers';
 import { formatCountdown, presentOrNull, titleCase, type CredentialModel } from './model';
 
@@ -137,7 +138,7 @@ export function PresentationMode({
               element; on the card it is a faint watermark. */}
           <View style={styles.figure} {...DECORATIVE}>
             <PulseArt source={HEALTH_ID_ART.holoRing} style={styles.figureAura} low={0.22} high={0.42} duration={3200} active={live} />
-            <PulseArt source={anatomicalArt(model.anatomicalProfile)} style={styles.figureBody} low={0.72} high={0.98} duration={3200} active={live} />
+            <LivingAnatomy profile={model.anatomicalProfile} style={styles.figureBody} active={live} />
           </View>
 
           {/* ── The live code ───────────────────────────────────────────── */}

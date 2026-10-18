@@ -62,7 +62,8 @@
         "EXPO_PUBLIC_DEMO_LOGINS": "0",
         "EXPO_PUBLIC_DOCTOR_PERSONA": "0",
         "EXPO_PUBLIC_API_BASE_URL": "https://finder.opescare.cloud/api",
-        "OPESCARE_ALLOW_DEMO_BACKEND": "1"
+        "OPESCARE_ALLOW_DEMO_BACKEND": "1",
+        "OPESCARE_BUILD_WITHOUT_PUSH": "1"
       }
     }
   },

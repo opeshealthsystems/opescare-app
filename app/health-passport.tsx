@@ -50,6 +50,7 @@ import { HolderStrip, PageKicker, PassportRail } from '@/components/passport/Pag
 import { SecurityFooter } from '@/components/passport/SecurityFooter';
 import { SecuritySubstrate } from '@/components/passport/substrate';
 import { passportColors as c, passportRadius as r } from '@/components/passport/tokens';
+import { colors as tokenColors } from '@/theme/tokens';
 import {
   isPassportUnserved,
   pageIsEmpty,
@@ -423,14 +424,14 @@ const styles = StyleSheet.create({
   },
   mastLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   mastLogo: {
-    width: 26, height: 26, borderRadius: 13, backgroundColor: '#FFFFFF',
+    width: 26, height: 26, borderRadius: 13, backgroundColor: tokenColors.white,
     alignItems: 'center', justifyContent: 'center',
   },
-  mastBrand: { fontSize: 13, fontWeight: '900', color: '#FFFFFF' },
+  mastBrand: { fontSize: 13, fontWeight: '900', color: tokenColors.white },
   mastBrandAccent: { color: '#7FD8E8' },
   mastBrandSub: { fontSize: 6, fontWeight: '800', letterSpacing: 1.1, color: 'rgba(255,255,255,0.7)' },
   mastRight: { alignItems: 'flex-end' },
-  mastTitle: { fontSize: 9.5, fontWeight: '900', letterSpacing: 1.1, color: '#FFFFFF' },
+  mastTitle: { fontSize: 9.5, fontWeight: '900', letterSpacing: 1.1, color: tokenColors.white },
   mastPage: { fontSize: 8, fontWeight: '800', letterSpacing: 1, color: '#9FD4EA', marginTop: 2 },
   taglineStrip: {
     marginLeft: -24, marginRight: -16, paddingVertical: 4, backgroundColor: c.primaryLight,
@@ -440,7 +441,7 @@ const styles = StyleSheet.create({
     minWidth: 34, height: 34, borderRadius: 9, backgroundColor: c.primary,
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6,
   },
-  pageChipText: { fontSize: 15, fontWeight: '900', color: '#FFFFFF' },
+  pageChipText: { fontSize: 15, fontWeight: '900', color: tokenColors.white },
   rowGlyph: { width: 20, height: 20 },
   rowNum: { width: 20, fontSize: 10, fontWeight: '900', color: c.muted, textAlign: 'center' },
   rowTitle: { fontSize: 12.5, fontWeight: '800', color: c.text },

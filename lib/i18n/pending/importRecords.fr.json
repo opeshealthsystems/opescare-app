@@ -1,0 +1,28 @@
+{
+  "_comment": "Textes de l'écran app/import-records.tsx. Chargé par lib/api/importRecordsQueries.ts (deep=true, overwrite=false). 1:1 avec importRecords.en.json.",
+  "importRecords": {
+    "title": "Importer des dossiers",
+    "subtitle": "Ajoutez à votre dossier OpesCare des dossiers d'un autre prestataire",
+    "unverifiedTitle": "Fourni par le patient, non vérifié",
+    "unverifiedBody": "Les éléments importés sont conservés dans votre dossier tels que vous les avez fournis. Ils ne sont pas contrôlés par un clinicien OpesCare et restent toujours marqués comme non vérifiés.",
+    "chooseTitle": "Choisissez quoi importer",
+    "fhirTitle": "Fichier FHIR R4 (.json)",
+    "fhirBody": "Un fichier de dossier médical d'un autre hôpital ou d'une autre application. Observations, pathologies, allergies, médicaments, vaccinations, comptes rendus et documents sont importés.",
+    "documentTitle": "PDF ou photo",
+    "documentBody": "Un résultat d'analyse, une lettre de sortie ou une ordonnance en PDF, JPEG, PNG ou WebP.",
+    "limits": "Jusqu'à 10 Mo par fichier. Importer à nouveau le même fichier ne crée pas de doublons.",
+    "pick": "Choisir un fichier",
+    "uploading": "Importation…",
+    "tooLarge": "Ce fichier dépasse 10 Mo.",
+    "summaryTitle": "Résumé de l'importation",
+    "imported": "Importés",
+    "skipped": "Ignorés",
+    "importedCount": "{{count}} importé(s)",
+    "skippedCount": "{{count}} ignoré(s)",
+    "nothingImported": "Aucun nouvel élément n'a été importé.",
+    "done": "Importation terminée",
+    "exportLink": "Exporter vos dossiers",
+    "exportLinkBody": "Télécharger une copie de votre dossier OpesCare",
+    "importA11y": "Importer des dossiers d'un autre prestataire"
+  }
+}

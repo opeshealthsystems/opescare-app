@@ -28,6 +28,7 @@ import {
   useExportMedicalRecordsPdf,
 } from '../lib/api/queries';
 import { deliverFile, FileDeliveryError, type FileDeliveryOutcome } from '../lib/fileDelivery';
+import '../lib/api/importRecordsQueries';
 
 /**
  * Export Medical Records — the patient's immediate, unmoderated copy of their
@@ -343,6 +344,14 @@ export default function ExportRecordsScreen() {
               title={t('exportRecords.relatedLogsTitle')}
               subtitle={t('exportRecords.relatedLogsBody')}
               onPress={() => router.push('/privacy/access-logs')}
+              divider
+            />
+            <ListRow
+              icon="upload"
+              tint="blue"
+              title={t('importRecords.title')}
+              subtitle={t('importRecords.subtitle')}
+              onPress={() => router.push('/import-records')}
               divider
             />
             <ListRow

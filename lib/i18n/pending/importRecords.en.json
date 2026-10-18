@@ -1,0 +1,28 @@
+{
+  "_comment": "Client chrome for app/import-records.tsx. Registered at runtime by lib/api/importRecordsQueries.ts with deep=true, overwrite=false. 1:1 with importRecords.fr.json. Skip reasons arrive translated from the server (lang/{en,fr}/patient_import.php).",
+  "importRecords": {
+    "title": "Import records",
+    "subtitle": "Bring records from another provider into your OpesCare record",
+    "unverifiedTitle": "Patient-provided, unverified",
+    "unverifiedBody": "Imported items are kept in your record as provided by you. They are not checked by an OpesCare clinician and are always labelled as unverified.",
+    "chooseTitle": "Choose what to import",
+    "fhirTitle": "FHIR R4 file (.json)",
+    "fhirBody": "A health record file from another hospital or app. Observations, conditions, allergies, medications, immunizations, reports and documents are imported.",
+    "documentTitle": "PDF or photo",
+    "documentBody": "A lab report, discharge letter or prescription as PDF, JPEG, PNG or WebP.",
+    "limits": "Up to 10 MB per file. Importing the same file again does not create duplicates.",
+    "pick": "Choose a file",
+    "uploading": "Importing…",
+    "tooLarge": "This file is larger than 10 MB.",
+    "summaryTitle": "Import summary",
+    "imported": "Imported",
+    "skipped": "Skipped",
+    "importedCount": "{{count}} imported",
+    "skippedCount": "{{count}} skipped",
+    "nothingImported": "Nothing new was imported.",
+    "done": "Import finished",
+    "exportLink": "Export your records",
+    "exportLinkBody": "Download a copy of your OpesCare record",
+    "importA11y": "Import records from another provider"
+  }
+}

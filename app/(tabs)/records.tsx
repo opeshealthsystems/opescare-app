@@ -54,6 +54,7 @@ import { useIsOnline } from '@/lib/offline';
 import { useAllergies, useClinical, useImmunizations, useTimeline } from '@/lib/api/queries';
 import { useLatestVitals, type VitalKey, type VitalStatus } from '@/lib/api/vitalsQueries';
 import type { TimelineEvent } from '@/lib/api/types';
+import '../../lib/api/importRecordsQueries';
 
 /** How many rows a section shows before "View all" expands it. */
 const PREVIEW = 3;
@@ -254,6 +255,7 @@ export default function RecordsScreen() {
         showBack={false}
         actions={[
           { icon: 'download', onPress: () => router.push('/export-records'), accessibilityLabel: t('records.exportA11y') },
+          { icon: 'upload', onPress: () => router.push('/import-records'), accessibilityLabel: t('importRecords.importA11y') },
         ]}
       />
       <ScrollView

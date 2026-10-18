@@ -648,8 +648,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     await clearPushRegistration().catch(() => undefined);
 
-    await clearStoredSession();
+    // Wipe first, while the token still exists: the wipe revokes the
+    // server-side offline policy, which needs an authenticated call.
     await wipeSessionData();
+    await clearStoredSession();
 
     // The preview is a demo affordance, not a property of the device: leaving
     // it on would hand the clinician UI to whoever signs in next.

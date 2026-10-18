@@ -20,8 +20,8 @@ export type MapFacility = {
 
 /** Origin of the finder web host, derived from the API base (strips a trailing /api). */
 export function finderOrigin(): string {
-  const base = (API_BASE_URL || 'https://finder.opescare.cloud/api').replace(/\/api\/?$/, '');
-  return base || 'https://finder.opescare.cloud';
+  const base = (API_BASE_URL || 'https://opescare.com/api').replace(/\/api\/?$/, '');
+  return base || 'https://opescare.com';
 }
 
 /**

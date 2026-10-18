@@ -5,7 +5,7 @@
  * staging/production host confirmed reachable during development.
  */
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://finder.opescare.cloud/api';
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://opescare.com/api';
 
 export const endpoints = {
   loginEmail: '/mobile/auth/login-email',

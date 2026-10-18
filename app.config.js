@@ -107,7 +107,7 @@ function refuse(message) {
  * OPESCARE_DEMO_MODE=true, its patients are `is_demo` rows, and its login page
  * hands out demo accounts.
  */
-const DEMO_API_HOST = 'finder.opescare.cloud';
+const DEMO_API_HOST = 'opescare.com';
 
 /**
  * A store build must not point at the demo backend by accident.

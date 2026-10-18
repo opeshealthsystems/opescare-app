@@ -43,6 +43,7 @@ import {
 import { useIsOnline } from '../lib/offline/connectivity';
 import { formatDateTime, formatSavedAt } from '../lib/offline/relativeTime';
 import type { OfflineScope } from '../lib/offline/scopes';
+import { isEncryptedAtRest } from '../lib/offline/storage';
 
 /**
  * Offline access — the patient-facing control for the backend's limited
@@ -181,9 +182,13 @@ export default function OfflineAccessScreen() {
    * is not encrypted at rest. Consent is asked before anything is written.
    */
   const confirmEnable = useCallback(() => {
+    // Web has no encrypted storage: offline access cannot be enabled in a browser.
+    if (!isEncryptedAtRest) {
+      setNotice({ tone: 'warning', icon: 'alert-triangle', body: t('offline.webNotice') });
+      return;
+    }
     const modeBody = mode === 'emergency' ? t('offline.modeEmergencyBody') : t('offline.modeFullBody');
     const parts = [modeBody, t('offline.privacyNote')];
-    if (status && !status.encryptedAtRest) parts.push(t('offline.webNotice'));
     dialog.confirm({
       title: t('offline.enableCta'),
       message: parts.join('\n\n'),
@@ -243,8 +248,8 @@ export default function OfflineAccessScreen() {
       >
         {notice ? <Notice tone={notice.tone} icon={notice.icon} text={notice.body} /> : null}
 
-        {/* Web storage is not encrypted at rest — the patient is told, always. */}
-        {status && !status.encryptedAtRest ? (
+        {/* Web storage is not encrypted at rest — offline access is unavailable in a browser. */}
+        {!isEncryptedAtRest ? (
           <Notice tone="warning" icon="alert-triangle" text={t('offline.webNotice')} />
         ) : null}
 
@@ -333,7 +338,7 @@ export default function OfflineAccessScreen() {
                     label={enableMutation.isPending ? t('offline.enabling') : t('offline.enableCta')}
                     onPress={confirmEnable}
                     loading={enableMutation.isPending}
-                    disabled={!isOnline}
+                    disabled={!isOnline || !isEncryptedAtRest}
                     icon="none"
                   />
                   {!isOnline ? (

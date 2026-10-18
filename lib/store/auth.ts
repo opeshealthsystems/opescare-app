@@ -123,17 +123,14 @@ const SESSION_KIND_KEY = 'opescare_session_kind';
 const sessionKindStorage =
   Platform.OS === 'web'
     ? {
-        get: async () =>
-          typeof localStorage !== 'undefined' ? localStorage.getItem(SESSION_KIND_KEY) : null,
+        // Tab-scoped like the web token (lib/api/tokenStorage.ts) — never localStorage.
+        get: async () => (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(SESSION_KIND_KEY) : null),
         set: async () => {
-          if (typeof localStorage !== 'undefined') {
-            localStorage.setItem(SESSION_KIND_KEY, 'provider');
-          }
+          if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(SESSION_KIND_KEY, 'provider');
         },
         clear: async () => {
-          if (typeof localStorage !== 'undefined') {
-            localStorage.removeItem(SESSION_KIND_KEY);
-          }
+          if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(SESSION_KIND_KEY);
+          if (typeof localStorage !== 'undefined') localStorage.removeItem(SESSION_KIND_KEY); // legacy
         },
       }
     : {
@@ -141,6 +138,15 @@ const sessionKindStorage =
         set: () => SecureStore.setItemAsync(SESSION_KIND_KEY, 'provider'),
         clear: () => SecureStore.deleteItemAsync(SESSION_KIND_KEY),
       };
+
+// Migration: older web builds kept the marker in localStorage.
+if (Platform.OS === 'web') {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(SESSION_KIND_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 /** What kind of session the stored token belongs to. Unreadable storage reads as `patient`. */
 async function readSessionKind(): Promise<SessionKind> {

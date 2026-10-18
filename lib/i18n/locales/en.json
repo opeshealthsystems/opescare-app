@@ -2798,7 +2798,7 @@
     "disableBody": "Removes the copy saved on this device, and any changes still waiting to sync.",
     "disableCta": "Erase saved data",
     "erasing": "Erasing…",
-    "webNotice": "This is the web preview. Saved data is kept in browser storage, which is not encrypted — use the mobile app for real offline access.",
+    "webNotice": "Offline access is not available in a web browser: browser storage is not encrypted, so nothing is saved here. Use the mobile app for offline access.",
     "privacyNote": "OpesCare records which device holds a copy and for how long. The copy expires on its own and you can erase it at any time.",
     "errorEnable": "Could not turn on offline access. Please try again.",
     "errorSync": "Could not sync. Please try again.",

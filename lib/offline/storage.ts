@@ -6,16 +6,15 @@ import * as SecureStore from 'expo-secure-store';
  *
  * Same platform branch the rest of the app already uses (lib/api/tokenStorage.ts,
  * lib/store/auth.ts, app/(auth)/permissions.tsx): expo-secure-store on the
- * native builds that actually ship, localStorage on web purely so the app stays
- * previewable in a browser during development.
+ * native builds that actually ship; a no-op on web.
  *
  * Honesty note on the backend's `encryption_policy` ("AES-256-GCM local database
  * encryption required"): on Android expo-secure-store encrypts values with
  * AES-256-GCM under a key held in the hardware-backed Android Keystore, and on
  * iOS it stores them in the Keychain — that is a real at-rest guarantee. On
- * **web there is none**: localStorage is plaintext, which is why
- * `isEncryptedAtRest` is exported and app/offline-access.tsx shows an explicit
- * warning before a browser user opts in.
+ * **web there is none**, so on web this store holds nothing at all (see
+ * webStore below) and `isEncryptedAtRest` gates the opt-in off in
+ * app/offline-access.tsx.
  *
  * SecureStore rejects large values (historically ~2048 bytes on iOS), so native
  * writes are transparently split into chunks with a count header at the base
@@ -27,15 +26,34 @@ const MAX_CHUNKS = 512; // ~800 KB ceiling; a runaway payload fails loudly inste
 
 export const isEncryptedAtRest = Platform.OS !== 'web';
 
+/**
+ * Web: the offline cache is DISABLED. Browser storage is plaintext, so nothing
+ * medical is ever written there. Reads return null, writes are dropped, and
+ * app/offline-access.tsx refuses to let a browser user enable the feature.
+ * Records older builds left in localStorage are purged on module load.
+ */
+const LEGACY_WEB_PREFIX = 'opescare_offline_';
+
+export function purgeLegacyWebOfflineData(): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const doomed: string[] = [];
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(LEGACY_WEB_PREFIX)) doomed.push(key);
+    }
+    doomed.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // Storage blocked — nothing to purge.
+  }
+}
+
+if (Platform.OS === 'web') purgeLegacyWebOfflineData();
+
 const webStore = {
-  getItem: (key: string): string | null =>
-    typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null,
-  setItem: (key: string, value: string): void => {
-    if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
-  },
-  removeItem: (key: string): void => {
-    if (typeof localStorage !== 'undefined') localStorage.removeItem(key);
-  },
+  getItem: (_key: string): string | null => null,
+  setItem: (_key: string, _value: string): void => {},
+  removeItem: (_key: string): void => {},
 };
 
 const chunkKey = (key: string, index: number) => `${key}__${index}`;

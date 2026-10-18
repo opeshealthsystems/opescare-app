@@ -2798,7 +2798,7 @@
     "disableBody": "Supprime la copie enregistrée sur cet appareil, ainsi que les modifications en attente de synchronisation.",
     "disableCta": "Effacer les données",
     "erasing": "Effacement…",
-    "webNotice": "Ceci est l'aperçu web. Les données sont conservées dans le stockage du navigateur, qui n'est pas chiffré — utilisez l'application mobile pour un vrai accès hors connexion.",
+    "webNotice": "L'accès hors connexion n'est pas disponible dans un navigateur web : le stockage du navigateur n'est pas chiffré, donc rien n'est enregistré ici. Utilisez l'application mobile pour l'accès hors connexion.",
     "privacyNote": "OpesCare enregistre quel appareil détient une copie et pour combien de temps. La copie expire d'elle-même et vous pouvez l'effacer à tout moment.",
     "errorEnable": "Impossible d'activer l'accès hors connexion. Veuillez réessayer.",
     "errorSync": "La synchronisation a échoué. Veuillez réessayer.",

@@ -1,7 +1,7 @@
 /**
  * Doctor — Patient lookup (`/clinician/patients`).
  *
- * Port of `UIUX/src/screens/doctor/PatientSearchScreen.tsx` onto expo-router,
+ * Port of design reference `src/screens/doctor/PatientSearchScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) onto expo-router,
  * the OPES UI kit and this app's doctor foundation — with the one deliberate
  * departure from the source.
  *

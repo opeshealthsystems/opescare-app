@@ -2,7 +2,7 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Lab Result Trend — `/labs/[id]/trend?analyte=…`.
  *
- * Port of OPES DIA-003 (UIUX/src/screens/diagnostics/LabResultTrendScreen.tsx):
+ * Port of OPES DIA-003 (design reference src/screens/diagnostics/LabResultTrendScreen.tsx (archived prototype, see docs/DESIGN_REFERENCE.md)):
  * one analyte's series across every order it appears in — the switcher, the
  * critical banner, the latest value with its direction, the plotted chart, and
  * the newest-first history table.

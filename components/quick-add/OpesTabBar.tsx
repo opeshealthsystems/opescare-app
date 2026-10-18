@@ -1,5 +1,5 @@
 /**
- * The OPES bottom tab bar (UIUX/DESIGN_SPEC.md §11) with the raised Quick-Add
+ * The OPES bottom tab bar (design reference DESIGN_SPEC.md (archived prototype, see docs/DESIGN_REFERENCE.md) §11) with the raised Quick-Add
  * FAB in the centre slot:
  *
  *     Home   |   Health ID   |   ( + )   |   Messages•   |   Profile

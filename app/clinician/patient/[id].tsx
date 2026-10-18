@@ -2,7 +2,7 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Doctor — Patient chart (`/clinician/patient/[id]`).
  *
- * Port of `UIUX/src/screens/doctor/PatientChartScreen.tsx` onto expo-router,
+ * Port of design reference `src/screens/doctor/PatientChartScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) onto expo-router,
  * the OPES UI kit and this app's doctor foundation. `[id]` is the OpesCare
  * **Health ID** — the key every `/mobile/doctor/patients/…` endpoint takes.
  *

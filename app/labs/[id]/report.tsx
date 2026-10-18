@@ -2,7 +2,7 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Lab Report (full) — `/labs/[id]/report`.
  *
- * Port of OPES DIA-004 (UIUX/src/screens/diagnostics/LabReportFullScreen.tsx):
+ * Port of OPES DIA-004 (design reference src/screens/diagnostics/LabReportFullScreen.tsx (archived prototype, see docs/DESIGN_REFERENCE.md)):
  * the printed report header (patient block, who ordered it, sample / report
  * dates), the plain-language read of what the results mean, the full result
  * table with the laboratory's own reference ranges, the interpretation and

@@ -74,7 +74,7 @@ import {
 /**
  * Facility profile — the drill-in from Care Access and the booking flow's
  * facility picker. Presentation is the OPES CARE-005 profile layout
- * (`UIUX/src/screens/care/FacilityProfileScreen.tsx`) ported onto this
+ * (design reference `src/screens/care/FacilityProfileScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md)) ported onto this
  * app's existing data layer; nothing below fetches differently than before.
  *
  * ── What this screen may show ────────────────────────────────────────────

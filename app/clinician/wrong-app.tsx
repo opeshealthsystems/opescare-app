@@ -1,7 +1,7 @@
 /**
  * Doctor — "this is the clinician area" (`/clinician/wrong-app`).
  *
- * Port of `UIUX/src/screens/doctor/WrongAppScreen.tsx`.
+ * Port of design reference `src/screens/doctor/WrongAppScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md).
  *
  * Two jobs, one screen:
  *

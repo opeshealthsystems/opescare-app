@@ -2,7 +2,7 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Doctor — One chart section, in full (`/clinician/patient/[id]/[section]`).
  *
- * Port of `UIUX/src/screens/doctor/PatientChartSectionScreen.tsx` onto
+ * Port of design reference `src/screens/doctor/PatientChartSectionScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) onto
  * expo-router, the OPES UI kit and this app's doctor foundation. `[id]` is the
  * Health ID; `[section]` is a `PatientChartSectionName` from
  * `components/doctor/chartRoutes` — this screen invents no slugs of its own.

@@ -1,7 +1,7 @@
 /**
  * Shared vocabulary for the doctor's clinical inbox.
  *
- * Port of `UIUX/src/screens/doctor/shared.tsx`. Composition only — every
+ * Port of design reference `src/screens/doctor/shared.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md). Composition only — every
  * colour, radius, type size and icon comes from `@/components/opes-ui`; the
  * palette is this app's own (`opescare`), never re-skinned here. Nothing new
  * is introduced.

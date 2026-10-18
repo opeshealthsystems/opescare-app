@@ -1,6 +1,6 @@
 /**
  * Shared plumbing for the DIA-* (diagnostics / labs) slice — the expo-router
- * port of `UIUX/src/screens/diagnostics/shared.tsx`.
+ * port of design reference `src/screens/diagnostics/shared.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md).
  *
  * Composition only — every colour comes from the OPES UI kit's token object
  * (`@/components/opes-ui`, the `opescare` brand palette by default), every

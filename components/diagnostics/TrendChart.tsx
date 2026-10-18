@@ -1,6 +1,6 @@
 /**
  * The DIA-003 trend chart — the expo-router port of
- * `UIUX/src/screens/diagnostics/TrendChart.tsx`.
+ * design reference `src/screens/diagnostics/TrendChart.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md).
  *
  * A real plot of the analyte's series: dashed reference limits, an area under
  * the line, a labelled point per result, and out-of-range points painted in

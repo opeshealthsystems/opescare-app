@@ -1,7 +1,7 @@
 /**
  * Shared pieces for the doctor's read-only patient chart.
  *
- * Port of `UIUX/src/screens/doctor/chartShared.tsx`. Composition only: every
+ * Port of design reference `src/screens/doctor/chartShared.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md). Composition only: every
  * colour, radius, type size and icon comes from `@/components/opes-ui` (this
  * app's `opescare` palette — never re-skinned), the async machinery is this
  * app's own `AsyncState` / `AsyncBoundary` from `@/components/care/shared`,

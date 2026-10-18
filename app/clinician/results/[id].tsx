@@ -2,7 +2,7 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Doctor — Result detail + acknowledgement (`/clinician/results/[id]`).
  *
- * Port of `UIUX/src/screens/doctor/ResultDetailScreen.tsx` onto expo-router,
+ * Port of design reference `src/screens/doctor/ResultDetailScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) onto expo-router,
  * the OPES UI kit and this app's doctor foundation.
  *
  * The highest-stakes screen in the doctor app, so its rules are explicit:

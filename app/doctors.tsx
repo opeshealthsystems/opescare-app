@@ -2,7 +2,7 @@
  * Find a Doctor — `/doctors`.
  *
  * Port of the OPES CARE-006 "Find Provider" screen
- * (UIUX/src/screens/care/FindProviderScreen.tsx) onto this app's data.
+ * (design reference src/screens/care/FindProviderScreen.tsx (archived prototype, see docs/DESIGN_REFERENCE.md)) onto this app's data.
  *
  * ── Why this screen is facility-first ─────────────────────────────────────
  * OPES is a single hospital with `GET /patient/providers` (search every doctor

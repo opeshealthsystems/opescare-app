@@ -1,6 +1,6 @@
 /**
  * Quick-Add bottom sheet — opened by the raised centre FAB in the OPES tab bar
- * (UIUX/DESIGN_SPEC.md §11). Lists the Finder's core actions as kit `ListRow`s
+ * (design reference DESIGN_SPEC.md (archived prototype, see docs/DESIGN_REFERENCE.md) §11). Lists the Finder's core actions as kit `ListRow`s
  * and pushes the matching route.
  *
  * Built from RN `Modal` + `Animated` only (no new dependencies) so it behaves

@@ -1,7 +1,7 @@
 /**
  * Request a Lab Test — `/labs/request`.
  *
- * Port of OPES DIA-006 (UIUX/src/screens/diagnostics/RequestLabTestScreen.tsx).
+ * Port of OPES DIA-006 (design reference src/screens/diagnostics/RequestLabTestScreen.tsx (archived prototype, see docs/DESIGN_REFERENCE.md)).
  *
  * The framing the OPES source insists on is kept word for word: a patient
  * cannot PLACE a laboratory order, only ASK for one. `POST /mobile/labs/requests`

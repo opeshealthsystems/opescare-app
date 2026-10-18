@@ -68,7 +68,7 @@ import {
 
 /**
  * Clinician profile — the person behind a slot. OPES CARE-004 layout
- * (`UIUX/src/screens/care/ProviderProfileScreen.tsx`) on top of this app's own
+ * (design reference `src/screens/care/ProviderProfileScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md)) on top of this app's own
  * data layer.
  *
  * Reachable from the facility page (app/facility/[id].tsx) and from the booking

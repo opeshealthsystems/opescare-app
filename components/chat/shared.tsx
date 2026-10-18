@@ -1,6 +1,6 @@
 /**
  * Shared chat chrome — the OPES MSG-002 conversation surface, ported from
- * `UIUX/src/screens/chat/shared.tsx` for the Finder app.
+ * design reference `src/screens/chat/shared.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) for the Finder app.
  *
  * Pure presentation: no API calls, no navigation. Every colour comes from the
  * active kit palette (`useTheme()`), every glyph from the kit `<Icon>`, every

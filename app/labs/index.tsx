@@ -3,7 +3,7 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
  * Labs — `/labs`.
  *
  * Port of the OPES DIA-001 "Laboratory & Imaging Dashboard"
- * (UIUX/src/screens/diagnostics/DiagnosticsDashboardScreen.tsx) onto this
+ * (design reference src/screens/diagnostics/DiagnosticsDashboardScreen.tsx (archived prototype, see docs/DESIGN_REFERENCE.md)) onto this
  * app's data hooks.
  *
  * What changed from the OPES source, and why:

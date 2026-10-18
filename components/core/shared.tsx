@@ -1,7 +1,7 @@
 /**
  * Shared chrome for the CORE slice (Home dashboard, Health ID).
  *
- * Ported from `UIUX/src/screens/core/shared.tsx`. Composition over
+ * Ported from design reference `src/screens/core/shared.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md). Composition over
  * `@/components/opes-ui` only — no new colours, no inline SVG paths, no API
  * calls, no navigation. Colours are read at render through `useTheme()`, so
  * the header, avatar and tiles follow the runtime palette switch exactly like

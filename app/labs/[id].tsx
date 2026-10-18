@@ -2,7 +2,7 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Lab Result Detail — `/labs/[id]`.
  *
- * Port of OPES DIA-002 (UIUX/src/screens/diagnostics/LabResultDetailScreen.tsx):
+ * Port of OPES DIA-002 (design reference src/screens/diagnostics/LabResultDetailScreen.tsx (archived prototype, see docs/DESIGN_REFERENCE.md)):
  * the order identity block, the ordering provider, the normal / low / high /
  * critical counters, the full result table with reference ranges and flag
  * colours, the clinician's review note, and why the test was ordered.

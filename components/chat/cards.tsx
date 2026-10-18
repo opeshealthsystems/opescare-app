@@ -1,5 +1,5 @@
 /**
- * Rich in-chat cards — the Finder port of `UIUX/src/screens/chat/cards.tsx`.
+ * Rich in-chat cards — the Finder port of design reference `src/screens/chat/cards.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md).
  *
  * The OPES source draws a discriminated union of clinical cards from the
  * portal API. This app's messaging endpoint serialises five fields per

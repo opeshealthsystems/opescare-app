@@ -2,7 +2,7 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Doctor — Results Inbox (`/clinician/results`).
  *
- * Port of `UIUX/src/screens/doctor/ResultsInboxScreen.tsx` onto expo-router,
+ * Port of design reference `src/screens/doctor/ResultsInboxScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) onto expo-router,
  * the OPES UI kit and this app's doctor foundation.
  *
  * Results and clinical notifications awaiting this doctor's acknowledgement,

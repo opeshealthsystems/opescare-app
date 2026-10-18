@@ -1,7 +1,7 @@
 /**
  * Doctor — My Schedule (`/clinician/schedule`).
  *
- * Port of `UIUX/src/screens/doctor/DoctorScheduleScreen.tsx` onto expo-router,
+ * Port of design reference `src/screens/doctor/DoctorScheduleScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) onto expo-router,
  * the OPES UI kit and this app's doctor foundation.
  *
  * The screen a doctor opens between consultations: their own diary for a day

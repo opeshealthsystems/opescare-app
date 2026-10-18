@@ -1,7 +1,7 @@
 /**
  * Shared plumbing for the CARE slice (facility / provider discovery,
  * appointment rows and booking) — the expo-router port of
- * `UIUX/src/screens/care/shared.tsx`.
+ * design reference `src/screens/care/shared.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md).
  *
  * ONE copy. Every care screen (find-facility, facility-profile, find-provider,
  * provider-profile, appointments) imports from here so nothing forks.

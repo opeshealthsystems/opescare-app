@@ -2,7 +2,7 @@
  * The clinician area's route vocabulary — ONE place that knows what a doctor
  * URL looks like.
  *
- * Port of `UIUX/src/screens/doctor/chartRoutes.ts`. The OPES original
+ * Port of design reference `src/screens/doctor/chartRoutes.ts` (archived prototype, see docs/DESIGN_REFERENCE.md). The OPES original
  * re-exported `DoctorStackParamList` from `navigation/routes.ts` because
  * react-navigation types routes as a param-list union. expo-router has no such
  * object: a route IS a file path, so the param list is gone and `doctorRoutes`

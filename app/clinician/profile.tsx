@@ -1,7 +1,7 @@
 /**
  * Doctor — the clinician's own account (`/clinician/profile`).
  *
- * Port of `UIUX/src/screens/doctor/DoctorProfileScreen.tsx` onto expo-router,
+ * Port of design reference `src/screens/doctor/DoctorProfileScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) onto expo-router,
  * the OPES UI kit and this app's doctor foundation.
  *
  * Four things live here, in this order:

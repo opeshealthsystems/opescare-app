@@ -1,6 +1,6 @@
 /**
  * Translated appointment vocabulary for the APPOINTMENTS list, detail and
- * BOOKING screens — the port of `UIUX/src/screens/care/apptLabels.ts`.
+ * BOOKING screens — the port of design reference `src/screens/care/apptLabels.ts` (archived prototype, see docs/DESIGN_REFERENCE.md).
  *
  * Why this file exists rather than a change to `./shared`:
  *

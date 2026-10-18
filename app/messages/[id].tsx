@@ -1,7 +1,7 @@
 import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Message thread — `/messages/[id]`. The Finder port of OPES MSG-002
- * (`UIUX/src/screens/chat/MessageThreadScreen.tsx`).
+ * (design reference `src/screens/chat/MessageThreadScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md)).
  *
  * Data is the existing layer, untouched: `useMessageThread(id)` loads the
  * conversation from `GET /mobile/messages/threads/{id}` (which marks it read

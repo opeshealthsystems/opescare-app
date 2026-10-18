@@ -2,7 +2,7 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 /**
  * Sample Collection — `/labs/sample[?appointmentId=…]`.
  *
- * Port of OPES DIA-005 (UIUX/src/screens/diagnostics/SampleCollectionScreen.tsx):
+ * Port of OPES DIA-005 (design reference src/screens/diagnostics/SampleCollectionScreen.tsx (archived prototype, see docs/DESIGN_REFERENCE.md)):
  * where and when to give a sample, who it is for, who ordered it, what the
  * laboratory is still waiting on, and the patient's other lab visits.
  *

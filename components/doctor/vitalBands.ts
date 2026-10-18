@@ -1,7 +1,7 @@
 /**
  * Reference bands for the vitals a chart shows.
  *
- * Port of `UIUX/src/utils/vitalBands.ts`, which `chartShared.tsx` depends on
+ * Port of design reference `src/utils/vitalBands.ts` (archived prototype, see docs/DESIGN_REFERENCE.md), which `chartShared.tsx` depends on
  * and this app did not yet carry. It lives under `components/doctor/` rather
  * than a shared `lib/` because the clinician chart is its only consumer today.
  *

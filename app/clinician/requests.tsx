@@ -1,7 +1,7 @@
 /**
  * Doctor — Appointment Requests (`/clinician/requests`).
  *
- * Port of `UIUX/src/screens/doctor/AppointmentRequestsScreen.tsx` onto
+ * Port of design reference `src/screens/doctor/AppointmentRequestsScreen.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) onto
  * expo-router, the OPES UI kit and this app's doctor foundation.
  *
  * A "request" is not a separate API object: a booking lands as an appointment

@@ -1,6 +1,6 @@
 /**
  * Shared plumbing for the meds slice — the prescriptions list / detail and the
- * pharmacy screens. Port of `UIUX/src/screens/meds/shared.tsx` onto the
+ * pharmacy screens. Port of design reference `src/screens/meds/shared.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md) onto the
  * installed kit (`@/components/opes-ui`), expo-router and the app's i18next
  * (`opesMeds.*` keys).
  *

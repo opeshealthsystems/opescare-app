@@ -1,7 +1,7 @@
 /**
  * Shared pieces for the doctor's schedule slice.
  *
- * Port of `UIUX/src/screens/doctor/scheduleShared.tsx`. Composition only:
+ * Port of design reference `src/screens/doctor/scheduleShared.tsx` (archived prototype, see docs/DESIGN_REFERENCE.md). Composition only:
  * every colour, radius, type size and icon comes from `@/components/opes-ui`,
  * and the date formatting plus the status pill are the patient side's own
  * (`@/components/care/shared`). A doctor screen shows different *facts* from a

@@ -29,7 +29,6 @@ import {
 import { FieldLabel, FormError, Note } from '@/components/enrol/shared';
 import { Screen } from '@/components/ui/Screen';
 import { AnimatedSeal } from '@/components/auth/AnimatedSeal';
-import { GoogleMark } from '@/components/icons/GoogleMark';
 import { routeToClinicianArea, useAuthStore } from '@/lib/store/auth';
 import {
   isProviderAuthUnavailable,
@@ -371,35 +370,7 @@ export default function LoginScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Google / Apple sign-in has no backend: the mobile auth surface
-           * exposes only email+password, phone+PIN -> OTP and password reset
-           * (lib/api/endpoints.ts). Rather than ship two rows that swallow a
-           * tap, they render disabled and say so. */}
           <Card variant="flush">
-            <ListRow
-              leading={
-                <View style={styles.mutedCircle}>
-                  <GoogleMark size={18} color={colors.textMuted} strokeWidth={1.8} />
-                </View>
-              }
-              title={t('auth.continueWithGoogle')}
-              trailing={<StatusBadge status="soon" tone="neutral" label={t('auth.soon')} size="sm" />}
-              chevron={false}
-              accessibilityLabel={`${t('auth.continueWithGoogle')} — ${t('auth.soon')}`}
-              divider
-            />
-            <ListRow
-              leading={
-                <View style={styles.mutedCircle}>
-                  <Icon name="id-card" size={20} color={colors.textMuted} />
-                </View>
-              }
-              title={t('auth.continueWithApple')}
-              trailing={<StatusBadge status="soon" tone="neutral" label={t('auth.soon')} size="sm" />}
-              chevron={false}
-              accessibilityLabel={`${t('auth.continueWithApple')} — ${t('auth.soon')}`}
-              divider
-            />
             <ListRow
               icon="shield-check"
               tint="blue"
@@ -416,7 +387,6 @@ export default function LoginScreen() {
               accessibilityLabel={`${t('auth.signInWithHealthId')} — ${t('auth.recommended')}`}
             />
           </Card>
-          <Text style={styles.meta}>{t('auth.socialUnavailable')}</Text>
 
           <Note icon="lock" text={t('auth.encryptionNote')} />
 

@@ -313,7 +313,7 @@ export default function BloodFinderScreen() {
    * patient declines, or the fix fails, the city picker stays the origin — the
    * search never silently stops working.
    */
-  const useMyLocation = useCallback(async () => {
+  const handleUseMyLocation = useCallback(async () => {
     setLocating(true);
     setLocationDenied(false);
     setSheet(null);
@@ -447,7 +447,7 @@ export default function BloodFinderScreen() {
     {
       icon: 'location' as IconName,
       onPress: () => {
-        void useMyLocation();
+        void handleUseMyLocation();
       },
       accessibilityLabel: t('bloodFinder.useMyLocation'),
     },
@@ -750,7 +750,7 @@ export default function BloodFinderScreen() {
                   {/* The reference's crosshair: one tap for a real GPS fix. */}
                   <TouchableOpacity
                     onPress={() => {
-                      void useMyLocation();
+                      void handleUseMyLocation();
                     }}
                     hitSlop={8}
                     accessibilityRole="button"

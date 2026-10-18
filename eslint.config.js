@@ -28,11 +28,4 @@ module.exports = defineConfig([
     files: ['__tests__/**', 'jest.setup.js'],
     languageOptions: { globals: { ...globals.jest } },
   },
-  {
-    // False positive: `useMyLocation` here is a useCallback handler, not a hook,
-    // so calling it from onPress is correct. Renaming it belongs to the screen's
-    // owner; until then the rule is off for this one file.
-    files: ['app/blood-finder.tsx'],
-    rules: { 'react-hooks/rules-of-hooks': 'off' },
-  },
 ]);

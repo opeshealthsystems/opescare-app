@@ -161,3 +161,19 @@ sha256sum playstore/artifacts/<file>
 | **EAS URL** | `https://expo.dev/artifacts/eas/lvnPR_CGioQykTsMV_BG_j9AB5mhYFdxy5orhHbbBEY.aab` | `https://expo.dev/artifacts/eas/XN35qrQAtk4WSHfG6rUDHN0k2LLJ_FnPPmYF1ABcSdc.apk` |
 
 Build 6 targeted finder.opescare.cloud and must not be uploaded.
+
+---
+
+## 1.5.0 — builds 14 (AAB) and 15 (APK) — supersede every earlier build
+
+| | AAB (Play upload) | APK (testers) |
+| --- | --- | --- |
+| **EAS build id** | `72a48ccb-7547-4643-a2cc-7a5227103e52` | `559e1f0f-a4c1-4c79-b671-c6f1868d722e` |
+| **versionCode** | 14 | 15 |
+| **API / channel** | `https://opescare.com/api` / `production` | `https://opescare.com/api` / `demo` |
+| **Runtime (OTA)** | 1.5.0 | 1.5.0 |
+| **Commit** | `418d5a1` | `418d5a1` |
+| **EAS URL** | `https://expo.dev/artifacts/eas/yGiFQhwe7XNbCLamestB0O5qmpnepodqEI-b3Jjo2wY.aab` | `https://expo.dev/artifacts/eas/FyGEVyMEiKBSaigg9pnjRHCi-jK1GwB6cz36q7ChnHE.apk` |
+
+First OTA updates published 2026-10-18 on `production` (443d826e) and `demo` (ab4b50c0), runtime 1.5.0.
+Builds 1–13 carry runtime 1.4.0 or no updater and receive no OTA.

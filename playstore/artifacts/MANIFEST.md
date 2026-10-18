@@ -133,3 +133,16 @@ binary a given row describes.
 ```bash
 sha256sum playstore/artifacts/<file>
 ```
+
+---
+
+## OpesCare-1.4.0-build6.aab — first Play upload
+
+| | |
+| --- | --- |
+| **Built** | 18 October 2026 |
+| **EAS build id** | `91abad67-0d06-4cc3-bff9-f2289b498bab` |
+| **Profile** | `production` — AAB, API `https://finder.opescare.cloud/api` (demo backend, on purpose), no push (Firebase in the next update) |
+| **Package / versionName / versionCode** | `com.opescare.patientid` / `1.4.0` / `6` |
+| **Commit** | `817c139` |
+| **EAS URL** | `https://expo.dev/artifacts/eas/OHaOR1w59py6l8C8IOUxNEpdVULU0qgAWxzVOBKeuc8.aab` |

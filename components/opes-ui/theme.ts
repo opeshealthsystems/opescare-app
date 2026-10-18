@@ -109,9 +109,9 @@ export const opesPalette = {
   statusPending: '#055BFD',
   statusPendingBg: '#EAF0FE',
 
-  /** "Rescheduled", secondary/purple accent. CARE-001 #8942B4 */
-  statusInfo: '#7B2FB0',
-  statusInfoBg: '#EFDFF9',
+  /** "Rescheduled", secondary accent. Teal, not the reference purple: the brand is #0F4C81 and never purple. */
+  statusInfo: '#0E7C86',
+  statusInfoBg: '#E3F4F5',
 
   /** Red notification dot on the Messages tab. CARE-001 #F03336 */
   badge: '#F03336',
@@ -131,9 +131,9 @@ export const opesPalette = {
   /** Imaging / appointments / documents. CORE-006 chip #ECF3FE, stroke #004FFC */
   tintBlue: '#055BFD',
   tintBlueBg: '#ECF3FE',
-  /** Consultations / referrals / rescheduled. CORE-006 chip #F2ECFE, stroke #8942B4 */
-  tintPurple: '#7B2FB0',
-  tintPurpleBg: '#F2ECFE',
+  /** Consultations / referrals / rescheduled. Teal accent (the reference used purple, which the brand forbids). */
+  tintPurple: '#0E7C86',
+  tintPurpleBg: '#E3F4F5',
   /** Reminders / warnings / cancelled. CARE-001 chip #FEEED0, stroke #F98A00 */
   tintAmber: '#F98A00',
   tintAmberBg: '#FEEED0',

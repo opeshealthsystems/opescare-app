@@ -21,7 +21,7 @@ Location.
 | **Health and fitness** — health info | Yes | No | App functionality | The purpose of the app: consultations, prescriptions, laboratory results, allergies, vital signs, immunisations, appointments. Released to a facility only under a consent grant. |
 | **Photos** | Yes, optional | No | App functionality | One profile photo for the Health ID card, chosen by the patient. Stored privately, served through signed URLs. |
 | **Financial info** — see note 1 | Yes | No | App functionality | Paying sends the mobile-money number (`msisdn`), the method and a whole-franc amount to the OpesCare API. |
-| **Location** — approximate and precise | **No** | No | — | **Accessed, never collected.** See note 2. |
+| **Location** — approximate and precise | **Yes** | No | App functionality | Sent with a "near me" search so the server can rank pharmacies and blood banks by distance. Not stored, not shared, foreground only. See note 2. |
 | **Messages** | Yes | No | App functionality | In-app messages between a patient and their care team. |
 | **Device or other IDs** | Yes | Yes — see note 3 | App functionality | A device fingerprint and a push token, to deliver notifications. |
 | **App activity, crash logs, diagnostics** | **No** | No | — | No analytics or crash SDK is bundled. No Firebase Analytics, no Sentry, no advertising ID. Verified in `package.json`. |
@@ -36,17 +36,19 @@ Whether Play files an MSISDN under *Payment info* or under *Personal info →
 phone number* is a question about your payment flow, not about the code.
 Decide it explicitly; do not let it default.
 
-### Note 2 — location is accessed, never collected
+### Note 2 — location is collected, ephemerally
 
-This is worth stating precisely because the permission list suggests otherwise.
+Corrected 2026-10-18. An earlier version said the coordinates never leave the
+device; that was wrong. The **nearby-pharmacy** and **blood search** requests
+send the device's `lat`/`lng` to the OpesCare API (`lib/api/queries.ts` —
+`useNearbyPharmacies`, `useBloodSearch`) so results come back ranked by
+distance. The Care Map directory still sends only a city name.
 
-The Care Map and the blood finder read the device's coordinates on tap, and the
-coordinates **never leave the device**. The directory endpoint takes only `q`,
-`type` and `city`; distance and "sort by nearest" are computed client-side
-(`app/care-map.tsx`, `app/blood-finder.tsx`, `lib/api/careMapQueries.ts`).
-
-Declare Location as **accessed but not collected**. It is accurate and it is
-verifiable if anyone asks.
+Declare **Approximate location** and **Precise location** as **Collected**,
+**not shared**, purpose **App functionality**, and tick **processed
+ephemerally** — provided the API does not persist the coordinates (confirm on
+the backend before you tick it; if it logs them, leave ephemeral unticked).
+Location is optional: every search also works with a typed city.
 
 ### Note 3 — push is a genuine third-party transfer
 

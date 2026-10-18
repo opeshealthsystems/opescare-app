@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, type ViewStyle } from 'react-native';
+import { Linking, View, type ViewStyle } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { embedMapUrl, type MapFacility, type MapVariant } from '../../lib/embedMapUrl';
@@ -36,13 +36,24 @@ export function FacilityMap({
 }: Props) {
   const url = embedMapUrl(facilities, { directions, variant, center, radiusKm, labels });
   if (!url) return null;
+  const origin = new URL(url).origin;
 
   return (
     <View style={[{ height, borderRadius: 14, overflow: 'hidden' }, style]}>
       <WebView
         source={{ uri: url }}
         style={{ flex: 1, backgroundColor: 'transparent' }}
-        originWhitelist={['*']}
+        // The frame may only ever show the finder's own map. Any other
+        // top-level navigation (an attribution link, say) leaves the app for
+        // the browser instead of loading inside a geolocation-enabled view.
+        originWhitelist={[origin]}
+        onShouldStartLoadWithRequest={(req) => {
+          if (req.url.startsWith(origin) || req.url === 'about:blank') return true;
+          if (req.isTopFrame !== false && /^https:\/\//i.test(req.url)) {
+            Linking.openURL(req.url).catch(() => undefined);
+          }
+          return req.isTopFrame === false;
+        }}
         geolocationEnabled
         javaScriptEnabled
         domStorageEnabled

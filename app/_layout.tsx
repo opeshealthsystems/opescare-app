@@ -2,7 +2,8 @@ import '../global.css';
 import '../lib/i18n';
 import { useEffect, useState } from 'react';
 import { Stack, router, useRouter, useSegments } from 'expo-router';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '../lib/session/wipe';
 import * as SplashScreen from 'expo-splash-screen';
 import {
   useFonts,
@@ -80,7 +81,6 @@ setDefaultBackHandler(() => {
   router.replace(useAuthStore.getState().provider ? '/clinician/home' : '/(tabs)/home');
 });
 
-const queryClient = new QueryClient();
 
 /**
  * The user's chosen palette ('opescare' default | 'opes'). Persisted here — in

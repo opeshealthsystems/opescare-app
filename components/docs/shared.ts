@@ -19,6 +19,7 @@
  * the kit's `AsyncBoundary` (loading / not-linked / error / stale) without
  * abandoning their existing query hooks.
  */
+import { openExternal } from '@/lib/openExternal';
 import i18next from 'i18next';
 import { Linking, Platform, Share } from 'react-native';
 import { formatDate, formatDateLong, formatTime } from '@/components/opes-ui';
@@ -100,7 +101,7 @@ export async function openDocument(documentId: string): Promise<void> {
   // `canOpenURL` is meaningless for https on the web build; only gate natively.
   const ok = Platform.OS === 'web' ? true : await Linking.canOpenURL(url);
   if (!ok) throw new Error(tr('opesDocs.shared.cannotOpen'));
-  await Linking.openURL(url);
+  await openExternal(url);
 }
 
 /** Native share sheet carrying the verification link. */
@@ -111,7 +112,7 @@ export async function shareDocumentLink(documentId: string, title: string): Prom
   } catch {
     // react-native-web only has a share sheet where `navigator.share` exists;
     // elsewhere the link still reaches the patient through the browser.
-    await Linking.openURL(url);
+    await openExternal(url);
   }
 }
 

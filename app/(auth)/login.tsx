@@ -36,91 +36,7 @@ import {
   isProviderCredentialsRejected,
   looksLikeProviderAccount,
 } from '@/lib/api/providerQueries';
-
-/**
- * The demo clinician's credentials.
- *
- * Overridable at export time so a deployment can point the demo at whichever
- * clinician its seeder actually created, without a code change. The default
- * follows the Finder demo convention (`demo.<role>@opescare.test` / `demo1234`).
- */
-const DEMO_CLINICIAN_EMAIL =
-  process.env.EXPO_PUBLIC_DEMO_CLINICIAN_EMAIL ?? 'demo.doctor@opescare.test';
-const DEMO_CLINICIAN_PASSWORD = process.env.EXPO_PUBLIC_DEMO_CLINICIAN_PASSWORD ?? 'demo1234';
-
-/** One-tap demo sign-in. Shown when the build is a demo build (or in dev):
- * this app is deployed as a public demo, where a visitor has no credentials
- * and an empty login screen is a dead end.
- *
- * The clinician entry is a REAL sign-in: it posts the demo clinician's
- * credentials to `/mobile/auth/provider/login`, and when that succeeds the
- * session is an actual provider token with actual clinician data behind it.
- * Only when the server serves no provider auth AT ALL does it fall back to the
- * old behaviour — the demo patient session plus the clinician UI preview — and
- * the notice under the menu then says exactly that. A server that HAS the
- * endpoint and refuses these credentials is reported, never papered over. */
-const DEMO_ACCOUNTS = [
-  {
-    key: 'patient',
-    icon: 'person',
-    labelKey: 'auth.demoLoginPatient',
-    email: 'demo.patient@opescare.test',
-    password: 'demo1234',
-    clinician: false,
-  },
-  {
-    // A second patient with a verified identity and the full clinical story
-    // (DemoPatientStorySeeder), so a reviewer sees every state of the Health
-    // ID card and every screen populated without typing anything.
-    key: 'reviewer',
-    icon: 'shield-check',
-    labelKey: 'auth.demoLoginReviewer',
-    email: 'demo.reviewer@opescare.test',
-    password: 'demo1234',
-    clinician: false,
-  },
-  // Children: the boy and girl anatomical holograms on a real credential.
-  { key: 'boy', icon: 'baby', labelKey: 'auth.demoLoginBoy', email: 'demo.boy@opescare.test', password: 'demo1234', clinician: false },
-  { key: 'girl', icon: 'baby', labelKey: 'auth.demoLoginGirl', email: 'demo.girl@opescare.test', password: 'demo1234', clinician: false },
-  // Family: the guardian who holds both children's links (full access), and
-  // the older person whose son sees her record read-only — the two sides of
-  // app/family. Seeded by the backend's DemoFamilySeeder.
-  { key: 'guardian', icon: 'users', labelKey: 'auth.demoLoginGuardian', email: 'demo.guardian@opescare.test', password: 'demo1234', clinician: false },
-  { key: 'grandmother', icon: 'person', labelKey: 'auth.demoLoginGrandmother', email: 'demo.grandmother@opescare.test', password: 'demo1234', clinician: false },
-  {
-    key: 'doctor',
-    icon: 'stethoscope',
-    labelKey: 'auth.demoLoginDoctor',
-    email: DEMO_CLINICIAN_EMAIL,
-    password: DEMO_CLINICIAN_PASSWORD,
-    clinician: true,
-  },
-  // The other staff the Finder seeds. Same real provider sign-in as the
-  // doctor; the clinician area adapts (no prescribing for non-prescribers).
-  { key: 'nurse', icon: 'activity', labelKey: 'auth.demoLoginNurse', email: 'demo.nurse@opescare.test', password: 'demo1234', clinician: true },
-  { key: 'pharmacist', icon: 'pill', labelKey: 'auth.demoLoginPharmacist', email: 'demo.pharmacist@opescare.test', password: 'demo1234', clinician: true },
-  { key: 'labtech', icon: 'flask', labelKey: 'auth.demoLoginLabtech', email: 'demo.labtech@opescare.test', password: 'demo1234', clinician: true },
-  { key: 'receptionist', icon: 'clipboard', labelKey: 'auth.demoLoginReceptionist', email: 'demo.receptionist@opescare.test', password: 'demo1234', clinician: true },
-] as const satisfies readonly {
-  key: string;
-  icon: IconName;
-  labelKey: string;
-  email: string | null;
-  password: string | null;
-  clinician: boolean;
-}[];
-
-/** The patient account the clinician preview falls back onto — on a server with
- * no provider auth it is the only way into the app at all. */
-const DEMO_PATIENT = DEMO_ACCOUNTS[0];
-
-/**
- * "Remember my email" persistence. Only the identifier is stored — never the
- * password — and it is kept separately from the session token so clearing it
- * never touches auth state. Mirrors the platform split the auth store uses,
- * because expo-secure-store is a no-op on web.
- */
-const REMEMBERED_EMAIL_KEY = 'opescare_remembered_email';
+import type { DemoAccount } from '@/lib/auth/demoAccounts';
 
 /**
  * Demo sign-in is visible in development, and in any build exported with
@@ -131,6 +47,23 @@ const SHOW_DEMO_LOGINS =
   __DEV__ ||
   process.env.EXPO_PUBLIC_DEMO_LOGINS === '1' ||
   process.env.EXPO_PUBLIC_DEMO_LOGINS === 'true';
+
+/** The patient account the clinician preview falls back onto — on a server with
+ * no provider auth it is the only way into the app at all. */
+const DEMO_ACCOUNTS: readonly DemoAccount[] = SHOW_DEMO_LOGINS
+  ? // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('@/lib/auth/demoAccounts').DEMO_ACCOUNTS
+  : [];
+const DEMO_PATIENT: DemoAccount | undefined = DEMO_ACCOUNTS[0];
+
+/**
+ * "Remember my email" persistence. Only the identifier is stored — never the
+ * password — and it is kept separately from the session token so clearing it
+ * never touches auth state. Mirrors the platform split the auth store uses,
+ * because expo-secure-store is a no-op on web.
+ */
+const REMEMBERED_EMAIL_KEY = 'opescare_remembered_email';
+
 
 interface RememberedEmailStore {
   get: () => Promise<string | null>;
@@ -214,7 +147,7 @@ export default function LoginScreen() {
     }
   };
 
-  const handleSelectDemoAccount = async (account: (typeof DEMO_ACCOUNTS)[number]) => {
+  const handleSelectDemoAccount = async (account: DemoAccount) => {
     setDemoMenuOpen(false);
     if (!account.email || !account.password) return;
 
@@ -257,6 +190,7 @@ export default function LoginScreen() {
       setDemoNotice(t('auth.demoDoctorNotice'));
       useAuthStore.getState().previewClinician(true);
       try {
+        if (!DEMO_PATIENT) return;
         await loginWithEmail(DEMO_PATIENT.email, DEMO_PATIENT.password);
         // Only jump to the clinician side once the session has actually
         // settled. A first-run device lands on the permissions primer instead,
@@ -514,7 +448,7 @@ function DemoAccountPicker({
   open: boolean;
   notice: string | null;
   onToggle: () => void;
-  onSelect: (account: (typeof DEMO_ACCOUNTS)[number]) => void;
+  onSelect: (account: DemoAccount) => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();

@@ -1,3 +1,4 @@
+import { openExternal } from '@/lib/openExternal';
 import { useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
@@ -526,7 +527,7 @@ export default function FacilityDetailScreen() {
   const phoneSecondary = usablePhone(facility?.phone_secondary);
 
   const openUrl = (url: string) => {
-    Linking.openURL(url).catch(() => {});
+    openExternal(url).catch(() => {});
   };
 
   /* ── Bookability, read straight off the slots endpoint ─────────────── */

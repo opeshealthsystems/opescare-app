@@ -16,7 +16,7 @@ triggers Play's declaration flow or a sensitive-permission review.
 
 | Permission | Why it is there |
 | --- | --- |
-| `ACCESS_FINE_LOCATION`<br>`ACCESS_COARSE_LOCATION` | Sorting the Care Map and the blood finder by distance. Foreground only, requested on tap, and the reading never leaves the device — see `data-safety.md`, note 2. |
+| `ACCESS_FINE_LOCATION`<br>`ACCESS_COARSE_LOCATION` | Sorting the Care Map and the blood finder by distance. Foreground only, requested on tap; the coordinates go with a "near me" search and are not stored — see `data-safety.md`, note 2. |
 | `CAMERA` | Taking the portrait for the Health ID card, and the clinician QR scanner that reads a patient's credential. |
 | `POST_NOTIFICATIONS` | Consent requests, laboratory results, appointment reminders. |
 | `USE_BIOMETRIC`<br>`USE_FINGERPRINT` | Unlocking the app and Presentation Mode without retyping a PIN in front of whoever is asking to see the card. |

@@ -18,6 +18,7 @@
  * affordance. GET /mobile/documents is empty for most patients, so the empty
  * state reads as "nothing has been issued yet" with a real next step.
  */
+import { openExternal } from '@/lib/openExternal';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -145,7 +146,7 @@ export default function DocumentsScreen() {
       return;
     }
     try {
-      await Linking.openURL(doc.download_url);
+      await openExternal(doc.download_url);
     } catch {
       setNotice({ tone: 'critical', message: t('documents.viewError') });
     }
@@ -165,7 +166,7 @@ export default function DocumentsScreen() {
           return;
         }
         try {
-          await Linking.openURL(d.verify_url);
+          await openExternal(d.verify_url);
         } catch {
           setNotice({ tone: 'critical', message: t('documents.viewError') });
         }

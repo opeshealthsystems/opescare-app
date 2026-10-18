@@ -1,5 +1,7 @@
 # Google Play readiness — `cloud.opescare.finder`
 
+> **Superseded 2026-10-18 by [`LAUNCH_AUDIT.md`](LAUNCH_AUDIT.md).** Kept as the September record; the package is now `com.opescare.patientid` and B1–B3 below are closed.
+
 **Audited:** 2026-09-07 · **App version:** `1.0.0` · **Expo SDK 57** (`expo ~57.0.20`,
 React Native 0.86.3) · **Package:** `cloud.opescare.finder`
 

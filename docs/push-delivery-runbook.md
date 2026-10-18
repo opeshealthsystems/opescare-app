@@ -1,6 +1,6 @@
 # OpesCare Finder — push delivery runbook
 
-**Written:** 2026-09-06 · **App:** `cloud.opescare.finder`, Expo SDK 57 ·
+**Written:** 2026-09-06 · **App:** `com.opescare.patientid`, Expo SDK 57 ·
 **Server half:** `App\Services\ExpoPushService` in the API repo
 
 This is the list of things only the **owner** can do to turn the app's push
@@ -106,7 +106,7 @@ there is no placeholder that "works".
 1. <https://console.firebase.google.com> → **Add project** (e.g. "OpesCare
    Finder"). Analytics can stay off.
 2. In the project: **Add app → Android**. Package name **exactly**
-   `cloud.opescare.finder` (this must match `android.package` in `app.json`,
+   `com.opescare.patientid` (this must match `android.package` in `app.json`,
    or every push fails with `MismatchSenderId`). Nickname anything. SHA-1 is
    not needed for push.
 3. **Download `google-services.json`.** Save it **outside the repo**, e.g.
@@ -419,7 +419,7 @@ Reference for whoever maintains this; nothing here needs the owner.
   `OPESCARE_BUILD_WITHOUT_PUSH=1` (the `local-api` profile sets that — it
   is a LAN API-testing build, not a push build).
 - **`app.json`** — `ios.bundleIdentifier` / `android.package` =
-  `cloud.opescare.finder` (unchanged; the Firebase Android app and the App
+  `com.opescare.patientid` (unchanged; the Firebase Android app and the App
   Store record must use exactly this); `ios.infoPlist.UIBackgroundModes`
   includes `remote-notification`; `android.permissions` includes
   `POST_NOTIFICATIONS`; the `expo-notifications` plugin carries the icon,

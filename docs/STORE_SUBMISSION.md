@@ -1,7 +1,7 @@
 # OpesCare Finder — App Store & Google Play submission readiness
 
 **Audited:** 2026-09-05 · **Build audited:** `master`, app version `1.0.0` ·
-**Bundle ID / package:** `cloud.opescare.finder`
+**Bundle ID / package:** `com.opescare.patientid`
 
 ---
 
@@ -590,8 +590,8 @@ be done by an agent**.
    five years; losing it means you can never update the app under this package
    name.**
 4. **Register the app in both consoles.** App Store Connect: new app, bundle ID
-   `cloud.opescare.finder`. Play Console: new app, package
-   `cloud.opescare.finder`. Then fill `submit.production` in `eas.json` with
+   `com.opescare.patientid`. Play Console: new app, package
+   `com.opescare.patientid`. Then fill `submit.production` in `eas.json` with
    `ascAppId` / `appleTeamId` and the Play service-account JSON path.
 
    *— everything above this line is owner-only; everything below is ordinary work —*

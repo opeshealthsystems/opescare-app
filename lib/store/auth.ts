@@ -7,6 +7,7 @@ import { endpoints } from '../api/endpoints';
 import { revokePushTokensOnThisDevice } from '../api/queries';
 import { clearPushRegistration, getOrCreateFingerprint } from '../push/device';
 import { tokenStorage } from '../api/tokenStorage';
+import { wipeSessionData } from '../session/wipe';
 import { getCachedDemographics, isNetworkError } from '../offline/cache';
 import {
   fetchProviderMe as fetchProviderAccount,
@@ -642,6 +643,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await clearPushRegistration().catch(() => undefined);
 
     await clearStoredSession();
+    await wipeSessionData();
 
     // The preview is a demo affordance, not a property of the device: leaving
     // it on would hand the clinician UI to whoever signs in next.
@@ -674,6 +676,7 @@ setSessionExpiredHandler(() => {
   // `client.ts` has already cleared the token; clear the kind marker with it so
   // the next launch cannot read a dead provider session out of a bare flag.
   void sessionKindStorage.clear().catch(() => {});
+  void wipeSessionData();
   useAuthStore.setState({
     status: 'unauthenticated',
     patient: null,

@@ -116,10 +116,14 @@ async function deliverOnWeb(file: DeliverableFile): Promise<FileDeliveryOutcome>
  * the file, so it reports `saved`, never a failure.
  */
 async function deliverOnNative(file: DeliverableFile): Promise<FileDeliveryOutcome> {
-  const directory = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
+  // Exports go to an `exports/` folder in the CACHE, not documents: a health
+  // record must not sit on the phone indefinitely after it has been shared,
+  // and signing out sweeps this folder (clearExportedFiles).
+  const directory = exportDirectory();
   if (!directory) {
     throw new FileDeliveryError('This device has no writable location for the export.');
   }
+  await FileSystem.makeDirectoryAsync(directory, { intermediates: true }).catch(() => undefined);
 
   const uri = `${directory}${file.filename}`;
   await FileSystem.writeAsStringAsync(uri, file.data, {
@@ -138,6 +142,17 @@ async function deliverOnNative(file: DeliverableFile): Promise<FileDeliveryOutco
   } catch {
     return 'saved';
   }
+}
+
+function exportDirectory(): string | null {
+  return FileSystem.cacheDirectory ? `${FileSystem.cacheDirectory}exports/` : null;
+}
+
+/** Delete every exported file. Called when the session ends. */
+export async function clearExportedFiles(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  const directory = exportDirectory();
+  if (directory) await FileSystem.deleteAsync(directory, { idempotent: true });
 }
 
 /**

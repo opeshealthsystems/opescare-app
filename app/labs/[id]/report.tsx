@@ -29,6 +29,7 @@
  * A failed read renders
  * the kit `EmptyState` (`LabsUnavailable`), never a crash or an endless spinner.
  */
+import { openExternal } from '@/lib/openExternal';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Linking,
@@ -173,7 +174,7 @@ export default function LabReportFullScreen() {
         return;
       }
       try {
-        await Linking.openURL(document.download_url);
+        await openExternal(document.download_url);
       } catch (e) {
         dialog.alert(
           tx('report.failOpenTitle', 'The report would not open'),

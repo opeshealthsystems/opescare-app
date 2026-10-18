@@ -1,3 +1,4 @@
+import { openExternal } from '@/lib/openExternal';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -281,7 +282,7 @@ function formatFullDateTime(iso: string) {
 }
 
 const openUrl = (url: string) => {
-  Linking.openURL(url).catch(() => {});
+  openExternal(url).catch(() => {});
 };
 
 // ── presentational pieces ─────────────────────────────────────────────────

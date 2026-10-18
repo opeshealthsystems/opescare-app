@@ -30,6 +30,7 @@ verified against code or a command, not documentation.
 | Medium | Exported PDFs kept forever in the documents folder | Written to `cache/exports/`, swept on sign-out |
 | Brand | Purple accent (`#7B2FB0`) on home, records, profile, booking | Remapped in the theme to teal `#0E7C86` — one place, every screen |
 | Docs | Package name `cloud.opescare.finder` in the push runbook and store submission doc (the Firebase app must match the real package) | Corrected to `com.opescare.patientid` |
+| High | No TLS pinning: a user-installed or rogue CA could intercept API traffic on Android | `plugins/withNetworkSecurityConfig.js` writes `network_security_config.xml`: `opescare.com` + subdomains pinned to the SPKI SHA-256 of Let's Encrypt roots ISRG X1, X2 and Root YE (never the leaf, so renewals are safe); pin-set expires 2027-10-18 and then fails open — refresh before then. Cleartext stays off except the `local-api` http profile |
 | Hygiene | No quality scripts | `npm run typecheck`, `audit:nav`, `doctor`, `verify` |
 
 ## 3. Passing as-is

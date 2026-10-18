@@ -76,6 +76,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/withNetworkSecurityConfig",
       "expo-status-bar",
       "expo-secure-store",
       "expo-localization",

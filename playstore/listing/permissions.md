@@ -43,5 +43,6 @@ the shipped manifest:
 | --- | --- | --- |
 | `android:allowBackup` | `false` | Android Auto Backup would copy app data to the user's Google Drive. Everything persisted is `expo-secure-store` ciphertext whose Keystore key is device-bound and never backed up — so a restore would hand the app data it cannot read, and would put a health app's storage in a consumer cloud backup for no benefit. |
 | `usesCleartextTraffic` | absent | HTTPS only. Set solely by the `local-api` development profile. |
+| `networkSecurityConfig` | `@xml/network_security_config` | TLS pinning for `opescare.com` (Let's Encrypt roots, expires 2027-10-18). No permission involved. |
 | `targetSdkVersion` | `36` | Above Play's floor of 35. |
 | `minSdkVersion` | `24` | Android 7.0 and up. |

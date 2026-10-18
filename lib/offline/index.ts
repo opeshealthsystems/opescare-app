@@ -30,7 +30,7 @@ export * from './sync';
  * patient opts in on app/offline-access.tsx.
  */
 export function initOfflineMode(queryClient: QueryClient): () => void {
-  const teardowns: Array<() => void> = [];
+  const teardowns: (() => void)[] = [];
 
   // `patient_id` is only ever returned on an auth response, and the offline
   // policy endpoint requires it. Capture it as sessions are created so no

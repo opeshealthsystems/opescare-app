@@ -91,7 +91,7 @@ export function Barcode({
   const unit = width / total;
 
   // Modules alternate bar, space, bar, space… starting with a bar.
-  const bars: Array<{ x: number; w: number }> = [];
+  const bars: { x: number; w: number }[] = [];
   let x = 0;
   modules.forEach((moduleWidth, i) => {
     const w = moduleWidth * unit;

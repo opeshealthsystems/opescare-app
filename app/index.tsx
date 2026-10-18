@@ -50,13 +50,13 @@ const MARK_SIZE = 96;
  * splash references' watermark. Positions are fractions of the viewport so
  * the scatter holds its composition on any device, and the centre band
  * (y 0.36–0.64) is left clear for the mark. Purely decorative. */
-const BACKGROUND_ICONS: Array<{
+const BACKGROUND_ICONS: {
   Icon: LucideIcon;
   x: number;
   y: number;
   size: number;
   rotate?: string;
-}> = [
+}[] = [
   { Icon: ClipboardList, x: 0.42, y: 0.06, size: 30, rotate: '-8deg' },
   { Icon: Cross, x: 0.78, y: 0.07, size: 24 },
   { Icon: Dna, x: 0.13, y: 0.12, size: 30, rotate: '-6deg' },

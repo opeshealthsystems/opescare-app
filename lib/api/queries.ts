@@ -1413,7 +1413,7 @@ export interface MedicalRecordFhirExport {
   type: string;
   timestamp: string;
   total: number;
-  entry: Array<{ resource: Record<string, unknown> }>;
+  entry: { resource: Record<string, unknown> }[];
 }
 
 export function useExportMedicalRecordsFhir() {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 /**
  * Records hub — the patient's longitudinal clinical record.
  *
@@ -23,7 +23,7 @@ import React from 'react';
  * empty when it merely failed.
  */
 import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
-import { useMemo, useState } from 'react';
+
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';

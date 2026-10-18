@@ -515,7 +515,7 @@ function SecurePrivateCard() {
   );
 }
 
-const REQUIREMENT_KEYS: Array<{ key: keyof PasswordChecks; label: string }> = [
+const REQUIREMENT_KEYS: { key: keyof PasswordChecks; label: string }[] = [
   { key: 'length', label: 'forgotPassword.reqLength' },
   { key: 'case', label: 'forgotPassword.reqCase' },
   { key: 'number', label: 'forgotPassword.reqNumber' },

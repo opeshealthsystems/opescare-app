@@ -55,7 +55,7 @@ const GLYPHS: Glyph[] = [
 
 /** Hairline threads + nodes — the faint "connected network" motif behind the
  * glyphs in the references. Coordinates are window fractions. */
-const THREADS: Array<Array<[number, number]>> = [
+const THREADS: [number, number][][] = [
   [
     [0.0, 0.12],
     [0.14, 0.06],
@@ -73,7 +73,7 @@ const THREADS: Array<Array<[number, number]>> = [
   ],
 ];
 
-const NODES: Array<[number, number, number]> = [
+const NODES: [number, number, number][] = [
   [0.14, 0.06, 3],
   [0.29, 0.13, 2],
   [0.75, 0.11, 3],

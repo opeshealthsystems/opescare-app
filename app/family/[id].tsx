@@ -57,7 +57,7 @@ import {
   ProfileScreen as ProfileFrame,
   TrustChips,
 } from '@/components/profile';
-import type { TemporaryQrCode } from '@/lib/api/types';
+import type { TemporaryQrCode , TimelineEvent } from '@/lib/api/types';
 import {
   AccessBadge,
   FamilyErrorState,
@@ -80,7 +80,6 @@ import {
 } from '@/lib/api/familyQueries';
 import type { PrescriptionSummary } from '@/lib/api/queries';
 import type { PortalLabOrder } from '@/lib/api/labsQueries';
-import type { TimelineEvent } from '@/lib/api/types';
 
 type Tab = 'summary' | 'immunisations' | 'appointments' | 'records';
 const TABS: Tab[] = ['summary', 'immunisations', 'appointments', 'records'];

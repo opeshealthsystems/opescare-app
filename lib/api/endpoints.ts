@@ -134,6 +134,8 @@ export const endpoints = {
   // App\Modules\Offline\Services\SyncService for later reconciliation.
   offlinePolicies: '/mobile/offline/policies',
   offlinePolicyQueue: (policyId: string) => `/mobile/offline/policies/${policyId}/queue`,
+  // Server-side revocation of the caller's own policy (idempotent).
+  offlinePolicyRevoke: (policyId: string) => `/mobile/offline/policies/${policyId}/revoke`,
 
   // Pharmacy DESK — the PHARMACIST'S side of `/mobile/pharmacy-desk`, behind a
   // provider token (`auth.provider` + `capability:dispense`; the two stock

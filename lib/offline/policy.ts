@@ -63,6 +63,28 @@ export function isPolicyUsable(policy: StoredOfflinePolicy | null): boolean {
   return Number.isFinite(expiry) && expiry > Date.now();
 }
 
+/**
+ * Best-effort server-side revocation of the stored policy. Never throws: a
+ * network failure must not block the local wipe — the policy then lapses on
+ * its own schedule (24h, or 6h in emergency mode).
+ */
+export async function revokeStoredPolicy(): Promise<void> {
+  try {
+    const policy = await getStoredPolicy();
+    if (!policy) return;
+    // `_retried` opts out of the client's 401 refresh/session-expired handler:
+    // this runs inside wipeSessionData, which that handler itself triggers,
+    // so a 401 here must not re-enter the wipe. Short timeout so a dead
+    // network cannot stall logout.
+    await apiClient.post(endpoints.offlinePolicyRevoke(policy.id), undefined, {
+      timeout: 5000,
+      _retried: true,
+    } as Record<string, unknown>);
+  } catch {
+    // Offline, expired token, already gone: the local wipe proceeds regardless.
+  }
+}
+
 export async function clearStoredPolicy(): Promise<void> {
   await offlineStorage.remove(OFFLINE_KEYS.policy);
 }

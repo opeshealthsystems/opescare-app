@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { clearExportedFiles } from '../fileDelivery';
 import { clearOfflineCache } from '../offline/cache';
 import { clearOutbox } from '../offline/outbox';
-import { clearStoredPolicy } from '../offline/policy';
+import { clearStoredPolicy, revokeStoredPolicy } from '../offline/policy';
 
 /**
  * The app's one QueryClient. It lives here, not in app/_layout.tsx, so that
@@ -19,6 +19,9 @@ export const queryClient = new QueryClient();
  */
 export async function wipeSessionData(): Promise<void> {
   queryClient.clear();
+  // Revoke server-side before the stored policy id is cleared. Best effort:
+  // revokeStoredPolicy never throws, so a network failure cannot block the wipe.
+  await revokeStoredPolicy();
   await Promise.all([
     clearOfflineCache().catch(() => undefined),
     clearStoredPolicy().catch(() => undefined),

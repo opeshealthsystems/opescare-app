@@ -5,7 +5,7 @@ import { clearOfflineCache, getCachedDemographics, writeScopeEntry } from './cac
 import { installConnectivityMonitor } from './connectivity';
 import { rememberPatientId } from './identity';
 import { clearOutbox, installOutboxCapture } from './outbox';
-import { clearStoredPolicy } from './policy';
+import { clearStoredPolicy, revokeStoredPolicy } from './policy';
 import {
   hydrateQueryCache,
   installQueryPersistence,
@@ -86,13 +86,15 @@ export function initOfflineMode(queryClient: QueryClient): () => void {
  * the session already implies, and holding it means re-enabling later does not
  * have to rotate the patient's access token to rediscover it.
  *
- * Limitation, stated plainly: the server-side `LocalCachePolicy` row is not
- * revoked here, because the mobile API exposes no revoke endpoint — routes are
- * create-policy and queue only, and routes/api.php is sealed. The policy
- * therefore lapses on its own schedule (24h, or 6h in emergency mode) while
- * the device-side copy is gone immediately.
+ * The server-side `LocalCachePolicy` row is revoked first via
+ * `POST /mobile/offline/policies/{id}/revoke`, after which the server refuses
+ * queue writes against it. Limitation, stated plainly: revocation is best
+ * effort — if the device is offline or the call fails, the local wipe still
+ * happens and the policy lapses on its own schedule (24h, or 6h in emergency
+ * mode) while the device-side copy is gone immediately.
  */
 export async function purgeOfflineData(): Promise<void> {
+  await revokeStoredPolicy();
   await Promise.all([clearOfflineCache(), clearStoredPolicy(), clearOutbox()]);
   await refreshGrantedScopes();
 }

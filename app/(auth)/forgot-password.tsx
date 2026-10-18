@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -49,8 +50,8 @@ function formatCountdown(totalSeconds: number, padMinutes: boolean): string {
 }
 
 function extractErrorMessage(err: unknown, fallback: string): string {
-  const anyErr = err as any;
-  return anyErr?.response?.data?.message ?? fallback;
+  const message = isAxiosError<{ message?: string }>(err) ? err.response?.data?.message : undefined;
+  return message ?? fallback;
 }
 
 type PasswordChecks = {

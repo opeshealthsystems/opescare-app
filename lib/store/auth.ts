@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { create } from 'zustand';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
@@ -348,8 +349,8 @@ interface AuthState {
 }
 
 function extractErrorMessage(err: unknown): string {
-  const anyErr = err as any;
-  return anyErr?.response?.data?.message ?? 'Something went wrong. Please try again.';
+  const message = isAxiosError<{ message?: string }>(err) ? err.response?.data?.message : undefined;
+  return message ?? 'Something went wrong. Please try again.';
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({

@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,8 +35,8 @@ type SexOption = (typeof SEX_OPTIONS)[number];
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
 
 function extractErrorMessage(err: unknown, fallback: string): string {
-  const anyErr = err as any;
-  return anyErr?.response?.data?.message ?? fallback;
+  const message = isAxiosError<{ message?: string }>(err) ? err.response?.data?.message : undefined;
+  return message ?? fallback;
 }
 
 /** One of the pill buttons under the photo: choose / take / remove. */

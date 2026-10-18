@@ -51,8 +51,8 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const original = error.config;
-    if (error.response?.status === 401 && original && !(original as any)._retried) {
-      (original as any)._retried = true;
+    if (error.response?.status === 401 && original && !original._retried) {
+      original._retried = true;
       refreshInFlight ??= refreshToken().finally(() => {
         refreshInFlight = null;
       });
@@ -68,3 +68,10 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    /** Set once a 401 has triggered a token refresh, so the retry never loops. */
+    _retried?: boolean;
+  }
+}

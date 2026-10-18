@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { endpoints } from './endpoints';
@@ -612,8 +613,8 @@ export function useCarePlan(id: string | null) {
 
 /** Pulls a readable message out of an axios error, falling back to a generic one. */
 export function extractApiErrorMessage(err: unknown): string {
-  const anyErr = err as any;
-  return anyErr?.response?.data?.message ?? 'Something went wrong. Please try again.';
+  const message = isAxiosError<{ message?: string }>(err) ? err.response?.data?.message : undefined;
+  return message ?? 'Something went wrong. Please try again.';
 }
 
 /**

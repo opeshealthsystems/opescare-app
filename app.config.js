@@ -103,11 +103,12 @@ function refuse(message) {
 }
 
 /**
- * The only backend that exists today. It runs with APP_ENV=demo and
- * OPESCARE_DEMO_MODE=true, its patients are `is_demo` rows, and its login page
- * hands out demo accounts.
+ * The retired demo backend. Until 2026-10-18 it ran with APP_ENV=demo and
+ * OPESCARE_DEMO_MODE=true and its login page handed out demo accounts.
+ * opescare.com has run in production mode since then; a store build must
+ * never point back here.
  */
-const DEMO_API_HOST = 'opescare.com';
+const DEMO_API_HOST = 'finder.opescare.cloud';
 
 /**
  * A store build must not point at the demo backend by accident.

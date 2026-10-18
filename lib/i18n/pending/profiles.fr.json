@@ -1,0 +1,70 @@
+{
+  "_note": "Catalogue de transition pour le design de profil partagé (components/profile, utilisé par app/clinician/profile.tsx, app/doctor/[id].tsx et app/family/[id].tsx). Enregistré à l'exécution par lib/i18n/profileStrings.ts jusqu'à sa fusion dans locales/fr.json. L'ensemble des clés DOIT rester 1:1 avec profiles.en.json.",
+  "profiles": {
+    "back": "Retour",
+    "edit": "Modifier",
+    "atAGlance": "En un coup d'œil",
+    "trust": {
+      "consent": "Accès soumis au consentement",
+      "encrypted": "Chiffré",
+      "audited": "Chaque accès journalisé",
+      "interoperable": "Interopérable",
+      "booking": "Réservation dans l'appli",
+      "messaging": "Messagerie sécurisée",
+      "directory": "Annuaire des établissements"
+    },
+    "clinician": {
+      "brand": "CLINICIEN OPESCARE",
+      "licenceNotOnFile": "Non enregistrée",
+      "licenceTitle": "Licence",
+      "experience": "Expérience",
+      "experienceHint": "Années de pratique",
+      "languages": "Langues",
+      "languagesHint": "Parlées avec les patients",
+      "qualifications": "Qualifications",
+      "qualificationsHint": "Sur votre profil",
+      "facilities": "Établissements",
+      "facilitiesHint": "Vos affectations",
+      "accountSection": "Compte",
+      "accountSectionDesc": "Votre connexion et l'état du compte.",
+      "professionalDesc": "Ce que collègues et patients voient de vous.",
+      "facilityDesc": "L'établissement pour lequel cette session agit.",
+      "preferencesDesc": "Réglages conservés sur cet appareil uniquement.",
+      "sessionDesc": "Déconnectez-vous avant de prêter ce téléphone."
+    },
+    "provider": {
+      "brand": "TITRES",
+      "verified": "Vérifié",
+      "noneOnFile": "Aucun publié",
+      "counts": "Licences : {{licences}} · Titres : {{credentials}}",
+      "openSlots": "Créneaux libres",
+      "openSlotsHint": "Réservables maintenant",
+      "nextSlot": "Prochain créneau",
+      "nextSlotHint": "Première disponibilité",
+      "licences": "Licences",
+      "licencesHint": "Actives, vérifiées",
+      "credentials": "Titres",
+      "credentialsHint": "Actifs, vérifiés",
+      "noSlot": "Aucun",
+      "infoDesc": "Chaque ligne est un champ publié par l'annuaire.",
+      "slotsDesc": "Les horaires réservables maintenant.",
+      "practiseDesc": "L'établissement où exerce ce clinicien.",
+      "credentialsDesc": "Licences et titres actifs uniquement.",
+      "messagingDesc": "Les messages passent par l'appli, jamais pour une urgence."
+    },
+    "dependent": {
+      "present": "Présenter",
+      "readOnly": "Lecture seule",
+      "allergies": "Allergies",
+      "allergiesHint": "Au dossier",
+      "diagnoses": "Diagnostics",
+      "diagnosesHint": "Au dossier",
+      "immunisations": "Vaccinations",
+      "immunisationsHint": "Ouvrir la liste",
+      "appointments": "À venir",
+      "appointmentsHint": "Ouvrir les rendez-vous",
+      "sectionsTitle": "Son dossier de santé",
+      "sectionsDesc": "Résumé, vaccinations, rendez-vous et dossiers."
+    }
+  }
+}

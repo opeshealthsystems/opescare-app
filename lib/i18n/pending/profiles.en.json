@@ -1,0 +1,70 @@
+{
+  "_note": "Staging catalogue for the shared profile design (components/profile, used by app/clinician/profile.tsx, app/doctor/[id].tsx and app/family/[id].tsx). Registered at runtime by lib/i18n/profileStrings.ts until merged into locales/en.json. Key set MUST stay 1:1 with profiles.fr.json.",
+  "profiles": {
+    "back": "Back",
+    "edit": "Edit",
+    "atAGlance": "At a glance",
+    "trust": {
+      "consent": "Consent-gated access",
+      "encrypted": "Encrypted",
+      "audited": "Every access logged",
+      "interoperable": "Interoperable",
+      "booking": "Book in the app",
+      "messaging": "Secure messaging",
+      "directory": "Facility directory"
+    },
+    "clinician": {
+      "brand": "OPESCARE CLINICIAN",
+      "licenceNotOnFile": "Not on file",
+      "licenceTitle": "Licence",
+      "experience": "Experience",
+      "experienceHint": "Years in practice",
+      "languages": "Languages",
+      "languagesHint": "Spoken with patients",
+      "qualifications": "Qualifications",
+      "qualificationsHint": "On your profile",
+      "facilities": "Facilities",
+      "facilitiesHint": "Where you are posted",
+      "accountSection": "Account",
+      "accountSectionDesc": "How you sign in and whether the account is active.",
+      "professionalDesc": "What colleagues and patients see about you.",
+      "facilityDesc": "Which facility this session acts for.",
+      "preferencesDesc": "Settings kept on this device only.",
+      "sessionDesc": "Sign out before handing this phone to anyone."
+    },
+    "provider": {
+      "brand": "CREDENTIALS",
+      "verified": "Verified",
+      "noneOnFile": "None published",
+      "counts": "Licences: {{licences}} · Credentials: {{credentials}}",
+      "openSlots": "Open slots",
+      "openSlotsHint": "Bookable now",
+      "nextSlot": "Next slot",
+      "nextSlotHint": "Earliest opening",
+      "licences": "Licences",
+      "licencesHint": "Active, verified",
+      "credentials": "Credentials",
+      "credentialsHint": "Active, verified",
+      "noSlot": "None",
+      "infoDesc": "Every line is a field the directory publishes.",
+      "slotsDesc": "Open times you can book now.",
+      "practiseDesc": "The facility this clinician works at.",
+      "credentialsDesc": "Active licences and credentials only.",
+      "messagingDesc": "Messages go through the app, never for emergencies."
+    },
+    "dependent": {
+      "present": "Present",
+      "readOnly": "View only",
+      "allergies": "Allergies",
+      "allergiesHint": "On record",
+      "diagnoses": "Diagnoses",
+      "diagnosesHint": "On record",
+      "immunisations": "Immunisations",
+      "immunisationsHint": "Open the list",
+      "appointments": "Upcoming",
+      "appointmentsHint": "Open appointments",
+      "sectionsTitle": "Their health record",
+      "sectionsDesc": "Summary, immunisations, appointments and records."
+    }
+  }
+}

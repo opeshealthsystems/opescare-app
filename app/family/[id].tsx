@@ -21,16 +21,15 @@
  * server; the footer says so.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, Share, StyleSheet, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
   EmptyState,
   ListRow,
-  ScreenHeader,
+  initialsFrom,
   SectionHeader,
   SegmentedTabs,
   StatusBadge,
@@ -48,6 +47,15 @@ import { SecureCredentialCard } from '@/components/health-id/SecureCredentialCar
 import { PresentationMode } from '@/components/health-id/PresentationMode';
 import { VERIFIED_STATUSES, formatCountdown, modelFromLive, titleCase, toneFor } from '@/components/health-id/model';
 import { CareButton } from '@/components/care/shared';
+import {
+  HealthIdPanelContent,
+  IdentityCard,
+  IdentityLine,
+  OverviewTiles,
+  ProfileHeading,
+  ProfileScreen as ProfileFrame,
+  TrustChips,
+} from '@/components/profile';
 import type { TemporaryQrCode } from '@/lib/api/types';
 import {
   AccessBadge,
@@ -261,32 +269,140 @@ export default function FamilyMemberScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <ScreenHeader title={name} subtitle={subtitle} onBack={() => router.back()} />
-
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.blue}
-            colors={[colors.blue]}
+    <ProfileFrame
+      edges={['top', 'bottom']}
+      masthead={{
+        left: { icon: 'arrow-left', label: t('profiles.back'), onPress: () => router.back() },
+      }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={colors.blue}
+          colors={[colors.blue]}
+        />
+      }
+      after={
+        model && !readOnly ? (
+          <PresentationMode
+            visible={presenting}
+            model={model}
+            statusTone={tone}
+            statusLabel={statusLabel}
+            verified={verified}
+            token={tempQr}
+            secondsLeft={secondsLeft}
+            minting={mint.isPending}
+            mintFailed={mint.isError}
+            onMint={handleMint}
+            onShare={handleShare}
+            onClose={() => setPresenting(false)}
           />
-        }
-      >
+        ) : null
+      }
+    >
+        <ProfileHeading title={name} subtitle={subtitle} />
+
         {detail.isLoading && !data ? (
           <LoadingCard label={t('opesCore.common.loading')} />
         ) : detail.isError && !data ? (
           <FamilyErrorState error={detail.error} onRetry={() => detail.refetch()} />
         ) : data && model && link ? (
           <>
-            {/* ── Who this is, and what I may do ─────────────────────────── */}
-            <View style={styles.linkRow}>
-              <Text style={styles.linkText}>{relationshipLabelOf(t, link.relationship)}</Text>
-              <AccessBadge level={link.access_level} />
-            </View>
+            {/* ── Who this is, and what I may do ─────────────────────────────
+                The reference identity card: the dependent's portrait, status
+                and link, with their Health ID in the panel slot. Tapping it
+                presents the same live credential as the button below — never
+                on a view-only link, and never while the invite is pending. */}
+            <IdentityCard
+              photoUrl={model.photoUrl}
+              initials={initialsFrom(name)}
+              name={name}
+              verified={verified}
+              statusLabel={statusLabel}
+              statusTone={tone}
+              panel={{
+                label: t('family.member.present', { name }),
+                onPress: readOnly || pending || !model.healthId ? undefined : openPresentation,
+                content: (
+                  <HealthIdPanelContent
+                    qrPayload={readOnly || pending ? null : model.qrPayload}
+                    healthId={model.healthId}
+                    actionLabel={
+                      pending
+                        ? null
+                        : readOnly
+                          ? t('profiles.dependent.readOnly')
+                          : t('profiles.dependent.present')
+                    }
+                  />
+                ),
+              }}
+            >
+              <View style={styles.linkRow}>
+                <Text style={styles.linkText}>{relationshipLabelOf(t, link.relationship)}</Text>
+                <AccessBadge level={link.access_level} />
+              </View>
+              {model.dob ? (
+                <IdentityLine icon="calendar" text={formatDate(model.dob, '—')} />
+              ) : null}
+              {model.bloodType ? <IdentityLine icon="droplet" text={model.bloodType} /> : null}
+            </IdentityCard>
+
+            <TrustChips
+              items={[
+                { key: 'consent', icon: 'shield-check', label: t('profiles.trust.consent') },
+                { key: 'encrypted', icon: 'lock', label: t('profiles.trust.encrypted') },
+                { key: 'audited', icon: 'history', label: t('profiles.trust.audited') },
+                { key: 'interoperable', icon: 'share', label: t('profiles.trust.interoperable') },
+              ]}
+            />
+
+            {/* Figures straight from the member payload; a dash where the
+                server sent no summary. Two tiles open their own tab. */}
+            {!pending ? (
+              <OverviewTiles
+                title={t('profiles.atAGlance')}
+                tiles={[
+                  {
+                    key: 'allergies',
+                    icon: 'alert-triangle',
+                    tint: 'amber',
+                    value: data.records_summary ? String(data.records_summary.allergies ?? 0) : '—',
+                    label: t('profiles.dependent.allergies'),
+                    hint: t('profiles.dependent.allergiesHint'),
+                    onPress: () => setTab('summary'),
+                  },
+                  {
+                    key: 'diagnoses',
+                    icon: 'activity',
+                    tint: 'blue',
+                    value: data.records_summary ? String(data.records_summary.diagnoses ?? 0) : '—',
+                    label: t('profiles.dependent.diagnoses'),
+                    hint: t('profiles.dependent.diagnosesHint'),
+                    onPress: () => setTab('summary'),
+                  },
+                  {
+                    key: 'immunisations',
+                    icon: 'syringe',
+                    tint: 'green',
+                    value: String((data.immunizations ?? []).length),
+                    label: t('profiles.dependent.immunisations'),
+                    hint: t('profiles.dependent.immunisationsHint'),
+                    onPress: () => setTab('immunisations'),
+                  },
+                  {
+                    key: 'appointments',
+                    icon: 'calendar-check',
+                    tint: 'blue',
+                    value: String((data.upcoming_appointments ?? []).length),
+                    label: t('profiles.dependent.appointments'),
+                    hint: t('profiles.dependent.appointmentsHint'),
+                    onPress: () => setTab('appointments'),
+                  },
+                ]}
+              />
+            ) : null}
 
             {pending ? (
               <Card variant="flush">
@@ -522,25 +638,7 @@ export default function FamilyMemberScreen() {
             )}
           </>
         ) : null}
-      </ScrollView>
-
-      {model && !readOnly ? (
-        <PresentationMode
-          visible={presenting}
-          model={model}
-          statusTone={tone}
-          statusLabel={statusLabel}
-          verified={verified}
-          token={tempQr}
-          secondsLeft={secondsLeft}
-          minting={mint.isPending}
-          mintFailed={mint.isError}
-          onMint={handleMint}
-          onShare={handleShare}
-          onClose={() => setPresenting(false)}
-        />
-      ) : null}
-    </SafeAreaView>
+    </ProfileFrame>
   );
 }
 

@@ -13,13 +13,23 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { Screen } from '@/components/ui/Screen';
 import {
+  CredentialPanelContent,
+  IdentityCard,
+  IdentityLine,
+  OverviewTiles,
+  PanelHeader,
+  ProfileHeading,
+  ProfileScreen as ProfileFrame,
+  TrustChips,
+} from '@/components/profile';
+import {
   Card,
   EmptyState,
   GradientButton,
   Icon,
   ListRow,
   ScreenHeader,
-  SectionHeader,
+  initialsFrom,
   StatusBadge,
   a11yJoin,
   formatDate,
@@ -36,7 +46,6 @@ import {
   CareButton,
   InfoRow,
   LoadingBlock,
-  ProviderAvatar,
   dayDiff,
   describeFailure,
   errorMessage,
@@ -527,55 +536,67 @@ export default function DoctorDetailScreen() {
   };
 
   return (
-    <Screen className="px-0">
-      <ScreenHeader
-        title={headerTitle}
-        subtitle={t('opesCare.providerProfile.subtitle')}
-        onBack={goBack}
-      />
+    <ProfileFrame
+      ref={scrollRef}
+      masthead={{
+        left: { icon: 'arrow-left', label: t('profiles.back'), onPress: goBack },
+      }}
+    >
+        <ProfileHeading title={headerTitle} subtitle={t('opesCare.providerProfile.subtitle')} />
 
-      <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={styles.content}>
-        {/* ── Profile hero ──────────────────────────────────────────────────
-            Avatar left, identity stack right, facility / place as icon rows,
-            honest status badges, then the four CARE-004 quick actions. */}
+        {/* ── Identity card ─────────────────────────────────────────────────
+            The directory publishes no photo for a clinician, so the portrait
+            is their initials. Their credentials sit in the panel slot a
+            patient's Health ID takes: verified only when the API returned an
+            active licence or credential, never as decoration. */}
+        <IdentityCard
+          initials={initialsFrom(provider.name)}
+          name={provider.name}
+          verified={isVerified}
+          statusLabel={isAccepting ? t('doctor.accepting') : t('doctor.notAccepting')}
+          statusTone={isAccepting ? 'normal' : 'neutral'}
+          statusIcon={isAccepting ? 'calendar-check' : 'clock'}
+          panel={{
+            label: `${t('doctor.credentialsTitle')}: ${
+              isVerified ? t('profiles.provider.verified') : t('profiles.provider.noneOnFile')
+            }`,
+            content: (
+              <CredentialPanelContent
+                title={t('profiles.provider.brand')}
+                icon={isVerified ? 'shield-check' : 'document-text'}
+                tone={isVerified ? 'normal' : 'neutral'}
+                status={
+                  isVerified ? t('profiles.provider.verified') : t('profiles.provider.noneOnFile')
+                }
+                detail={
+                  isVerified
+                    ? t('profiles.provider.counts', {
+                        licences: provider.licenses.length,
+                        credentials: provider.credentials.length,
+                      })
+                    : null
+                }
+              />
+            ),
+          }}
+        >
+          <IdentityLine icon="stethoscope" text={roleLine} />
+          {provider.department ? <IdentityLine icon="grid" text={provider.department} /> : null}
+          <IdentityLine icon="building" text={provider.facility_name} />
+          {address ? <IdentityLine icon="location" text={address} /> : null}
+        </IdentityCard>
+
+        <TrustChips
+          items={[
+            { key: 'booking', icon: 'calendar-check', label: t('profiles.trust.booking') },
+            { key: 'messaging', icon: 'chat', label: t('profiles.trust.messaging') },
+            { key: 'consent', icon: 'shield-check', label: t('profiles.trust.consent') },
+            { key: 'directory', icon: 'building', label: t('profiles.trust.directory') },
+          ]}
+        />
+
+        {/* Badges and the four quick actions, unchanged. */}
         <Card>
-          <View style={styles.identity}>
-            <ProviderAvatar name={provider.name} size={78} />
-            <View style={styles.identityBody}>
-              <View style={styles.nameRow}>
-                <Text style={styles.name} numberOfLines={2} accessibilityRole="header">
-                  {provider.name}
-                </Text>
-                {/* Decorative on purpose: the "Verified" badge below says it
-                    in words, so labelling this too reads it out twice. */}
-                {isVerified ? <Icon name="check-circle" size={18} color={colors.primary} /> : null}
-              </View>
-              <Text style={styles.jobTitle}>{roleLine}</Text>
-              {provider.department ? (
-                <View style={styles.metaRow}>
-                  <Icon name="grid" size={16} color={colors.textSecondary} />
-                  <Text style={styles.meta} numberOfLines={1}>
-                    {provider.department}
-                  </Text>
-                </View>
-              ) : null}
-              <View style={styles.metaRow}>
-                <Icon name="building" size={16} color={colors.textSecondary} />
-                <Text style={styles.meta} numberOfLines={2}>
-                  {provider.facility_name}
-                </Text>
-              </View>
-              {address ? (
-                <View style={styles.metaRow}>
-                  <Icon name="location" size={16} color={colors.textSecondary} />
-                  <Text style={styles.meta} numberOfLines={2}>
-                    {address}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-
           <View style={styles.badges}>
             {/* Availability is derived from live open slots, not invented. */}
             <StatusBadge
@@ -646,11 +667,55 @@ export default function DoctorDetailScreen() {
           accessibilityHint={t('doctor.nextSlotsHint')}
         />
 
+        <OverviewTiles
+          title={t('profiles.atAGlance')}
+          tiles={[
+            {
+              key: 'slots',
+              icon: 'calendar-check',
+              tint: 'green',
+              value: isAccepting ? slotCountLabel : '0',
+              label: t('profiles.provider.openSlots'),
+              hint: t('profiles.provider.openSlotsHint'),
+              onPress: () => goToBooking(provider),
+            },
+            {
+              key: 'next',
+              icon: 'clock',
+              tint: 'blue',
+              value: nextSlot ? formatTime(nextSlot.starts_at) : '—',
+              label: t('profiles.provider.nextSlot'),
+              hint: nextSlot
+                ? slotDayLabel(tr, nextSlot.starts_at, i18n.language)
+                : t('profiles.provider.noSlot'),
+              onPress: () => goToBooking(provider),
+            },
+            {
+              key: 'licences',
+              icon: 'shield-check',
+              tint: 'green',
+              value: String(provider.licenses.length),
+              label: t('profiles.provider.licences'),
+              hint: t('profiles.provider.licencesHint'),
+            },
+            {
+              key: 'credentials',
+              icon: 'check-circle',
+              tint: 'amber',
+              value: String(provider.credentials.length),
+              label: t('profiles.provider.credentials'),
+              hint: t('profiles.provider.credentialsHint'),
+            },
+          ]}
+        />
+
         {/* ── Professional information ─────────────────────────────────────── */}
         <View>
-          <SectionHeader
+          <PanelHeader
+            icon="stethoscope"
             title={t('opesCare.providerProfile.professionalInformation')}
-            variant="overline"
+            subtitle={t('profiles.provider.infoDesc')}
+            style={{ marginBottom: spacing.sm }}
           />
           <Card variant="flush">
             {infoLines.map((line, index) => (
@@ -668,12 +733,13 @@ export default function DoctorDetailScreen() {
 
         {/* ── Availability ─────────────────────────────────────────────────── */}
         <View>
-          <SectionHeader
+          <PanelHeader
+            icon="calendar-check"
             title={t('doctor.nextSlotsTitle')}
-            variant="overline"
+            subtitle={t('profiles.provider.slotsDesc')}
             actionLabel={isAccepting ? t('opesCare.providerProfile.viewAvailableTimes') : undefined}
             onAction={isAccepting ? () => goToBooking(provider) : undefined}
-            actionChevron
+            style={{ marginBottom: spacing.sm }}
           />
           {isAccepting ? <Text style={styles.hint}>{t('doctor.nextSlotsHint')}</Text> : null}
           <Card variant="flush">
@@ -729,7 +795,12 @@ export default function DoctorDetailScreen() {
 
         {/* ── Where they practise ──────────────────────────────────────────── */}
         <View>
-          <SectionHeader title={t('doctor.practisesAt')} variant="overline" />
+          <PanelHeader
+            icon="building"
+            title={t('doctor.practisesAt')}
+            subtitle={t('profiles.provider.practiseDesc')}
+            style={{ marginBottom: spacing.sm }}
+          />
           <Card variant="flush">
             <ListRow
               icon="building"
@@ -784,7 +855,12 @@ export default function DoctorDetailScreen() {
 
         {/* ── Credentials — the schema's stand-in for a bio ─────────────────── */}
         <View>
-          <SectionHeader title={t('doctor.credentialsTitle')} variant="overline" />
+          <PanelHeader
+            icon="shield-check"
+            title={t('doctor.credentialsTitle')}
+            subtitle={t('profiles.provider.credentialsDesc')}
+            style={{ marginBottom: spacing.sm }}
+          />
           {isVerified ? <Text style={styles.hint}>{t('doctor.credentialsHint')}</Text> : null}
           <Card variant="flush">
             {!isVerified ? (
@@ -841,7 +917,12 @@ export default function DoctorDetailScreen() {
             messagingY.current = event.nativeEvent.layout.y;
           }}
         >
-          <SectionHeader title={t('doctor.messagingTitle')} variant="overline" />
+          <PanelHeader
+            icon="chat"
+            title={t('doctor.messagingTitle')}
+            subtitle={t('profiles.provider.messagingDesc')}
+            style={{ marginBottom: spacing.sm }}
+          />
 
           {/* The standing warning, above every state of this section. */}
           <View style={styles.emergencyNotice} accessibilityRole="alert">
@@ -1006,8 +1087,7 @@ export default function DoctorDetailScreen() {
             </View>
           )}
         </View>
-      </ScrollView>
-    </Screen>
+    </ProfileFrame>
   );
 }
 

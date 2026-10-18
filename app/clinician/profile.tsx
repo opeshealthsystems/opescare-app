@@ -42,15 +42,12 @@
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Image,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
@@ -60,8 +57,6 @@ import {
   Icon,
   ListRow,
   PillInput,
-  ScreenHeader,
-  SectionHeader,
   StaleNotice,
   StatusBadge,
   initialsFrom,
@@ -71,7 +66,6 @@ import {
   useDialog,
   useTheme,
   type Palette,
-  type ScreenHeaderAction,
   type StatusTone,
 } from '@/components/opes-ui';
 import {
@@ -103,6 +97,16 @@ import {
   type ProviderFacility,
 } from '@/lib/api/facilitySwitchQueries';
 import { useAuthStore } from '@/lib/store/auth';
+import {
+  CredentialPanelContent,
+  IdentityCard,
+  IdentityLine,
+  OverviewTiles,
+  ProfileHeading,
+  ProfileScreen as ProfileFrame,
+  ProfileSection,
+  TrustChips,
+} from '@/components/profile';
 
 /** Failure copy for a write, saying plainly when the outcome is unknown. */
 function writeFailureMessage(t: Translate, e: unknown, checkHint: string): string {
@@ -435,20 +439,6 @@ export default function DoctorProfileScreen() {
 
   // ── Header ──────────────────────────────────────────────────────────────
 
-  const headerActions: ScreenHeaderAction[] | undefined = useMemo(
-    () =>
-      editing
-        ? undefined
-        : [
-            {
-              icon: 'edit',
-              onPress: startEdit,
-              accessibilityLabel: tx('profile.editProfile', 'Edit profile'),
-            },
-          ],
-    [editing, startEdit, tx]
-  );
-
   const displayName = profile?.display_name || me.data?.name || '—';
   const heroSubtitle = profile?.title || roleLabel(me.data?.role);
 
@@ -505,37 +495,42 @@ export default function DoctorProfileScreen() {
       </Card>
     );
   } else {
+    const licenceStatus = profile?.license_status ?? null;
     identity = (
-      <View style={styles.hero}>
-        <View style={styles.avatar}>
-          {profile?.photo_url ? (
-            <Image
-              source={{ uri: profile.photo_url }}
-              style={styles.avatarImage}
-              accessibilityIgnoresInvertColors
-              accessibilityLabel={displayName}
+      <IdentityCard
+        photoUrl={profile?.photo_url}
+        initials={initials(displayName)}
+        name={displayName}
+        verified={licenceStatus === 'active'}
+        statusLabel={
+          me.data?.is_active === false
+            ? tx('profile.statusInactive', 'Inactive')
+            : tx('profile.statusActive', 'Active')
+        }
+        statusTone={me.data?.is_active === false ? 'critical' : 'normal'}
+        panel={{
+          // No Health ID for a clinician: the licence credentialing asserts
+          // sits in the slot instead — read-only, exactly as the record says.
+          label: `${tx('profile.rowLicense', 'Licence')}: ${
+            profile ? licenseLabel(licenceStatus) : tr('profiles.clinician.licenceNotOnFile')
+          }`,
+          content: (
+            <CredentialPanelContent
+              title={tr('profiles.clinician.brand')}
+              icon="shield-check"
+              tone={profile ? licenseTone(licenceStatus) : 'neutral'}
+              status={
+                profile ? licenseLabel(licenceStatus) : tr('profiles.clinician.licenceNotOnFile')
+              }
+              detail={tr('profiles.clinician.licenceTitle')}
             />
-          ) : (
-            <Text style={styles.avatarText}>{initials(displayName)}</Text>
-          )}
-        </View>
-        <View style={styles.heroIdentity}>
-          <Text style={styles.heroName} numberOfLines={2}>
-            {displayName}
-          </Text>
-          <View style={styles.heroChip}>
-            <Icon name="stethoscope" size={14} color={colors.textOnBrand} />
-            <Text style={styles.heroChipText} numberOfLines={1}>
-              {heroSubtitle}
-            </Text>
-          </View>
-          {!!me.data?.facility_name && (
-            <Text style={styles.heroFacility} numberOfLines={1}>
-              {me.data.facility_name}
-            </Text>
-          )}
-        </View>
-      </View>
+          ),
+        }}
+      >
+        <IdentityLine icon="stethoscope" text={heroSubtitle} />
+        {!!me.data?.facility_name && <IdentityLine icon="building" text={me.data.facility_name} />}
+        {!!me.data?.email && <IdentityLine icon="mail" text={me.data.email} />}
+      </IdentityCard>
     );
   }
 
@@ -881,19 +876,21 @@ export default function DoctorProfileScreen() {
   const paletteIsOpes = palette === 'opes';
 
   return (
-    <SafeAreaView edges={['top']} style={styles.screen}>
-      <ScreenHeader
-        title={tx('profile.title', 'Profile')}
-        subtitle={tx('profile.subtitle', 'Your account on this device')}
-        showBack={router.canGoBack()}
-        onBack={() => router.back()}
-        actions={headerActions}
-      />
-
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
+    <ProfileFrame
+      masthead={{
+        left: router.canGoBack()
+          ? { icon: 'arrow-left', label: tr('profiles.back'), onPress: () => router.back() }
+          : undefined,
+        avatar: {
+          photoUrl: profile?.photo_url,
+          initials: initials(displayName),
+          label: editing ? displayName : tx('profile.editProfile', 'Edit profile'),
+          onPress: editing ? undefined : startEdit,
+        },
+      }}
+      after={dialog.element}
+      keyboardShouldPersistTaps="handled"
+      refreshControl={
           <RefreshControl
             refreshing={(me.isFetching || profileQuery.isFetching) && !me.isPending}
             onRefresh={() => {
@@ -902,24 +899,84 @@ export default function DoctorProfileScreen() {
             }}
             tintColor={colors.blue}
           />
-        }
-      >
+      }
+    >
+        <ProfileHeading
+          title={tx('profile.title', 'Profile')}
+          subtitle={tx('profile.subtitle', 'Your account on this device')}
+        />
+
         {meStale}
         {profileStale}
 
         {identity}
 
-        <View>
-          <SectionHeader
-            title={tx('profile.sectionProfile', 'Professional profile')}
-            variant="overline"
-          />
+        <TrustChips
+          items={[
+            { key: 'consent', icon: 'shield-check', label: tr('profiles.trust.consent') },
+            { key: 'encrypted', icon: 'lock', label: tr('profiles.trust.encrypted') },
+            { key: 'audited', icon: 'history', label: tr('profiles.trust.audited') },
+            { key: 'interoperable', icon: 'share', label: tr('profiles.trust.interoperable') },
+          ]}
+        />
+
+        {/* Counts read straight off the profile and the postings list. A dash,
+            never a 0, while either is unknown. */}
+        <OverviewTiles
+          title={tr('profiles.atAGlance')}
+          tiles={[
+            {
+              key: 'experience',
+              icon: 'star',
+              tint: 'amber',
+              value: profile?.years_experience != null ? String(profile.years_experience) : '—',
+              label: tr('profiles.clinician.experience'),
+              hint: tr('profiles.clinician.experienceHint'),
+            },
+            {
+              key: 'languages',
+              icon: 'globe',
+              tint: 'green',
+              value: profile ? String(profile.languages.length) : '—',
+              label: tr('profiles.clinician.languages'),
+              hint: tr('profiles.clinician.languagesHint'),
+            },
+            {
+              key: 'qualifications',
+              icon: 'book',
+              tint: 'blue',
+              value: profile ? String(profile.qualifications.length) : '—',
+              label: tr('profiles.clinician.qualifications'),
+              hint: tr('profiles.clinician.qualificationsHint'),
+            },
+            {
+              key: 'facilities',
+              icon: 'building',
+              tint: 'blue',
+              value: facilitiesQuery.data ? String(facilityRows.length) : '—',
+              label: tr('profiles.clinician.facilities'),
+              hint: tr('profiles.clinician.facilitiesHint'),
+            },
+          ]}
+        />
+
+        <ProfileSection
+          icon="stethoscope"
+          title={tx('profile.sectionProfile', 'Professional profile')}
+          subtitle={tr('profiles.clinician.professionalDesc')}
+          actionLabel={!editing && profile ? tr('profiles.edit') : undefined}
+          actionIcon="edit"
+          onAction={!editing && profile ? startEdit : undefined}
+        >
           {professional}
-        </View>
+        </ProfileSection>
 
         {!!me.data && (
-          <View>
-            <SectionHeader title={tx('profile.sectionAccount', 'Account')} variant="overline" />
+          <ProfileSection
+            icon="person"
+            title={tx('profile.sectionAccount', 'Account')}
+            subtitle={tr('profiles.clinician.accountSectionDesc')}
+          >
             <Card variant="flush">
               <ListRow
                 icon="person"
@@ -964,20 +1021,26 @@ export default function DoctorProfileScreen() {
                 }
               />
             </Card>
-          </View>
+          </ProfileSection>
         )}
 
         {/* ── Facility — which building this session speaks for ─────────── */}
         {!!facilitySection && (
-          <View>
-            <SectionHeader title={tx('facility.section', 'Facility')} variant="overline" />
+          <ProfileSection
+            icon="building"
+            title={tx('facility.section', 'Facility')}
+            subtitle={tr('profiles.clinician.facilityDesc')}
+          >
             {facilitySection}
-          </View>
+          </ProfileSection>
         )}
 
         {/* ── Appearance — device-local, persisted by the root layout ───── */}
-        <View>
-          <SectionHeader title={tr('opesCore.profile.preferences')} variant="overline" />
+        <ProfileSection
+          icon="contrast"
+          title={tr('opesCore.profile.preferences')}
+          subtitle={tr('profiles.clinician.preferencesDesc')}
+        >
           <Card variant="flush">
             <ListRow
               icon="contrast"
@@ -1015,11 +1078,14 @@ export default function DoctorProfileScreen() {
               }
             />
           </Card>
-        </View>
+        </ProfileSection>
 
         {/* ── Sign out ──────────────────────────────────────────────────── */}
-        <View>
-          <SectionHeader title={tx('profile.sectionSession', 'This device')} variant="overline" />
+        <ProfileSection
+          icon="phone"
+          title={tx('profile.sectionSession', 'This device')}
+          subtitle={tr('profiles.clinician.sessionDesc')}
+        >
           <Card>
             <Text style={styles.hint}>
               {tx(
@@ -1037,11 +1103,8 @@ export default function DoctorProfileScreen() {
               style={styles.signOutButton}
             />
           </Card>
-        </View>
-      </ScrollView>
-
-      {dialog.element}
-    </SafeAreaView>
+        </ProfileSection>
+    </ProfileFrame>
   );
 }
 

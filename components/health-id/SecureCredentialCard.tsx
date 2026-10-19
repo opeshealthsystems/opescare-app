@@ -39,6 +39,7 @@ import {
 } from '@/components/opes-ui';
 import { HEALTH_ID_ART } from './assets';
 import { LiveEcg, LivingAnatomy } from './LivingAnatomy';
+import { RotatingDna } from './RotatingDna';
 import { Art, CornerBrackets, DECORATIVE, FILL, PulseArt, QrPanel, SealSystem, qrPanelExtent } from './Layers';
 import { ageFrom, presentOrNull, titleCase, type CredentialModel } from './model';
 
@@ -156,7 +157,7 @@ export function SecureCredentialCard({
             high={0.85}
             duration={presentation ? 1700 : 3600}
           />
-          <Art source={HEALTH_ID_ART.dnaHelix} style={styles.dnaHelix} resizeMode="cover" opacity={0.85} />
+          <RotatingDna style={styles.dnaHelix} opacity={0.9} />
           <Art source={HEALTH_ID_ART.dnaMicrodata} style={styles.dnaMicro} resizeMode="cover" opacity={0.55} />
         </View>
         <CornerBrackets color={colors.primarySoft} active={presentation} size={20} inset={8} radius={10} />

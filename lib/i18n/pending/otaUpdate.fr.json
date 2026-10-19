@@ -1,0 +1,8 @@
+{
+  "otaUpdate": {
+    "ready": "Une nouvelle version d'OpesCare est prête",
+    "body": "Redémarrez pour l'utiliser. Rien de ce que vous faisiez n'est perdu.",
+    "restart": "Redémarrer",
+    "later": "Plus tard"
+  }
+}

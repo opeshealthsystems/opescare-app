@@ -20,6 +20,7 @@ import * as SecureStore from 'expo-secure-store';
 import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../lib/store/auth';
 import { AppUpdateGate } from '../components/AppUpdateGate';
+import { UpdateReadyBanner } from '../components/UpdateReadyBanner';
 import { initOfflineMode } from '../lib/offline';
 import { OfflineBanner } from '../components/offline/OfflineBanner';
 import { PushListeners } from '../lib/push/PushListeners';
@@ -225,6 +226,8 @@ export default function RootLayout() {
         {/* Startup version gate (GET /mobile/app-config). Fails open —
             see lib/api/appConfigQueries.ts. */}
         <AppUpdateGate />
+        {/* Over-the-air update downloaded: offer a one-tap restart. */}
+        <UpdateReadyBanner />
         {/* Push listeners (native) and the consent prompt (every platform)
             exist only for a signed-in session; the watcher further limits
             itself to a PATIENT persona — a clinician is never asked to

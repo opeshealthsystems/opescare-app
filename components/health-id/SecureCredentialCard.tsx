@@ -46,7 +46,8 @@ import { ageFrom, presentOrNull, titleCase, type CredentialModel } from './model
 export const CARD_QR_SIZE = 86;
 
 /** Below this card width the face restacks: QR under the fields, name may wrap, smaller ID type. */
-const NARROW_CARD = 330;
+// Card width below which the QR moves under the fields. At a 360dp window the card is ~328dp wide and keeps the side-by-side layout; at 320dp (~288dp card) it stacks.
+const NARROW_CARD = 310;
 
 export type CopyState = 'idle' | 'copied' | 'failed';
 

@@ -29,6 +29,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   Icon,
@@ -61,12 +62,7 @@ import {
   type TableColumn,
 } from '@/components/diagnostics/shared';
 import { TrendChart } from '@/components/diagnostics/TrendChart';
-import {
-  isLabsUnavailable,
-  useDiagnosticsSummary,
-  useLabTrend,
-  type LabTrend,
-} from '@/lib/api/labsQueries';
+import { isLabsUnavailable, useDiagnosticsSummary, useLabTrend, type LabTrend } from '@/lib/api/labsQueries';
 import { LabsUnavailable, resultFlagLabel, useLabsT, type Tx } from '../index';
 
 function columns(tx: Tx): TableColumn[] {
@@ -74,8 +70,17 @@ function columns(tx: Tx): TableColumn[] {
     { key: 'date', label: tx('table.date', 'Date'), flex: 1.5 },
     { key: 'result', label: tx('table.result', 'Result'), flex: 1 },
     { key: 'unit', label: tx('table.unit', 'Unit'), flex: 0.9 },
-    { key: 'range', label: tx('table.referenceRange', 'Reference Range'), flex: 1.5 },
-    { key: 'status', label: tx('table.status', 'Status'), flex: 1.4, align: 'right' },
+    {
+      key: 'range',
+      label: tx('table.referenceRange', 'Reference Range'),
+      flex: 1.5,
+    },
+    {
+      key: 'status',
+      label: tx('table.status', 'Status'),
+      flex: 1.4,
+      align: 'right',
+    },
   ];
 }
 
@@ -139,18 +144,17 @@ export default function LabResultTrendScreen() {
 
   const openOrder = useCallback(
     () => router.push({ pathname: '/labs/[id]', params: { id: orderId } }),
-    [router, orderId]
+    [router, orderId],
   );
   const openReport = useCallback(
     () => router.push({ pathname: '/labs/[id]/report', params: { id: orderId } }),
-    [router, orderId]
+    [router, orderId],
   );
   const openMessages = useCallback(() => router.push('/(tabs)/messages'), [router]);
 
   // The trend is the screen; the summary only feeds the switcher. Loading is
   // whichever of the two is still needed to draw something.
-  const waiting =
-    (summaryQuery.isLoading && !summaryQuery.data && !picked) || (trendQuery.isLoading && !series);
+  const waiting = (summaryQuery.isLoading && !summaryQuery.data && !picked) || (trendQuery.isLoading && !series);
   const failure = trendQuery.error ?? (trendable.length === 0 ? summaryQuery.error : null) ?? null;
 
   function renderBody() {
@@ -179,7 +183,7 @@ export default function LabResultTrendScreen() {
             title={tx('trend.noneAvailableTitle', 'Nothing to chart yet')}
             message={tx(
               'trend.noneAvailableBody',
-              'A trend needs at least one numeric result. Yours appear here as soon as the laboratory releases them.'
+              'A trend needs at least one numeric result. Yours appear here as soon as the laboratory releases them.',
             )}
             actionLabel={tx('trend.backToResults', 'Back to results')}
             onAction={() => router.push('/labs')}
@@ -200,7 +204,7 @@ export default function LabResultTrendScreen() {
             title={tx('trend.emptyTitle', 'Only one result so far')}
             message={tx(
               'trend.emptyBody',
-              'A trend needs more than one result for this test. The next one will draw the line.'
+              'A trend needs more than one result for this test. The next one will draw the line.',
             )}
             actionLabel={tx('trend.backToResults', 'Back to results')}
             onAction={openOrder}
@@ -289,9 +293,7 @@ export default function LabResultTrendScreen() {
         {/* ── Critical alert ─────────────────────────────────────────── */}
         {isCritical && (
           <InfoStrip icon="alert-circle" tone="critical" live="assertive">
-            <Text style={styles.alertTitle}>
-              {tx('trend.criticalTitle', 'This result is outside the safe range')}
-            </Text>
+            <Text style={styles.alertTitle}>{tx('trend.criticalTitle', 'This result is outside the safe range')}</Text>
             <Text style={styles.alertBody}>
               {tx('trend.criticalBody', '{{analyte}} is {{value}}, against a usual range of {{range}}.', {
                 analyte: series.analyte,
@@ -327,14 +329,18 @@ export default function LabResultTrendScreen() {
             >
               <Text style={styles.latestName}>{series.analyte}</Text>
               <Text style={styles.latestRange}>
-                {tx('trend.normalRange', 'Usual range: {{range}}', { range: latestRangeLabel })}
+                {tx('trend.normalRange', 'Usual range: {{range}}', {
+                  range: latestRangeLabel,
+                })}
               </Text>
               <View style={styles.latestValueRow}>
                 <Text style={[styles.latestValue, { color: valueColor }]}>{latestValue}</Text>
                 {!!series.unit && <Text style={[styles.latestUnit, { color: valueColor }]}>{series.unit}</Text>}
               </View>
               <Text style={styles.latestDate}>
-                {tx('trend.latestResult', 'Latest result, {{date}}', { date: fmtDate(latestAt) })}
+                {tx('trend.latestResult', 'Latest result, {{date}}', {
+                  date: fmtDate(latestAt),
+                })}
               </Text>
               <StatusBadge
                 status={flag}
@@ -355,9 +361,7 @@ export default function LabResultTrendScreen() {
               </View>
               <Text style={styles.dirMeta}>{tx('trend.vsFirst', 'vs. first result')}</Text>
               {!!first && (
-                <Text style={styles.dirMeta}>
-                  {`(${trimNum(first.value)}${series.unit ? ` ${series.unit}` : ''})`}
-                </Text>
+                <Text style={styles.dirMeta}>{`(${trimNum(first.value)}${series.unit ? ` ${series.unit}` : ''})`}</Text>
               )}
               {series.change_percent != null && (
                 <Text style={[styles.dirChange, { color: valueColor }]}>
@@ -374,50 +378,52 @@ export default function LabResultTrendScreen() {
         </Card>
 
         {/* ── History table ──────────────────────────────────────────── */}
-        <Card>
-          <Overline label={tx('trend.history', 'History')} style={styles.overlineGap} />
-          <TableHead columns={COLUMNS} />
+        <CardStack spacing="sm">
+          <Card>
+            <Overline label={tx('trend.history', 'History')} style={styles.overlineGap} />
+            <TableHead columns={COLUMNS} />
+          </Card>
           {newest.map((p, i) => (
-            <TableRow
-              key={`${p.recorded_at ?? 'na'}-${i}`}
-              columns={COLUMNS}
-              last={i === newest.length - 1}
-              a11yLabel={tr('opesDiagnostics.a11y.historyRow', {
-                date: fmtDate(p.recorded_at),
-                value: `${trimNum(p.value)}${series.unit ? ` ${series.unit}` : ''}`,
-                range: rangeSpoken(series.ref_low, series.ref_high, latest?.reference, tr),
-                status: flagSpoken(p.flag, tr),
-              })}
-              a11yHint={tx('trend.historyHint', 'Opens the order this result came from')}
-              onPress={openOrder}
-              cells={[
-                { text: fmtDate(p.recorded_at), bold: true },
-                { text: trimNum(p.value), bold: true, wrap: true },
-                { text: series.unit ?? '—' },
-                {
-                  text: referenceRange(series.ref_low, series.ref_high, latest?.reference ?? NO_RANGE),
-                  wrap: true,
-                },
-                {
-                  node:
-                    p.flag === 'critical' ? (
-                      <StatusBadge
-                        status="critical"
-                        label={tx('flag.critical', 'Critical')}
-                        tone="critical"
-                        size="sm"
-                        icon="alert-circle"
-                      />
-                    ) : (
-                      <Text style={[styles.flagText, { color: colorForFlag(p.flag) }]} numberOfLines={1}>
-                        {resultFlagLabel(p.flag, tx, tr)}
-                      </Text>
-                    ),
-                },
-              ]}
-            />
+            <Card key={`${p.recorded_at ?? 'na'}-${i}`} variant="flush">
+              <TableRow
+                columns={COLUMNS}
+                a11yLabel={tr('opesDiagnostics.a11y.historyRow', {
+                  date: fmtDate(p.recorded_at),
+                  value: `${trimNum(p.value)}${series.unit ? ` ${series.unit}` : ''}`,
+                  range: rangeSpoken(series.ref_low, series.ref_high, latest?.reference, tr),
+                  status: flagSpoken(p.flag, tr),
+                })}
+                a11yHint={tx('trend.historyHint', 'Opens the order this result came from')}
+                onPress={openOrder}
+                cells={[
+                  { text: fmtDate(p.recorded_at), bold: true },
+                  { text: trimNum(p.value), bold: true, wrap: true },
+                  { text: series.unit ?? '—' },
+                  {
+                    text: referenceRange(series.ref_low, series.ref_high, latest?.reference ?? NO_RANGE),
+                    wrap: true,
+                  },
+                  {
+                    node:
+                      p.flag === 'critical' ? (
+                        <StatusBadge
+                          status="critical"
+                          label={tx('flag.critical', 'Critical')}
+                          tone="critical"
+                          size="sm"
+                          icon="alert-circle"
+                        />
+                      ) : (
+                        <Text style={[styles.flagText, { color: colorForFlag(p.flag) }]} numberOfLines={1}>
+                          {resultFlagLabel(p.flag, tx, tr)}
+                        </Text>
+                      ),
+                  },
+                ]}
+              />
+            </Card>
           ))}
-        </Card>
+        </CardStack>
 
         <ActionGrid
           actions={[
@@ -461,12 +467,16 @@ export default function LabResultTrendScreen() {
           {
             icon: 'bell',
             onPress: () => router.push('/notifications'),
-            accessibilityLabel: t('opesCore.common.notifications', { defaultValue: 'Notifications' }),
+            accessibilityLabel: t('opesCore.common.notifications', {
+              defaultValue: 'Notifications',
+            }),
           },
           {
             icon: 'more-vertical',
             onPress: () => router.push('/labs'),
-            accessibilityLabel: t('opesCore.common.moreOptions', { defaultValue: 'More options' }),
+            accessibilityLabel: t('opesCore.common.moreOptions', {
+              defaultValue: 'More options',
+            }),
           },
         ]}
       />
@@ -494,9 +504,17 @@ export default function LabResultTrendScreen() {
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
-    headRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
+    headRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+    },
     headCircle: {
       width: 52,
       height: 52,
@@ -525,7 +543,11 @@ const makeStyles = (colors: Palette) =>
       borderTopColor: colors.divider,
     },
     metaCol: { flex: 1, gap: 4 },
-    metaColDivided: { borderLeftWidth: 1, borderLeftColor: colors.divider, paddingLeft: spacing.md },
+    metaColDivided: {
+      borderLeftWidth: 1,
+      borderLeftColor: colors.divider,
+      paddingLeft: spacing.md,
+    },
     metaLabel: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
@@ -574,9 +596,20 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.xs,
       color: colors.textSecondary,
     },
-    latestValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: spacing.sm },
-    latestValue: { fontFamily: typography.fontFamily.bold, fontSize: typography.size.xxl },
-    latestUnit: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.md },
+    latestValueRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: 6,
+      marginTop: spacing.sm,
+    },
+    latestValue: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xxl,
+    },
+    latestUnit: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+    },
     latestDate: {
       marginTop: 2,
       fontFamily: typography.fontFamily.regular,
@@ -585,7 +618,12 @@ const makeStyles = (colors: Palette) =>
     },
     latestBadge: { marginTop: spacing.sm },
 
-    dirRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 6 },
+    dirRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginTop: 6,
+    },
     dirCircle: {
       width: 34,
       height: 34,
@@ -594,14 +632,25 @@ const makeStyles = (colors: Palette) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    dirLabel: { flex: 1, fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.md },
+    dirLabel: {
+      flex: 1,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+    },
     dirMeta: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
       color: colors.textSecondary,
     },
-    dirChange: { marginTop: 2, fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
+    dirChange: {
+      marginTop: 2,
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
 
     overlineGap: { marginBottom: spacing.sm + 2 },
-    flagText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.xs },
+    flagText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+    },
   });

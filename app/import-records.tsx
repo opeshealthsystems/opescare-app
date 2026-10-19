@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import * as DocumentPicker from 'expo-document-picker';
 import {
   Card,
+  CardStack,
   GradientButton,
   Icon,
   ListRow,
@@ -147,26 +148,26 @@ export default function ImportRecordsScreen() {
 
         <View>
           <SectionHeader title={t('importRecords.chooseTitle')} variant="overline" />
-          <Card variant="flush">
-            {KINDS.map((entry, index) => (
-              <ListRow
-                key={entry.key}
-                icon={entry.icon}
-                tint={entry.tint}
-                title={t(entry.titleKey)}
-                subtitle={t(entry.bodyKey)}
-                onPress={() => setKind(entry.key)}
-                chevron={false}
-                divider={index < KINDS.length - 1}
-                accessibilityLabel={`${t(entry.titleKey)}. ${t(entry.bodyKey)}`}
-                trailing={
-                  <View style={[styles.radio, kind === entry.key && styles.radioOn]}>
-                    {kind === entry.key ? <Icon name="check" size={13} color={colors.textOnBrand} /> : null}
-                  </View>
-                }
-              />
+          <CardStack spacing="sm">
+            {KINDS.map((entry) => (
+              <Card key={entry.key} variant="flush">
+                <ListRow
+                  icon={entry.icon}
+                  tint={entry.tint}
+                  title={t(entry.titleKey)}
+                  subtitle={t(entry.bodyKey)}
+                  onPress={() => setKind(entry.key)}
+                  chevron={false}
+                  accessibilityLabel={`${t(entry.titleKey)}. ${t(entry.bodyKey)}`}
+                  trailing={
+                    <View style={[styles.radio, kind === entry.key && styles.radioOn]}>
+                      {kind === entry.key ? <Icon name="check" size={13} color={colors.textOnBrand} /> : null}
+                    </View>
+                  }
+                />
+              </Card>
             ))}
-          </Card>
+          </CardStack>
           <Text style={styles.caption}>{t('importRecords.limits')}</Text>
 
           <GradientButton
@@ -182,32 +183,31 @@ export default function ImportRecordsScreen() {
         {summary ? (
           <View>
             <SectionHeader title={t('importRecords.summaryTitle')} variant="overline" />
-            <Card variant="flush">
-              <ListRow
-                icon="upload"
-                tint="blue"
-                title={`${t('importRecords.importedCount', { count: summary.totals.imported })} · ${t('importRecords.skippedCount', { count: summary.totals.skipped })}`}
-                chevron={false}
-                divider={typeRows.length > 0}
-                trailing={
-                  <StatusBadge status="pending" tone="warning" label={summary.label} icon="info" size="sm" />
-                }
-              />
-              {typeRows.map(([type, counts], index) => (
+            <CardStack spacing="sm">
+              <Card variant="flush">
                 <ListRow
-                  key={type}
-                  icon="document-text"
-                  tint="green"
-                  title={type}
-                  meta={[
-                    `${t('importRecords.imported')}: ${counts.imported}`,
-                    `${t('importRecords.skipped')}: ${counts.skipped}`,
-                  ]}
+                  icon="upload"
+                  tint="blue"
+                  title={`${t('importRecords.importedCount', { count: summary.totals.imported })} · ${t('importRecords.skippedCount', { count: summary.totals.skipped })}`}
                   chevron={false}
-                  divider={index < typeRows.length - 1}
+                  trailing={<StatusBadge status="pending" tone="warning" label={summary.label} icon="info" size="sm" />}
                 />
+              </Card>
+              {typeRows.map(([type, counts]) => (
+                <Card key={type} variant="flush">
+                  <ListRow
+                    icon="document-text"
+                    tint="green"
+                    title={type}
+                    meta={[
+                      `${t('importRecords.imported')}: ${counts.imported}`,
+                      `${t('importRecords.skipped')}: ${counts.skipped}`,
+                    ]}
+                    chevron={false}
+                  />
+                </Card>
               ))}
-            </Card>
+            </CardStack>
             {summary.skipped.map((s) => (
               <Text key={`${s.resource_type}-${s.reason}`} style={styles.caption}>
                 {`${s.resource_type}: ${s.reason_label} (${s.count})`}
@@ -234,7 +234,12 @@ export default function ImportRecordsScreen() {
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
     caption: {
       marginTop: spacing.sm,
       fontFamily: typography.fontFamily.regular,
@@ -260,9 +265,18 @@ const makeStyles = (colors: Palette) =>
       padding: spacing.md,
       borderRadius: radii.md,
     },
-    noticeIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+    noticeIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     noticeBody: { flex: 1, minWidth: 0, gap: 2 },
-    noticeTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
+    noticeTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
     noticeText: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,

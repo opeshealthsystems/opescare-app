@@ -151,7 +151,10 @@ export function reservationActionIcon(action: ReservationAction): IconName {
  * `12 500 FCFA` / `12,500 FCFA` — the app's one currency label when the
  * server says XAF (or nothing); any other ISO code is printed as sent.
  */
-export function deskMoney(value: number | string | null | undefined, currency: string | null | undefined): string | null {
+export function deskMoney(
+  value: number | string | null | undefined,
+  currency: string | null | undefined,
+): string | null {
   const n = toNum(value);
   if (n === null) return null;
   const code = (currency ?? '').toUpperCase();
@@ -173,9 +176,7 @@ export function medicineLabel(m: { name: string; strength?: string | null; form?
 /** The one-line medicines summary a queue row shows: "Amoxicillin ×21 · Paracetamol ×10". */
 export function itemsSummary(items: DeskPrescriptionItem[] | undefined): string {
   if (!items || items.length === 0) return tx('row.noItems');
-  return items
-    .map((it) => [it.drug_name, qtyLabel(it.quantity)].filter(Boolean).join(' '))
-    .join(' · ');
+  return items.map((it) => [it.drug_name, qtyLabel(it.quantity)].filter(Boolean).join(' ')).join(' · ');
 }
 
 /** The patient line on every row: short name, or the Health ID when there is none. */
@@ -239,7 +240,10 @@ export function describeWriteFailure(error: unknown, checkHint: string): WriteFa
     return {
       kind: 'unknownOutcome',
       title: f.title,
-      message: i18next.t('opesCore.errors.unknownOutcome', { message: f.message, checkHint }) as string,
+      message: i18next.t('opesCore.errors.unknownOutcome', {
+        message: f.message,
+        checkHint,
+      }) as string,
     };
   }
   return { kind: 'other', title: f.title, message: f.message };
@@ -329,12 +333,7 @@ export function DeskTile({
       <View style={styles.tileIcon}>
         <Icon name={icon} size={24} color={skin.fg} />
       </View>
-      <Text
-        style={[
-          styles.tileCount,
-          emphasise && count > 0 && { color: colors.statusWarning },
-        ]}
-      >
+      <Text style={[styles.tileCount, emphasise && count > 0 && { color: colors.statusWarning }]}>
         {formatNumber(count)}
       </Text>
       <Text style={styles.tileLabel} numberOfLines={2}>
@@ -350,10 +349,10 @@ export function DeskTile({
 export function PrescriptionRow({
   prescription: p,
   onPress,
-  divider,
 }: {
   prescription: DeskPrescription;
   onPress: () => void;
+  /** Ignored: each row sits in its own card; none draws a hairline. */
   divider?: boolean;
 }) {
   const stage = prescriptionStage(p);
@@ -366,7 +365,7 @@ export function PrescriptionRow({
       subtitleLines={3}
       trailing={<StatusBadge status={stage ?? 'unknown'} tone={stageTone(stage)} label={stageLabel(stage)} size="sm" />}
       onPress={onPress}
-      divider={divider}
+      divider={false}
     />
   );
 }
@@ -375,10 +374,10 @@ export function PrescriptionRow({
 export function ReservationRow({
   reservation: r,
   onPress,
-  divider,
 }: {
   reservation: DeskReservation;
   onPress: () => void;
+  /** Ignored: each row sits in its own card; none draws a hairline. */
   divider?: boolean;
 }) {
   const delivery = (r.fulfilment_mode ?? 'pickup') === 'delivery';
@@ -398,7 +397,7 @@ export function ReservationRow({
         />
       }
       onPress={onPress}
-      divider={divider}
+      divider={false}
     />
   );
 }
@@ -407,10 +406,10 @@ export function ReservationRow({
 export function StockRow({
   item,
   onPress,
-  divider,
 }: {
   item: StockItem;
   onPress: () => void;
+  /** Ignored: each row sits in its own card; none draws a hairline. */
   divider?: boolean;
 }) {
   const { t } = useTranslation();
@@ -450,7 +449,7 @@ export function StockRow({
         </View>
       }
       onPress={onPress}
-      divider={divider}
+      divider={false}
     />
   );
 }

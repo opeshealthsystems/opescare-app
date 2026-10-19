@@ -1,11 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-import {
-  radii,
-  spacing,
-  typography,
-  type Palette,
-} from '@/components/opes-ui';
+import { radii, spacing, typography, type Palette } from '@/components/opes-ui';
 
 import { type Medicine } from '@/lib/api/queries';
 
@@ -14,7 +9,11 @@ import { type Medicine } from '@/lib/api/queries';
 export const makeStyles = (c: Palette) =>
   StyleSheet.create({
     /* MED-03 availability & pricing */
-    pricingRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: spacing.xs },
+    pricingRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginTop: spacing.xs,
+    },
     pricingCell: {
       flex: 1,
       alignItems: 'center',
@@ -41,7 +40,12 @@ export const makeStyles = (c: Palette) =>
       textAlign: 'center',
       color: c.textMuted,
     },
-    pricingLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 },
+    pricingLinkRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      marginTop: 2,
+    },
     pricingLink: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: 11,
@@ -104,7 +108,12 @@ export const makeStyles = (c: Palette) =>
 
     /* MED-03 "Choose Pack Size" four-up. ~74pt per cell at 375pt; more than
        four options wrap onto a second line rather than shrinking further. */
-    packGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: spacing.sm },
+    packGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 7,
+      marginTop: spacing.sm,
+    },
     packTile: {
       flexGrow: 1,
       flexBasis: '22%',
@@ -134,7 +143,12 @@ export const makeStyles = (c: Palette) =>
     },
 
     /* MED-03 why prices vary — a 2×2 at 375pt, not a four-up. */
-    whyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm + 2, marginTop: spacing.xs },
+    whyGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm + 2,
+      marginTop: spacing.xs,
+    },
     whyCell: { flexGrow: 1, flexBasis: '44%', minWidth: 128, gap: 4 },
     whyMark: {
       width: 32,
@@ -188,7 +202,11 @@ export const makeStyles = (c: Palette) =>
     screen: { flex: 1, backgroundColor: c.page },
     // The sticky footer floats over the scroll view, so the content has to
     // clear it or the last card is unreadable behind the Reserve button.
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl + 64 },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl + 64,
+    },
     stack: { gap: spacing.md },
 
     /* MED-02 green information strip */
@@ -328,7 +346,11 @@ export const makeStyles = (c: Palette) =>
     },
     footerButton: { flex: 1, minHeight: 46 },
 
-    loading: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm },
+    loading: {
+      alignItems: 'center',
+      paddingVertical: spacing.lg,
+      gap: spacing.sm,
+    },
     loadingText: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
@@ -402,7 +424,13 @@ export const makeStyles = (c: Palette) =>
       fontSize: 11,
       color: c.textSecondary,
     },
-    rxLine: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 7 },
+    rxLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginTop: 7,
+    },
     rxLineText: {
       flexShrink: 1,
       fontFamily: typography.fontFamily.semiBold,
@@ -420,7 +448,13 @@ export const makeStyles = (c: Palette) =>
       borderTopWidth: 1,
       borderTopColor: c.divider,
     },
-    identityFootCell: { flexGrow: 1, flexBasis: '30%', minWidth: 94, gap: 2, paddingRight: 8 },
+    identityFootCell: {
+      flexGrow: 1,
+      flexBasis: '30%',
+      minWidth: 94,
+      gap: 2,
+      paddingRight: 8,
+    },
     identityFootCellDivided: {
       borderLeftWidth: 1,
       borderLeftColor: c.divider,
@@ -458,8 +492,11 @@ export const makeStyles = (c: Palette) =>
     selectedRow: { backgroundColor: c.statusNormalBg },
 
     /* MED-02 stocking-pharmacy row + its stacked action column */
-    stockRow: { paddingVertical: 14, paddingHorizontal: spacing.md, gap: spacing.sm + 2 },
-    stockRowDivider: { borderBottomWidth: 1, borderBottomColor: c.divider },
+    stockRow: {
+      paddingVertical: 14,
+      paddingHorizontal: spacing.md,
+      gap: spacing.sm + 2,
+    },
     stockHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
     stockShot: {
       width: 54,
@@ -469,7 +506,11 @@ export const makeStyles = (c: Palette) =>
       justifyContent: 'center',
     },
     stockBody: { flex: 1, minWidth: 0, gap: 3 },
-    stockTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    stockTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
     stockName: {
       flex: 1,
       minWidth: 0,
@@ -484,7 +525,12 @@ export const makeStyles = (c: Palette) =>
       lineHeight: typography.lineHeight.xs,
       color: c.textSecondary,
     },
-    stockStatusRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+    stockStatusRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 6,
+    },
     stockPrice: {
       fontFamily: typography.fontFamily.bold,
       fontSize: typography.size.sm,
@@ -493,7 +539,12 @@ export const makeStyles = (c: Palette) =>
     stockActions: { gap: 7 },
 
     /* MED-03/MED-04 selected-pharmacy action row */
-    pharmacyActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: spacing.sm + 4 },
+    pharmacyActions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 7,
+      marginTop: spacing.sm + 4,
+    },
     pharmacyAction: { flexGrow: 1, flexBasis: '30%', minWidth: 96 },
 
     pharmacyName: {
@@ -615,8 +666,15 @@ export const makeStyles = (c: Palette) =>
     },
 
     /* MED-02's amber prescription panel. There is exactly one on the screen. */
-    rxCard: { backgroundColor: c.statusWarningBg, borderColor: c.statusWarning },
-    rxHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 4 },
+    rxCard: {
+      backgroundColor: c.statusWarningBg,
+      borderColor: c.statusWarning,
+    },
+    rxHead: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm + 4,
+    },
     rxMark: {
       width: 44,
       height: 44,
@@ -645,7 +703,12 @@ export const makeStyles = (c: Palette) =>
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.sm,
     },
-    outcomeActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
+    outcomeActions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
     outcomeAction: { flexGrow: 1 },
 
     disabledReason: {
@@ -672,7 +735,12 @@ export const makeStyles = (c: Palette) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    noticeLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4 },
+    noticeLinkRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      marginTop: 4,
+    },
     noticeLink: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.xs,

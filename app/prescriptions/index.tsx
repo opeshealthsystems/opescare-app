@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ScreenHeader,
@@ -75,14 +76,7 @@ import {
  * than reading as a failure, and both of its actions lead somewhere real.
  */
 
-const STATUS_FILTERS = [
-  'all',
-  'active',
-  'partially_dispensed',
-  'dispensed',
-  'expired',
-  'cancelled',
-] as const;
+const STATUS_FILTERS = ['all', 'active', 'partially_dispensed', 'dispensed', 'expired', 'cancelled'] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 /** Statuses from which no further transition is allowed (server-side truth). */
@@ -104,9 +98,7 @@ export default function PrescriptionsListScreen() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<StatusFilter>('all');
 
-  const { data, isLoading, isError, isFetching, refetch } = usePrescriptions(
-    filter === 'all' ? undefined : filter,
-  );
+  const { data, isLoading, isError, isFetching, refetch } = usePrescriptions(filter === 'all' ? undefined : filter);
   const summary = useActivePrescriptionSummary();
 
   const prescriptions = data?.data ?? [];
@@ -204,8 +196,7 @@ export default function PrescriptionsListScreen() {
                 tint="red"
                 title={t('prescriptions.loadError')}
                 message={vocab.tx('prescriptions.loadErrorBody', {
-                  defaultValue:
-                    'Your prescriptions could not be fetched. Check your connection and try again.',
+                  defaultValue: 'Your prescriptions could not be fetched. Check your connection and try again.',
                 })}
                 actionLabel={t('prescriptions.retry')}
                 onAction={() => refetch()}
@@ -214,10 +205,7 @@ export default function PrescriptionsListScreen() {
           ) : filter === 'all' ? (
             <FirstRunEmptyState />
           ) : (
-            <FilteredEmptyState
-              statusLabel={vocab.statusLabel(filter)}
-              onShowAll={() => setFilter('all')}
-            />
+            <FilteredEmptyState statusLabel={vocab.statusLabel(filter)} onShowAll={() => setFilter('all')} />
           )
         }
         ListFooterComponent={
@@ -232,11 +220,7 @@ export default function PrescriptionsListScreen() {
           ) : null
         }
         renderItem={({ item, index }) => (
-          <PrescriptionRow
-            prescription={item}
-            index={index}
-            onPress={() => router.push(`/prescriptions/${item.id}`)}
-          />
+          <PrescriptionRow prescription={item} index={index} onPress={() => router.push(`/prescriptions/${item.id}`)} />
         )}
       />
     </Screen>
@@ -259,10 +243,7 @@ export default function PrescriptionsListScreen() {
 function usePrescriptionVocab() {
   const { t } = useTranslation();
 
-  const tx = useCallback<TFunc>(
-    (key, params) => String(t(key, params as Record<string, unknown>)),
-    [t],
-  );
+  const tx = useCallback<TFunc>((key, params) => String(t(key, params as Record<string, unknown>)), [t]);
 
   const statusLabel = useCallback(
     (status: string): string => {
@@ -298,13 +279,7 @@ function lineStateOf(item: PrescriptionItemDetail): LineState {
 /* -- Pieces ---------------------------------------------------------------- */
 
 /** The MED-001 navy hero: two numerals and the pill mark. */
-function SummaryHero({
-  prescriptions,
-  medications,
-}: {
-  prescriptions: number;
-  medications: number;
-}) {
+function SummaryHero({ prescriptions, medications }: { prescriptions: number; medications: number }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -369,9 +344,7 @@ function PrescriptionRow({
   // An expiry is only worth a countdown while the prescription can still be
   // filled, and only inside the window where the date changes what you'd do.
   const expiringInDays =
-    fillable && remaining !== null && remaining >= 0 && remaining <= EXPIRY_WARNING_WINDOW_DAYS
-      ? remaining
-      : null;
+    fillable && remaining !== null && remaining >= 0 && remaining <= EXPIRY_WARNING_WINDOW_DAYS ? remaining : null;
   const expiryLabel =
     expiringInDays === null
       ? null
@@ -394,7 +367,9 @@ function PrescriptionRow({
 
   // The drug line. The index endpoint carries no names, so this only fills in
   // once the per-row detail lands; the count is the floor under it.
-  const countLine = t('prescriptions.medicationCount', { count: prescription.item_count });
+  const countLine = t('prescriptions.medicationCount', {
+    count: prescription.item_count,
+  });
   const firstDrug = items[0]?.drug_name ?? null;
   const extra = Math.max(0, (prescription.item_count || counts.total) - 1);
   const drugLine = firstDrug
@@ -407,7 +382,9 @@ function PrescriptionRow({
     : countLine;
 
   const dateLine = prescription.prescribed_at
-    ? t('prescriptions.prescribedOn', { date: fmtShortDate(prescription.prescribed_at) })
+    ? t('prescriptions.prescribedOn', {
+        date: fmtShortDate(prescription.prescribed_at),
+      })
     : t('prescriptions.dateUnknown');
   const reference = t('prescriptions.reference', {
     code: referenceCode(prescription.id, prescription.reference),
@@ -482,22 +459,12 @@ function PrescriptionRow({
             // that cannot be filled must not look like one that can. A row the
             // server still calls `active` keeps its own tone — the dated
             // "Expired" badge beside it carries the warning instead.
-            tone={
-              statusIsExpired
-                ? 'critical'
-                : headerTone(prescription.status, prescription.status_color)
-            }
+            tone={statusIsExpired ? 'critical' : headerTone(prescription.status, prescription.status_color)}
             label={badgeLabel}
             size="sm"
           />
           {expiredLabel && !statusIsExpired ? (
-            <StatusBadge
-              status="expired"
-              tone="critical"
-              icon="alert-triangle"
-              label={expiredLabel}
-              size="sm"
-            />
+            <StatusBadge status="expired" tone="critical" icon="alert-triangle" label={expiredLabel} size="sm" />
           ) : expiryLabel ? (
             <StatusBadge status="due" tone="warning" icon="clock" label={expiryLabel} size="sm" />
           ) : null}
@@ -523,9 +490,7 @@ function PrescriptionRow({
                   style={[
                     styles.barSegment,
                     {
-                      backgroundColor: settled
-                        ? statusMap[segmentTone(lineState, fillable)].fg
-                        : colors.border,
+                      backgroundColor: settled ? statusMap[segmentTone(lineState, fillable)].fg : colors.border,
                     },
                   ]}
                 />
@@ -579,31 +544,35 @@ function FirstRunEmptyState() {
 
       <View>
         <SectionHeader variant="overline" title={t('prescriptions.emptyHowTitle')} />
-        <Card variant="flush">
-          <StepRow
-            index={1}
-            icon="stethoscope"
-            tint="blue"
-            title={t('prescriptions.emptyStep1Title')}
-            body={t('prescriptions.emptyStep1Body')}
-            divider
-          />
-          <StepRow
-            index={2}
-            icon="document-text"
-            tint="green"
-            title={t('prescriptions.emptyStep2Title')}
-            body={t('prescriptions.emptyStep2Body')}
-            divider
-          />
-          <StepRow
-            index={3}
-            icon="store"
-            tint="purple"
-            title={t('prescriptions.emptyStep3Title')}
-            body={t('prescriptions.emptyStep3Body')}
-          />
-        </Card>
+        <CardStack spacing="sm">
+          <Card variant="flush">
+            <StepRow
+              index={1}
+              icon="stethoscope"
+              tint="blue"
+              title={t('prescriptions.emptyStep1Title')}
+              body={t('prescriptions.emptyStep1Body')}
+            />
+          </Card>
+          <Card variant="flush">
+            <StepRow
+              index={2}
+              icon="document-text"
+              tint="green"
+              title={t('prescriptions.emptyStep2Title')}
+              body={t('prescriptions.emptyStep2Body')}
+            />
+          </Card>
+          <Card variant="flush">
+            <StepRow
+              index={3}
+              icon="store"
+              tint="purple"
+              title={t('prescriptions.emptyStep3Title')}
+              body={t('prescriptions.emptyStep3Body')}
+            />
+          </Card>
+        </CardStack>
       </View>
 
       <MedButton
@@ -623,23 +592,17 @@ function StepRow({
   tint,
   title,
   body,
-  divider,
 }: {
   index: number;
   icon: IconName;
   tint: Tint;
   title: string;
   body: string;
-  divider?: boolean;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <View
-      style={[styles.step, divider && styles.stepDivider]}
-      accessible
-      accessibilityLabel={a11yJoin(`${index}. ${title}`, body)}
-    >
+    <View style={styles.step} accessible accessibilityLabel={a11yJoin(`${index}. ${title}`, body)}>
       <TintCircle icon={icon} tint={tint} size={40} />
       <View style={styles.stepBody}>
         <Text style={styles.stepTitle}>
@@ -652,13 +615,7 @@ function StepRow({
 }
 
 /** A filter that matched nothing — a far lighter message than a first run. */
-function FilteredEmptyState({
-  statusLabel,
-  onShowAll,
-}: {
-  statusLabel: string;
-  onShowAll: () => void;
-}) {
+function FilteredEmptyState({ statusLabel, onShowAll }: { statusLabel: string; onShowAll: () => void }) {
   const { t } = useTranslation();
 
   return (
@@ -717,7 +674,11 @@ const makeStyles = (c: Palette) =>
       backgroundColor: c.navy,
     },
     heroCol: { flex: 1, minWidth: 0 },
-    heroDivider: { width: 1, alignSelf: 'stretch', backgroundColor: c.navyLight },
+    heroDivider: {
+      width: 1,
+      alignSelf: 'stretch',
+      backgroundColor: c.navyLight,
+    },
     heroLabel: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
@@ -751,7 +712,12 @@ const makeStyles = (c: Palette) =>
       fontSize: typography.size.sm,
       color: c.textSecondary,
     },
-    rxMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+    rxMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 2,
+    },
     rxMeta: {
       flex: 1,
       fontFamily: typography.fontFamily.regular,
@@ -766,7 +732,13 @@ const makeStyles = (c: Palette) =>
       paddingBottom: 12,
       marginTop: -2,
     },
-    bar: { flexDirection: 'row', gap: 3, height: 6, borderRadius: radii.pill, overflow: 'hidden' },
+    bar: {
+      flexDirection: 'row',
+      gap: 3,
+      height: 6,
+      borderRadius: radii.pill,
+      overflow: 'hidden',
+    },
     barSegment: { flex: 1, borderRadius: radii.pill },
     rxProgressText: {
       fontFamily: typography.fontFamily.medium,
@@ -782,7 +754,6 @@ const makeStyles = (c: Palette) =>
       paddingVertical: 14,
       paddingHorizontal: spacing.md,
     },
-    stepDivider: { borderBottomWidth: 1, borderBottomColor: c.divider },
     stepBody: { flex: 1, minWidth: 0, gap: 2 },
     stepTitle: {
       fontFamily: typography.fontFamily.semiBold,

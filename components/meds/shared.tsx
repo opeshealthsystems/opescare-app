@@ -10,15 +10,7 @@
  * are reused from the CARE slice so the two slices behave identically.
  */
 import React, { useMemo } from 'react';
-import {
-  ActivityIndicator,
-  StyleProp,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { ActivityIndicator, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import {
@@ -168,7 +160,7 @@ const RETRACTED_STATUSES = ['voided', 'entered_in_error'];
 
 export function prescriptionTone(
   status: string,
-  statusColor?: 'success' | 'info' | 'warning' | 'danger' | 'default' | null
+  statusColor?: 'success' | 'info' | 'warning' | 'danger' | 'default' | null,
 ): StatusTone {
   // Driven off the status, not the colour, so a retracted record still reads as
   // critical if the server ever changes what colour it sends. `toneForStatus`
@@ -212,7 +204,7 @@ export function fmtWhen(iso: string | null | undefined, t: TFunction): string {
   const days = Math.round(
     (new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() -
       new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) /
-      86400000
+      86400000,
   );
   const time = clock(d);
   if (days === 0) return t('opesMeds.dose.whenToday', { time });
@@ -233,11 +225,8 @@ export function fmtCountdown(iso: string, t: TFunction): string {
   const mins = Math.round(Math.abs(delta) / 60000);
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  const span =
-    h > 0 ? t('opesMeds.dose.spanHours', { h, m }) : t('opesMeds.dose.spanMinutes', { m });
-  return delta >= 0
-    ? t('opesMeds.dose.countdownIn', { span })
-    : t('opesMeds.dose.countdownAgo', { span });
+  const span = h > 0 ? t('opesMeds.dose.spanHours', { h, m }) : t('opesMeds.dose.spanMinutes', { m });
+  return delta >= 0 ? t('opesMeds.dose.countdownIn', { span }) : t('opesMeds.dose.countdownAgo', { span });
 }
 
 /** Whole days between today and `iso` (positive = in the future). */
@@ -264,7 +253,9 @@ export const ROW_TINTS: Tint[] = ['green', 'blue', 'purple', 'amber'];
 
 /** Pick a glyph from the dosage form — capsule, inhaler, syrup, tablet. */
 export function formIcon(
-  p: Partial<Pick<PortalPrescription, 'form' | 'dosage'>> & { drug_name: string }
+  p: Partial<Pick<PortalPrescription, 'form' | 'dosage'>> & {
+    drug_name: string;
+  },
 ): IconName {
   const s = `${p.form ?? ''} ${p.dosage ?? ''} ${p.drug_name ?? ''}`.toLowerCase();
   if (s.includes('capsule')) return 'capsule';
@@ -315,7 +306,7 @@ export function doseColor(status: DoseStatus, c: Palette = defaultColors): strin
 export function adherenceLabel(
   percent: number | null,
   t: TFunction,
-  c: Palette = defaultColors
+  c: Palette = defaultColors,
 ): { label: string; color: string } {
   if (percent === null) return { label: t('opesMeds.dose.adherenceNoData'), color: c.textMuted };
   if (percent >= 80) return { label: t('opesMeds.dose.adherenceGood'), color: c.statusNormal };
@@ -382,9 +373,7 @@ export function MedButton({
       ]}
     >
       {!!icon && <Icon name={icon} size={size === 'sm' ? 16 : 18} color={skin.fg} />}
-      <Text style={[styles.buttonLabel, size === 'sm' && styles.buttonLabelSm, { color: skin.fg }]}>
-        {label}
-      </Text>
+      <Text style={[styles.buttonLabel, size === 'sm' && styles.buttonLabelSm, { color: skin.fg }]}>{label}</Text>
       {!!iconRight && <Icon name={iconRight} size={size === 'sm' ? 16 : 18} color={skin.fg} />}
     </TouchableOpacity>
   );
@@ -476,21 +465,17 @@ export function StackedFact({
   icon,
   label,
   value,
-  divider,
 }: {
   icon: IconName;
   label: string;
   value: string;
+  /** Ignored: each fact sits in its own card; none draws a hairline. */
   divider?: boolean;
 }) {
   const { colors } = useTheme();
   const styles = useMedStyles();
   return (
-    <View
-      style={[styles.stacked, divider && styles.stackedDivider]}
-      accessible
-      accessibilityLabel={a11yJoin(label, value)}
-    >
+    <View style={styles.stacked} accessible accessibilityLabel={a11yJoin(label, value)}>
       <Icon name={icon} size={18} color={colors.blue} />
       <View style={styles.stackedBody}>
         <Text style={styles.factLabel}>{label}</Text>
@@ -506,22 +491,18 @@ export function MetricRow({
   label,
   value,
   valueColor,
-  divider,
 }: {
   icon: IconName;
   label: string;
   value: string;
   valueColor?: string;
+  /** Ignored: each metric sits in its own card; none draws a hairline. */
   divider?: boolean;
 }) {
   const { colors } = useTheme();
   const styles = useMedStyles();
   return (
-    <View
-      style={[styles.metric, divider && styles.stackedDivider]}
-      accessible
-      accessibilityLabel={a11yJoin(label, value)}
-    >
+    <View style={styles.metric} accessible accessibilityLabel={a11yJoin(label, value)}>
       <Icon name={icon} size={18} color={colors.blue} />
       <Text style={styles.metricLabel} numberOfLines={1}>
         {label}
@@ -620,7 +601,8 @@ export function DoseRow({
 }: {
   dose: MedicationDose;
   first: boolean;
-  last: boolean;
+  /** Ignored: each dose sits in its own card; none draws a hairline. */
+  last?: boolean;
   busy: boolean;
   /** Another dose is being written — hold this row until that settles. */
   locked?: boolean;
@@ -659,7 +641,7 @@ export function DoseRow({
     when,
     // Verbatim from the catalogue — the app must not soften this into a
     // reassurance it cannot make.
-    outcomeUnknown && `${t('opesMeds.dose.failTitle')}. ${t('opesMeds.dose.failHintTimeline')}`
+    outcomeUnknown && `${t('opesMeds.dose.failTitle')}. ${t('opesMeds.dose.failHintTimeline')}`,
   );
 
   return (
@@ -671,7 +653,7 @@ export function DoseRow({
       accessibilityLabel={spoken}
       accessibilityState={{ disabled: busy || !!locked, busy }}
       accessibilityLiveRegion={outcomeUnknown ? 'assertive' : undefined}
-      style={[styles.doseRow, !last && styles.doseDivider, !!locked && styles.doseRowLocked]}
+      style={[styles.doseRow, !!locked && styles.doseRowLocked]}
     >
       <View style={styles.doseTime}>
         <Text style={[styles.doseHour, { color: tone }]}>{hh}</Text>
@@ -679,9 +661,7 @@ export function DoseRow({
       </View>
 
       <View style={styles.doseRail}>
-        <View
-          style={[styles.doseRailLine, first && styles.doseRailLineTop, last && styles.doseRailLineBottom]}
-        />
+        <View style={[styles.doseRailLine, first && styles.doseRailLineTop, last && styles.doseRailLineBottom]} />
         <View style={[styles.doseDot, { backgroundColor: tone }]} />
       </View>
 
@@ -748,7 +728,10 @@ export const makeMedStyles = (c: Palette) =>
     },
     buttonSm: { paddingVertical: 9, paddingHorizontal: 12, gap: 6 },
     buttonOff: { opacity: 0.5 },
-    buttonLabel: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
+    buttonLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
     buttonLabelSm: { fontSize: typography.size.xs },
 
     grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
@@ -784,7 +767,11 @@ export const makeMedStyles = (c: Palette) =>
      * "Pharmacies near you" — it overflowed and overlapped its neighbour.
      * Stacking gives the label the full cell width.
      */
-    factHeadCentre: { flexDirection: 'column', justifyContent: 'center', gap: 3 },
+    factHeadCentre: {
+      flexDirection: 'column',
+      justifyContent: 'center',
+      gap: 3,
+    },
     factLabel: {
       flexShrink: 1,
       minWidth: 0,
@@ -794,10 +781,12 @@ export const makeMedStyles = (c: Palette) =>
       lineHeight: typography.lineHeight.xs,
       color: c.textSecondary,
     },
-    factValue: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
+    factValue: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
 
     stacked: { flexDirection: 'row', gap: spacing.sm, paddingVertical: 10 },
-    stackedDivider: { borderBottomWidth: 1, borderBottomColor: c.divider },
     stackedBody: { flex: 1, minWidth: 0, gap: 2 },
     stackedValue: {
       fontFamily: typography.fontFamily.semiBold,
@@ -806,7 +795,12 @@ export const makeMedStyles = (c: Palette) =>
       color: c.textPrimary,
     },
 
-    metric: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 11 },
+    metric: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: 11,
+    },
     metricLabel: {
       flex: 1,
       minWidth: 0,
@@ -866,14 +860,35 @@ export const makeMedStyles = (c: Palette) =>
     },
 
     // -- Dose timeline row ---------------------------------------------------
-    doseRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 12 },
-    doseDivider: { borderBottomWidth: 1, borderBottomColor: c.divider },
+    doseRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: 12,
+    },
     doseRowLocked: { opacity: 0.5 },
     doseTime: { width: 52 },
-    doseHour: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
-    doseAmPm: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
-    doseRail: { width: 12, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
-    doseRailLine: { position: 'absolute', top: 0, bottom: 0, width: 1.5, backgroundColor: c.border },
+    doseHour: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
+    doseAmPm: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
+    doseRail: {
+      width: 12,
+      alignSelf: 'stretch',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    doseRailLine: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      width: 1.5,
+      backgroundColor: c.border,
+    },
     doseRailLineTop: { top: '50%' },
     doseRailLineBottom: { bottom: '50%' },
     doseDot: { width: 10, height: 10, borderRadius: 5 },
@@ -885,9 +900,17 @@ export const makeMedStyles = (c: Palette) =>
       color: c.textPrimary,
     },
     doseMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    doseMeta: { fontFamily: typography.fontFamily.regular, fontSize: typography.size.xs, color: c.textMuted },
+    doseMeta: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
     doseRight: { alignItems: 'flex-end', gap: 4, minWidth: 84 },
-    doseWhen: { fontFamily: typography.fontFamily.regular, fontSize: typography.size.xs, color: c.textMuted },
+    doseWhen: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: c.textMuted,
+    },
   });
 
 /** The meds sheet for the active palette (memoised per palette). */

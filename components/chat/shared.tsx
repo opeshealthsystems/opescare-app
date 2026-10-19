@@ -218,7 +218,11 @@ export function ChatButton({
   const skin = {
     primary: { bg: colors.blue, fg: colors.textOnBrand, border: colors.blue },
     secondary: { bg: colors.surface, fg: colors.link, border: colors.border },
-    ghost: { bg: colors.primarySoft, fg: colors.link, border: colors.primarySoft },
+    ghost: {
+      bg: colors.primarySoft,
+      fg: colors.link,
+      border: colors.primarySoft,
+    },
   }[variant];
   const off = disabled || loading;
   return (
@@ -590,20 +594,18 @@ export function DetailRow({
   value,
   valueColor,
   bold,
-  divider = true,
   trailing,
 }: {
   label: string;
   value?: string;
   valueColor?: string;
   bold?: boolean;
-  divider?: boolean;
   trailing?: React.ReactNode;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <View style={[styles.detailRow, divider && styles.detailRowDivided]}>
+    <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
       {trailing ?? (
         <Text style={[styles.detailValue, bold && styles.detailValueBold, !!valueColor && { color: valueColor }]}>
@@ -618,7 +620,12 @@ export function DetailRow({
 export function QuickActionStrip({
   actions,
 }: {
-  actions: { icon: IconName; label: string; tint?: Tint; onPress: () => void }[];
+  actions: {
+    icon: IconName;
+    label: string;
+    tint?: Tint;
+    onPress: () => void;
+  }[];
 }) {
   const { colors, tintMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -794,7 +801,12 @@ export function Composer({
 
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
-    centre: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xl, gap: spacing.sm },
+    centre: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.xl,
+      gap: spacing.sm,
+    },
     centreText: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.sm,
@@ -812,9 +824,16 @@ const makeStyles = (colors: Palette) =>
       paddingVertical: 13,
       paddingHorizontal: spacing.md,
     },
-    buttonSm: { paddingVertical: 9, paddingHorizontal: 12, borderRadius: radii.sm + 2 },
+    buttonSm: {
+      paddingVertical: 9,
+      paddingHorizontal: 12,
+      borderRadius: radii.sm + 2,
+    },
     buttonOff: { opacity: 0.55 },
-    buttonLabel: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.md },
+    buttonLabel: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+    },
     buttonLabelSm: { fontSize: typography.size.sm },
 
     // Header
@@ -855,7 +874,12 @@ const makeStyles = (colors: Palette) =>
       borderWidth: 2,
       borderColor: colors.surface,
     },
-    onlineDotInline: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.statusNormal },
+    onlineDotInline: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.statusNormal,
+    },
     headerBody: { flex: 1, minWidth: 0 },
     headerNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     headerName: {
@@ -870,15 +894,28 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.sm,
       color: colors.textSecondary,
     },
-    headerMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
+    headerMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 1,
+    },
     headerMeta: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.sm,
       color: colors.textSecondary,
       flexShrink: 1,
     },
-    headerOnline: { fontFamily: typography.fontFamily.medium, fontSize: typography.size.xs, color: colors.statusNormal },
-    headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
+    headerOnline: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.xs,
+      color: colors.statusNormal,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+    },
 
     // Encryption strip
     encryption: {
@@ -900,19 +937,36 @@ const makeStyles = (colors: Palette) =>
     },
 
     // Day divider
-    dayRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2, marginVertical: spacing.xs },
+    dayRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 2,
+      marginVertical: spacing.xs,
+    },
     dayLine: { flex: 1, height: 1, backgroundColor: colors.border },
-    dayLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.size.sm, color: colors.link },
+    dayLabel: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.link,
+    },
     dayChip: {
       backgroundColor: colors.primarySoft,
       borderRadius: radii.pill,
       paddingHorizontal: 14,
       paddingVertical: 5,
     },
-    dayChipText: { fontFamily: typography.fontFamily.medium, fontSize: typography.size.sm, color: colors.link },
+    dayChipText: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.link,
+    },
 
     // Bubbles
-    bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm },
+    bubbleRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: spacing.sm,
+    },
     bubbleRowMine: { justifyContent: 'flex-end' },
     avatarGutter: { width: AVATAR_SIZE },
     bubble: {
@@ -922,7 +976,11 @@ const makeStyles = (colors: Palette) =>
       paddingVertical: spacing.sm + 4,
       borderWidth: 1,
     },
-    bubbleTheirs: { backgroundColor: colors.surface, borderColor: colors.border, borderBottomLeftRadius: radii.sm - 4 },
+    bubbleTheirs: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderBottomLeftRadius: radii.sm - 4,
+    },
     bubbleMine: {
       backgroundColor: colors.primarySoft,
       borderColor: colors.primarySoft,
@@ -941,8 +999,18 @@ const makeStyles = (colors: Palette) =>
       lineHeight: typography.lineHeight.md,
       color: colors.textPrimary,
     },
-    bubbleFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 4 },
-    bubbleTime: { fontFamily: typography.fontFamily.regular, fontSize: typography.size.xs, color: colors.textMuted },
+    bubbleFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: 4,
+      marginTop: 4,
+    },
+    bubbleTime: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+    },
 
     msgAvatar: {
       backgroundColor: colors.tintBlueBg,
@@ -951,7 +1019,10 @@ const makeStyles = (colors: Palette) =>
       borderWidth: 1,
       borderColor: colors.border,
     },
-    msgAvatarText: { fontFamily: typography.fontFamily.semiBold, color: colors.tintBlue },
+    msgAvatarText: {
+      fontFamily: typography.fontFamily.semiBold,
+      color: colors.tintBlue,
+    },
 
     // Rich card bubble
     cardBubble: {
@@ -970,8 +1041,18 @@ const makeStyles = (colors: Palette) =>
       color: colors.textMuted,
     },
 
-    cardHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 2 },
-    cardHeadingCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+    cardHeading: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm + 2,
+    },
+    cardHeadingCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     cardHeadingBody: { flex: 1, minWidth: 0 },
     cardHeadingTitle: {
       fontFamily: typography.fontFamily.semiBold,
@@ -986,7 +1067,11 @@ const makeStyles = (colors: Palette) =>
       marginTop: 1,
     },
     cardHeadingRight: { alignItems: 'flex-end', gap: 4 },
-    cardHeadingMeta: { fontFamily: typography.fontFamily.regular, fontSize: typography.size.xs, color: colors.textMuted },
+    cardHeadingMeta: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textMuted,
+    },
 
     infoStrip: {
       flexDirection: 'row',
@@ -1016,7 +1101,6 @@ const makeStyles = (colors: Palette) =>
       gap: spacing.sm,
       paddingVertical: 11,
     },
-    detailRowDivided: { borderBottomWidth: 1, borderBottomColor: colors.divider },
     detailLabel: {
       flex: 1,
       fontFamily: typography.fontFamily.regular,
@@ -1044,7 +1128,13 @@ const makeStyles = (colors: Palette) =>
     },
     quickItem: { flex: 1, alignItems: 'center', gap: 5, paddingHorizontal: 2 },
     quickItemDivided: { borderLeftWidth: 1, borderLeftColor: colors.divider },
-    quickCircle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+    quickCircle: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     quickLabel: {
       fontFamily: typography.fontFamily.medium,
       fontSize: 10,
@@ -1053,7 +1143,12 @@ const makeStyles = (colors: Palette) =>
       textAlign: 'center',
     },
 
-    pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'center' },
+    pillRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      justifyContent: 'center',
+    },
     pill: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1065,7 +1160,11 @@ const makeStyles = (colors: Palette) =>
       paddingHorizontal: 14,
       paddingVertical: 9,
     },
-    pillLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.size.sm, color: colors.link },
+    pillLabel: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.link,
+    },
 
     // Composer
     composerOuter: {
@@ -1076,7 +1175,11 @@ const makeStyles = (colors: Palette) =>
       borderTopColor: colors.border,
       gap: spacing.sm,
     },
-    composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm },
+    composerRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: spacing.sm,
+    },
     composer: {
       flex: 1,
       flexDirection: 'row',

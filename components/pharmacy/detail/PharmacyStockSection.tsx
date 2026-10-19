@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ListRow,
@@ -57,9 +58,7 @@ export function PharmacyStockSection({
       pathname: '/pharmacy/[medicineId]',
       params: {
         medicineId: line.medicine_id,
-        ...(latitude !== null && longitude !== null
-          ? { lat: String(latitude), lng: String(longitude) }
-          : {}),
+        ...(latitude !== null && longitude !== null ? { lat: String(latitude), lng: String(longitude) } : {}),
       },
     });
 
@@ -107,49 +106,47 @@ export function PharmacyStockSection({
               message={t('pharmacyDetail.noMatchMessage', { term: debounced })}
             />
           ) : (
-            <EmptyState
-              icon="pill"
-              title={t('pharmacyDetail.emptyTitle')}
-              message={t('pharmacyDetail.emptyMessage')}
-            />
+            <EmptyState icon="pill" title={t('pharmacyDetail.emptyTitle')} message={t('pharmacyDetail.emptyMessage')} />
           )}
         </Card>
       ) : (
         <>
-          <Card variant="flush">
-            {rows.map((line, index) => {
+          <CardStack spacing="sm">
+            {rows.map((line) => {
               const price = money(line.unit_price, line.currency);
               const reported = line.last_reported_at
-                ? t('pharmacyDetail.reported', { when: formatDate(line.last_reported_at) })
+                ? t('pharmacyDetail.reported', {
+                    when: formatDate(line.last_reported_at),
+                  })
                 : t('pharmacyDetail.notDated');
               return (
-                <ListRow
-                  key={line.medicine_id}
-                  icon="pill"
-                  title={line.name}
-                  meta={[
-                    line.generic_name && line.generic_name !== line.name ? line.generic_name : null,
-                    price,
-                    line.prescription_required ? t('pharmacyDetail.rxRequired') : null,
-                    reported,
-                  ]}
-                  trailing={
-                    <StatusBadge
-                      size="sm"
-                      status={line.status}
-                      tone={stockTone(line.status as never)}
-                      label={t(`pharmacyDetail.status.${line.status}`, {
-                        defaultValue: line.status_label,
-                      })}
-                    />
-                  }
-                  onPress={() => openMedicine(line)}
-                  accessibilityHint={t('pharmacyDetail.openHint')}
-                  divider={index < rows.length - 1}
-                />
+                <Card key={line.medicine_id} variant="flush">
+                  <ListRow
+                    icon="pill"
+                    title={line.name}
+                    meta={[
+                      line.generic_name && line.generic_name !== line.name ? line.generic_name : null,
+                      price,
+                      line.prescription_required ? t('pharmacyDetail.rxRequired') : null,
+                      reported,
+                    ]}
+                    trailing={
+                      <StatusBadge
+                        size="sm"
+                        status={line.status}
+                        tone={stockTone(line.status as never)}
+                        label={t(`pharmacyDetail.status.${line.status}`, {
+                          defaultValue: line.status_label,
+                        })}
+                      />
+                    }
+                    onPress={() => openMedicine(line)}
+                    accessibilityHint={t('pharmacyDetail.openHint')}
+                  />
+                </Card>
               );
             })}
-          </Card>
+          </CardStack>
           <Text style={[styles.note, { color: colors.textMuted }]}>{t('pharmacyDetail.note')}</Text>
         </>
       )}

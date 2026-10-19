@@ -1,14 +1,9 @@
 /** Large JSX sections of the Blood Finder screen (app/blood-finder.tsx). */
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { FacilityMap } from '@/components/map/FacilityMap';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ListRow,
@@ -42,7 +37,36 @@ export function FinderCard({ vm }: { vm: BloodFinderModel }) {
   // Below 380dp the side-by-side fields and icon+label urgency chips were cut
   // to "Compone…", "Wh ole…" and "Emerge…"; stack the fields, drop the chip icons.
   const narrow = useWindowDimensions().width < 380;
-  const { t, colors, styles, bloodGroup, setBloodGroup, componentType, setComponentType, city, setCity, deviceCoords, setDeviceCoords, locating, locationDenied, radiusKm, setRadiusKm, urgency, setUrgency, sheet, setSheet, scrollRef, resultsY, originLabel, options, groupOptions, selectedComponentLabel, visibleGroups, componentChoices, handleUseMyLocation } = vm;
+  const {
+    t,
+    colors,
+    styles,
+    bloodGroup,
+    setBloodGroup,
+    componentType,
+    setComponentType,
+    city,
+    setCity,
+    deviceCoords,
+    setDeviceCoords,
+    locating,
+    locationDenied,
+    radiusKm,
+    setRadiusKm,
+    urgency,
+    setUrgency,
+    sheet,
+    setSheet,
+    scrollRef,
+    resultsY,
+    originLabel,
+    options,
+    groupOptions,
+    selectedComponentLabel,
+    visibleGroups,
+    componentChoices,
+    handleUseMyLocation,
+  } = vm;
   return (
     <>
       {/* The finder card, as PM-BLOOD-01 draws it: two columns for
@@ -72,19 +96,17 @@ export function FinderCard({ vm }: { vm: BloodFinderModel }) {
                   {visibleGroups.map((group) => (
                     <TouchableOpacity
                       key={group.value}
-                      onPress={() =>
-                        setBloodGroup(group.value === bloodGroup ? null : group.value)
-                      }
+                      onPress={() => setBloodGroup(group.value === bloodGroup ? null : group.value)}
                       activeOpacity={0.7}
                       accessibilityRole="button"
-                      accessibilityState={{ selected: group.value === bloodGroup }}
+                      accessibilityState={{
+                        selected: group.value === bloodGroup,
+                      }}
                       style={[
                         styles.groupPill,
                         {
-                          borderColor:
-                            group.value === bloodGroup ? colors.blue : colors.border,
-                          backgroundColor:
-                            group.value === bloodGroup ? colors.blue : colors.surface,
+                          borderColor: group.value === bloodGroup ? colors.blue : colors.border,
+                          backgroundColor: group.value === bloodGroup ? colors.blue : colors.surface,
                         },
                       ]}
                     >
@@ -92,8 +114,7 @@ export function FinderCard({ vm }: { vm: BloodFinderModel }) {
                         style={[
                           styles.groupPillText,
                           {
-                            color:
-                              group.value === bloodGroup ? '#FFFFFF' : colors.textPrimary,
+                            color: group.value === bloodGroup ? '#FFFFFF' : colors.textPrimary,
                           },
                         ]}
                       >
@@ -129,57 +150,61 @@ export function FinderCard({ vm }: { vm: BloodFinderModel }) {
 
           {sheet === 'group' ? (
             <OptionCard title={t('bloodFinder.stepGroup')}>
-              {groupOptions.map((group, index) => (
-                <ListRow
-                  key={group.value}
-                  title={group.label}
-                  meta={[
-                    group.facility_count > 0
-                      ? t('bloodFinder.facilityCount', { count: group.facility_count })
-                      : t('bloodFinder.noSites'),
-                  ]}
-                  trailing={
-                    group.value === bloodGroup ? (
-                      <Icon name="check" size={18} color={colors.blue} />
-                    ) : undefined
-                  }
-                  chevron={false}
-                  divider={index < groupOptions.length - 1}
-                  onPress={() => {
-                    setBloodGroup(group.value);
-                    setSheet(null);
-                  }}
-                />
-              ))}
+              <CardStack spacing="sm">
+                {groupOptions.map((group) => (
+                  <Card key={group.value} variant="flush">
+                    <ListRow
+                      title={group.label}
+                      meta={[
+                        group.facility_count > 0
+                          ? t('bloodFinder.facilityCount', {
+                              count: group.facility_count,
+                            })
+                          : t('bloodFinder.noSites'),
+                      ]}
+                      trailing={
+                        group.value === bloodGroup ? <Icon name="check" size={18} color={colors.blue} /> : undefined
+                      }
+                      chevron={false}
+                      onPress={() => {
+                        setBloodGroup(group.value);
+                        setSheet(null);
+                      }}
+                    />
+                  </Card>
+                ))}
+              </CardStack>
             </OptionCard>
           ) : null}
 
           {sheet === 'component' ? (
             <OptionCard title={t('bloodFinder.stepComponent')}>
-              {componentChoices.map((choice, index) => (
-                <ListRow
-                  key={choice.value}
-                  icon={COMPONENT_ICONS[choice.icon] ?? 'droplet'}
-                  tint={BLOOD_TINT}
-                  title={t(`bloodFinder.components.${choice.value}`)}
-                  meta={[
-                    choice.count > 0
-                      ? t('bloodFinder.facilityCount', { count: choice.count })
-                      : t('bloodFinder.noSites'),
-                  ]}
-                  trailing={
-                    choice.value === componentType ? (
-                      <Icon name="check" size={18} color={colors.blue} />
-                    ) : undefined
-                  }
-                  chevron={false}
-                  divider={index < componentChoices.length - 1}
-                  onPress={() => {
-                    setComponentType(choice.value);
-                    setSheet(null);
-                  }}
-                />
-              ))}
+              <CardStack spacing="sm">
+                {componentChoices.map((choice) => (
+                  <Card key={choice.value} variant="flush">
+                    <ListRow
+                      icon={COMPONENT_ICONS[choice.icon] ?? 'droplet'}
+                      tint={BLOOD_TINT}
+                      title={t(`bloodFinder.components.${choice.value}`)}
+                      meta={[
+                        choice.count > 0
+                          ? t('bloodFinder.facilityCount', {
+                              count: choice.count,
+                            })
+                          : t('bloodFinder.noSites'),
+                      ]}
+                      trailing={
+                        choice.value === componentType ? <Icon name="check" size={18} color={colors.blue} /> : undefined
+                      }
+                      chevron={false}
+                      onPress={() => {
+                        setComponentType(choice.value);
+                        setSheet(null);
+                      }}
+                    />
+                  </Card>
+                ))}
+              </CardStack>
             </OptionCard>
           ) : null}
 
@@ -217,18 +242,8 @@ export function FinderCard({ vm }: { vm: BloodFinderModel }) {
                       },
                     ]}
                   >
-                    {narrow ? null : <Icon
-                      name={option.icon}
-                      size={16}
-                      color={active ? tone : colors.textSecondary}
-                    />}
-                    <Text
-                      style={[
-                        styles.urgencyText,
-                        { color: active ? tone : colors.textPrimary },
-                      ]}
-                      numberOfLines={2}
-                    >
+                    {narrow ? null : <Icon name={option.icon} size={16} color={active ? tone : colors.textSecondary} />}
+                    <Text style={[styles.urgencyText, { color: active ? tone : colors.textPrimary }]} numberOfLines={2}>
                       {t(`bloodFinder.urgency.${option.value}`)}
                     </Text>
                   </TouchableOpacity>
@@ -256,11 +271,7 @@ export function FinderCard({ vm }: { vm: BloodFinderModel }) {
                   accessibilityLabel={t('bloodFinder.useMyLocation')}
                   style={styles.locateButton}
                 >
-                  <Icon
-                    name="target"
-                    size={18}
-                    color={locating ? colors.textMuted : colors.blue}
-                  />
+                  <Icon name="target" size={18} color={locating ? colors.textMuted : colors.blue} />
                 </TouchableOpacity>
               </View>
               <TouchableOpacity
@@ -268,9 +279,7 @@ export function FinderCard({ vm }: { vm: BloodFinderModel }) {
                 accessibilityRole="button"
                 style={styles.changeCity}
               >
-                <Text style={[styles.changeCityText, { color: colors.blue }]}>
-                  {t('bloodFinder.changeLocation')}
-                </Text>
+                <Text style={[styles.changeCityText, { color: colors.blue }]}>{t('bloodFinder.changeLocation')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -287,55 +296,51 @@ export function FinderCard({ vm }: { vm: BloodFinderModel }) {
 
           {sheet === 'city' ? (
             <OptionCard title={t('bloodFinder.changeLocation')}>
-              {CITIES.map((option, index) => (
-                <ListRow
-                  key={option.key}
-                  title={option.name}
-                  trailing={
-                    !deviceCoords && option.key === city.key ? (
-                      <Icon name="check" size={18} color={colors.blue} />
-                    ) : undefined
-                  }
-                  chevron={false}
-                  divider={index < CITIES.length - 1}
-                  onPress={() => {
-                    setCity(option);
-                    setDeviceCoords(null);
-                    setSheet(null);
-                  }}
-                />
-              ))}
+              <CardStack spacing="sm">
+                {CITIES.map((option) => (
+                  <Card key={option.key} variant="flush">
+                    <ListRow
+                      title={option.name}
+                      trailing={
+                        !deviceCoords && option.key === city.key ? (
+                          <Icon name="check" size={18} color={colors.blue} />
+                        ) : undefined
+                      }
+                      chevron={false}
+                      onPress={() => {
+                        setCity(option);
+                        setDeviceCoords(null);
+                        setSheet(null);
+                      }}
+                    />
+                  </Card>
+                ))}
+              </CardStack>
             </OptionCard>
           ) : null}
 
           {sheet === 'radius' ? (
             <OptionCard title={t('bloodFinder.stepRange')}>
-              {RADIUS_OPTIONS.map((option, index) => (
-                <ListRow
-                  key={option}
-                  title={t('bloodFinder.radius', { km: option })}
-                  trailing={
-                    option === radiusKm ? (
-                      <Icon name="check" size={18} color={colors.blue} />
-                    ) : undefined
-                  }
-                  chevron={false}
-                  divider={index < RADIUS_OPTIONS.length - 1}
-                  onPress={() => {
-                    setRadiusKm(option);
-                    setSheet(null);
-                  }}
-                />
-              ))}
+              <CardStack spacing="sm">
+                {RADIUS_OPTIONS.map((option) => (
+                  <Card key={option} variant="flush">
+                    <ListRow
+                      title={t('bloodFinder.radius', { km: option })}
+                      trailing={option === radiusKm ? <Icon name="check" size={18} color={colors.blue} /> : undefined}
+                      chevron={false}
+                      onPress={() => {
+                        setRadiusKm(option);
+                        setSheet(null);
+                      }}
+                    />
+                  </Card>
+                ))}
+              </CardStack>
             </OptionCard>
           ) : null}
 
           {locationDenied ? (
-            <NoticeBanner
-              icon="location"
-              tone="warning"
-              message={t('bloodFinder.locationDenied')}
-            />
+            <NoticeBanner icon="location" tone="warning" message={t('bloodFinder.locationDenied')} />
           ) : null}
         </View>
 
@@ -354,10 +359,7 @@ export function FinderCard({ vm }: { vm: BloodFinderModel }) {
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel={t('bloodFinder.findBlood')}
-          style={[
-            styles.findButton,
-            { backgroundColor: bloodGroup ? colors.blue : colors.border },
-          ]}
+          style={[styles.findButton, { backgroundColor: bloodGroup ? colors.blue : colors.border }]}
         >
           <Icon name="search" size={19} color="#FFFFFF" />
           <Text style={styles.findButtonText}>{t('bloodFinder.findBlood')}</Text>
@@ -439,13 +441,46 @@ export function TrustAndEmergency({ vm }: { vm: BloodFinderModel }) {
 }
 
 export function ResultsSection({ vm }: { vm: BloodFinderModel }) {
-  const { t, router, colors, styles, bloodGroup, setBloodGroup, componentType, setComponentType, radiusKm, setRadiusKm, term, setTerm, debouncedTerm, nationwideOpen, setNationwideOpen, nationwideExpanded, setNationwideExpanded, originLabel, search, nationwide, selectedGroup, selectedComponentLabel, compatibleGroups, rows, results, nationwideRows, mappable, componentMatrix, nextRadius, truncated, searchStale, goToRequest, goToBank, onResultsLayout } = vm;
+  const {
+    t,
+    router,
+    colors,
+    styles,
+    bloodGroup,
+    setBloodGroup,
+    componentType,
+    setComponentType,
+    radiusKm,
+    setRadiusKm,
+    term,
+    setTerm,
+    debouncedTerm,
+    nationwideOpen,
+    setNationwideOpen,
+    nationwideExpanded,
+    setNationwideExpanded,
+    originLabel,
+    search,
+    nationwide,
+    selectedGroup,
+    selectedComponentLabel,
+    compatibleGroups,
+    rows,
+    results,
+    nationwideRows,
+    mappable,
+    componentMatrix,
+    nextRadius,
+    truncated,
+    searchStale,
+    goToRequest,
+    goToBank,
+    onResultsLayout,
+  } = vm;
   return (
     <>
       {/* ── Results ──────────────────────────────────────────────────────── */}
-      <View
-        onLayout={onResultsLayout}
-      />
+      <View onLayout={onResultsLayout} />
       {!bloodGroup ? (
         <Card variant="flush">
           <EmptyState
@@ -460,9 +495,7 @@ export function ResultsSection({ vm }: { vm: BloodFinderModel }) {
           <View>
             <SectionHeader
               title={
-                search.isPending
-                  ? t('bloodFinder.searching')
-                  : t('bloodFinder.nearbyBanks', { count: results.length })
+                search.isPending ? t('bloodFinder.searching') : t('bloodFinder.nearbyBanks', { count: results.length })
               }
               actionLabel={t('bloodFinder.viewOnMap')}
               onAction={() => router.push('/blood-finder/map')}
@@ -542,9 +575,7 @@ export function ResultsSection({ vm }: { vm: BloodFinderModel }) {
               filtered={!!debouncedTerm && rows.length > 0}
               onClearFilter={() => setTerm('')}
               componentLabel={selectedComponentLabel}
-              onWholeBlood={
-                componentType === 'whole_blood' ? null : () => setComponentType('whole_blood')
-              }
+              onWholeBlood={componentType === 'whole_blood' ? null : () => setComponentType('whole_blood')}
               group={selectedGroup?.label ?? bloodGroup}
               compatibleGroups={compatibleGroups}
               onPickGroup={setBloodGroup}
@@ -609,10 +640,7 @@ export function MyRequestsSection({ vm }: { vm: BloodFinderModel }) {
   return (
     <>
       {/* ── My requests ──────────────────────────────────────────────────── */}
-      <View
-        style={styles.stack}
-        onLayout={onRequestsLayout}
-      >
+      <View style={styles.stack} onLayout={onRequestsLayout}>
         <SectionHeader
           title={t('bloodFinder.myRequests')}
           actionLabel={requests.isError ? t('bloodFinder.retry') : undefined}
@@ -656,9 +684,7 @@ export function MyRequestsSection({ vm }: { vm: BloodFinderModel }) {
               }
               key={request.id}
               request={request}
-              cancelling={
-                cancelRequest.isPending && cancelRequest.variables?.id === request.id
-              }
+              cancelling={cancelRequest.isPending && cancelRequest.variables?.id === request.id}
               onCancel={() => confirmCancel(request)}
             />
           ))

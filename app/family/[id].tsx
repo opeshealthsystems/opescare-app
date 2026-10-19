@@ -28,6 +28,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   EmptyState,
   ListRow,
   initialsFrom,
@@ -57,7 +58,7 @@ import {
   ProfileScreen as ProfileFrame,
   TrustChips,
 } from '@/components/profile';
-import type { TemporaryQrCode , TimelineEvent } from '@/lib/api/types';
+import type { TemporaryQrCode, TimelineEvent } from '@/lib/api/types';
 import {
   AccessBadge,
   FamilyErrorState,
@@ -196,10 +197,18 @@ export default function FamilyMemberScreen() {
     return () => clearInterval(intervalId);
   }, [tempQr]);
 
-  useEffect(() => () => { if (copyTimer.current) clearTimeout(copyTimer.current); }, []);
+  useEffect(
+    () => () => {
+      if (copyTimer.current) clearTimeout(copyTimer.current);
+    },
+    [],
+  );
 
   // A different dependent, or a link that lost full access: drop the code.
-  useEffect(() => { setTempQr(null); setPresenting(false); }, [dependentId, readOnly]);
+  useEffect(() => {
+    setTempQr(null);
+    setPresenting(false);
+  }, [dependentId, readOnly]);
 
   const handleMint = useCallback(async () => {
     if (!dependentId || readOnly) return;
@@ -219,7 +228,12 @@ export default function FamilyMemberScreen() {
   const handleShare = useCallback(async () => {
     if (!tempQr) return;
     try {
-      await Share.share({ message: t('healthId.shareMessage', { url: tempQr.verify_url, time: formatCountdown(secondsLeft) }) });
+      await Share.share({
+        message: t('healthId.shareMessage', {
+          url: tempQr.verify_url,
+          time: formatCountdown(secondsLeft),
+        }),
+      });
     } catch {
       // Share sheet dismissed — nothing to surface.
     }
@@ -238,7 +252,9 @@ export default function FamilyMemberScreen() {
   const tone = toneFor(statusKey);
   const verified = VERIFIED_STATUSES.has(statusKey);
   const statusLabel = statusKey
-    ? t(`healthId.statusValues.${statusKey}`, { defaultValue: titleCase(statusKey) })
+    ? t(`healthId.statusValues.${statusKey}`, {
+        defaultValue: titleCase(statusKey),
+      })
     : t('healthId.notAvailable');
 
   const name = model?.name?.trim() || t('family.member.title');
@@ -273,15 +289,14 @@ export default function FamilyMemberScreen() {
     <ProfileFrame
       edges={['top', 'bottom']}
       masthead={{
-        left: { icon: 'arrow-left', label: t('profiles.back'), onPress: () => router.back() },
+        left: {
+          icon: 'arrow-left',
+          label: t('profiles.back'),
+          onPress: () => router.back(),
+        },
       }}
       refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={colors.blue}
-          colors={[colors.blue]}
-        />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.blue} colors={[colors.blue]} />
       }
       after={
         model && !readOnly ? (
@@ -302,222 +317,229 @@ export default function FamilyMemberScreen() {
         ) : null
       }
     >
-        <ProfileHeading title={name} subtitle={subtitle} />
+      <ProfileHeading title={name} subtitle={subtitle} />
 
-        {detail.isLoading && !data ? (
-          <LoadingCard label={t('opesCore.common.loading')} />
-        ) : detail.isError && !data ? (
-          <FamilyErrorState error={detail.error} onRetry={() => detail.refetch()} />
-        ) : data && model && link ? (
-          <>
-            {/* ── Who this is, and what I may do ─────────────────────────────
+      {detail.isLoading && !data ? (
+        <LoadingCard label={t('opesCore.common.loading')} />
+      ) : detail.isError && !data ? (
+        <FamilyErrorState error={detail.error} onRetry={() => detail.refetch()} />
+      ) : data && model && link ? (
+        <>
+          {/* ── Who this is, and what I may do ─────────────────────────────
                 The reference identity card: the dependent's portrait, status
                 and link, with their Health ID in the panel slot. Tapping it
                 presents the same live credential as the button below — never
                 on a view-only link, and never while the invite is pending. */}
-            <IdentityCard
-              photoUrl={model.photoUrl}
-              initials={initialsFrom(name)}
-              name={name}
-              verified={verified}
-              statusLabel={statusLabel}
-              statusTone={tone}
-              panel={{
-                label: t('family.member.present', { name }),
-                onPress: readOnly || pending || !model.healthId ? undefined : openPresentation,
-                content: (
-                  <HealthIdPanelContent
-                    qrPayload={readOnly || pending ? null : model.qrPayload}
-                    healthId={model.healthId}
-                    actionLabel={
-                      pending
-                        ? null
-                        : readOnly
-                          ? t('profiles.dependent.readOnly')
-                          : t('profiles.dependent.present')
-                    }
-                  />
-                ),
-              }}
-            >
-              <View style={styles.linkRow}>
-                <Text style={styles.linkText}>{relationshipLabelOf(t, link.relationship)}</Text>
-                <AccessBadge level={link.access_level} />
-              </View>
-              {model.dob ? (
-                <IdentityLine icon="calendar" text={formatDate(model.dob, '—')} />
-              ) : null}
-              {model.bloodType ? <IdentityLine icon="droplet" text={model.bloodType} /> : null}
-            </IdentityCard>
+          <IdentityCard
+            photoUrl={model.photoUrl}
+            initials={initialsFrom(name)}
+            name={name}
+            verified={verified}
+            statusLabel={statusLabel}
+            statusTone={tone}
+            panel={{
+              label: t('family.member.present', { name }),
+              onPress: readOnly || pending || !model.healthId ? undefined : openPresentation,
+              content: (
+                <HealthIdPanelContent
+                  qrPayload={readOnly || pending ? null : model.qrPayload}
+                  healthId={model.healthId}
+                  actionLabel={
+                    pending ? null : readOnly ? t('profiles.dependent.readOnly') : t('profiles.dependent.present')
+                  }
+                />
+              ),
+            }}
+          >
+            <View style={styles.linkRow}>
+              <Text style={styles.linkText}>{relationshipLabelOf(t, link.relationship)}</Text>
+              <AccessBadge level={link.access_level} />
+            </View>
+            {model.dob ? <IdentityLine icon="calendar" text={formatDate(model.dob, '—')} /> : null}
+            {model.bloodType ? <IdentityLine icon="droplet" text={model.bloodType} /> : null}
+          </IdentityCard>
 
-            <TrustChips
-              items={[
-                { key: 'consent', icon: 'shield-check', label: t('profiles.trust.consent') },
-                { key: 'encrypted', icon: 'lock', label: t('profiles.trust.encrypted') },
-                { key: 'audited', icon: 'history', label: t('profiles.trust.audited') },
-                { key: 'interoperable', icon: 'share', label: t('profiles.trust.interoperable') },
+          <TrustChips
+            items={[
+              {
+                key: 'consent',
+                icon: 'shield-check',
+                label: t('profiles.trust.consent'),
+              },
+              {
+                key: 'encrypted',
+                icon: 'lock',
+                label: t('profiles.trust.encrypted'),
+              },
+              {
+                key: 'audited',
+                icon: 'history',
+                label: t('profiles.trust.audited'),
+              },
+              {
+                key: 'interoperable',
+                icon: 'share',
+                label: t('profiles.trust.interoperable'),
+              },
+            ]}
+          />
+
+          {/* Figures straight from the member payload; a dash where the
+                server sent no summary. Two tiles open their own tab. */}
+          {!pending ? (
+            <OverviewTiles
+              title={t('profiles.atAGlance')}
+              tiles={[
+                {
+                  key: 'allergies',
+                  icon: 'alert-triangle',
+                  tint: 'amber',
+                  value: data.records_summary ? String(data.records_summary.allergies ?? 0) : '—',
+                  label: t('profiles.dependent.allergies'),
+                  hint: t('profiles.dependent.allergiesHint'),
+                  onPress: () => setTab('summary'),
+                },
+                {
+                  key: 'diagnoses',
+                  icon: 'activity',
+                  tint: 'blue',
+                  value: data.records_summary ? String(data.records_summary.diagnoses ?? 0) : '—',
+                  label: t('profiles.dependent.diagnoses'),
+                  hint: t('profiles.dependent.diagnosesHint'),
+                  onPress: () => setTab('summary'),
+                },
+                {
+                  key: 'immunisations',
+                  icon: 'syringe',
+                  tint: 'green',
+                  value: String((data.immunizations ?? []).length),
+                  label: t('profiles.dependent.immunisations'),
+                  hint: t('profiles.dependent.immunisationsHint'),
+                  onPress: () => setTab('immunisations'),
+                },
+                {
+                  key: 'appointments',
+                  icon: 'calendar-check',
+                  tint: 'blue',
+                  value: String((data.upcoming_appointments ?? []).length),
+                  label: t('profiles.dependent.appointments'),
+                  hint: t('profiles.dependent.appointmentsHint'),
+                  onPress: () => setTab('appointments'),
+                },
               ]}
             />
+          ) : null}
 
-            {/* Figures straight from the member payload; a dash where the
-                server sent no summary. Two tiles open their own tab. */}
-            {!pending ? (
-              <OverviewTiles
-                title={t('profiles.atAGlance')}
-                tiles={[
-                  {
-                    key: 'allergies',
-                    icon: 'alert-triangle',
-                    tint: 'amber',
-                    value: data.records_summary ? String(data.records_summary.allergies ?? 0) : '—',
-                    label: t('profiles.dependent.allergies'),
-                    hint: t('profiles.dependent.allergiesHint'),
-                    onPress: () => setTab('summary'),
-                  },
-                  {
-                    key: 'diagnoses',
-                    icon: 'activity',
-                    tint: 'blue',
-                    value: data.records_summary ? String(data.records_summary.diagnoses ?? 0) : '—',
-                    label: t('profiles.dependent.diagnoses'),
-                    hint: t('profiles.dependent.diagnosesHint'),
-                    onPress: () => setTab('summary'),
-                  },
-                  {
-                    key: 'immunisations',
-                    icon: 'syringe',
-                    tint: 'green',
-                    value: String((data.immunizations ?? []).length),
-                    label: t('profiles.dependent.immunisations'),
-                    hint: t('profiles.dependent.immunisationsHint'),
-                    onPress: () => setTab('immunisations'),
-                  },
-                  {
-                    key: 'appointments',
-                    icon: 'calendar-check',
-                    tint: 'blue',
-                    value: String((data.upcoming_appointments ?? []).length),
-                    label: t('profiles.dependent.appointments'),
-                    hint: t('profiles.dependent.appointmentsHint'),
-                    onPress: () => setTab('appointments'),
-                  },
-                ]}
+          {pending ? (
+            <Card variant="flush">
+              <EmptyState
+                icon="clock"
+                tint="amber"
+                title={t('family.member.pendingTitle')}
+                message={t('family.member.pendingBody', { name })}
               />
-            ) : null}
+            </Card>
+          ) : (
+            <>
+              {/* ── The dependent's credential ───────────────────────── */}
+              <SecureCredentialCard
+                model={model}
+                statusTone={tone}
+                statusLabel={statusLabel}
+                verified={verified}
+                onPressQr={readOnly ? undefined : openPresentation}
+                qrPlaceholder={readOnly ? t('family.member.qrReadOnly') : undefined}
+              />
 
-            {pending ? (
-              <Card variant="flush">
-                <EmptyState
-                  icon="clock"
-                  tint="amber"
-                  title={t('family.member.pendingTitle')}
-                  message={t('family.member.pendingBody', { name })}
+              {/* ── Present / copy — the same rail as the holder's own tab ── */}
+              <View style={styles.rail}>
+                <CareButton
+                  label={t('family.member.present', { name })}
+                  icon="maximize"
+                  style={styles.railAction}
+                  onPress={openPresentation}
+                  disabled={readOnly || !model.healthId}
+                  loading={presenting && mint.isPending}
                 />
-              </Card>
-            ) : (
-              <>
-                {/* ── The dependent's credential ───────────────────────── */}
-                <SecureCredentialCard
-                  model={model}
-                  statusTone={tone}
-                  statusLabel={statusLabel}
-                  verified={verified}
-                  onPressQr={readOnly ? undefined : openPresentation}
-                  qrPlaceholder={readOnly ? t('family.member.qrReadOnly') : undefined}
+                <CareButton
+                  label={copied ? t('family.member.copied') : t('family.member.copyId')}
+                  icon={copied ? 'check' : 'copy'}
+                  variant="secondary"
+                  style={styles.railAction}
+                  onPress={handleCopyId}
+                  disabled={!model.healthId}
                 />
+              </View>
 
-                {/* ── Present / copy — the same rail as the holder's own tab ── */}
-                <View style={styles.rail}>
-                  <CareButton
-                    label={t('family.member.present', { name })}
-                    icon="maximize"
-                    style={styles.railAction}
-                    onPress={openPresentation}
-                    disabled={readOnly || !model.healthId}
-                    loading={presenting && mint.isPending}
-                  />
-                  <CareButton
-                    label={copied ? t('family.member.copied') : t('family.member.copyId')}
-                    icon={copied ? 'check' : 'copy'}
-                    variant="secondary"
-                    style={styles.railAction}
-                    onPress={handleCopyId}
-                    disabled={!model.healthId}
-                  />
-                </View>
-
-                {readOnly ? (
-                  <Notice
-                    tone="info"
-                    icon="eye"
-                    text={`${t('family.member.readOnlyBanner', { name })} ${t('family.member.presentReadOnly', { name })}`}
-                  />
-                ) : (
-                  <Notice
-                    tone="normal"
-                    icon="lock-open"
-                    text={`${t('family.member.fullBanner', { name })} ${t('family.member.presentHint', { name })}`}
-                  />
-                )}
-
-                {link.age_transition_expires_at ? (
-                  <Notice
-                    tone="warning"
-                    icon="calendar"
-                    text={t('family.ageTransition', {
-                      name,
-                      date: formatDate(link.age_transition_expires_at, '—'),
-                    })}
-                  />
-                ) : null}
-
-                {/* ── Sections ─────────────────────────────────────────── */}
-                <SegmentedTabs
-                  options={tabOptions}
-                  value={tab}
-                  onChange={(key) => setTab(key as Tab)}
-                  scrollable
+              {readOnly ? (
+                <Notice
+                  tone="info"
+                  icon="eye"
+                  text={`${t('family.member.readOnlyBanner', { name })} ${t('family.member.presentReadOnly', { name })}`}
                 />
+              ) : (
+                <Notice
+                  tone="normal"
+                  icon="lock-open"
+                  text={`${t('family.member.fullBanner', { name })} ${t('family.member.presentHint', { name })}`}
+                />
+              )}
 
-                {tab === 'summary' ? (
-                  <SummarySection data={data} name={name} />
-                ) : tab === 'immunisations' ? (
-                  <ImmunisationsSection data={data} name={name} />
-                ) : tab === 'appointments' ? (
-                  <AppointmentsSection data={data} name={name} />
-                ) : (
-                  <>
-                    <View>
-                      <SectionHeader title={t('family.member.records.timeline')} variant="overline" />
-                      {timeline.isLoading ? (
-                        <LoadingCard label={t('opesCore.common.loading')} />
-                      ) : timeline.isError ? (
-                        <FamilyErrorState error={timeline.error} onRetry={() => timeline.refetch()} />
-                      ) : (timeline.data?.timeline.length ?? 0) === 0 ? (
-                        <Card variant="flush">
-                          <EmptyState
-                            icon="history"
-                            tint="blue"
-                            title={t('family.member.records.timeline')}
-                            message={t('family.member.records.timelineEmpty', { name })}
-                          />
-                        </Card>
-                      ) : (
-                        <Card variant="flush">
-                          {(timeline.data?.timeline ?? []).map((ev, i, arr) => {
-                            const meta = FEED_META[ev.event_type] ?? FEED_META.visit;
-                            const title = t(
-                              `records.item.${
-                                ev.event_type === 'visit'
-                                  ? 'visitTitle'
-                                  : ev.event_type === 'lab_result'
-                                    ? 'labTitle'
-                                    : 'prescriptionTitle'
-                              }`,
-                            );
-                            return (
+              {link.age_transition_expires_at ? (
+                <Notice
+                  tone="warning"
+                  icon="calendar"
+                  text={t('family.ageTransition', {
+                    name,
+                    date: formatDate(link.age_transition_expires_at, '—'),
+                  })}
+                />
+              ) : null}
+
+              {/* ── Sections ─────────────────────────────────────────── */}
+              <SegmentedTabs options={tabOptions} value={tab} onChange={(key) => setTab(key as Tab)} scrollable />
+
+              {tab === 'summary' ? (
+                <SummarySection data={data} name={name} />
+              ) : tab === 'immunisations' ? (
+                <ImmunisationsSection data={data} name={name} />
+              ) : tab === 'appointments' ? (
+                <AppointmentsSection data={data} name={name} />
+              ) : (
+                <>
+                  <View>
+                    <SectionHeader title={t('family.member.records.timeline')} variant="overline" />
+                    {timeline.isLoading ? (
+                      <LoadingCard label={t('opesCore.common.loading')} />
+                    ) : timeline.isError ? (
+                      <FamilyErrorState error={timeline.error} onRetry={() => timeline.refetch()} />
+                    ) : (timeline.data?.timeline.length ?? 0) === 0 ? (
+                      <Card variant="flush">
+                        <EmptyState
+                          icon="history"
+                          tint="blue"
+                          title={t('family.member.records.timeline')}
+                          message={t('family.member.records.timelineEmpty', {
+                            name,
+                          })}
+                        />
+                      </Card>
+                    ) : (
+                      <CardStack spacing="sm">
+                        {(timeline.data?.timeline ?? []).map((ev) => {
+                          const meta = FEED_META[ev.event_type] ?? FEED_META.visit;
+                          const title = t(
+                            `records.item.${
+                              ev.event_type === 'visit'
+                                ? 'visitTitle'
+                                : ev.event_type === 'lab_result'
+                                  ? 'labTitle'
+                                  : 'prescriptionTitle'
+                            }`,
+                          );
+                          return (
+                            <Card key={`${ev.event_type}-${ev.id}`} variant="flush">
                               <ListRow
-                                key={`${ev.event_type}-${ev.id}`}
                                 icon={meta.icon}
                                 tint={meta.tint}
                                 title={title}
@@ -527,49 +549,44 @@ export default function FamilyMemberScreen() {
                                   formatDate(ev.occurred_at, '') || null,
                                 ]}
                                 chevron={false}
-                                divider={i < arr.length - 1}
                               />
-                            );
-                          })}
-                        </Card>
-                      )}
-                    </View>
+                            </Card>
+                          );
+                        })}
+                      </CardStack>
+                    )}
+                  </View>
 
-                    <View>
-                      <SectionHeader
-                        title={t('family.member.records.prescriptions')}
-                        variant="overline"
-                      />
-                      {prescriptions.isLoading ? (
-                        <LoadingCard label={t('opesCore.common.loading')} />
-                      ) : prescriptions.isError ? (
-                        <FamilyErrorState
-                          error={prescriptions.error}
-                          onRetry={() => prescriptions.refetch()}
+                  <View>
+                    <SectionHeader title={t('family.member.records.prescriptions')} variant="overline" />
+                    {prescriptions.isLoading ? (
+                      <LoadingCard label={t('opesCore.common.loading')} />
+                    ) : prescriptions.isError ? (
+                      <FamilyErrorState error={prescriptions.error} onRetry={() => prescriptions.refetch()} />
+                    ) : (prescriptions.data?.data.length ?? 0) === 0 ? (
+                      <Card variant="flush">
+                        <EmptyState
+                          icon="pill"
+                          tint="green"
+                          title={t('family.member.records.prescriptions')}
+                          message={t('family.member.records.prescriptionsEmpty', { name })}
                         />
-                      ) : (prescriptions.data?.data.length ?? 0) === 0 ? (
-                        <Card variant="flush">
-                          <EmptyState
-                            icon="pill"
-                            tint="green"
-                            title={t('family.member.records.prescriptions')}
-                            message={t('family.member.records.prescriptionsEmpty', { name })}
-                          />
-                        </Card>
-                      ) : (
-                        <Card variant="flush">
-                          {(prescriptions.data?.data ?? []).map((p, i, arr) => (
+                      </Card>
+                    ) : (
+                      <CardStack spacing="sm">
+                        {(prescriptions.data?.data ?? []).map((p) => (
+                          <Card key={p.id} variant="flush">
                             <ListRow
-                              key={p.id}
                               icon="pill"
                               tint="green"
                               title={p.facility_name ?? t('records.item.unknownFacility')}
                               meta={[
-                                t('prescriptions.medicationCount', { count: p.item_count }),
+                                t('prescriptions.medicationCount', {
+                                  count: p.item_count,
+                                }),
                                 p.prescribed_at ? formatDate(p.prescribed_at, '') : null,
                               ]}
                               chevron={false}
-                              divider={i < arr.length - 1}
                               trailing={
                                 <StatusBadge
                                   status={p.status}
@@ -579,40 +596,44 @@ export default function FamilyMemberScreen() {
                                 />
                               }
                             />
-                          ))}
-                        </Card>
-                      )}
-                    </View>
+                          </Card>
+                        ))}
+                      </CardStack>
+                    )}
+                  </View>
 
-                    <View>
-                      <SectionHeader title={t('family.member.records.labs')} variant="overline" />
-                      {labs.isLoading ? (
-                        <LoadingCard label={t('opesCore.common.loading')} />
-                      ) : labs.isError ? (
-                        <FamilyErrorState error={labs.error} onRetry={() => labs.refetch()} />
-                      ) : (labs.data?.data.length ?? 0) === 0 ? (
-                        <Card variant="flush">
-                          <EmptyState
-                            icon="flask"
-                            tint="green"
-                            title={t('family.member.records.labs')}
-                            message={t('family.member.records.labsEmpty', { name })}
-                          />
-                        </Card>
-                      ) : (
-                        <Card variant="flush">
-                          {(labs.data?.data ?? []).map((order, i, arr) => (
+                  <View>
+                    <SectionHeader title={t('family.member.records.labs')} variant="overline" />
+                    {labs.isLoading ? (
+                      <LoadingCard label={t('opesCore.common.loading')} />
+                    ) : labs.isError ? (
+                      <FamilyErrorState error={labs.error} onRetry={() => labs.refetch()} />
+                    ) : (labs.data?.data.length ?? 0) === 0 ? (
+                      <Card variant="flush">
+                        <EmptyState
+                          icon="flask"
+                          tint="green"
+                          title={t('family.member.records.labs')}
+                          message={t('family.member.records.labsEmpty', {
+                            name,
+                          })}
+                        />
+                      </Card>
+                    ) : (
+                      <CardStack spacing="sm">
+                        {(labs.data?.data ?? []).map((order) => (
+                          <Card key={order.id} variant="flush">
                             <ListRow
-                              key={order.id}
                               icon="flask"
                               tint="green"
                               title={order.name}
                               meta={[
-                                t('family.member.records.resultCount', { count: order.result_count }),
+                                t('family.member.records.resultCount', {
+                                  count: order.result_count,
+                                }),
                                 order.ordered_at ? formatDate(order.ordered_at, '') : null,
                               ]}
                               chevron={false}
-                              divider={i < arr.length - 1}
                               trailing={
                                 <StatusBadge
                                   status={order.status === 'completed' ? order.overall_flag : order.status}
@@ -622,23 +643,20 @@ export default function FamilyMemberScreen() {
                                 />
                               }
                             />
-                          ))}
-                        </Card>
-                      )}
-                    </View>
-                  </>
-                )}
+                          </Card>
+                        ))}
+                      </CardStack>
+                    )}
+                  </View>
+                </>
+              )}
 
-                {/* ── Trust footer ─────────────────────────────────────── */}
-                <Notice
-                  tone="neutral"
-                  icon="shield-check"
-                  text={t('family.member.auditFooter', { name })}
-                />
-              </>
-            )}
-          </>
-        ) : null}
+              {/* ── Trust footer ─────────────────────────────────────── */}
+              <Notice tone="neutral" icon="shield-check" text={t('family.member.auditFooter', { name })} />
+            </>
+          )}
+        </>
+      ) : null}
     </ProfileFrame>
   );
 }
@@ -707,25 +725,31 @@ function ImmunisationsSection({ data, name }: SectionProps) {
           />
         </Card>
       ) : (
-        <Card variant="flush">
-          {rows.map((im, i) => (
-            <ListRow
-              key={im.id}
-              icon="syringe"
-              tint="green"
-              title={im.vaccine_name}
-              meta={[
-                im.dose_number != null ? t('family.member.immunisations.dose', { n: im.dose_number }) : null,
-                im.administered_at
-                  ? t('family.member.immunisations.given', { date: formatDate(im.administered_at, '—') })
-                  : t('family.member.immunisations.dateUnknown'),
-              ]}
-              chevron={false}
-              divider={i < rows.length - 1}
-              trailing={<StatusBadge status={im.status} size="sm" />}
-            />
+        <CardStack spacing="sm">
+          {rows.map((im) => (
+            <Card key={im.id} variant="flush">
+              <ListRow
+                icon="syringe"
+                tint="green"
+                title={im.vaccine_name}
+                meta={[
+                  im.dose_number != null
+                    ? t('family.member.immunisations.dose', {
+                        n: im.dose_number,
+                      })
+                    : null,
+                  im.administered_at
+                    ? t('family.member.immunisations.given', {
+                        date: formatDate(im.administered_at, '—'),
+                      })
+                    : t('family.member.immunisations.dateUnknown'),
+                ]}
+                chevron={false}
+                trailing={<StatusBadge status={im.status} size="sm" />}
+              />
+            </Card>
           ))}
-        </Card>
+        </CardStack>
       )}
     </View>
   );
@@ -747,31 +771,31 @@ function AppointmentsSection({ data, name }: SectionProps) {
           />
         </Card>
       ) : (
-        <Card variant="flush">
-          {rows.map((a, i) => (
-            <ListRow
-              key={a.id}
-              icon="calendar"
-              tint="blue"
-              title={a.facility_name ?? t('family.member.appointments.unknownFacility')}
-              meta={[
-                a.starts_at ? formatDateTime(a.starts_at, '') : null,
-                a.provider_name,
-                a.appointment_type ? typeLabelOf(t, a.appointment_type) : null,
-              ]}
-              chevron={false}
-              divider={i < rows.length - 1}
-              trailing={
-                <StatusBadge
-                  status={a.status}
-                  tone={statusToneOf(a.status)}
-                  label={statusLabelOf(t, a.status)}
-                  size="sm"
-                />
-              }
-            />
+        <CardStack spacing="sm">
+          {rows.map((a) => (
+            <Card key={a.id} variant="flush">
+              <ListRow
+                icon="calendar"
+                tint="blue"
+                title={a.facility_name ?? t('family.member.appointments.unknownFacility')}
+                meta={[
+                  a.starts_at ? formatDateTime(a.starts_at, '') : null,
+                  a.provider_name,
+                  a.appointment_type ? typeLabelOf(t, a.appointment_type) : null,
+                ]}
+                chevron={false}
+                trailing={
+                  <StatusBadge
+                    status={a.status}
+                    tone={statusToneOf(a.status)}
+                    label={statusLabelOf(t, a.status)}
+                    size="sm"
+                  />
+                }
+              />
+            </Card>
           ))}
-        </Card>
+        </CardStack>
       )}
     </View>
   );
@@ -784,7 +808,12 @@ const makeStyles = (colors: Palette) =>
     rail: { flexDirection: 'row', gap: spacing.sm },
     railAction: { flex: 1 },
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
     linkRow: {
       flexDirection: 'row',
       alignItems: 'center',

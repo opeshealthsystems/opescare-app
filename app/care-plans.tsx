@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ListRow,
@@ -207,129 +208,143 @@ function PlanCard({
   const pct = Math.min(100, Math.max(0, progressPct));
 
   return (
-    <Card variant="flush">
-      <ListRow
-        icon="clipboard"
-        tint="blue"
-        title={plan.title}
-        meta={[range]}
-        chevron={false}
-        trailing={
-          <View style={s.headTrailing}>
-            <StatusBadge
-              status={plan.status}
-              tone={PLAN_TONE[plan.status] ?? 'neutral'}
-              label={t(`carePlans.status.${plan.status}`, { defaultValue: formatLabel(plan.status) })}
-              size="sm"
-            />
-            <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} />
-          </View>
-        }
-        onPress={onToggle}
-        accessibilityLabel={plan.title}
-        accessibilityHint={expanded ? t('carePlans.collapse') : t('carePlans.expand')}
-      />
+    <CardStack spacing="sm">
+      <Card variant="flush">
+        <ListRow
+          icon="clipboard"
+          tint="blue"
+          title={plan.title}
+          meta={[range]}
+          chevron={false}
+          trailing={
+            <View style={s.headTrailing}>
+              <StatusBadge
+                status={plan.status}
+                tone={PLAN_TONE[plan.status] ?? 'neutral'}
+                label={t(`carePlans.status.${plan.status}`, {
+                  defaultValue: formatLabel(plan.status),
+                })}
+                size="sm"
+              />
+              <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} />
+            </View>
+          }
+          onPress={onToggle}
+          accessibilityLabel={plan.title}
+          accessibilityHint={expanded ? t('carePlans.collapse') : t('carePlans.expand')}
+        />
 
-      {plan.description ? (
-        <View style={s.overview}>
-          <View style={s.overviewMark}>
-            <Icon name="info" size={24} color={colors.blue} />
+        {plan.description ? (
+          <View style={s.overview}>
+            <View style={s.overviewMark}>
+              <Icon name="info" size={24} color={colors.blue} />
+            </View>
+            <View style={s.overviewBody}>
+              <Text style={s.overviewTitle}>
+                {t('opesCare.carePlan.overview', {
+                  defaultValue: 'Plan overview',
+                })}
+              </Text>
+              <Text style={s.overviewText} numberOfLines={expanded ? undefined : 2}>
+                {plan.description}
+              </Text>
+            </View>
           </View>
-          <View style={s.overviewBody}>
-            <Text style={s.overviewTitle}>
-              {t('opesCare.carePlan.overview', { defaultValue: 'Plan overview' })}
-            </Text>
-            <Text style={s.overviewText} numberOfLines={expanded ? undefined : 2}>
-              {plan.description}
-            </Text>
-          </View>
+        ) : null}
+
+        {/* Plan summary — the CARE-019 three-tile row, from real counts only. */}
+        <View style={s.stats}>
+          <StatTile icon="target" fg={statusMap.normal.fg} value={String(goals.length)} label={t('carePlans.goals')} />
+          <StatTile
+            icon="check-double"
+            fg={colors.blue}
+            value={String(interventions.length)}
+            label={t('carePlans.interventions')}
+          />
+          <StatTile
+            icon="calendar"
+            fg={statusMap.info.fg}
+            value={weeks === null ? '—' : String(weeks)}
+            unit={weeks === null ? undefined : t('opesCare.carePlan.weeks', { defaultValue: 'wks' })}
+            label={t('opesCare.carePlan.duration', {
+              defaultValue: 'Duration',
+            })}
+          />
         </View>
-      ) : null}
 
-      {/* Plan summary — the CARE-019 three-tile row, from real counts only. */}
-      <View style={s.stats}>
-        <StatTile
-          icon="target"
-          fg={statusMap.normal.fg}
-          value={String(goals.length)}
-          label={t('carePlans.goals')}
-        />
-        <StatTile
-          icon="check-double"
-          fg={colors.blue}
-          value={String(interventions.length)}
-          label={t('carePlans.interventions')}
-        />
-        <StatTile
-          icon="calendar"
-          fg={statusMap.info.fg}
-          value={weeks === null ? '—' : String(weeks)}
-          unit={weeks === null ? undefined : t('opesCare.carePlan.weeks', { defaultValue: 'wks' })}
-          label={t('opesCare.carePlan.duration', { defaultValue: 'Duration' })}
-        />
-      </View>
-
-      {/* Progress renders straight from the list payload — no spinner. */}
-      {goals.length > 0 ? (
-        <View
-          style={s.progress}
-          accessible
-          accessibilityRole="progressbar"
-          accessibilityLabel={`${t('carePlans.progress')}: ${t('carePlans.goalsAchieved', { achieved, total: goals.length })}`}
-          accessibilityValue={{ min: 0, max: 100, now: pct }}
-        >
-          <View style={s.progressHead}>
-            <Text style={s.progressTitle}>{t('carePlans.progress')}</Text>
-            <Text style={s.progressValue}>
-              {t('carePlans.goalsAchieved', { achieved, total: goals.length })}
-            </Text>
+        {/* Progress renders straight from the list payload — no spinner. */}
+        {goals.length > 0 ? (
+          <View
+            style={s.progress}
+            accessible
+            accessibilityRole="progressbar"
+            accessibilityLabel={`${t('carePlans.progress')}: ${t('carePlans.goalsAchieved', { achieved, total: goals.length })}`}
+            accessibilityValue={{ min: 0, max: 100, now: pct }}
+          >
+            <View style={s.progressHead}>
+              <Text style={s.progressTitle}>{t('carePlans.progress')}</Text>
+              <Text style={s.progressValue}>
+                {t('carePlans.goalsAchieved', {
+                  achieved,
+                  total: goals.length,
+                })}
+              </Text>
+            </View>
+            <View style={s.progressTrack}>
+              <View style={[s.progressFill, { width: `${pct}%` }]} />
+            </View>
           </View>
-          <View style={s.progressTrack}>
-            <View style={[s.progressFill, { width: `${pct}%` }]} />
-          </View>
-        </View>
-      ) : null}
+        ) : null}
+      </Card>
 
       {expanded ? (
-        <View style={s.details}>
+        <>
           {detailFailed ? (
-            <View style={s.inset}>
-              <NoticeBanner tone="warning" icon="alert-circle" message={t('carePlans.detailStaleNotice')} />
-            </View>
+            <NoticeBanner tone="warning" icon="alert-circle" message={t('carePlans.detailStaleNotice')} />
           ) : null}
 
           <Text style={s.cardSectionTitle}>{t('carePlans.goals')}</Text>
           {goals.length === 0 ? (
-            <Text style={s.emptyLine}>{t('carePlans.noGoals')}</Text>
+            <Card variant="flush">
+              <Text style={s.emptyLine}>{t('carePlans.noGoals')}</Text>
+            </Card>
           ) : (
-            goals.map((goal, i) => <GoalRow key={goal.id} goal={goal} index={i} divider={i > 0} />)
+            goals.map((goal, i) => (
+              <Card key={goal.id} variant="flush">
+                <GoalRow goal={goal} index={i} />
+              </Card>
+            ))
           )}
 
           <Text style={s.cardSectionTitle}>{t('carePlans.interventions')}</Text>
           {interventions.length === 0 ? (
-            <Text style={s.emptyLine}>{t('carePlans.noInterventions')}</Text>
+            <Card variant="flush">
+              <Text style={s.emptyLine}>{t('carePlans.noInterventions')}</Text>
+            </Card>
           ) : (
-            interventions.map((item, i) => {
+            interventions.map((item) => {
               const meta = INTERVENTION_META[item.intervention_type] ?? INTERVENTION_META.other;
               return (
-                <ListRow
-                  key={item.id}
-                  icon={meta.icon}
-                  tint={meta.tint}
-                  title={t(`carePlans.interventionType.${item.intervention_type}`, {
-                    defaultValue: formatLabel(item.intervention_type),
-                  })}
-                  meta={[item.description, item.frequency, item.responsible_party]}
-                  trailing={
-                    <StatusBadge
-                      status={item.status}
-                      tone={INTERVENTION_TONE[item.status] ?? 'neutral'}
-                      label={t(`carePlans.interventionStatus.${item.status}`, { defaultValue: formatLabel(item.status) })}
-                      size="sm"
-                    />
-                  }
-                  divider={i < interventions.length - 1}
-                />
+                <Card key={item.id} variant="flush">
+                  <ListRow
+                    icon={meta.icon}
+                    tint={meta.tint}
+                    title={t(`carePlans.interventionType.${item.intervention_type}`, {
+                      defaultValue: formatLabel(item.intervention_type),
+                    })}
+                    meta={[item.description, item.frequency, item.responsible_party]}
+                    trailing={
+                      <StatusBadge
+                        status={item.status}
+                        tone={INTERVENTION_TONE[item.status] ?? 'neutral'}
+                        label={t(`carePlans.interventionStatus.${item.status}`, {
+                          defaultValue: formatLabel(item.status),
+                        })}
+                        size="sm"
+                      />
+                    }
+                  />
+                </Card>
               );
             })
           )}
@@ -340,24 +355,26 @@ function PlanCard({
               <Text style={s.refreshText}>{t('carePlans.refreshing')}</Text>
             </View>
           ) : null}
-        </View>
+        </>
       ) : null}
-    </Card>
+    </CardStack>
   );
 }
 
 /** CARE-019 goal row: index bubble, tinted mark, goal text (wrapping), status badge. */
-function GoalRow({ goal, index, divider }: { goal: CarePlanGoal; index: number; divider: boolean }) {
+function GoalRow({ goal, index }: { goal: CarePlanGoal; index: number }) {
   const { t } = useTranslation();
   const { colors, tintMap } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const tint = tintMap[GOAL_TINT[goal.status] ?? 'blue'];
   const target = formatDate(goal.target_date, '');
-  const label = t(`carePlans.goalStatus.${goal.status}`, { defaultValue: formatLabel(goal.status) });
+  const label = t(`carePlans.goalStatus.${goal.status}`, {
+    defaultValue: formatLabel(goal.status),
+  });
 
   return (
     <View
-      style={[s.goalRow, divider && s.rowDivider]}
+      style={s.goalRow}
       accessible
       accessibilityLabel={[goal.goal_text, target ? `${t('carePlans.target')}: ${target}` : '', label]
         .filter(Boolean)
@@ -424,9 +441,21 @@ function EmptyPlans() {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const steps: { icon: IconName; title: string; body: string }[] = [
-    { icon: 'edit', title: t('carePlans.step1Title'), body: t('carePlans.step1Body') },
-    { icon: 'target', title: t('carePlans.step2Title'), body: t('carePlans.step2Body') },
-    { icon: 'list', title: t('carePlans.step3Title'), body: t('carePlans.step3Body') },
+    {
+      icon: 'edit',
+      title: t('carePlans.step1Title'),
+      body: t('carePlans.step1Body'),
+    },
+    {
+      icon: 'target',
+      title: t('carePlans.step2Title'),
+      body: t('carePlans.step2Body'),
+    },
+    {
+      icon: 'list',
+      title: t('carePlans.step3Title'),
+      body: t('carePlans.step3Body'),
+    },
   ];
   return (
     <>
@@ -434,23 +463,30 @@ function EmptyPlans() {
         <EmptyState icon="clipboard" tint="blue" title={t('carePlans.emptyTitle')} message={t('carePlans.emptyBody')} />
       </Card>
       <SectionHeader title={t('carePlans.howItWorksTitle')} style={s.sectionAfterCard} />
-      <Card variant="flush">
-        {steps.map((step, i) => (
-          <StepRow key={step.title} icon={step.icon} title={step.title} body={step.body} divider={i < steps.length - 1} />
+      <CardStack spacing="sm">
+        {steps.map((step) => (
+          <Card key={step.title} variant="flush">
+            <StepRow icon={step.icon} title={step.title} body={step.body} />
+          </Card>
         ))}
-      </Card>
-      <NoticeBanner icon="info" tone="pending" title={t('carePlans.emptyCalloutTitle')} message={t('carePlans.emptyCalloutBody')} />
+      </CardStack>
+      <NoticeBanner
+        icon="info"
+        tone="pending"
+        title={t('carePlans.emptyCalloutTitle')}
+        message={t('carePlans.emptyCalloutBody')}
+      />
     </>
   );
 }
 
 /** A §8 row whose body is allowed to wrap — explanatory prose, not a record. */
-function StepRow({ icon, title, body, divider }: { icon: IconName; title: string; body: string; divider: boolean }) {
+function StepRow({ icon, title, body }: { icon: IconName; title: string; body: string }) {
   const { colors, tintMap } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const tint = tintMap.blue;
   return (
-    <View style={[s.stepRow, divider && s.rowDivider]} accessible accessibilityLabel={`${title}. ${body}`}>
+    <View style={s.stepRow} accessible accessibilityLabel={`${title}. ${body}`}>
       <View style={s.goalMark}>
         <Icon name={icon} size={26} color={tint.fg} />
       </View>
@@ -467,7 +503,11 @@ function StepRow({ icon, title, body, divider }: { icon: IconName; title: string
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xl,
+    },
     sectionAfterCard: { marginTop: spacing.sm },
 
     headTrailing: { alignItems: 'flex-end', gap: 6 },
@@ -501,7 +541,12 @@ const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
     },
 
-    stats: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+    stats: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.md,
+    },
     stat: {
       flex: 1,
       flexDirection: 'row',
@@ -535,8 +580,16 @@ const makeStyles = (colors: Palette) =>
       color: colors.textMuted,
     },
 
-    progress: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: 8 },
-    progressHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    progress: {
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.md,
+      gap: 8,
+    },
+    progressHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
     progressTitle: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.xs,
@@ -547,11 +600,18 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.xs,
       color: colors.link,
     },
-    progressTrack: { height: 8, borderRadius: radii.pill, backgroundColor: colors.divider, overflow: 'hidden' },
-    progressFill: { height: 8, borderRadius: radii.pill, backgroundColor: colors.blue },
+    progressTrack: {
+      height: 8,
+      borderRadius: radii.pill,
+      backgroundColor: colors.divider,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      height: 8,
+      borderRadius: radii.pill,
+      backgroundColor: colors.blue,
+    },
 
-    details: { borderTopWidth: 1, borderTopColor: colors.divider },
-    inset: { padding: spacing.md, paddingBottom: 0 },
     cardSectionTitle: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.md,
@@ -567,7 +627,6 @@ const makeStyles = (colors: Palette) =>
       paddingHorizontal: spacing.md,
       paddingBottom: spacing.md,
     },
-    rowDivider: { borderTopWidth: 1, borderTopColor: colors.divider },
 
     goalRow: {
       flexDirection: 'row',

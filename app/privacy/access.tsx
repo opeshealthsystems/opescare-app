@@ -1,19 +1,12 @@
 import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useCallback, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   formatDate,
@@ -181,7 +174,10 @@ export default function ConsentLedgerScreen() {
 
   const facilityName = useCallback(
     (item: ConsentGrantItem | CareRelationshipItem) =>
-      item.facility?.name ?? t('consentLedger.unknownFacility', { defaultValue: 'Facility not named' }),
+      item.facility?.name ??
+      t('consentLedger.unknownFacility', {
+        defaultValue: 'Facility not named',
+      }),
     [t],
   );
 
@@ -193,15 +189,21 @@ export default function ConsentLedgerScreen() {
     (item: ConsentGrantItem) => {
       setNotice(null);
       dialog.confirm({
-        title: t('consentLedger.confirmTitle', { defaultValue: 'Withdraw access' }),
+        title: t('consentLedger.confirmTitle', {
+          defaultValue: 'Withdraw access',
+        }),
         message: t('consentLedger.confirmBody', {
           facility: facilityName(item),
           defaultValue:
             '{{facility}} will no longer be able to open your record. This takes effect immediately. You can grant access again later if you need to.',
         }),
-        confirmLabel: t('consentLedger.confirmCta', { defaultValue: 'Withdraw it' }),
+        confirmLabel: t('consentLedger.confirmCta', {
+          defaultValue: 'Withdraw it',
+        }),
         // The safe way out, in the patient's own words.
-        cancelLabel: t('consentLedger.keepAccess', { defaultValue: 'Keep access' }),
+        cancelLabel: t('consentLedger.keepAccess', {
+          defaultValue: 'Keep access',
+        }),
         destructive: true,
         onConfirm: () =>
           new Promise<void>((resolve) => {
@@ -221,7 +223,11 @@ export default function ConsentLedgerScreen() {
                 resolve();
               },
               onError: (err) => {
-                setNotice({ tone: 'critical', icon: 'alert-circle', body: extractApiErrorMessage(err) });
+                setNotice({
+                  tone: 'critical',
+                  icon: 'alert-circle',
+                  body: extractApiErrorMessage(err),
+                });
                 resolve();
               },
             });
@@ -234,8 +240,12 @@ export default function ConsentLedgerScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <ScreenHeader
-        title={t('consentLedger.title', { defaultValue: 'Who can see my record' })}
-        subtitle={t('consentLedger.subtitle', { defaultValue: 'Access to your record, right now' })}
+        title={t('consentLedger.title', {
+          defaultValue: 'Who can see my record',
+        })}
+        subtitle={t('consentLedger.subtitle', {
+          defaultValue: 'Access to your record, right now',
+        })}
         onBack={() => router.back()}
       />
 
@@ -258,7 +268,9 @@ export default function ConsentLedgerScreen() {
             <View style={styles.loading} accessibilityLiveRegion="polite">
               <ActivityIndicator color={colors.blue} />
               <Text style={styles.loadingText}>
-                {t('consentLedger.loading', { defaultValue: 'Checking who has access' })}
+                {t('consentLedger.loading', {
+                  defaultValue: 'Checking who has access',
+                })}
               </Text>
             </View>
           </Card>
@@ -274,7 +286,9 @@ export default function ConsentLedgerScreen() {
                 defaultValue:
                   'Your record is not open to anyone new because of this — we simply could not read the list. Try again in a moment.',
               })}
-              actionLabel={t('consentLedger.retry', { defaultValue: 'Try again' })}
+              actionLabel={t('consentLedger.retry', {
+                defaultValue: 'Try again',
+              })}
               onAction={() => refetch()}
             />
           </Card>
@@ -300,64 +314,79 @@ export default function ConsentLedgerScreen() {
             {/* ── Right now ──────────────────────────────────────────────── */}
             <View>
               <SectionHeader
-                title={t('consentLedger.summaryTitle', { defaultValue: 'Right now' })}
+                title={t('consentLedger.summaryTitle', {
+                  defaultValue: 'Right now',
+                })}
                 variant="overline"
               />
-              <Card variant="flush">
-                <SummaryRow
-                  icon="shield-check"
-                  tint="green"
-                  value={meta?.active_count ?? active.length}
-                  label={t('consentLedger.statActive', { defaultValue: 'Active access' })}
-                  caption={t('consentLedger.statActiveCaption', {
-                    defaultValue: 'Facilities that can open your record',
-                  })}
-                  divider
-                />
-                <SummaryRow
-                  icon="clock"
-                  tint="amber"
-                  value={meta?.expiring_soon_count ?? 0}
-                  label={t('consentLedger.statExpiring', { defaultValue: 'Expiring soon' })}
-                  caption={t('consentLedger.statExpiringCaption', {
-                    defaultValue: 'Active access ending within a week',
-                  })}
-                  divider
-                />
-                <SummaryRow
-                  icon="history"
-                  tint="purple"
-                  value={meta?.history_count ?? history.length}
-                  label={t('consentLedger.statEnded', { defaultValue: 'Ended' })}
-                  caption={t('consentLedger.statEndedCaption', {
-                    defaultValue: 'Expired or withdrawn — kept as history',
-                  })}
-                  divider
-                />
-                <SummaryRow
-                  icon="stethoscope"
-                  tint="blue"
-                  value={meta?.care_relationship_count ?? relationships.length}
-                  label={t('consentLedger.statOther', { defaultValue: 'Through your care' })}
-                  caption={t('consentLedger.statOtherCaption', {
-                    defaultValue:
-                      'Access that is not consent, and cannot be withdrawn here',
-                  })}
-                />
-              </Card>
+              <CardStack spacing="sm">
+                <Card variant="flush">
+                  <SummaryRow
+                    icon="shield-check"
+                    tint="green"
+                    value={meta?.active_count ?? active.length}
+                    label={t('consentLedger.statActive', {
+                      defaultValue: 'Active access',
+                    })}
+                    caption={t('consentLedger.statActiveCaption', {
+                      defaultValue: 'Facilities that can open your record',
+                    })}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <SummaryRow
+                    icon="clock"
+                    tint="amber"
+                    value={meta?.expiring_soon_count ?? 0}
+                    label={t('consentLedger.statExpiring', {
+                      defaultValue: 'Expiring soon',
+                    })}
+                    caption={t('consentLedger.statExpiringCaption', {
+                      defaultValue: 'Active access ending within a week',
+                    })}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <SummaryRow
+                    icon="history"
+                    tint="purple"
+                    value={meta?.history_count ?? history.length}
+                    label={t('consentLedger.statEnded', {
+                      defaultValue: 'Ended',
+                    })}
+                    caption={t('consentLedger.statEndedCaption', {
+                      defaultValue: 'Expired or withdrawn — kept as history',
+                    })}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <SummaryRow
+                    icon="stethoscope"
+                    tint="blue"
+                    value={meta?.care_relationship_count ?? relationships.length}
+                    label={t('consentLedger.statOther', {
+                      defaultValue: 'Through your care',
+                    })}
+                    caption={t('consentLedger.statOtherCaption', {
+                      defaultValue: 'Access that is not consent, and cannot be withdrawn here',
+                    })}
+                  />
+                </Card>
+              </CardStack>
             </View>
 
             {/* ── Active grants ──────────────────────────────────────────── */}
             <View>
               <SectionHeader
-                title={t('consentLedger.activeSection', { defaultValue: 'Active access' })}
+                title={t('consentLedger.activeSection', {
+                  defaultValue: 'Active access',
+                })}
                 variant="overline"
               />
               {active.length > 0 ? (
                 <Text style={styles.sectionHint}>
                   {t('consentLedger.activeHint', {
-                    defaultValue:
-                      'Each of these can open your record now. You can withdraw any of them.',
+                    defaultValue: 'Each of these can open your record now. You can withdraw any of them.',
                   })}
                 </Text>
               ) : null}
@@ -440,12 +469,13 @@ export default function ConsentLedgerScreen() {
                 <ListRow
                   icon="history"
                   tint="purple"
-                  title={t('consentLedger.historySection', { defaultValue: 'History' })}
+                  title={t('consentLedger.historySection', {
+                    defaultValue: 'History',
+                  })}
                   subtitle={
                     history.length > 0
                       ? t('consentLedger.historyHint', {
-                          defaultValue:
-                            'Access that has ended. None of these can open your record.',
+                          defaultValue: 'Access that has ended. None of these can open your record.',
                         })
                       : t('consentLedger.historyEmptyBody', {
                           defaultValue:
@@ -457,11 +487,7 @@ export default function ConsentLedgerScreen() {
                   value={history.length > 0 ? String(history.length) : undefined}
                   trailing={
                     history.length > 0 ? (
-                      <Icon
-                        name={historyOpen ? 'chevron-up' : 'chevron-down'}
-                        size={18}
-                        color={colors.textMuted}
-                      />
+                      <Icon name={historyOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} />
                     ) : undefined
                   }
                 />
@@ -517,18 +543,15 @@ function GrantCard({
   const granted = item.granted_at ? new Date(item.granted_at) : null;
 
   return (
-    <Card
-      variant="flush"
-      style={[
-        live ? { borderColor: colors.blue } : styles.endedCard,
-      ]}
-    >
+    <Card variant="flush" style={[live ? { borderColor: colors.blue } : styles.endedCard]}>
       <ListRow
         icon="building"
         tint={live ? 'blue' : 'purple'}
         title={
           item.facility?.name ??
-          t('consentLedger.unknownFacility', { defaultValue: 'Facility not named' })
+          t('consentLedger.unknownFacility', {
+            defaultValue: 'Facility not named',
+          })
         }
         meta={[
           item.facility?.type ? formatLabel(item.facility.type) : undefined,
@@ -538,15 +561,8 @@ function GrantCard({
         ]}
         chevron={false}
         trailing={
-          <StatusBadge
-            status={item.state}
-            tone={skin.tone}
-            icon={skin.icon}
-            label={item.state_label}
-            size="sm"
-          />
+          <StatusBadge status={item.state} tone={skin.tone} icon={skin.icon} label={item.state_label} size="sm" />
         }
-        divider
       />
 
       <View style={styles.detail}>
@@ -558,10 +574,14 @@ function GrantCard({
             filled in with the facility's name. */}
         {item.clinician ? (
           <Field
-            label={t('consentLedger.clinicianLabel', { defaultValue: 'Named clinician' })}
+            label={t('consentLedger.clinicianLabel', {
+              defaultValue: 'Named clinician',
+            })}
             value={
               item.clinician.name ??
-              t('consentLedger.unknownClinician', { defaultValue: 'Clinician not named' })
+              t('consentLedger.unknownClinician', {
+                defaultValue: 'Clinician not named',
+              })
             }
             icon="person"
           />
@@ -572,7 +592,9 @@ function GrantCard({
           <View style={styles.labelRow}>
             <Icon name="list" size={14} color={colors.textMuted} />
             <Text style={styles.label}>
-              {t('consentLedger.scopeLabel', { defaultValue: 'What they can see' })}
+              {t('consentLedger.scopeLabel', {
+                defaultValue: 'What they can see',
+              })}
             </Text>
           </View>
           {scopes.items.length > 0 ? (
@@ -583,7 +605,9 @@ function GrantCard({
             </View>
           ) : (
             <Text style={styles.value}>
-              {t('consentLedger.scopeUnspecified', { defaultValue: 'Not specified' })}
+              {t('consentLedger.scopeUnspecified', {
+                defaultValue: 'Not specified',
+              })}
             </Text>
           )}
           {/* Shown only when a code has no name in OpesCare's vocabulary. The
@@ -644,7 +668,9 @@ function GrantCard({
               status="expiring"
               tone="warning"
               icon="clock"
-              label={t('consentLedger.expiringChip', { defaultValue: 'Expiring soon' })}
+              label={t('consentLedger.expiringChip', {
+                defaultValue: 'Expiring soon',
+              })}
               size="sm"
             />
           ) : null}
@@ -655,7 +681,9 @@ function GrantCard({
         {item.revocation ? (
           <Text style={styles.value}>
             {item.revocation.by_you
-              ? t('consentLedger.withdrawnByYou', { defaultValue: 'You withdrew this' })
+              ? t('consentLedger.withdrawnByYou', {
+                  defaultValue: 'You withdrew this',
+                })
               : t('consentLedger.withdrawnBySomeoneElse', {
                   defaultValue: 'Withdrawn by someone else',
                 })}
@@ -670,14 +698,18 @@ function GrantCard({
               disabled={withdrawing}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={t('consentLedger.withdraw', { defaultValue: 'Withdraw access' })}
+              accessibilityLabel={t('consentLedger.withdraw', {
+                defaultValue: 'Withdraw access',
+              })}
               accessibilityHint={item.revoke.message}
               accessibilityState={{ disabled: !!withdrawing }}
               style={[styles.withdrawButton, withdrawing && styles.buttonOff]}
             >
               <Icon name="lock" size={18} color={colors.statusCritical} />
               <Text style={styles.withdrawLabel}>
-                {t('consentLedger.withdraw', { defaultValue: 'Withdraw access' })}
+                {t('consentLedger.withdraw', {
+                  defaultValue: 'Withdraw access',
+                })}
               </Text>
             </TouchableOpacity>
           ) : (
@@ -716,10 +748,12 @@ function RelationshipCard({ item }: { item: CareRelationshipItem }) {
         title={
           item.clinician?.name ??
           item.facility?.name ??
-          t('consentLedger.unknownClinician', { defaultValue: 'Clinician not named' })
+          t('consentLedger.unknownClinician', {
+            defaultValue: 'Clinician not named',
+          })
         }
         meta={[
-          item.clinician ? item.facility?.name ?? undefined : undefined,
+          item.clinician ? (item.facility?.name ?? undefined) : undefined,
           item.facility?.type ? formatLabel(item.facility.type) : undefined,
           since && !Number.isNaN(since.getTime())
             ? t('consentLedger.sinceLabel', {
@@ -734,11 +768,12 @@ function RelationshipCard({ item }: { item: CareRelationshipItem }) {
             status="care_relationship"
             tone="warning"
             icon="alert-circle"
-            label={t('consentLedger.notAGrant', { defaultValue: 'Not a consent grant' })}
+            label={t('consentLedger.notAGrant', {
+              defaultValue: 'Not a consent grant',
+            })}
             size="sm"
           />
         }
-        divider
       />
 
       <View style={styles.detail}>
@@ -758,7 +793,9 @@ function RelationshipCard({ item }: { item: CareRelationshipItem }) {
         <View style={styles.blockedBox}>
           <Icon name="info" size={16} color={colors.textMuted} />
           <Text style={styles.blockedText}>
-            {t('consentLedger.cannotWithdrawHere', { defaultValue: 'Cannot be withdrawn here' })}
+            {t('consentLedger.cannotWithdrawHere', {
+              defaultValue: 'Cannot be withdrawn here',
+            })}
           </Text>
         </View>
       </View>
@@ -788,14 +825,12 @@ function SummaryRow({
   value,
   label,
   caption,
-  divider,
 }: {
   icon: IconName;
   tint: Tint;
   value: number;
   label: string;
   caption: string;
-  divider?: boolean;
 }) {
   const { colors, tintMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -806,7 +841,6 @@ function SummaryRow({
       title={label}
       subtitle={caption}
       chevron={false}
-      divider={divider}
       accessibilityLabel={`${value} ${label}. ${caption}`}
       trailing={<Text style={[styles.statValue, { color: tintMap[tint].fg }]}>{String(value)}</Text>}
     />
@@ -814,17 +848,7 @@ function SummaryRow({
 }
 
 /** Tinted inline notice: icon in a status circle, optional title, body. */
-function Notice({
-  tone,
-  icon,
-  title,
-  body,
-}: {
-  tone: StatusTone;
-  icon: IconName;
-  title?: string;
-  body: string;
-}) {
+function Notice({ tone, icon, title, body }: { tone: StatusTone; icon: IconName; title?: string; body: string }) {
   const { colors, statusMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const skin = statusMap[tone];
@@ -850,7 +874,12 @@ function Notice({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
     stack: { gap: spacing.sm + 4 },
     stackTop: { marginTop: spacing.sm + 4 },
@@ -875,10 +904,16 @@ const makeStyles = (colors: Palette) =>
       color: colors.textMuted,
     },
 
-    statValue: { fontFamily: typography.fontFamily.bold, fontSize: typography.size.lg },
+    statValue: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+    },
 
     // Cards
-    endedCard: { backgroundColor: colors.surfaceMuted, borderColor: colors.divider },
+    endedCard: {
+      backgroundColor: colors.surfaceMuted,
+      borderColor: colors.divider,
+    },
     relationshipCard: { borderColor: colors.statusWarning },
 
     detail: { padding: spacing.md, gap: spacing.sm + 4 },
@@ -896,7 +931,11 @@ const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
     },
 
-    labelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2 },
+    labelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs + 2,
+    },
     label: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: 13,
@@ -911,7 +950,12 @@ const makeStyles = (colors: Palette) =>
       lineHeight: typography.lineHeight.sm,
       color: colors.textPrimary,
     },
-    chips: { marginTop: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    chips: {
+      marginTop: spacing.sm,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
 
     // The caution under a code OpesCare could not name.
     codeNoteRow: {
@@ -1009,7 +1053,10 @@ const makeStyles = (colors: Palette) =>
       justifyContent: 'center',
     },
     noticeBody: { flex: 1, minWidth: 0, gap: 2 },
-    noticeTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
+    noticeTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
     noticeText: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,

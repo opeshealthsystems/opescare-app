@@ -36,6 +36,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   GradientButton,
@@ -59,14 +60,7 @@ import {
   type TFunction,
 } from '@/components/opes-ui';
 import { CatalogImage } from '@/components/ui/CatalogImage';
-import {
-  CareButton,
-  InfoRow,
-  LoadingBlock,
-  NoticeBanner,
-  ProviderAvatar,
-  SummaryLine,
-} from '@/components/care/shared';
+import { CareButton, InfoRow, LoadingBlock, NoticeBanner, ProviderAvatar, SummaryLine } from '@/components/care/shared';
 import {
   appointmentReference,
   canCancelStatus,
@@ -143,8 +137,7 @@ export default function AppointmentDetailScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const dialog = useDialog();
 
-  const { data: appointment, isLoading, isError, isFetching, refetch, dataUpdatedAt } =
-    useAppointmentDetail(id);
+  const { data: appointment, isLoading, isError, isFetching, refetch, dataUpdatedAt } = useAppointmentDetail(id);
   const cancelMutation = useCancelAppointment();
   const startThread = useStartMessageThread();
 
@@ -154,7 +147,10 @@ export default function AppointmentDetailScreen() {
   const [messageSent, setMessageSent] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   /** Set once a move succeeds, so the banner can name both times. */
-  const [justRescheduled, setJustRescheduled] = useState<{ from: string; to: string } | null>(null);
+  const [justRescheduled, setJustRescheduled] = useState<{
+    from: string;
+    to: string;
+  } | null>(null);
 
   const goBook = () => router.push(BOOK_ROUTE);
   const goMessages = () => router.push(MESSAGES_ROUTE);
@@ -349,7 +345,11 @@ function DetailBody({
   const hasCancellationInfo = Boolean(a.cancellation_reason || a.cancelled_at);
 
   const infoRows: { icon: IconName; label: string; value: string }[] = [
-    { icon: typeIconOf(a.appointment_type), label: t('appointments.detail.type'), value: kind },
+    {
+      icon: typeIconOf(a.appointment_type),
+      label: t('appointments.detail.type'),
+      value: kind,
+    },
     {
       icon: 'calendar',
       label: t('opesCare.detail.scheduledFor'),
@@ -358,10 +358,22 @@ function DetailBody({
         : t('appointments.noDate'),
     },
     ...(a.facility_name
-      ? [{ icon: 'building' as IconName, label: t('appointments.detail.facility'), value: a.facility_name }]
+      ? [
+          {
+            icon: 'building' as IconName,
+            label: t('appointments.detail.facility'),
+            value: a.facility_name,
+          },
+        ]
       : []),
     ...(a.provider_name
-      ? [{ icon: 'stethoscope' as IconName, label: t('appointments.detail.provider'), value: a.provider_name }]
+      ? [
+          {
+            icon: 'stethoscope' as IconName,
+            label: t('appointments.detail.provider'),
+            value: a.provider_name,
+          },
+        ]
       : []),
     {
       icon: 'clipboard',
@@ -399,7 +411,9 @@ function DetailBody({
           title={t('opesCare.detail.cancelledTitle')}
           message={
             a.cancellation_reason
-              ? t('opesCare.detail.cancelledReason', { reason: a.cancellation_reason })
+              ? t('opesCare.detail.cancelledReason', {
+                  reason: a.cancellation_reason,
+                })
               : t('opesCare.detail.cancelledNoReason')
           }
         />
@@ -409,11 +423,7 @@ function DetailBody({
           icon="alert-circle"
           tone="warning"
           title={t('appointments.detail.noShowBanner')}
-          message={
-            a.no_show_at
-              ? `${t('appointments.detail.noShowAt')}: ${formatDateTime(a.no_show_at, '—')}`
-              : ''
-          }
+          message={a.no_show_at ? `${t('appointments.detail.noShowAt')}: ${formatDateTime(a.no_show_at, '—')}` : ''}
         />
       ) : null}
       {a.status === 'completed' ? (
@@ -542,7 +552,10 @@ function DetailBody({
                   accessibilityLabel={t('opesCare.detail.actionMessage')}
                 />
                 <Text style={styles.composerCount}>
-                  {t('messages.charCount', { used: composeBody.length, max: MESSAGE_MAX })}
+                  {t('messages.charCount', {
+                    used: composeBody.length,
+                    max: MESSAGE_MAX,
+                  })}
                 </Text>
                 {sendFailed ? (
                   <NoticeBanner icon="alert-circle" tone="critical" message={t('doctor.messageError')} />
@@ -563,38 +576,32 @@ function DetailBody({
       {/* Appointment information */}
       <View>
         <SectionHeader title={t('opesCare.detail.infoHeading')} variant="overline" />
-        <Card>
-          {infoRows.map((row, i) => (
-            <InfoRow
-              key={row.label}
-              icon={row.icon}
-              label={row.label}
-              value={row.value}
-              divider={i < infoRows.length - 1}
-            />
+        <CardStack spacing="sm">
+          {infoRows.map((row) => (
+            <Card key={row.label}>
+              <InfoRow icon={row.icon} label={row.label} value={row.value} />
+            </Card>
           ))}
-        </Card>
+        </CardStack>
       </View>
 
       {/* Cancellation record */}
       {hasCancellationInfo ? (
         <View>
           <SectionHeader title={t('appointments.detail.cancellationReason')} variant="overline" />
-          <Card>
-            <SummaryLine
-              label={t('appointments.detail.cancellationReason')}
-              value={a.cancellation_reason || t('appointments.detail.noReason')}
-            />
+          <CardStack spacing="sm">
+            <Card>
+              <SummaryLine
+                label={t('appointments.detail.cancellationReason')}
+                value={a.cancellation_reason || t('appointments.detail.noReason')}
+              />
+            </Card>
             {a.cancelled_at ? (
-              <>
-                <View style={styles.hair} />
-                <SummaryLine
-                  label={t('appointments.detail.cancelledAt')}
-                  value={formatDateTime(a.cancelled_at, '—')}
-                />
-              </>
+              <Card>
+                <SummaryLine label={t('appointments.detail.cancelledAt')} value={formatDateTime(a.cancelled_at, '—')} />
+              </Card>
             ) : null}
-          </Card>
+          </CardStack>
         </View>
       ) : null}
 
@@ -602,17 +609,16 @@ function DetailBody({
       {upcoming ? (
         <View>
           <SectionHeader title={t('opesCare.detail.preVisitHeading')} variant="overline" />
-          <Card variant="flush">
-            {PRE_VISIT.map((p, i) => (
-              <View
-                key={p.key}
-                style={[styles.instruction, i < PRE_VISIT.length - 1 && styles.instructionDivider]}
-              >
-                <Icon name={p.icon} size={20} color={colors.blue} />
-                <Text style={styles.instructionText}>{t(p.key)}</Text>
-              </View>
+          <CardStack spacing="sm">
+            {PRE_VISIT.map((p) => (
+              <Card key={p.key} variant="flush">
+                <View style={styles.instruction}>
+                  <Icon name={p.icon} size={20} color={colors.blue} />
+                  <Text style={styles.instructionText}>{t(p.key)}</Text>
+                </View>
+              </Card>
             ))}
-          </Card>
+          </CardStack>
         </View>
       ) : null}
 
@@ -656,7 +662,9 @@ function DetailBody({
       {/* The clinic can move an appointment; say when this was read. */}
       <Text
         style={styles.loaded}
-        accessibilityLabel={uiT('components.loadedA11y', { when: fmtLastLoaded(loadedAt, uiT) })}
+        accessibilityLabel={uiT('components.loadedA11y', {
+          when: fmtLastLoaded(loadedAt, uiT),
+        })}
       >
         {uiT('components.loadedAt', { when: fmtLastLoaded(loadedAt, uiT) })}
       </Text>
@@ -702,15 +710,15 @@ function ReschedulePanel({
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [selected, setSelected] = useState<RescheduleSlotOption | null>(null);
   /** Survives the confirm sheet closing, so the reason stays readable. */
-  const [failure, setFailure] = useState<{ reason: string; kept: string } | null>(null);
+  const [failure, setFailure] = useState<{
+    reason: string;
+    kept: string;
+  } | null>(null);
 
   const slots = useMemo(() => data?.slots ?? [], [data]);
   const byId = useMemo(() => new Map(slots.map((s) => [s.id, s])), [slots]);
 
-  const days = useMemo(
-    () => Array.from(daysCoveredBySlots(slots)).sort(),
-    [slots],
-  );
+  const days = useMemo(() => Array.from(daysCoveredBySlots(slots)).sort(), [slots]);
 
   // Land on the first day that has anything, and re-land if the window shifts
   // under a refetch (a slot filling can empty the day the patient was on).
@@ -722,10 +730,7 @@ function ReschedulePanel({
     }
   }, [days, selectedDay]);
 
-  const daySlots = useMemo(
-    () => (selectedDay ? slotsOnDay(slots, selectedDay) : []),
-    [slots, selectedDay],
-  );
+  const daySlots = useMemo(() => (selectedDay ? slotsOnDay(slots, selectedDay) : []), [slots, selectedDay]);
 
   const groups = useMemo(
     () =>
@@ -736,10 +741,7 @@ function ReschedulePanel({
     [daySlots, byId],
   );
 
-  const nextAhead = useMemo(
-    () => (selectedDay ? firstSlotAfterDay(slots, selectedDay) : null),
-    [slots, selectedDay],
-  );
+  const nextAhead = useMemo(() => (selectedDay ? firstSlotAfterDay(slots, selectedDay) : null), [slots, selectedDay]);
 
   const currentWhen = whenLabel(data?.current.scheduled_at ?? a.scheduled_at);
 
@@ -757,7 +759,10 @@ function ReschedulePanel({
       onConfirm: async () => {
         setFailure(null);
         try {
-          await mutation.mutateAsync({ id: a.id, appointment_slot_id: slot.id });
+          await mutation.mutateAsync({
+            id: a.id,
+            appointment_slot_id: slot.id,
+          });
           onRescheduled(from, to);
         } catch (error) {
           const result = rescheduleFailure(error);
@@ -818,7 +823,9 @@ function ReschedulePanel({
             icon="clock"
             tone="warning"
             title={t('appointments.reschedule.noSlotsTitle')}
-            message={t('appointments.reschedule.noSlotsBody', { when: currentWhen })}
+            message={t('appointments.reschedule.noSlotsBody', {
+              when: currentWhen,
+            })}
           />
         ) : (
           <View style={styles.reschedStack}>
@@ -830,17 +837,10 @@ function ReschedulePanel({
               })}
             />
 
-            <Text style={styles.reschedCurrent}>
-              {t('appointments.reschedule.currentTime', { when: currentWhen })}
-            </Text>
+            <Text style={styles.reschedCurrent}>{t('appointments.reschedule.currentTime', { when: currentWhen })}</Text>
 
             {failure ? (
-              <NoticeBanner
-                icon="alert-circle"
-                tone="critical"
-                title={failure.reason}
-                message={failure.kept}
-              />
+              <NoticeBanner icon="alert-circle" tone="critical" title={failure.reason} message={failure.kept} />
             ) : null}
 
             {/* Date strip */}
@@ -869,7 +869,9 @@ function ReschedulePanel({
                 />
                 {nextAhead ? (
                   <CareButton
-                    label={t('appointments.reschedule.jumpToNext', { when: formatDate(nextAhead.starts_at) })}
+                    label={t('appointments.reschedule.jumpToNext', {
+                      when: formatDate(nextAhead.starts_at),
+                    })}
                     icon="calendar-check"
                     variant="secondary"
                     onPress={() => {
@@ -920,9 +922,7 @@ function ReschedulePanel({
                             start,
                             end: formatTime(slot.ends_at),
                           })}
-                          accessibilityHint={
-                            slot.is_current ? t('appointments.reschedule.currentSlotHint') : undefined
-                          }
+                          accessibilityHint={slot.is_current ? t('appointments.reschedule.currentSlotHint') : undefined}
                           style={styles.reschedChip}
                         />
                       );
@@ -948,12 +948,7 @@ function ReschedulePanel({
               loading={mutation.isPending}
               icon="none"
             />
-            <CareButton
-              label={t('appointments.reschedule.close')}
-              icon="close"
-              variant="ghost"
-              onPress={onClose}
-            />
+            <CareButton label={t('appointments.reschedule.close')} icon="close" variant="ghost" onPress={onClose} />
           </View>
         )}
       </Card>
@@ -1030,10 +1025,19 @@ type Styles = ReturnType<typeof makeStyles>;
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
     summaryTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-    summaryIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    summaryIcon: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     summaryHead: { flex: 1, minWidth: 0, gap: 4 },
     summaryTitle: {
       fontFamily: typography.fontFamily.bold,
@@ -1050,7 +1054,10 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.xs,
       color: colors.textSecondary,
     },
-    summaryIdValue: { fontFamily: typography.fontFamily.medium, color: colors.link },
+    summaryIdValue: {
+      fontFamily: typography.fontFamily.medium,
+      color: colors.link,
+    },
 
     factRow: {
       flexDirection: 'row',
@@ -1060,19 +1067,42 @@ const makeStyles = (colors: Palette) =>
       borderTopColor: colors.divider,
       gap: spacing.sm,
     },
-    fact: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
+    fact: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      minWidth: 0,
+    },
     factText: { flex: 1, minWidth: 0 },
-    factLabel: { fontFamily: typography.fontFamily.regular, fontSize: 11, color: colors.textMuted },
-    factValue: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.xs, color: colors.link },
+    factLabel: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+    factValue: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+      color: colors.link,
+    },
 
-    providerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md - 2 },
+    providerRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.md - 2,
+    },
     providerBody: { flex: 1, minWidth: 0, gap: 2 },
     providerName: {
       fontFamily: typography.fontFamily.bold,
       fontSize: typography.size.lg,
       color: colors.textPrimary,
     },
-    providerMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+    providerMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 2,
+    },
     providerMeta: {
       flex: 1,
       fontFamily: typography.fontFamily.regular,
@@ -1122,8 +1152,6 @@ const makeStyles = (colors: Palette) =>
       color: colors.textMuted,
     },
 
-    hair: { height: 1, backgroundColor: colors.divider },
-
     // ── Reschedule picker ────────────────────────────────────────────────
     reschedStack: { gap: spacing.sm + 2 },
     reschedCurrent: {
@@ -1132,7 +1160,12 @@ const makeStyles = (colors: Palette) =>
       color: colors.textPrimary,
     },
     reschedRow: { gap: spacing.sm, paddingVertical: 2 },
-    reschedBucketHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm },
+    reschedBucketHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: spacing.sm,
+    },
     reschedBucketLabel: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.xs,
@@ -1154,7 +1187,6 @@ const makeStyles = (colors: Palette) =>
       paddingHorizontal: spacing.md,
       paddingVertical: 13,
     },
-    instructionDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
     instructionText: {
       flex: 1,
       fontFamily: typography.fontFamily.regular,

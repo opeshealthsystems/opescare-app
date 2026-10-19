@@ -32,19 +32,12 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
  */
 import { downloadPdfWithRefresh } from '@/lib/pdfDownload';
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-  RefreshControl,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { RefreshControl, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Card,
+  CardStack,
   Icon,
   ScreenHeader,
   StatusBadge,
@@ -90,7 +83,12 @@ function columns(tx: Tx): TableColumn[] {
     { key: 'result', label: tx('table.result', 'Result'), flex: 1 },
     { key: 'unit', label: tx('table.unit', 'Unit'), flex: 1 },
     { key: 'range', label: tx('table.usualRange', 'Usual Range'), flex: 1.6 },
-    { key: 'status', label: tx('table.status', 'Status'), flex: 1, align: 'right' },
+    {
+      key: 'status',
+      label: tx('table.status', 'Status'),
+      flex: 1,
+      align: 'right',
+    },
   ];
 }
 
@@ -154,7 +152,7 @@ export default function LabReportFullScreen() {
         pathname: '/labs/[id]/trend',
         params: { id: orderId, ...(analyte ? { analyte } : {}) },
       }),
-    [router, orderId]
+    [router, orderId],
   );
 
   const closeLabel = t('opesUi.components.close', { defaultValue: 'Close' });
@@ -167,7 +165,7 @@ export default function LabReportFullScreen() {
           title: tx('report.noDownloadTitle', 'No report file yet'),
           message: tx(
             'report.noDownloadBody',
-            'The laboratory has not attached a signed PDF to this order. The results above are the full record the server holds.'
+            'The laboratory has not attached a signed PDF to this order. The results above are the full record the server holds.',
           ),
           tone: 'info',
           cancelLabel: closeLabel,
@@ -178,7 +176,11 @@ export default function LabReportFullScreen() {
         // Fetched into the cache and offered via the share sheet; the signed
         // link lives 15 minutes, so an expired one is re-minted once.
         await downloadPdfWithRefresh(
-          { url: document.download_url, filename: `lab-report-${document.label ?? document.id}`, shareTitle: document.label ?? undefined },
+          {
+            url: document.download_url,
+            filename: `lab-report-${document.label ?? document.id}`,
+            shareTitle: document.label ?? undefined,
+          },
           async () => (await query.refetch()).data?.document?.download_url ?? null,
         );
       } catch (e) {
@@ -186,12 +188,12 @@ export default function LabReportFullScreen() {
           tx('report.failOpenTitle', 'The report would not open'),
           errorMessage(
             e,
-            tx('report.failFallback', 'The file could not be opened on this device. Try again in a moment.')
-          )
+            tx('report.failFallback', 'The file could not be opened on this device. Try again in a moment.'),
+          ),
         );
       }
     },
-    [dialog, tx, closeLabel, query]
+    [dialog, tx, closeLabel, query],
   );
 
   /**
@@ -203,14 +205,16 @@ export default function LabReportFullScreen() {
     async (order: LabOrderDetail) => {
       const lines = [
         order.name,
-        tx('report.shareDate', 'Sample date: {{date}}', { date: fmtDate(order.ordered_at) }),
+        tx('report.shareDate', 'Sample date: {{date}}', {
+          date: fmtDate(order.ordered_at),
+        }),
         ...(order.results ?? []).map(
           (r) =>
             `• ${r.analyte}: ${r.value}${r.unit ? ` ${r.unit}` : ''} (${referenceRange(
               r.ref_low,
               r.ref_high,
-              r.reference ?? NO_RANGE
-            )}) — ${resultFlagLabel(r.flag, tx, tr)}`
+              r.reference ?? NO_RANGE,
+            )}) — ${resultFlagLabel(r.flag, tx, tr)}`,
         ),
         order.clinical_notes ?? order.result_summary ?? '',
       ].filter(Boolean);
@@ -220,7 +224,7 @@ export default function LabReportFullScreen() {
         // Share sheet dismissed, or no share target on this platform (web).
       }
     },
-    [tx, tr, NO_RANGE]
+    [tx, tr, NO_RANGE],
   );
 
   function renderBody() {
@@ -276,7 +280,11 @@ export default function LabReportFullScreen() {
                 patient
                   ? [
                       patient.sex ? titleCase(patient.sex) : null,
-                      patient.age != null ? tx('report.years', '{{count}} yrs', { count: patient.age }) : null,
+                      patient.age != null
+                        ? tx('report.years', '{{count}} yrs', {
+                            count: patient.age,
+                          })
+                        : null,
                     ]
                       .filter(Boolean)
                       .join(' / ') || '—'
@@ -333,7 +341,7 @@ export default function LabReportFullScreen() {
                 critical.length === 1
                   ? '{{count}} result is outside the safe range'
                   : '{{count}} results are outside the safe range',
-                { count: critical.length }
+                { count: critical.length },
               )}
             </Text>
             <Text style={styles.noticeBody}>
@@ -350,69 +358,77 @@ export default function LabReportFullScreen() {
                 flagged.length === 1
                   ? '{{count}} result is outside the usual range'
                   : '{{count}} results are outside the usual range',
-                { count: flagged.length }
+                { count: flagged.length },
               )}
             </Text>
             <Text style={styles.noticeBody}>
               {tx(
                 'report.flaggedBody',
-                'A value outside the usual range is not a diagnosis on its own. Your care team reads it together with the rest of your record.'
+                'A value outside the usual range is not a diagnosis on its own. Your care team reads it together with the rest of your record.',
               )}
             </Text>
           </InfoStrip>
         ) : null}
 
         {/* ── Results ────────────────────────────────────────────────── */}
-        <Card>
-          <Overline label={tx('report.testResults', 'Test Results')} style={styles.overlineGap} />
+        <CardStack spacing="sm">
           {results.length === 0 ? (
-            <InfoStrip icon="clock" tone="pending">
-              <Text style={styles.noticeTitle}>{tx('report.pendingTitle', 'Results are not back yet')}</Text>
-              <Text style={styles.noticeBody}>
-                {tx(
-                  'report.pendingBody',
-                  'The laboratory has not released a verified result for this order. It appears here as soon as it is signed off.'
-                )}
-              </Text>
-            </InfoStrip>
+            <Card>
+              <Overline label={tx('report.testResults', 'Test Results')} style={styles.overlineGap} />
+              <InfoStrip icon="clock" tone="pending">
+                <Text style={styles.noticeTitle}>{tx('report.pendingTitle', 'Results are not back yet')}</Text>
+                <Text style={styles.noticeBody}>
+                  {tx(
+                    'report.pendingBody',
+                    'The laboratory has not released a verified result for this order. It appears here as soon as it is signed off.',
+                  )}
+                </Text>
+              </InfoStrip>
+            </Card>
           ) : (
             <>
-              <TableHead columns={COLUMNS} />
-              {results.map((r, i) => (
-                <TableRow
-                  key={r.id}
-                  columns={COLUMNS}
-                  last={i === results.length - 1}
-                  a11yLabel={resultRowSpoken({ ...r, reference: r.reference ?? NO_RANGE }, tr)}
-                  cells={[
-                    { text: r.analyte, bold: true },
-                    { text: r.value, bold: true, wrap: true },
-                    { text: r.unit ?? '—' },
-                    { text: referenceRange(r.ref_low, r.ref_high, r.reference ?? NO_RANGE), wrap: true },
-                    {
-                      node:
-                        r.flag === 'critical' ? (
-                          <StatusBadge
-                            status="critical"
-                            label={tx('flag.critical', 'Critical')}
-                            tone="critical"
-                            size="sm"
-                            icon="alert-circle"
-                          />
-                        ) : (
-                          <Text style={[styles.flagText, { color: colorForFlag(r.flag) }]} numberOfLines={1}>
-                            {resultFlagLabel(r.flag, tx, tr)}
-                          </Text>
-                        ),
-                    },
-                  ]}
-                />
+              <Card>
+                <Overline label={tx('report.testResults', 'Test Results')} style={styles.overlineGap} />
+                <TableHead columns={COLUMNS} />
+              </Card>
+              {results.map((r) => (
+                <Card key={r.id} variant="flush">
+                  <TableRow
+                    columns={COLUMNS}
+                    a11yLabel={resultRowSpoken({ ...r, reference: r.reference ?? NO_RANGE }, tr)}
+                    cells={[
+                      { text: r.analyte, bold: true },
+                      { text: r.value, bold: true, wrap: true },
+                      { text: r.unit ?? '—' },
+                      {
+                        text: referenceRange(r.ref_low, r.ref_high, r.reference ?? NO_RANGE),
+                        wrap: true,
+                      },
+                      {
+                        node:
+                          r.flag === 'critical' ? (
+                            <StatusBadge
+                              status="critical"
+                              label={tx('flag.critical', 'Critical')}
+                              tone="critical"
+                              size="sm"
+                              icon="alert-circle"
+                            />
+                          ) : (
+                            <Text style={[styles.flagText, { color: colorForFlag(r.flag) }]} numberOfLines={1}>
+                              {resultFlagLabel(r.flag, tx, tr)}
+                            </Text>
+                          ),
+                      },
+                    ]}
+                  />
+                </Card>
               ))}
               <Text style={styles.rangeNote}>
                 {tx(
                   'report.rangeNote',
                   'Usual ranges are the laboratory’s own. Where it sent none, the range reads “{{noRange}}”.',
-                  { noRange: NO_RANGE }
+                  { noRange: NO_RANGE },
                 )}
               </Text>
               {/* Only when a result actually carries the state — an explanation
@@ -422,13 +438,13 @@ export default function LabReportFullScreen() {
                   {tx(
                     'report.unflaggedNote',
                     '“{{label}}” means the laboratory published no usual range for that test, so this result has not been compared with one. It is not the same as a normal result.',
-                    { label: tx('flag.unflagged', 'Not recorded') }
+                    { label: tx('flag.unflagged', 'Not recorded') },
                   )}
                 </Text>
               )}
             </>
           )}
-        </Card>
+        </CardStack>
 
         {/* ── Interpretation & signature ─────────────────────────────── */}
         {!!(order.clinical_notes || order.result_summary) && (
@@ -463,7 +479,7 @@ export default function LabReportFullScreen() {
                 </Text>
                 <Text style={styles.fileMeta}>
                   {`${(document.file_type ?? 'PDF').toUpperCase()} · ${fmtBytes(document.file_size)} · ${fmtDate(
-                    document.created_at
+                    document.created_at,
                   )}`}
                 </Text>
               </View>
@@ -474,7 +490,7 @@ export default function LabReportFullScreen() {
               <Text style={styles.noticeBody}>
                 {tx(
                   'report.noPdfBody',
-                  'The laboratory has not attached a document to this order. Everything it did release is shown above.'
+                  'The laboratory has not attached a document to this order. Everything it did release is shown above.',
                 )}
               </Text>
             </InfoStrip>
@@ -486,10 +502,22 @@ export default function LabReportFullScreen() {
           title={tx('report.technicalTitle', 'Technical details')}
           caption={tx('report.technicalCaption', 'Codes and references your care team may ask for.')}
           facts={[
-            { label: tx('report.factTestCode', 'Test code'), value: order.code },
-            { label: tx('report.factOrderRef', 'Order reference'), value: order.id },
-            { label: tx('report.factVisitRef', 'Visit reference'), value: order.encounter_id },
-            { label: tx('report.factDocumentRef', 'Document reference'), value: document?.id ?? null },
+            {
+              label: tx('report.factTestCode', 'Test code'),
+              value: order.code,
+            },
+            {
+              label: tx('report.factOrderRef', 'Order reference'),
+              value: order.id,
+            },
+            {
+              label: tx('report.factVisitRef', 'Visit reference'),
+              value: order.encounter_id,
+            },
+            {
+              label: tx('report.factDocumentRef', 'Document reference'),
+              value: document?.id ?? null,
+            },
           ]}
           styles={styles}
           colors={colors}
@@ -537,12 +565,16 @@ export default function LabReportFullScreen() {
           {
             icon: 'bell',
             onPress: () => router.push('/notifications'),
-            accessibilityLabel: t('opesCore.common.notifications', { defaultValue: 'Notifications' }),
+            accessibilityLabel: t('opesCore.common.notifications', {
+              defaultValue: 'Notifications',
+            }),
           },
           {
             icon: 'more-vertical',
             onPress: () => router.push('/labs'),
-            accessibilityLabel: t('opesCore.common.moreOptions', { defaultValue: 'More options' }),
+            accessibilityLabel: t('opesCore.common.moreOptions', {
+              defaultValue: 'More options',
+            }),
           },
         ]}
       />
@@ -658,7 +690,11 @@ function TechnicalDetails({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
     reportTitle: {
       fontFamily: typography.fontFamily.bold,
@@ -685,7 +721,12 @@ const makeStyles = (colors: Palette) =>
       borderTopColor: colors.divider,
       rowGap: spacing.md,
     },
-    field: { flexDirection: 'row', gap: spacing.sm, width: '50%', paddingRight: spacing.sm },
+    field: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      width: '50%',
+      paddingRight: spacing.sm,
+    },
     fieldBody: { flex: 1, minWidth: 0 },
     fieldLabel: {
       fontFamily: typography.fontFamily.regular,
@@ -720,7 +761,10 @@ const makeStyles = (colors: Palette) =>
 
     overlineGap: { marginBottom: spacing.sm },
 
-    flagText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.xs },
+    flagText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+    },
     rangeNote: {
       marginTop: spacing.sm,
       fontFamily: typography.fontFamily.regular,

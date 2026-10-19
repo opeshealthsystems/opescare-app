@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   GradientButton,
@@ -135,7 +136,11 @@ export default function OfflineAccessScreen() {
    * always lands in the page rather than in an OS dialog that web ignores. */
   const requireConnection = useCallback(() => {
     if (isOnline) return true;
-    setNotice({ tone: 'warning', icon: 'alert-circle', body: t('offline.errorNeedsConnection') });
+    setNotice({
+      tone: 'warning',
+      icon: 'alert-circle',
+      body: t('offline.errorNeedsConnection'),
+    });
     return false;
   }, [isOnline, t]);
 
@@ -146,7 +151,11 @@ export default function OfflineAccessScreen() {
       { emergencyAccess: mode === 'emergency' },
       {
         onError: () =>
-          setNotice({ tone: 'critical', icon: 'alert-circle', body: t('offline.errorEnable') }),
+          setNotice({
+            tone: 'critical',
+            icon: 'alert-circle',
+            body: t('offline.errorEnable'),
+          }),
       },
     );
   }, [enableMutation, mode, requireConnection, t]);
@@ -156,7 +165,11 @@ export default function OfflineAccessScreen() {
     if (!requireConnection()) return;
     syncMutation.mutate(undefined, {
       onError: () =>
-        setNotice({ tone: 'critical', icon: 'alert-circle', body: t('offline.errorSync') }),
+        setNotice({
+          tone: 'critical',
+          icon: 'alert-circle',
+          body: t('offline.errorSync'),
+        }),
     });
   }, [requireConnection, syncMutation, t]);
 
@@ -165,16 +178,29 @@ export default function OfflineAccessScreen() {
     if (!requireConnection()) return;
     flushMutation.mutate(undefined, {
       onError: () =>
-        setNotice({ tone: 'critical', icon: 'alert-circle', body: t('offline.errorSync') }),
+        setNotice({
+          tone: 'critical',
+          icon: 'alert-circle',
+          body: t('offline.errorSync'),
+        }),
     });
   }, [flushMutation, requireConnection, t]);
 
   const handleErase = useCallback(() => {
     setNotice(null);
     disableMutation.mutate(undefined, {
-      onSuccess: () => setNotice({ tone: 'normal', icon: 'check-circle', body: t('offline.erased') }),
+      onSuccess: () =>
+        setNotice({
+          tone: 'normal',
+          icon: 'check-circle',
+          body: t('offline.erased'),
+        }),
       onError: () =>
-        setNotice({ tone: 'critical', icon: 'alert-circle', body: t('offline.errorErase') }),
+        setNotice({
+          tone: 'critical',
+          icon: 'alert-circle',
+          body: t('offline.errorErase'),
+        }),
     });
   }, [disableMutation, t]);
 
@@ -186,7 +212,11 @@ export default function OfflineAccessScreen() {
   const confirmEnable = useCallback(() => {
     // Web has no encrypted storage: offline access cannot be enabled in a browser.
     if (!isEncryptedAtRest) {
-      setNotice({ tone: 'warning', icon: 'alert-triangle', body: t('offline.webNotice') });
+      setNotice({
+        tone: 'warning',
+        icon: 'alert-triangle',
+        body: t('offline.webNotice'),
+      });
       return;
     }
     const modeBody = mode === 'emergency' ? t('offline.modeEmergencyBody') : t('offline.modeFullBody');
@@ -251,9 +281,7 @@ export default function OfflineAccessScreen() {
         {notice ? <Notice tone={notice.tone} icon={notice.icon} text={notice.body} /> : null}
 
         {/* Web storage is not encrypted at rest — offline access is unavailable in a browser. */}
-        {!isEncryptedAtRest ? (
-          <Notice tone="warning" icon="alert-triangle" text={t('offline.webNotice')} />
-        ) : null}
+        {!isEncryptedAtRest ? <Notice tone="warning" icon="alert-triangle" text={t('offline.webNotice')} /> : null}
 
         {isLoading ? (
           <LoadingCard label={t('opesCore.common.loading')} />
@@ -278,9 +306,7 @@ export default function OfflineAccessScreen() {
                 <StatusBadge
                   status={enabled ? 'active' : 'inactive'}
                   tone={enabled ? 'normal' : 'neutral'}
-                  label={
-                    enabled ? t('records.status.active') : t('records.status.inactive')
-                  }
+                  label={enabled ? t('records.status.active') : t('records.status.inactive')}
                   icon={enabled ? 'check-circle' : 'lock'}
                   size="sm"
                 />
@@ -314,25 +340,28 @@ export default function OfflineAccessScreen() {
               <>
                 <View>
                   <SectionHeader title={t('offline.chooseMode')} variant="overline" />
-                  <Card variant="flush">
-                    <ModeRow
-                      selected={mode === 'full'}
-                      onPress={() => setMode('full')}
-                      icon="folder"
-                      tint="blue"
-                      title={t('offline.modeFull')}
-                      body={t('offline.modeFullBody')}
-                      divider
-                    />
-                    <ModeRow
-                      selected={mode === 'emergency'}
-                      onPress={() => setMode('emergency')}
-                      icon="heart-pulse"
-                      tint="red"
-                      title={t('offline.modeEmergency')}
-                      body={t('offline.modeEmergencyBody')}
-                    />
-                  </Card>
+                  <CardStack spacing="sm">
+                    <Card variant="flush">
+                      <ModeRow
+                        selected={mode === 'full'}
+                        onPress={() => setMode('full')}
+                        icon="folder"
+                        tint="blue"
+                        title={t('offline.modeFull')}
+                        body={t('offline.modeFullBody')}
+                      />
+                    </Card>
+                    <Card variant="flush">
+                      <ModeRow
+                        selected={mode === 'emergency'}
+                        onPress={() => setMode('emergency')}
+                        icon="heart-pulse"
+                        tint="red"
+                        title={t('offline.modeEmergency')}
+                        body={t('offline.modeEmergencyBody')}
+                      />
+                    </Card>
+                  </CardStack>
                 </View>
 
                 <View style={styles.actionBlock}>
@@ -343,9 +372,7 @@ export default function OfflineAccessScreen() {
                     disabled={!isOnline || !isEncryptedAtRest}
                     icon="none"
                   />
-                  {!isOnline ? (
-                    <Text style={styles.hint}>{t('offline.errorNeedsConnection')}</Text>
-                  ) : null}
+                  {!isOnline ? <Text style={styles.hint}>{t('offline.errorNeedsConnection')}</Text> : null}
                 </View>
               </>
             ) : (
@@ -354,65 +381,64 @@ export default function OfflineAccessScreen() {
                 {/* Device authorisation — the server-side policy this device holds */}
                 <View>
                   <SectionHeader title={t('offline.policyTitle')} variant="overline" />
-                  <Card variant="flush">
-                    {policy?.emergency_access ? (
-                      <View style={styles.policyBadge}>
-                        <StatusBadge
-                          status="emergency"
-                          tone="critical"
-                          label={t('offline.policyEmergencyBadge')}
-                          icon="heart-pulse"
-                          size="sm"
-                        />
-                      </View>
-                    ) : null}
+                  <CardStack spacing="sm">
+                    <Card variant="flush">
+                      {policy?.emergency_access ? (
+                        <View style={styles.policyBadge}>
+                          <StatusBadge
+                            status="emergency"
+                            tone="critical"
+                            label={t('offline.policyEmergencyBadge')}
+                            icon="heart-pulse"
+                            size="sm"
+                          />
+                        </View>
+                      ) : null}
 
-                    <ListRow
-                      icon="fingerprint"
-                      tint="blue"
-                      title={t('offline.policyDevice')}
-                      subtitle={policy?.device_id ?? t('opesCore.common.none')}
-                      chevron={false}
-                      divider
-                    />
-                    <ListRow
-                      icon="lock"
-                      tint={status?.encryptedAtRest ? 'green' : 'amber'}
-                      title={t('offline.policyEncryption')}
-                      subtitle={
-                        status?.encryptedAtRest
-                          ? t('offline.policyEncryptionOn')
-                          : t('offline.policyEncryptionOff')
-                      }
-                      chevron={false}
-                      divider
-                    />
-                    <ListRow
-                      icon="shield-check"
-                      tint={status?.policyUsable ? 'green' : 'red'}
-                      title={t('offline.policyExpires')}
-                      subtitle={
-                        status?.policyUsable
-                          ? (formatDateTime(policy?.expires_at, i18n.language) ??
-                            t('opesCore.common.none'))
-                          : t('offline.policyExpired')
-                      }
-                      chevron={false}
-                    />
+                      <ListRow
+                        icon="fingerprint"
+                        tint="blue"
+                        title={t('offline.policyDevice')}
+                        subtitle={policy?.device_id ?? t('opesCore.common.none')}
+                        chevron={false}
+                      />
+                    </Card>
+                    <Card variant="flush">
+                      <ListRow
+                        icon="lock"
+                        tint={status?.encryptedAtRest ? 'green' : 'amber'}
+                        title={t('offline.policyEncryption')}
+                        subtitle={
+                          status?.encryptedAtRest ? t('offline.policyEncryptionOn') : t('offline.policyEncryptionOff')
+                        }
+                        chevron={false}
+                      />
+                    </Card>
+                    <Card variant="flush">
+                      <ListRow
+                        icon="shield-check"
+                        tint={status?.policyUsable ? 'green' : 'red'}
+                        title={t('offline.policyExpires')}
+                        subtitle={
+                          status?.policyUsable
+                            ? (formatDateTime(policy?.expires_at, i18n.language) ?? t('opesCore.common.none'))
+                            : t('offline.policyExpired')
+                        }
+                        chevron={false}
+                      />
 
-                    {policy?.review_required ? (
-                      <Text style={styles.policyNote}>{t('offline.policyReviewNote')}</Text>
-                    ) : null}
-                  </Card>
+                      {policy?.review_required ? (
+                        <Text style={styles.policyNote}>{t('offline.policyReviewNote')}</Text>
+                      ) : null}
+                    </Card>
+                  </CardStack>
                 </View>
 
                 {/* What is actually on the device right now */}
                 <View>
                   <SectionHeader title={t('offline.savedDataTitle')} variant="overline" />
                   <Text style={styles.lastSaved}>
-                    {lastSavedLabel
-                      ? t('offline.lastSaved', { when: lastSavedLabel })
-                      : t('offline.neverSaved')}
+                    {lastSavedLabel ? t('offline.lastSaved', { when: lastSavedLabel }) : t('offline.neverSaved')}
                   </Text>
 
                   {scopeRows.length === 0 ? (
@@ -425,13 +451,11 @@ export default function OfflineAccessScreen() {
                       />
                     </Card>
                   ) : (
-                    <Card variant="flush">
-                      {scopeRows.map((scope, index) => {
+                    <CardStack spacing="sm">
+                      {scopeRows.map((scope) => {
                         const savedWhen = formatSavedAt(scope.cachedAt, t);
                         const meta: (string | undefined)[] = [
-                          savedWhen
-                            ? t('offline.lastSaved', { when: savedWhen })
-                            : t('offline.scopeEmpty'),
+                          savedWhen ? t('offline.lastSaved', { when: savedWhen }) : t('offline.scopeEmpty'),
                         ];
                         // The emergency card is the one scope whose *contents*
                         // matter at a glance, so what is actually cached is
@@ -447,24 +471,26 @@ export default function OfflineAccessScreen() {
                           );
                         }
                         return (
-                          <ListRow
-                            key={scope.scope}
-                            icon={SCOPE_ICON[scope.scope]}
-                            tint={SCOPE_TINT[scope.scope]}
-                            title={t(SCOPE_LABEL_KEY[scope.scope])}
-                            meta={meta}
-                            chevron={false}
-                            divider={index < scopeRows.length - 1}
-                            value={
-                              scope.itemCount !== null
-                                ? t('offline.itemsSaved', { count: scope.itemCount })
-                                : undefined
-                            }
-                            valueColor={colors.textSecondary}
-                          />
+                          <Card key={scope.scope} variant="flush">
+                            <ListRow
+                              icon={SCOPE_ICON[scope.scope]}
+                              tint={SCOPE_TINT[scope.scope]}
+                              title={t(SCOPE_LABEL_KEY[scope.scope])}
+                              meta={meta}
+                              chevron={false}
+                              value={
+                                scope.itemCount !== null
+                                  ? t('offline.itemsSaved', {
+                                      count: scope.itemCount,
+                                    })
+                                  : undefined
+                              }
+                              valueColor={colors.textSecondary}
+                            />
+                          </Card>
                         );
                       })}
-                    </Card>
+                    </CardStack>
                   )}
                 </View>
 
@@ -507,11 +533,7 @@ export default function OfflineAccessScreen() {
                           </View>
                         ))}
                         <GradientButton
-                          label={
-                            flushMutation.isPending
-                              ? t('offline.outboxSending')
-                              : t('offline.outboxSendCta')
-                          }
+                          label={flushMutation.isPending ? t('offline.outboxSending') : t('offline.outboxSendCta')}
                           onPress={handleFlush}
                           loading={flushMutation.isPending}
                           disabled={!isOnline}
@@ -523,7 +545,9 @@ export default function OfflineAccessScreen() {
 
                     {flushMutation.isSuccess && flushMutation.data ? (
                       <Text style={[styles.hint, styles.hintGood, styles.hintLeft]}>
-                        {t('offline.outboxSent', { count: flushMutation.data.queued })}
+                        {t('offline.outboxSent', {
+                          count: flushMutation.data.queued,
+                        })}
                       </Text>
                     ) : null}
                   </Card>
@@ -604,7 +628,6 @@ function ModeRow({
   tint,
   title,
   body,
-  divider,
 }: {
   selected: boolean;
   onPress: () => void;
@@ -612,7 +635,6 @@ function ModeRow({
   tint: Tint;
   title: string;
   body: string;
-  divider?: boolean;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -624,7 +646,6 @@ function ModeRow({
       subtitle={body}
       onPress={onPress}
       chevron={false}
-      divider={divider}
       accessibilityLabel={`${title}. ${body}`}
       trailing={
         <View style={[styles.radio, selected && styles.radioOn]}>
@@ -670,9 +691,18 @@ function LoadingCard({ label }: { label: string }) {
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
-    head: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 4 },
+    head: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm + 4,
+    },
     circle: {
       width: 40,
       height: 40,

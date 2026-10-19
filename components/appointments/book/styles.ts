@@ -1,11 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-import {
-  radii,
-  spacing,
-  typography,
-  type Palette,
-} from '@/components/opes-ui';
+import { radii, spacing, typography, type Palette } from '@/components/opes-ui';
 
 /** Split verbatim out of app/appointments/book.tsx. */
 
@@ -13,12 +8,22 @@ export const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     fill: { flex: 1 },
     gutter: { paddingHorizontal: spacing.md },
-    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
     listContent: { paddingHorizontal: spacing.md, paddingBottom: spacing.lg },
     progress: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
     block: { marginBottom: spacing.md },
     listCard: { marginBottom: spacing.sm + 4 },
-    centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.md },
+    centre: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.md,
+    },
     loading: { alignItems: 'center', gap: spacing.sm },
     loadingText: {
       fontFamily: typography.fontFamily.regular,
@@ -64,7 +69,13 @@ export const makeStyles = (colors: Palette) =>
       borderTopWidth: 1,
       borderTopColor: colors.divider,
     },
-    badgeRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm, flexShrink: 1 },
+    badgeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      flexShrink: 1,
+    },
     footHint: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.xs,
@@ -86,7 +97,11 @@ export const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
     },
 
-    emptyActions: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
+    emptyActions: {
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.md,
+      gap: spacing.sm,
+    },
 
     sectionIntro: { marginTop: spacing.xs },
     sectionHint: {
@@ -99,7 +114,12 @@ export const makeStyles = (colors: Palette) =>
     },
     overline: { marginTop: spacing.xs },
 
-    rowBetween: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: spacing.sm },
+    rowBetween: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
     rowHeader: { marginBottom: 0, flexShrink: 1 },
     monthLabel: {
       fontFamily: typography.fontFamily.regular,
@@ -132,12 +152,23 @@ export const makeStyles = (colors: Palette) =>
       color: colors.textPrimary,
     },
     dayTextOn: { color: colors.textOnBrand },
-    dayDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: 'transparent', marginTop: 2 },
+    dayDot: {
+      width: 5,
+      height: 5,
+      borderRadius: 3,
+      backgroundColor: 'transparent',
+      marginTop: 2,
+    },
     dayDotOn: { backgroundColor: colors.statusNormal },
     dayDotOnActive: { backgroundColor: colors.textOnBrand },
 
     buckets: { gap: spacing.md },
-    bucketHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm + 2 },
+    bucketHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.sm + 2,
+    },
     bucketLabel: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.md,
@@ -162,7 +193,11 @@ export const makeStyles = (colors: Palette) =>
       backgroundColor: colors.surface,
     },
     footerCard: { padding: spacing.sm + 4 },
-    footerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md - 4 },
+    footerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md - 4,
+    },
     footerIcon: {
       width: 46,
       height: 46,
@@ -236,12 +271,14 @@ export const makeStyles = (colors: Palette) =>
     summary: {
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
-      borderTopWidth: 1,
-      borderTopColor: colors.divider,
     },
     errorWrap: { gap: spacing.sm },
 
-    hero: { alignItems: 'center', gap: spacing.sm + 2, paddingVertical: spacing.md },
+    hero: {
+      alignItems: 'center',
+      gap: spacing.sm + 2,
+      paddingVertical: spacing.md,
+    },
     heroMark: {
       width: 88,
       height: 88,
@@ -302,7 +339,12 @@ export const makeStyles = (colors: Palette) =>
       fontSize: typography.size.sm,
       color: colors.textSecondary,
     },
-    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 2,
+    },
     meta: {
       flex: 1,
       fontFamily: typography.fontFamily.regular,

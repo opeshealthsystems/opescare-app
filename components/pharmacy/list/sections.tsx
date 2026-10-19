@@ -2,6 +2,7 @@
 import { Text, View } from 'react-native';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ListRow,
@@ -29,7 +30,25 @@ import {
 import type { PharmacyListModel } from './usePharmacyList';
 
 export function FilterSheets({ vm }: { vm: PharmacyListModel }) {
-  const { t, colors, rxFilter, setRxFilter, reportedOnly, setReportedOnly, city, setCity, radiusKm, setRadiusKm, openNowOnly, setOpenNowOnly, sheet, setSheet, setShowAllPharmacies, filtersActive, clearFilters } = vm;
+  const {
+    t,
+    colors,
+    rxFilter,
+    setRxFilter,
+    reportedOnly,
+    setReportedOnly,
+    city,
+    setCity,
+    radiusKm,
+    setRadiusKm,
+    openNowOnly,
+    setOpenNowOnly,
+    sheet,
+    setSheet,
+    setShowAllPharmacies,
+    filtersActive,
+    clearFilters,
+  } = vm;
   return (
     <>
       {sheet === 'type' ? (
@@ -38,7 +57,6 @@ export function FilterSheets({ vm }: { vm: PharmacyListModel }) {
             title={t('pharmacy.allPharmacies')}
             trailing={!openNowOnly ? <Icon name="check" size={18} color={colors.blue} /> : undefined}
             chevron={false}
-            divider
             onPress={() => {
               setOpenNowOnly(false);
               setSheet(null);
@@ -48,7 +66,6 @@ export function FilterSheets({ vm }: { vm: PharmacyListModel }) {
             title={t('pharmacy.openNow')}
             trailing={openNowOnly ? <Icon name="check" size={18} color={colors.blue} /> : undefined}
             chevron={false}
-            divider={false}
             onPress={() => {
               setOpenNowOnly(true);
               setSheet(null);
@@ -75,7 +92,6 @@ export function FilterSheets({ vm }: { vm: PharmacyListModel }) {
               />
             }
             chevron={false}
-            divider
             onPress={() => setReportedOnly((only) => !only)}
           />
           <ListRow
@@ -88,7 +104,6 @@ export function FilterSheets({ vm }: { vm: PharmacyListModel }) {
               />
             }
             chevron={false}
-            divider
             onPress={() => setRxFilter((v) => (v === true ? null : true))}
           />
           <ListRow
@@ -101,7 +116,6 @@ export function FilterSheets({ vm }: { vm: PharmacyListModel }) {
               />
             }
             chevron={false}
-            divider={filtersActive}
             onPress={() => setRxFilter((v) => (v === false ? null : false))}
           />
           {filtersActive ? (
@@ -110,7 +124,6 @@ export function FilterSheets({ vm }: { vm: PharmacyListModel }) {
               tint="red"
               title={t('pharmacy.clearFilters')}
               chevron={false}
-              divider={false}
               onPress={() => {
                 clearFilters();
                 setSheet(null);
@@ -122,17 +135,12 @@ export function FilterSheets({ vm }: { vm: PharmacyListModel }) {
 
       {sheet === 'city' ? (
         <OptionCard title={t('pharmacy.cityPickerTitle')}>
-          {CITIES.map((option, index) => (
+          {CITIES.map((option) => (
             <ListRow
               key={option.key}
               title={option.name}
-              trailing={
-                option.key === city.key ? (
-                  <Icon name="check" size={18} color={colors.blue} />
-                ) : undefined
-              }
+              trailing={option.key === city.key ? <Icon name="check" size={18} color={colors.blue} /> : undefined}
               chevron={false}
-              divider={index < CITIES.length - 1}
               onPress={() => {
                 setCity(option);
                 setSheet(null);
@@ -145,17 +153,12 @@ export function FilterSheets({ vm }: { vm: PharmacyListModel }) {
 
       {sheet === 'radius' ? (
         <OptionCard title={t('pharmacy.radiusPickerTitle')}>
-          {RADIUS_OPTIONS.map((option, index) => (
+          {RADIUS_OPTIONS.map((option) => (
             <ListRow
               key={option}
               title={t('pharmacy.radius', { km: option })}
-              trailing={
-                option === radiusKm ? (
-                  <Icon name="check" size={18} color={colors.blue} />
-                ) : undefined
-              }
+              trailing={option === radiusKm ? <Icon name="check" size={18} color={colors.blue} /> : undefined}
               chevron={false}
-              divider={index < RADIUS_OPTIONS.length - 1}
               onPress={() => {
                 setRadiusKm(option);
                 setSheet(null);
@@ -170,7 +173,19 @@ export function FilterSheets({ vm }: { vm: PharmacyListModel }) {
 }
 
 export function HoldsSection({ vm }: { vm: PharmacyListModel }) {
-  const { t, styles, reservationsOpen, setReservationsOpen, reservations, cancelReservation, openHolds, atHoldCap, openMedicine, confirmCancel, callPharmacy } = vm;
+  const {
+    t,
+    styles,
+    reservationsOpen,
+    setReservationsOpen,
+    reservations,
+    cancelReservation,
+    openHolds,
+    atHoldCap,
+    openMedicine,
+    confirmCancel,
+    callPharmacy,
+  } = vm;
   return (
     <>
       {/* Your holds — always present, so "you have none" is a state the
@@ -182,9 +197,7 @@ export function HoldsSection({ vm }: { vm: PharmacyListModel }) {
               ? t('pharmacy.reservationsSubtitle', { count: openHolds.length })
               : t('pharmacy.reservationsTitle')
           }
-          actionLabel={
-            reservationsOpen ? t('pharmacy.reservationsHide') : t('pharmacy.reservationsShow')
-          }
+          actionLabel={reservationsOpen ? t('pharmacy.reservationsHide') : t('pharmacy.reservationsShow')}
           actionChevron
           onAction={() => setReservationsOpen((open) => !open)}
         />
@@ -192,7 +205,9 @@ export function HoldsSection({ vm }: { vm: PharmacyListModel }) {
         {reservationsOpen ? (
           reservations.isPending ? (
             <LoadingBlock
-              label={t('pharmacy.reservationsLoading', { defaultValue: 'Loading your holds…' })}
+              label={t('pharmacy.reservationsLoading', {
+                defaultValue: 'Loading your holds…',
+              })}
             />
           ) : reservations.isError && openHolds.length === 0 ? (
             <Card variant="flush">
@@ -239,8 +254,7 @@ export function HoldsSection({ vm }: { vm: PharmacyListModel }) {
                   tone="warning"
                   text={t('pharmacy.reservationsAtCap', {
                     max: MAX_OPEN_HOLDS,
-                    defaultValue:
-                      'You have the maximum of {{max}} holds open. Cancel one before reserving another.',
+                    defaultValue: 'You have the maximum of {{max}} holds open. Cancel one before reserving another.',
                   })}
                 />
               ) : null}
@@ -249,9 +263,7 @@ export function HoldsSection({ vm }: { vm: PharmacyListModel }) {
                 <HoldCard
                   key={hold.id}
                   reservation={hold}
-                  cancelling={
-                    cancelReservation.isPending && cancelReservation.variables?.id === hold.id
-                  }
+                  cancelling={cancelReservation.isPending && cancelReservation.variables?.id === hold.id}
                   onOpenMedicine={hold.medicine ? () => openMedicine(hold.medicine!.id) : null}
                   onCall={(phone) => callPharmacy(hold.pharmacy?.name, phone)}
                   onCancel={() => confirmCancel(hold)}
@@ -266,7 +278,20 @@ export function HoldsSection({ vm }: { vm: PharmacyListModel }) {
 }
 
 export function CatalogueSection({ vm }: { vm: PharmacyListModel }) {
-  const { t, styles, reportedOnly, setReportedOnly, catalog, results, total, shownResults, resultsTruncated, filtersActive, openMedicine, clearFilters } = vm;
+  const {
+    t,
+    styles,
+    reportedOnly,
+    setReportedOnly,
+    catalog,
+    results,
+    total,
+    shownResults,
+    resultsTruncated,
+    filtersActive,
+    openMedicine,
+    clearFilters,
+  } = vm;
   return (
     <>
       {/* Catalogue results */}
@@ -275,7 +300,9 @@ export function CatalogueSection({ vm }: { vm: PharmacyListModel }) {
           title={
             catalog.isPending
               ? t('pharmacy.resultsTitle')
-              : t('pharmacy.resultsCount', { count: reportedOnly ? shownResults.length : total })
+              : t('pharmacy.resultsCount', {
+                  count: reportedOnly ? shownResults.length : total,
+                })
           }
           actionLabel={t('pharmacy.clearFilters')}
           onAction={filtersActive ? clearFilters : undefined}
@@ -357,11 +384,7 @@ export function CatalogueSection({ vm }: { vm: PharmacyListModel }) {
             <ResultList>
               {shownResults.map((medicine) => (
                 <Card key={medicine.id} variant="flush">
-                  <MedicineRow
-                    medicine={medicine}
-                    divider={false}
-                    onPress={() => openMedicine(medicine.id)}
-                  />
+                  <MedicineRow medicine={medicine} onPress={() => openMedicine(medicine.id)} />
                 </Card>
               ))}
             </ResultList>
@@ -371,8 +394,7 @@ export function CatalogueSection({ vm }: { vm: PharmacyListModel }) {
                 {t('pharmacy.resultsCapped', {
                   shown: results.length,
                   total,
-                  defaultValue:
-                    'Showing the first {{shown}} of {{total}} matches. Narrow your search to see the rest.',
+                  defaultValue: 'Showing the first {{shown}} of {{total}} matches. Narrow your search to see the rest.',
                 })}
               </Text>
             ) : null}
@@ -384,7 +406,23 @@ export function CatalogueSection({ vm }: { vm: PharmacyListModel }) {
 }
 
 export function NearbySection({ vm }: { vm: PharmacyListModel }) {
-  const { t, router, colors, styles, radiusKm, openNowOnly, setOpenNowOnly, setSheet, showAllPharmacies, setShowAllPharmacies, pharmacies, allPharmacyRows, pharmacyRows, pharmaciesTruncated, hasMappable } = vm;
+  const {
+    t,
+    router,
+    colors,
+    styles,
+    radiusKm,
+    openNowOnly,
+    setOpenNowOnly,
+    setSheet,
+    showAllPharmacies,
+    setShowAllPharmacies,
+    pharmacies,
+    allPharmacyRows,
+    pharmacyRows,
+    pharmaciesTruncated,
+    hasMappable,
+  } = vm;
   return (
     <>
       {/* Pharmacies near the chosen origin */}
@@ -463,15 +501,9 @@ export function NearbySection({ vm }: { vm: PharmacyListModel }) {
                 title={t('pharmacy.noPharmacies', { km: radiusKm })}
                 message={t('pharmacy.nearbySubtitle')}
                 actionLabel={
-                  radiusKm < RADIUS_OPTIONS[RADIUS_OPTIONS.length - 1]
-                    ? t('pharmacy.radiusPickerTitle')
-                    : undefined
+                  radiusKm < RADIUS_OPTIONS[RADIUS_OPTIONS.length - 1] ? t('pharmacy.radiusPickerTitle') : undefined
                 }
-                onAction={
-                  radiusKm < RADIUS_OPTIONS[RADIUS_OPTIONS.length - 1]
-                    ? () => setSheet('radius')
-                    : undefined
-                }
+                onAction={radiusKm < RADIUS_OPTIONS[RADIUS_OPTIONS.length - 1] ? () => setSheet('radius') : undefined}
               />
             </Card>
           )
@@ -486,20 +518,21 @@ export function NearbySection({ vm }: { vm: PharmacyListModel }) {
               </Card>
             ) : null}
 
-            <Card variant="flush">
-              {(showAllPharmacies ? pharmacyRows : pharmacyRows.slice(0, NEARBY_PREVIEW)).map(
-                (pharmacy, index, shown) => (
+            <CardStack spacing="sm">
+              {(showAllPharmacies ? pharmacyRows : pharmacyRows.slice(0, NEARBY_PREVIEW)).map((pharmacy) => (
+                <Card key={pharmacy.id} variant="flush">
                   <PharmacyRow
-                    key={pharmacy.id}
                     pharmacy={pharmacy}
-                    divider={index < shown.length - 1}
                     onPress={() =>
-                      router.push({ pathname: '/facility/[id]', params: { id: pharmacy.id } })
+                      router.push({
+                        pathname: '/facility/[id]',
+                        params: { id: pharmacy.id },
+                      })
                     }
                   />
-                ),
-              )}
-            </Card>
+                </Card>
+              ))}
+            </CardStack>
 
             {pharmacyRows.length > NEARBY_PREVIEW ? (
               <MedButton

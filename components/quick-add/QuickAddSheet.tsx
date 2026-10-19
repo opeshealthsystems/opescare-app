@@ -10,20 +10,13 @@
  * scrim tap, hardware back and (web) Escape via `onRequestClose`.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Animated,
-  Easing,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Animated, Easing, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import {
+  Card,
+  CardStack,
   ListRow,
   radii,
   spacing,
@@ -108,7 +101,9 @@ export function QuickAddSheet({ visible, onClose }: QuickAddSheetProps) {
         icon: 'building',
         tint: 'blue',
         // No existing "find a facility" key — reported in the hand-off.
-        title: t('opesCore.quickAdd.findFacility', { defaultValue: 'Find a facility' }),
+        title: t('opesCore.quickAdd.findFacility', {
+          defaultValue: 'Find a facility',
+        }),
         subtitle: t('careMap.subtitle'),
         href: '/care-map',
       },
@@ -117,7 +112,9 @@ export function QuickAddSheet({ visible, onClose }: QuickAddSheetProps) {
         icon: 'stethoscope',
         tint: 'purple',
         // No existing "find a doctor" key — reported in the hand-off.
-        title: t('opesCore.quickAdd.findDoctor', { defaultValue: 'Find a doctor' }),
+        title: t('opesCore.quickAdd.findDoctor', {
+          defaultValue: 'Find a doctor',
+        }),
         subtitle: t('opesCare.findProvider.searchPlaceholder'),
         // Route is being built by another agent; linked by path only.
         href: '/doctors',
@@ -174,13 +171,7 @@ export function QuickAddSheet({ visible, onClose }: QuickAddSheetProps) {
   });
 
   return (
-    <Modal
-      visible
-      transparent
-      animationType="none"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
+    <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
       <View style={styles.root}>
         <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, { opacity: progress }]}>
           <Pressable
@@ -194,7 +185,10 @@ export function QuickAddSheet({ visible, onClose }: QuickAddSheetProps) {
         <Animated.View
           style={[
             styles.sheet,
-            { paddingBottom: insets.bottom + spacing.md, transform: [{ translateY }] },
+            {
+              paddingBottom: insets.bottom + spacing.md,
+              transform: [{ translateY }],
+            },
           ]}
           onLayout={(e) => setSheetHeight(e.nativeEvent.layout.height)}
           accessibilityViewIsModal
@@ -204,19 +198,19 @@ export function QuickAddSheet({ visible, onClose }: QuickAddSheetProps) {
             {t('opesCore.quickAdd.title')}
           </Text>
 
-          <View style={styles.list}>
-            {actions.map((action, index) => (
-              <ListRow
-                key={action.key}
-                icon={action.icon}
-                tint={action.tint}
-                title={action.title}
-                subtitle={action.subtitle}
-                onPress={() => go(action.href)}
-                divider={index < actions.length - 1}
-              />
+          <CardStack spacing="sm" style={styles.list}>
+            {actions.map((action) => (
+              <Card key={action.key} variant="flush">
+                <ListRow
+                  icon={action.icon}
+                  tint={action.tint}
+                  title={action.title}
+                  subtitle={action.subtitle}
+                  onPress={() => go(action.href)}
+                />
+              </Card>
             ))}
-          </View>
+          </CardStack>
         </Animated.View>
       </View>
     </Modal>
@@ -256,10 +250,5 @@ const makeStyles = (colors: Palette) =>
     list: {
       marginHorizontal: spacing.md,
       marginTop: spacing.sm,
-      borderRadius: radii.md,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
-      overflow: 'hidden',
     },
   });

@@ -1,16 +1,10 @@
 /** Large JSX sections of the blood request screen (app/blood-finder/request.tsx). */
-import {
-  Share,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Share, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/ui/Screen';
 import { FacilityMap } from '@/components/map/FacilityMap';
 import {
   Card,
+  CardStack,
   GradientButton,
   Icon,
   ListRow,
@@ -58,7 +52,23 @@ import type { BloodRequestFormModel, BloodRequestView } from './useBloodRequestF
 
 /** PM-BLOOD-04 · Blood Request Confirmed. Rendered only once `confirmed` is set. */
 export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
-  const { t, router, colors, styles, patient, contactChoice, showRoute, setShowRoute, confirmed, facility, phone, hasCoords, availability, contactLabelOf, forWho } = vm;
+  const {
+    t,
+    router,
+    colors,
+    styles,
+    patient,
+    contactChoice,
+    showRoute,
+    setShowRoute,
+    confirmed,
+    facility,
+    phone,
+    hasCoords,
+    availability,
+    contactLabelOf,
+    forWho,
+  } = vm;
   if (!confirmed) return null;
   const lifecycleSteps: Step[] = LIFECYCLE.map((key) => ({
     key,
@@ -67,9 +77,7 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
   const lifecycleIndex = Math.max(0, LIFECYCLE.indexOf(confirmed.status));
   const facilityName = confirmed.facility?.name ?? facility?.name ?? '';
   const confirmedPhone = confirmed.facility?.phone ?? phone;
-  const facilityPlace = [confirmed.facility?.address, confirmed.facility?.city]
-    .filter(Boolean)
-    .join(', ');
+  const facilityPlace = [confirmed.facility?.address, confirmed.facility?.city].filter(Boolean).join(', ');
   const confirmedComponent = t(`bloodFinder.components.${confirmed.component_type}`, {
     defaultValue: confirmed.component_label,
   });
@@ -93,14 +101,14 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
       label: t('bloodFinder.request.statStatus', { defaultValue: 'Status' }),
       value: statusLabel,
       valueColor: colors.statusNormal,
-      sub: confirmed.is_open
-        ? t('bloodFinder.request.statOnHold', { defaultValue: 'On hold' })
-        : null,
+      sub: confirmed.is_open ? t('bloodFinder.request.statOnHold', { defaultValue: 'On hold' }) : null,
     },
     {
       key: 'units',
       icon: 'droplet',
-      label: t('bloodFinder.request.statUnits', { defaultValue: 'Units reserved' }),
+      label: t('bloodFinder.request.statUnits', {
+        defaultValue: 'Units reserved',
+      }),
       value: String(confirmed.quantity),
       valueColor: colors.link,
       sub: `${confirmed.blood_group} · ${confirmedComponent}`,
@@ -110,7 +118,9 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
     stats.push({
       key: 'expires',
       icon: 'history',
-      label: t('bloodFinder.request.statExpires', { defaultValue: 'Reservation expires' }),
+      label: t('bloodFinder.request.statExpires', {
+        defaultValue: 'Reservation expires',
+      }),
       value: formatDate(confirmed.expires_at),
       sub: formatTime(confirmed.expires_at),
     });
@@ -163,19 +173,25 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
       label: t('bloodFinder.request.neededBy', { defaultValue: 'Needed by' }),
       value: confirmed.needed_by
         ? formatDate(confirmed.needed_by)
-        : t('bloodFinder.request.neededByAny', { defaultValue: 'Not specified' }),
+        : t('bloodFinder.request.neededByAny', {
+            defaultValue: 'Not specified',
+          }),
       valueColor: confirmed.needed_by ? undefined : colors.textMuted,
     },
     {
       key: 'requestFor',
       icon: 'users',
-      label: t('bloodFinder.request.requestForLabel', { defaultValue: 'Request for' }),
+      label: t('bloodFinder.request.requestForLabel', {
+        defaultValue: 'Request for',
+      }),
       value: forWho || t('bloodFinder.request.requestForSelf', { defaultValue: 'Self' }),
     },
     {
       key: 'contact',
       icon: CONTACT_ICON[contactChoice],
-      label: t('bloodFinder.request.contactTitle', { defaultValue: 'Contact preference' }),
+      label: t('bloodFinder.request.contactTitle', {
+        defaultValue: 'Contact preference',
+      }),
       value: contactLabelOf(contactChoice),
       sub: confirmed.contact_phone,
     },
@@ -189,14 +205,16 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
         group: confirmed.blood_group,
         component: confirmedComponent,
         facility: facilityName,
-        defaultValue:
-          'OpesCare blood request {{reference}} — {{units}} × {{group}} {{component}} at {{facility}}.',
+        defaultValue: 'OpesCare blood request {{reference}} — {{units}} × {{group}} {{component}} at {{facility}}.',
       }),
     }).catch(() => undefined);
   };
 
   const openStatus = () =>
-    router.push({ pathname: '/blood-finder/status', params: { requestId: confirmed.id } });
+    router.push({
+      pathname: '/blood-finder/status',
+      params: { requestId: confirmed.id },
+    });
 
   return (
     <Screen className="px-0">
@@ -205,7 +223,9 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
         // 24px and the right-hand Share pill takes ~80pt of it. The full
         // sentence is the hero title inside the first card, as in the
         // reference.
-        title={t('bloodFinder.request.confirmedTitle', { defaultValue: 'Request confirmed' })}
+        title={t('bloodFinder.request.confirmedTitle', {
+          defaultValue: 'Request confirmed',
+        })}
         subtitle={t('bloodFinder.request.confirmedSubtitle', {
           defaultValue: 'Your request has been created.',
         })}
@@ -216,12 +236,12 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
             activeOpacity={0.7}
             style={styles.headerPill}
             accessibilityRole="button"
-            accessibilityLabel={t('bloodFinder.request.share', { defaultValue: 'Share' })}
+            accessibilityLabel={t('bloodFinder.request.share', {
+              defaultValue: 'Share',
+            })}
           >
             <Icon name="share" size={16} color={colors.link} />
-            <Text style={styles.headerPillText}>
-              {t('bloodFinder.request.share', { defaultValue: 'Share' })}
-            </Text>
+            <Text style={styles.headerPillText}>{t('bloodFinder.request.share', { defaultValue: 'Share' })}</Text>
           </TouchableOpacity>
         }
       />
@@ -251,7 +271,9 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
               leaves the hero title three words to a line. */}
           <View style={styles.referencePanel}>
             <Text style={styles.referenceLabel}>
-              {t('bloodFinder.request.requestIdLabel', { defaultValue: 'Request ID' })}
+              {t('bloodFinder.request.requestIdLabel', {
+                defaultValue: 'Request ID',
+              })}
             </Text>
             <Text style={styles.referenceValue} accessibilityLabel={confirmed.reference}>
               {confirmed.reference}
@@ -263,11 +285,7 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
 
         {/* Where the request has actually got to. Real statuses only. */}
         <Card>
-          <StepProgress
-            steps={lifecycleSteps}
-            currentIndex={lifecycleIndex}
-            accessibilityLabel={statusLabel}
-          />
+          <StepProgress steps={lifecycleSteps} currentIndex={lifecycleIndex} accessibilityLabel={statusLabel} />
         </Card>
 
         {/* The hold is not open-ended: BloodRequestService stamps expires_at
@@ -277,7 +295,9 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
           <NoticeBanner
             icon="clock"
             tone="warning"
-            title={t('bloodFinder.request.expiresAt', { defaultValue: 'Hold expires' })}
+            title={t('bloodFinder.request.expiresAt', {
+              defaultValue: 'Hold expires',
+            })}
             message={t('bloodFinder.request.expiresAtBody', {
               when: formatDateTime(confirmed.expires_at),
               defaultValue:
@@ -290,7 +310,9 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
           <View style={styles.cardHead}>
             <Icon name="document" size={20} color={colors.link} />
             <Text style={styles.cardHeadTitle} accessibilityRole="header">
-              {t('bloodFinder.request.summaryTitle', { defaultValue: 'Request summary' })}
+              {t('bloodFinder.request.summaryTitle', {
+                defaultValue: 'Request summary',
+              })}
             </Text>
             <TouchableOpacity
               onPress={openStatus}
@@ -302,7 +324,9 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
               })}
             >
               <Text style={styles.linkText}>
-                {t('bloodFinder.request.viewDetails', { defaultValue: 'View details' })}
+                {t('bloodFinder.request.viewDetails', {
+                  defaultValue: 'View details',
+                })}
               </Text>
             </TouchableOpacity>
           </View>
@@ -328,21 +352,17 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
                 facilityPlace || null,
                 confirmedPhone,
                 availability?.units_range
-                  ? t('bloodFinder.unitsRange', { range: availability.units_range })
+                  ? t('bloodFinder.unitsRange', {
+                      range: availability.units_range,
+                    })
                   : null,
               ]}
               chevron={false}
               trailing={
                 isVerified(facility?.verification_status) ? (
-                  <StatusBadge
-                    status="verified"
-                    tone="normal"
-                    label={t('bloodFinder.verified')}
-                    size="sm"
-                  />
+                  <StatusBadge status="verified" tone="normal" label={t('bloodFinder.verified')} size="sm" />
                 ) : undefined
               }
-              divider
             />
             <View style={styles.cardFoot}>
               <CareButton
@@ -366,9 +386,7 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
               ) : null}
             </View>
             {/* In-app directions, not a hand-off to an external maps app. */}
-            {showRoute && hasCoords && facility ? (
-              <FacilityMap facilities={facility} height={200} directions />
-            ) : null}
+            {showRoute && hasCoords && facility ? <FacilityMap facilities={facility} height={200} directions /> : null}
           </Card>
         ) : null}
 
@@ -384,8 +402,7 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
           <View style={styles.bullets}>
             {[
               t('bloodFinder.request.instructionCall', {
-                defaultValue:
-                  'Call the blood bank before travelling to confirm the units are still there.',
+                defaultValue: 'Call the blood bank before travelling to confirm the units are still there.',
               }),
               t('bloodFinder.request.instructionBring', {
                 defaultValue: "Bring this reference and the patient's Health ID to the counter.",
@@ -406,7 +423,9 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
         />
 
         <GradientButton
-          label={t('bloodFinder.request.viewStatus', { defaultValue: 'View request status' })}
+          label={t('bloodFinder.request.viewStatus', {
+            defaultValue: 'View request status',
+          })}
           onPress={openStatus}
         />
 
@@ -451,7 +470,9 @@ export function PatientSection({ vm }: { vm: BloodRequestView }) {
       {/* Patient information — who the units are for. */}
       <Card>
         <Text style={styles.cardTitle} accessibilityRole="header">
-          {t('bloodFinder.request.patientTitle', { defaultValue: 'Patient information' })}
+          {t('bloodFinder.request.patientTitle', {
+            defaultValue: 'Patient information',
+          })}
         </Text>
         <View style={styles.patientRow}>
           <View style={styles.avatar}>
@@ -500,7 +521,9 @@ export function PatientSection({ vm }: { vm: BloodRequestView }) {
         {forOther ? (
           <View style={styles.forBlock}>
             <Text style={styles.fieldLabel}>
-              {t('bloodFinder.request.forWhoLabel', { defaultValue: 'Who is this for?' })}
+              {t('bloodFinder.request.forWhoLabel', {
+                defaultValue: 'Who is this for?',
+              })}
             </Text>
             <TextInput
               style={styles.textInput}
@@ -532,7 +555,21 @@ export function PatientSection({ vm }: { vm: BloodRequestView }) {
 }
 
 export function FacilitySection({ vm }: { vm: BloodRequestView }) {
-  const { t, styles, facility, emergencyLine, phone, secondaryLine, listedLine, hasCoords, availability, stockLabel, freshnessKey, freshnessLabel, verificationKey } = vm;
+  const {
+    t,
+    styles,
+    facility,
+    emergencyLine,
+    phone,
+    secondaryLine,
+    listedLine,
+    hasCoords,
+    availability,
+    stockLabel,
+    freshnessKey,
+    freshnessLabel,
+    verificationKey,
+  } = vm;
   return (
     <>
       {/* Receiving facility. ABOVE the requirement block, unlike the
@@ -564,14 +601,15 @@ export function FacilitySection({ vm }: { vm: BloodRequestView }) {
               size="sm"
             />
           }
-          divider
         />
         <View style={styles.cardFoot}>
           <CareButton
             label={
               phone
                 ? emergencyLine
-                  ? t('bloodFinder.callEmergencyLine', { defaultValue: 'Emergency line' })
+                  ? t('bloodFinder.callEmergencyLine', {
+                      defaultValue: 'Emergency line',
+                    })
                   : t('bloodFinder.call')
                 : t('bloodFinder.noPhone')
             }
@@ -606,19 +644,24 @@ export function FacilitySection({ vm }: { vm: BloodRequestView }) {
       {/* Where it is, and — the part that decides whether any of this is
           worth acting on — exactly when the facility last touched the
           figure. */}
-      <Card variant="flush">
-        <View style={styles.rows}>
+      <CardStack spacing="sm">
+        <Card variant="flush" style={styles.rows}>
           <InfoRow
             icon="activity"
             tint={availability?.units_range ? 'green' : 'amber'}
-            label={t('bloodFinder.unitsLabel', { defaultValue: 'Units reported' })}
+            label={t('bloodFinder.unitsLabel', {
+              defaultValue: 'Units reported',
+            })}
             value={availability?.units_range ?? t('bloodFinder.unitsUnknown')}
-            divider
           />
+        </Card>
+        <Card variant="flush" style={styles.rows}>
           <InfoRow
             icon="clock"
             tint={freshnessKey === 'fresh' ? 'green' : 'amber'}
-            label={t('bloodFinder.stockUpdated', { defaultValue: 'Stock updated' })}
+            label={t('bloodFinder.stockUpdated', {
+              defaultValue: 'Stock updated',
+            })}
             // The exact time when the facility stamped one, the freshness
             // band when it did not. Never a guess dressed as a clock.
             value={
@@ -626,55 +669,96 @@ export function FacilitySection({ vm }: { vm: BloodRequestView }) {
                 ? `${formatDateTime(availability.last_updated_at)}  ·  ${freshnessLabel}`
                 : freshnessLabel
             }
-            divider={!!facility.address || !!verificationKey}
           />
-          {facility.address ? (
+        </Card>
+        {facility.address ? (
+          <Card variant="flush" style={styles.rows}>
             <InfoRow
               icon="location"
               tint="blue"
               label={t('bloodFinder.addressLabel', { defaultValue: 'Address' })}
               value={[facility.address, facility.city].filter(Boolean).join(', ')}
-              divider={!!verificationKey || !!emergencyLine || !!listedLine}
             />
-          ) : null}
-          {emergencyLine ? (
+          </Card>
+        ) : null}
+        {emergencyLine ? (
+          <Card variant="flush" style={styles.rows}>
             <InfoRow
               icon="phone"
               tint="red"
-              label={t('bloodFinder.callEmergencyLine', { defaultValue: 'Emergency line' })}
+              label={t('bloodFinder.callEmergencyLine', {
+                defaultValue: 'Emergency line',
+              })}
               value={emergencyLine}
-              divider={!!listedLine || !!verificationKey}
             />
-          ) : null}
-          {listedLine ? (
+          </Card>
+        ) : null}
+        {listedLine ? (
+          <Card variant="flush" style={styles.rows}>
             <InfoRow
               icon="phone"
               tint="blue"
               label={t('bloodFinder.phoneLabel', { defaultValue: 'Phone' })}
               value={listedLine}
-              divider={!!verificationKey}
             />
-          ) : null}
-          {verificationKey ? (
+          </Card>
+        ) : null}
+        {verificationKey ? (
+          <Card variant="flush" style={styles.rows}>
             <InfoRow
               icon="shield-check"
               tint={isVerified(facility.verification_status) ? 'green' : 'amber'}
-              label={t('bloodFinder.verificationLabel', { defaultValue: 'Listing' })}
+              label={t('bloodFinder.verificationLabel', {
+                defaultValue: 'Listing',
+              })}
               value={t(`bloodFinder.verification.${verificationKey}`, {
-                defaultValue:
-                  VERIFICATION_FALLBACK[verificationKey] ??
-                  formatLabel(facility.verification_status),
+                defaultValue: VERIFICATION_FALLBACK[verificationKey] ?? formatLabel(facility.verification_status),
               })}
             />
-          ) : null}
-        </View>
-      </Card>
+          </Card>
+        ) : null}
+      </CardStack>
     </>
   );
 }
 
 export function DetailsForm({ vm }: { vm: BloodRequestView }) {
-  const { t, colors, styles, patient, bloodGroup, setPhase, quantity, setQuantity, urgency, setUrgency, neededByOffset, setNeededByOffset, contactChoice, setContactChoice, contactPhone, setContactPhone, note, setNote, openMenu, setOpenMenu, maxUnits, componentLabel, phone, neededByLabel, contactLabelOf, phoneWanted, phoneInvalid, foldPrefix, noteBudget, noteTooLong, canContinue, backToSearch, neededByOptions, urgencyOptions } = vm;
+  const {
+    t,
+    colors,
+    styles,
+    patient,
+    bloodGroup,
+    setPhase,
+    quantity,
+    setQuantity,
+    urgency,
+    setUrgency,
+    neededByOffset,
+    setNeededByOffset,
+    contactChoice,
+    setContactChoice,
+    contactPhone,
+    setContactPhone,
+    note,
+    setNote,
+    openMenu,
+    setOpenMenu,
+    maxUnits,
+    componentLabel,
+    phone,
+    neededByLabel,
+    contactLabelOf,
+    phoneWanted,
+    phoneInvalid,
+    foldPrefix,
+    noteBudget,
+    noteTooLong,
+    canContinue,
+    backToSearch,
+    neededByOptions,
+    urgencyOptions,
+  } = vm;
   return (
     <>
       {/* Blood Requirement — the reference's three-across field row,
@@ -737,9 +821,7 @@ export function DetailsForm({ vm }: { vm: BloodRequestView }) {
         </View>
 
         {/* Units stepper beside the tinted advisory panel. */}
-        <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>
-          {t('bloodFinder.request.quantity')}
-        </Text>
+        <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>{t('bloodFinder.request.quantity')}</Text>
         <View style={styles.unitsRow}>
           <View style={styles.stepper}>
             <StepperButton
@@ -750,9 +832,7 @@ export function DetailsForm({ vm }: { vm: BloodRequestView }) {
             />
             <View style={styles.stepperValue}>
               <Text style={styles.stepperNumber}>{quantity}</Text>
-              <Text style={styles.stepperHint}>
-                {t('bloodFinder.request.unitsWord', { defaultValue: 'units' })}
-              </Text>
+              <Text style={styles.stepperHint}>{t('bloodFinder.request.unitsWord', { defaultValue: 'units' })}</Text>
             </View>
             <StepperButton
               icon="plus"
@@ -773,9 +853,7 @@ export function DetailsForm({ vm }: { vm: BloodRequestView }) {
             </View>
           </View>
         </View>
-        <Text style={styles.fieldHint}>
-          {t('bloodFinder.request.maxUnits', { max: maxUnits })}
-        </Text>
+        <Text style={styles.fieldHint}>{t('bloodFinder.request.maxUnits', { max: maxUnits })}</Text>
       </Card>
 
       {urgency === 'emergency' ? (
@@ -805,7 +883,9 @@ export function DetailsForm({ vm }: { vm: BloodRequestView }) {
           {t('bloodFinder.request.neededBy', { defaultValue: 'Needed by' })}
         </Text>
         <DropdownField
-          label={t('bloodFinder.request.requiredDate', { defaultValue: 'Required date' })}
+          label={t('bloodFinder.request.requiredDate', {
+            defaultValue: 'Required date',
+          })}
           icon="calendar"
           value={neededByLabel}
           muted={neededByOffset === null}
@@ -826,7 +906,9 @@ export function DetailsForm({ vm }: { vm: BloodRequestView }) {
           carry them. */}
       <Card>
         <Text style={styles.cardTitle} accessibilityRole="header">
-          {t('bloodFinder.request.contextTitle', { defaultValue: 'Request context' })}
+          {t('bloodFinder.request.contextTitle', {
+            defaultValue: 'Request context',
+          })}
         </Text>
         <Text style={styles.fieldLabel}>
           {t('bloodFinder.request.clinicalIndication', {
@@ -844,14 +926,11 @@ export function DetailsForm({ vm }: { vm: BloodRequestView }) {
           textAlignVertical="top"
           accessibilityLabel={t('bloodFinder.request.note')}
         />
-        <Text style={noteTooLong ? styles.counterOver : styles.counter}>
-          {`${note.length}/${noteBudget}`}
-        </Text>
+        <Text style={noteTooLong ? styles.counterOver : styles.counter}>{`${note.length}/${noteBudget}`}</Text>
         {foldPrefix ? (
           <Text style={styles.fieldHint}>
             {t('bloodFinder.request.noteFoldHint', {
-              defaultValue:
-                'Your answers above are added to the top of this note before it is sent.',
+              defaultValue: 'Your answers above are added to the top of this note before it is sent.',
             })}
           </Text>
         ) : null}
@@ -860,7 +939,9 @@ export function DetailsForm({ vm }: { vm: BloodRequestView }) {
       {/* Contact preference — three radio tiles. */}
       <Card>
         <Text style={styles.cardTitle} accessibilityRole="header">
-          {t('bloodFinder.request.contactTitle', { defaultValue: 'Contact preference' })}
+          {t('bloodFinder.request.contactTitle', {
+            defaultValue: 'Contact preference',
+          })}
         </Text>
         <Text style={styles.fieldHintTop}>
           {t('bloodFinder.request.contactQuestion', {
@@ -880,17 +961,14 @@ export function DetailsForm({ vm }: { vm: BloodRequestView }) {
         </View>
         <Text style={styles.fieldHint}>
           {t('bloodFinder.request.contactFoldNote', {
-            defaultValue:
-              'There is no separate field for this, so your choice is sent as a line in your note.',
+            defaultValue: 'There is no separate field for this, so your choice is sent as a line in your note.',
           })}
         </Text>
 
         {phoneWanted ? (
           <View style={styles.phoneBlock}>
             <View style={styles.fieldLabelRow}>
-              <Text style={styles.fieldLabel}>
-                {t('bloodFinder.request.contactPhone')}
-              </Text>
+              <Text style={styles.fieldLabel}>{t('bloodFinder.request.contactPhone')}</Text>
               {patient?.phone && patient.phone !== contactPhone ? (
                 <TouchableOpacity
                   onPress={() => setContactPhone(patient.phone as string)}
@@ -921,8 +999,7 @@ export function DetailsForm({ vm }: { vm: BloodRequestView }) {
             <Text style={phoneInvalid ? styles.fieldErrorTight : styles.fieldHintTight}>
               {phoneInvalid
                 ? t('bloodFinder.request.contactPhoneInvalid', {
-                    defaultValue:
-                      'That does not look like a phone number the blood bank could call back on.',
+                    defaultValue: 'That does not look like a phone number the blood bank could call back on.',
                   })
                 : t('bloodFinder.request.contactPhoneHint', {
                     defaultValue:
@@ -933,27 +1010,20 @@ export function DetailsForm({ vm }: { vm: BloodRequestView }) {
         ) : (
           <Text style={styles.fieldHint}>
             {t('bloodFinder.request.contactAppHint', {
-              defaultValue:
-                'No phone number is sent. The blood bank answers in the app only.',
+              defaultValue: 'No phone number is sent. The blood bank answers in the app only.',
             })}
           </Text>
         )}
       </Card>
 
       {/* Clinical + payment notes */}
-      <NoticeBanner
-        icon="info"
-        tone="pending"
-        message={t('bloodFinder.request.clinicalNote')}
-      />
-      <NoticeBanner
-        icon="wallet"
-        tone="normal"
-        message={t('bloodFinder.request.paymentNote')}
-      />
+      <NoticeBanner icon="info" tone="pending" message={t('bloodFinder.request.clinicalNote')} />
+      <NoticeBanner icon="wallet" tone="normal" message={t('bloodFinder.request.paymentNote')} />
 
       <GradientButton
-        label={t('bloodFinder.request.review', { defaultValue: 'Review request' })}
+        label={t('bloodFinder.request.review', {
+          defaultValue: 'Review request',
+        })}
         disabled={!canContinue}
         onPress={() => setPhase('review')}
         accessibilityHint={t('bloodFinder.request.reviewTitle')}
@@ -964,7 +1034,22 @@ export function DetailsForm({ vm }: { vm: BloodRequestView }) {
 }
 
 export function ReviewPanel({ vm }: { vm: BloodRequestView }) {
-  const { t, colors, styles, bloodGroup, failure, createRequest, componentLabel, phone, composedNote, resendable, backToSearch, toForm, onSubmit, reviewFacts } = vm;
+  const {
+    t,
+    colors,
+    styles,
+    bloodGroup,
+    failure,
+    createRequest,
+    componentLabel,
+    phone,
+    composedNote,
+    resendable,
+    backToSearch,
+    toForm,
+    onSubmit,
+    reviewFacts,
+  } = vm;
   return (
     <>
       {/* Review — everything that will be transmitted, including the
@@ -986,25 +1071,21 @@ export function ReviewPanel({ vm }: { vm: BloodRequestView }) {
             style={composedNote ? styles.noteBlockText : styles.noteBlockEmpty}
             accessibilityLabel={`${t('bloodFinder.request.note')}: ${
               composedNote ||
-              t('bloodFinder.request.notProvided', { defaultValue: 'Not provided' })
+              t('bloodFinder.request.notProvided', {
+                defaultValue: 'Not provided',
+              })
             }`}
           >
             {composedNote ||
-              t('bloodFinder.request.notProvided', { defaultValue: 'Not provided' })}
+              t('bloodFinder.request.notProvided', {
+                defaultValue: 'Not provided',
+              })}
           </Text>
         </View>
       </Card>
 
-      <NoticeBanner
-        icon="info"
-        tone="pending"
-        message={t('bloodFinder.request.clinicalNote')}
-      />
-      <NoticeBanner
-        icon="wallet"
-        tone="normal"
-        message={t('bloodFinder.request.paymentNote')}
-      />
+      <NoticeBanner icon="info" tone="pending" message={t('bloodFinder.request.clinicalNote')} />
+      <NoticeBanner icon="wallet" tone="normal" message={t('bloodFinder.request.paymentNote')} />
       {/* "Call before travelling" belongs at the moment of committing,
           not only after — the number is two cards up this same screen. */}
       <NoticeBanner
@@ -1038,7 +1119,9 @@ export function ReviewPanel({ vm }: { vm: BloodRequestView }) {
             accessibilityHint={t('bloodFinder.request.subtitle')}
           />
           <CareButton
-            label={t('bloodFinder.request.edit', { defaultValue: 'Change details' })}
+            label={t('bloodFinder.request.edit', {
+              defaultValue: 'Change details',
+            })}
             icon="edit"
             variant="secondary"
             disabled={createRequest.isPending}

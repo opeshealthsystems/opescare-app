@@ -18,15 +18,7 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import {
-  Icon,
-  radii,
-  spacing,
-  StatusBadge,
-  typography,
-  useTheme,
-  type Palette,
-} from '@/components/opes-ui';
+import { Icon, radii, spacing, StatusBadge, typography, useTheme, type Palette } from '@/components/opes-ui';
 import {
   describeMessage,
   fileKindLabel,
@@ -69,13 +61,7 @@ export function MessageCard({ message, handlers }: { message: RichThreadMessage;
 
 // ── Attachment ────────────────────────────────────────────────────────────
 
-export function AttachmentCardView({
-  attachments,
-  caption,
-}: {
-  attachments: MessageAttachment[];
-  caption: string;
-}) {
+export function AttachmentCardView({ attachments, caption }: { attachments: MessageAttachment[]; caption: string }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -98,7 +84,9 @@ export function AttachmentCardView({
                 </Text>
                 <Text style={styles.fileMeta}>{[fileKindLabel(attachment), size].filter(Boolean).join(' · ')}</Text>
               </View>
-              {!clean && <StatusBadge status="pending" tone="warning" size="sm" label={t('messages.attachmentScanning')} />}
+              {!clean && (
+                <StatusBadge status="pending" tone="warning" size="sm" label={t('messages.attachmentScanning')} />
+              )}
             </View>
           );
         })}
@@ -139,9 +127,11 @@ export function StructuredCardView({
       />
       {!!caption && <Text style={styles.para}>{caption}</Text>}
       {rows.length > 0 && (
-        <View style={styles.table}>
+        <View style={styles.tableStack}>
           {rows.map((row, index) => (
-            <DetailRow key={`${row.label}-${index}`} label={row.label} value={row.value} divider={index < rows.length - 1} />
+            <View key={`${row.label}-${index}`} style={styles.table}>
+              <DetailRow label={row.label} value={row.value} />
+            </View>
           ))}
         </View>
       )}
@@ -217,6 +207,7 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.xs,
       color: colors.textMuted,
     },
+    tableStack: { gap: spacing.sm },
     table: {
       borderWidth: 1,
       borderColor: colors.border,

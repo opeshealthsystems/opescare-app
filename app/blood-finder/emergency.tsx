@@ -1,18 +1,11 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import {
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Children, isValidElement, useMemo, useState, type ReactNode } from 'react';
+import { Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Screen } from '@/components/ui/Screen';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ListRow,
@@ -156,6 +149,7 @@ function SectionCard({
   actionLabel,
   onAction,
   flush,
+  stacked,
   children,
 }: {
   styles: Styles;
@@ -165,29 +159,42 @@ function SectionCard({
   actionLabel?: string;
   onAction?: () => void;
   flush?: boolean;
+  /** Each child is a separate item: the head and every item get their own card. */
+  stacked?: boolean;
   children: ReactNode;
 }) {
+  const head = (
+    <View style={styles.sectionHead}>
+      <View style={styles.sectionMark}>
+        <Icon name={icon} size={24} color={colors.statusCritical} />
+      </View>
+      <Text style={styles.sectionTitle} numberOfLines={2} accessibilityRole="header">
+        {title}
+      </Text>
+      {!!onAction && !!actionLabel && (
+        <TouchableOpacity
+          onPress={onAction}
+          hitSlop={8}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`${actionLabel}: ${title}`}
+        >
+          <Text style={styles.sectionAction}>{actionLabel}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+  if (stacked) {
+    return (
+      <CardStack spacing="sm">
+        <Card variant="flush">{head}</Card>
+        {Children.map(children, (child) => (isValidElement(child) ? <Card variant="flush">{child}</Card> : null))}
+      </CardStack>
+    );
+  }
   return (
     <Card variant="flush">
-      <View style={styles.sectionHead}>
-        <View style={styles.sectionMark}>
-          <Icon name={icon} size={24} color={colors.statusCritical} />
-        </View>
-        <Text style={styles.sectionTitle} numberOfLines={2} accessibilityRole="header">
-          {title}
-        </Text>
-        {!!onAction && !!actionLabel && (
-          <TouchableOpacity
-            onPress={onAction}
-            hitSlop={8}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={`${actionLabel}: ${title}`}
-          >
-            <Text style={styles.sectionAction}>{actionLabel}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      {head}
       <View style={flush ? undefined : styles.sectionBody}>{children}</View>
     </Card>
   );
@@ -298,9 +305,7 @@ function SelectOption({
       accessibilityState={{ selected }}
       style={styles.selectOption}
     >
-      <Text style={[styles.selectOptionText, selected && { color: colors.statusCritical }]}>
-        {label}
-      </Text>
+      <Text style={[styles.selectOptionText, selected && { color: colors.statusCritical }]}>{label}</Text>
       {selected && <Icon name="check" size={14} color={colors.statusCritical} />}
     </TouchableOpacity>
   );
@@ -472,8 +477,7 @@ export default function EmergencyBloodRequestScreen() {
             </View>
             <View style={styles.patientBody}>
               <Text style={styles.patientName}>
-                {[patient?.first_name, patient?.last_name].filter(Boolean).join(' ') ||
-                  t('bloodEmergency.you')}
+                {[patient?.first_name, patient?.last_name].filter(Boolean).join(' ') || t('bloodEmergency.you')}
               </Text>
               {patient?.health_id ? <Text style={styles.muted}>{patient.health_id}</Text> : null}
             </View>
@@ -531,12 +535,7 @@ export default function EmergencyBloodRequestScreen() {
         </SectionCard>
 
         {/* ── What is needed ───────────────────────────────────────────────── */}
-        <SectionCard
-          styles={styles}
-          colors={colors}
-          icon="droplet"
-          title={t('bloodEmergency.needTitle')}
-        >
+        <SectionCard styles={styles} colors={colors} icon="droplet" title={t('bloodEmergency.needTitle')}>
           <Text style={styles.fieldLabel}>{t('bloodEmergency.componentLabel')}</Text>
           <View
             style={styles.tileRow}
@@ -558,18 +557,14 @@ export default function EmergencyBloodRequestScreen() {
                   accessibilityState={{ selected: on, checked: on }}
                   style={[
                     styles.tile,
-                    on && { borderColor: colors.statusCritical, backgroundColor: colors.statusCriticalBg },
+                    on && {
+                      borderColor: colors.statusCritical,
+                      backgroundColor: colors.statusCriticalBg,
+                    },
                   ]}
                 >
-                  <Icon
-                    name={option.icon}
-                    size={20}
-                    color={on ? colors.statusCritical : colors.textSecondary}
-                  />
-                  <Text
-                    style={[styles.tileLabel, on && { color: colors.statusCritical }]}
-                    numberOfLines={2}
-                  >
+                  <Icon name={option.icon} size={20} color={on ? colors.statusCritical : colors.textSecondary} />
+                  <Text style={[styles.tileLabel, on && { color: colors.statusCritical }]} numberOfLines={2}>
                     {t(`bloodFinder.components.${option.value}`)}
                   </Text>
                 </TouchableOpacity>
@@ -592,11 +587,7 @@ export default function EmergencyBloodRequestScreen() {
                   accessibilityState={{ disabled: units <= 1 }}
                   style={[styles.stepButton, units <= 1 && styles.stepButtonOff]}
                 >
-                  <Icon
-                    name="minus"
-                    size={16}
-                    color={units <= 1 ? colors.textMuted : colors.statusCritical}
-                  />
+                  <Icon name="minus" size={16} color={units <= 1 ? colors.textMuted : colors.statusCritical} />
                 </TouchableOpacity>
                 <Text style={styles.stepNumber} accessibilityLabel={`${units}`}>
                   {units}
@@ -610,11 +601,7 @@ export default function EmergencyBloodRequestScreen() {
                   accessibilityState={{ disabled: units >= MAX_UNITS }}
                   style={[styles.stepButton, units >= MAX_UNITS && styles.stepButtonOff]}
                 >
-                  <Icon
-                    name="plus"
-                    size={16}
-                    color={units >= MAX_UNITS ? colors.textMuted : colors.statusCritical}
-                  />
+                  <Icon name="plus" size={16} color={units >= MAX_UNITS ? colors.textMuted : colors.statusCritical} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -673,13 +660,7 @@ export default function EmergencyBloodRequestScreen() {
         </SectionCard>
 
         {/* ── Where from ───────────────────────────────────────────────────── */}
-        <SectionCard
-          styles={styles}
-          colors={colors}
-          icon="location"
-          title={t('bloodEmergency.facilityTitle')}
-          flush
-        >
+        <SectionCard styles={styles} colors={colors} icon="location" title={t('bloodEmergency.facilityTitle')} stacked>
           {!bloodGroup ? (
             <EmptyState
               icon="droplet"
@@ -699,7 +680,7 @@ export default function EmergencyBloodRequestScreen() {
               onAction={() => router.push('/care-map')}
             />
           ) : (
-            facilities.slice(0, 6).map((row, index) => (
+            facilities.slice(0, 6).map((row) => (
               <ListRow
                 key={row.id}
                 icon="droplet"
@@ -708,7 +689,9 @@ export default function EmergencyBloodRequestScreen() {
                 meta={[
                   [row.city, row.region].filter(Boolean).join(', ') || null,
                   row.availability?.units_range
-                    ? t('bloodEmergency.reports', { units: row.availability.units_range })
+                    ? t('bloodEmergency.reports', {
+                        units: row.availability.units_range,
+                      })
                     : null,
                 ]}
                 trailing={
@@ -717,7 +700,6 @@ export default function EmergencyBloodRequestScreen() {
                   ) : undefined
                 }
                 chevron={false}
-                divider={index < Math.min(facilities.length, 6) - 1}
                 onPress={() => setFacility(row)}
               />
             ))
@@ -758,10 +740,7 @@ export default function EmergencyBloodRequestScreen() {
                 {t('bloodEmergency.pickupLabel')}
               </Text>
             </View>
-            <Text
-              style={[styles.summaryValue, !facility && { color: colors.textMuted }]}
-              numberOfLines={2}
-            >
+            <Text style={[styles.summaryValue, !facility && { color: colors.textMuted }]} numberOfLines={2}>
               {facility?.name ?? t('bloodEmergency.pickupNone')}
             </Text>
           </View>
@@ -830,7 +809,11 @@ export default function EmergencyBloodRequestScreen() {
 
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
     /* Lead / priority banner */
     lead: {
@@ -840,7 +823,11 @@ const makeStyles = (c: Palette) =>
       borderRadius: radii.md,
       padding: spacing.md,
     },
-    leadRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
+    leadRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      alignItems: 'flex-start',
+    },
     leadMark: {
       width: 44,
       height: 44,
@@ -928,7 +915,13 @@ const makeStyles = (c: Palette) =>
     /* Two columns at 375pt is ~140pt of field each — enough for a group
        select and a ward line, which is why the reference's three-up field
        rows are rebalanced to two. */
-    fieldRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, alignItems: 'flex-start', marginTop: spacing.md },
+    fieldRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      alignItems: 'flex-start',
+      marginTop: spacing.md,
+    },
     // Basis 140 so a pair stacks below ~360dp instead of truncating to "Choos…".
     fieldCol: { flexGrow: 1, flexShrink: 1, flexBasis: 140, minWidth: 0 },
 

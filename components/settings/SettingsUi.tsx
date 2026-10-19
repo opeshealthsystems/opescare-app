@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Children, isValidElement, type ReactNode } from 'react';
 import { PaperWave } from '@/components/ui/PaperWave';
 import { ActivityIndicator, Pressable, Switch, Text, View } from 'react-native';
 import { ChevronLeft, type LucideIcon } from 'lucide-react-native';
@@ -324,7 +324,6 @@ export function ToggleRow({
   busy = false,
   disabled = false,
   unknownLabel,
-  divider = false,
 }: {
   icon: LucideIcon;
   label: string;
@@ -335,7 +334,6 @@ export function ToggleRow({
   disabled?: boolean;
   /** Shown in place of `body` when `value` is null/undefined. */
   unknownLabel?: string;
-  divider?: boolean;
 }) {
   const known = typeof value === 'boolean';
   const isDisabled = disabled || busy || !known;
@@ -346,8 +344,6 @@ export function ToggleRow({
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: spacing.md + 2,
-        borderBottomWidth: divider ? sizing.hairline : 0,
-        borderBottomColor: colors.line.subtle,
         opacity: isDisabled && !busy ? 0.6 : 1,
       }}
     >
@@ -508,15 +504,7 @@ export function SegmentedControl<T extends string>({
  * then one padding-free `Card` holding the rows. This is the settings
  * reference's block anatomy, and keeps every group on one rhythm.
  */
-export function GroupCard({
-  label,
-  children,
-  className,
-}: {
-  label: string;
-  children: ReactNode;
-  className?: string;
-}) {
+export function GroupCard({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
     <View className={className}>
       <Text
@@ -532,9 +520,18 @@ export function GroupCard({
       >
         {label}
       </Text>
-      <Card padding="none" style={{ paddingHorizontal: spacing.lg }}>
-        {children}
-      </Card>
+      {/* Each row is its own card: rows never share one slab. */}
+      <View style={{ gap: spacing.md }}>
+        {Children.map(children, (child, index) =>
+          isValidElement(child) ? (
+            <Card key={index} padding="none" style={{ paddingHorizontal: spacing.lg }}>
+              {child}
+            </Card>
+          ) : (
+            child
+          ),
+        )}
+      </View>
     </View>
   );
 }

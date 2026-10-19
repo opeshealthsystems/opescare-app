@@ -1,19 +1,12 @@
 import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Platform,
-  RefreshControl,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Platform, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import QRCode from 'react-native-qrcode-svg';
 import {
   Card,
+  CardStack,
   EmptyState,
   GradientButton,
   Icon,
@@ -35,11 +28,7 @@ import {
 } from '@/components/opes-ui';
 import { Screen } from '../../components/ui/Screen';
 import { useAuthStore } from '../../lib/store/auth';
-import {
-  usePrescriptionDetail,
-  type PrescriptionDetail,
-  type PrescriptionItemDetail,
-} from '../../lib/api/queries';
+import { usePrescriptionDetail, type PrescriptionDetail, type PrescriptionItemDetail } from '../../lib/api/queries';
 import { useCatalogMedicineMatch } from '../../lib/api/prescriptionQueries';
 import {
   EXPIRY_COUNTDOWN_MINUTES,
@@ -184,13 +173,9 @@ export default function PrescriptionDetailScreen() {
         : '',
       '',
       ...lines.map((item, index) => {
-        const how = [item.dose, item.frequency, item.route ? routeLabel(item.route) : null]
-          .filter(Boolean)
-          .join(', ');
+        const how = [item.dose, item.frequency, item.route ? routeLabel(item.route) : null].filter(Boolean).join(', ');
         const extra = [
-          item.duration_days != null
-            ? t('prescriptions.durationDays', { count: item.duration_days })
-            : null,
+          item.duration_days != null ? t('prescriptions.durationDays', { count: item.duration_days }) : null,
           item.quantity != null ? `${t('prescriptions.quantity')}: ${item.quantity}` : null,
           vocab.lineLabel(lineStateOf(item), item.status),
         ]
@@ -241,8 +226,7 @@ export default function PrescriptionDetailScreen() {
               tint="red"
               title={t('prescriptions.detailLoadError')}
               message={vocab.tx('prescriptions.detailLoadErrorBody', {
-                defaultValue:
-                  'The prescription could not be fetched. Check your connection and try again.',
+                defaultValue: 'The prescription could not be fetched. Check your connection and try again.',
               })}
               actionLabel={t('prescriptions.retry')}
               onAction={() => refetch()}
@@ -258,8 +242,7 @@ export default function PrescriptionDetailScreen() {
               tint="amber"
               title={t('prescriptions.notFound')}
               message={vocab.tx('prescriptions.notFoundBody', {
-                defaultValue:
-                  'This prescription is not in your record. It may belong to another Health ID.',
+                defaultValue: 'This prescription is not in your record. It may belong to another Health ID.',
               })}
               actionLabel={t('prescriptions.showAll')}
               onAction={() => router.replace('/prescriptions')}
@@ -271,11 +254,7 @@ export default function PrescriptionDetailScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl
-              refreshing={isFetching && !isLoading}
-              onRefresh={() => refetch()}
-              tintColor={colors.blue}
-            />
+            <RefreshControl refreshing={isFetching && !isLoading} onRefresh={() => refetch()} tintColor={colors.blue} />
           }
         >
           {/* The first thing on the screen when the record is no longer live —
@@ -300,45 +279,47 @@ export default function PrescriptionDetailScreen() {
 
           {/* Key dates. The facility is deliberately not repeated here — the
               card above already carries it as the prescription's attribution. */}
-          <Card>
-            <MetricRow
-              icon="calendar"
-              label={t('prescriptions.prescribedAt')}
-              value={
-                prescription.prescribed_at
-                  ? fmtShortDate(prescription.prescribed_at)
-                  : t('prescriptions.notRecorded')
-              }
-              divider
-            />
-            {prescription.dispensed_at ? (
+          <CardStack spacing="sm">
+            <Card>
               <MetricRow
-                icon="check-circle"
-                label={t('prescriptions.dispensedAt')}
-                value={fmtShortDate(prescription.dispensed_at)}
-                valueColor={colors.statusNormal}
-                divider
+                icon="calendar"
+                label={t('prescriptions.prescribedAt')}
+                value={
+                  prescription.prescribed_at ? fmtShortDate(prescription.prescribed_at) : t('prescriptions.notRecorded')
+                }
               />
+            </Card>
+            {prescription.dispensed_at ? (
+              <Card>
+                <MetricRow
+                  icon="check-circle"
+                  label={t('prescriptions.dispensedAt')}
+                  value={fmtShortDate(prescription.dispensed_at)}
+                  valueColor={colors.statusNormal}
+                />
+              </Card>
             ) : null}
-            <MetricRow
-              icon={state!.expired ? 'alert-triangle' : 'clock'}
-              label={t('prescriptions.expiresAt')}
-              value={
-                prescription.expires_at
-                  ? state!.expired
-                    ? vocab.tx('prescriptions.expiredOn', {
-                        date: fmtShortDate(prescription.expires_at),
-                        defaultValue: 'Expired {{date}}',
-                      })
-                    : fmtShortDate(prescription.expires_at)
-                  : t('prescriptions.noExpiry')
-              }
-              valueColor={state!.expired ? colors.statusCritical : undefined}
-            />
-          </Card>
+            <Card>
+              <MetricRow
+                icon={state!.expired ? 'alert-triangle' : 'clock'}
+                label={t('prescriptions.expiresAt')}
+                value={
+                  prescription.expires_at
+                    ? state!.expired
+                      ? vocab.tx('prescriptions.expiredOn', {
+                          date: fmtShortDate(prescription.expires_at),
+                          defaultValue: 'Expired {{date}}',
+                        })
+                      : fmtShortDate(prescription.expires_at)
+                    : t('prescriptions.noExpiry')
+                }
+                valueColor={state!.expired ? colors.statusCritical : undefined}
+              />
+            </Card>
+          </CardStack>
 
-          {/* Medications */}
-          <Card variant="flush">
+          {/* Medications: a heading, then one card per medicine. */}
+          <CardStack spacing="sm">
             <View style={styles.medHead}>
               <Icon name="pill" size={22} color={colors.blue} />
               <Text style={styles.medHeadTitle} accessibilityRole="header">
@@ -349,21 +330,19 @@ export default function PrescriptionDetailScreen() {
             </View>
 
             {(prescription.items ?? []).length === 0 ? (
-              <View style={styles.emptyItems}>
-                <EmptyState icon="pill" tint="blue" title={t('prescriptions.noMedications')} />
-              </View>
+              <Card variant="flush">
+                <View style={styles.emptyItems}>
+                  <EmptyState icon="pill" tint="blue" title={t('prescriptions.noMedications')} />
+                </View>
+              </Card>
             ) : (
               (prescription.items ?? []).map((item, index) => (
-                <MedicationItem
-                  key={item.id}
-                  item={item}
-                  index={index + 1}
-                  fillable={state!.fillable}
-                  divider={index < (prescription.items ?? []).length - 1}
-                />
+                <Card key={item.id} variant="flush">
+                  <MedicationItem item={item} index={index + 1} fillable={state!.fillable} />
+                </Card>
               ))
             )}
-          </Card>
+          </CardStack>
 
           {/* Only rendered when the care team actually wrote something. The
               standing "take as prescribed" line lives in the safety banner
@@ -396,9 +375,7 @@ export default function PrescriptionDetailScreen() {
                 // the promise changes. Calling this "Fulfil at Pharmacy" on an
                 // expired or retracted prescription would be a lie.
                 icon: state!.fillable ? 'store' : 'search',
-                label: state!.fillable
-                  ? t('opesMeds.prescription.actionFulfil')
-                  : t('prescriptions.emptyFindMedicine'),
+                label: state!.fillable ? t('opesMeds.prescription.actionFulfil') : t('prescriptions.emptyFindMedicine'),
                 onPress: () => router.push('/pharmacy'),
               },
               {
@@ -443,7 +420,13 @@ type RxState = {
   fillable: boolean;
   /** Approaching expiry, worth a warning badge (only while still fillable). */
   expiringInDays: number | null;
-  counts: { total: number; dispensed: number; pending: number; cancelled: number; other: number };
+  counts: {
+    total: number;
+    dispensed: number;
+    pending: number;
+    cancelled: number;
+    other: number;
+  };
   /** Some lines collected, some not — regardless of what the header says. */
   partial: boolean;
 };
@@ -487,9 +470,7 @@ function readState(rx: PrescriptionDetail): RxState {
     terminal,
     fillable,
     expiringInDays:
-      fillable && daysLeft !== null && daysLeft >= 0 && daysLeft <= EXPIRY_WARNING_WINDOW_DAYS
-        ? daysLeft
-        : null,
+      fillable && daysLeft !== null && daysLeft >= 0 && daysLeft <= EXPIRY_WARNING_WINDOW_DAYS ? daysLeft : null,
     counts,
     // Outstanding lines alongside collected ones. Derived from the lines rather
     // than trusted from `status`, so it stays right when a pharmacy has filled
@@ -513,10 +494,7 @@ function readState(rx: PrescriptionDetail): RxState {
 function usePrescriptionVocab() {
   const { t } = useTranslation();
 
-  const tx = useCallback<TFunc>(
-    (key, params) => String(t(key, params as Record<string, unknown>)),
-    [t],
-  );
+  const tx = useCallback<TFunc>((key, params) => String(t(key, params as Record<string, unknown>)), [t]);
 
   const statusLabel = useCallback(
     (status: string): string => {
@@ -591,18 +569,17 @@ const LINE_ICON: Record<LineState, IconName> = {
  * live, in-date prescription gets no banner at all. A fully dispensed one gets
  * a positive note rather than a warning, because nothing is wrong with it.
  */
-function FillabilityNotice({
-  prescription,
-  state,
-}: {
-  prescription: PrescriptionDetail;
-  state: RxState;
-}) {
+function FillabilityNotice({ prescription, state }: { prescription: PrescriptionDetail; state: RxState }) {
   const { colors, statusMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const vocab = usePrescriptionVocab();
 
-  const notice = ((): { tone: StatusTone; icon: IconName; title: string; body: string } | null => {
+  const notice = ((): {
+    tone: StatusTone;
+    icon: IconName;
+    title: string;
+    body: string;
+  } | null => {
     if (state.retracted) {
       return {
         tone: 'critical',
@@ -657,8 +634,7 @@ function FillabilityNotice({
                 'It ran out on {{date}}, so a pharmacy can no longer dispense against it. Ask your clinician for a new one.',
             })
           : vocab.tx('prescriptions.notFillableExpiredBody', {
-              defaultValue:
-                'A pharmacy can no longer dispense against it. Ask your clinician for a new one.',
+              defaultValue: 'A pharmacy can no longer dispense against it. Ask your clinician for a new one.',
             }),
       };
     }
@@ -666,7 +642,9 @@ function FillabilityNotice({
       return {
         tone: 'normal',
         icon: 'check-circle',
-        title: vocab.tx('prescriptions.fullyDispensedTitle', { defaultValue: 'Fully dispensed' }),
+        title: vocab.tx('prescriptions.fullyDispensedTitle', {
+          defaultValue: 'Fully dispensed',
+        }),
         body: vocab.tx('prescriptions.fullyDispensedBody', {
           defaultValue: 'Every medicine on this prescription has been collected.',
         }),
@@ -676,7 +654,9 @@ function FillabilityNotice({
       return {
         tone: 'warning',
         icon: 'alert-circle',
-        title: vocab.tx('prescriptions.partialNoticeTitle', { defaultValue: 'Partly collected' }),
+        title: vocab.tx('prescriptions.partialNoticeTitle', {
+          defaultValue: 'Partly collected',
+        }),
         body: vocab.tx('prescriptions.partialNoticeBody', {
           done: state.counts.dispensed,
           left: state.counts.pending,
@@ -749,8 +729,7 @@ function IssuerCard({
         })
       : vocab.tx('prescriptions.statusExpired')
     : null;
-  const badgeLabel =
-    statusIsExpired && expiredLabel ? expiredLabel : vocab.statusLabel(prescription.status);
+  const badgeLabel = statusIsExpired && expiredLabel ? expiredLabel : vocab.statusLabel(prescription.status);
 
   return (
     <Card>
@@ -769,18 +748,9 @@ function IssuerCard({
         <FactCell
           icon="calendar"
           label={t('opesMeds.prescription.prescribedOn')}
-          value={
-            prescription.prescribed_at
-              ? fmtShortDate(prescription.prescribed_at)
-              : t('prescriptions.notRecorded')
-          }
+          value={prescription.prescribed_at ? fmtShortDate(prescription.prescribed_at) : t('prescriptions.notRecorded')}
         />
-        <FactCell
-          icon="document-text"
-          label={t('opesMeds.prescription.prescriptionId')}
-          value={reference}
-          divided
-        />
+        <FactCell icon="document-text" label={t('opesMeds.prescription.prescriptionId')} value={reference} divided />
       </View>
 
       <View style={styles.statusRow}>
@@ -794,13 +764,7 @@ function IssuerCard({
           />
         </View>
         {expiredLabel && !statusIsExpired ? (
-          <StatusBadge
-            status="expired"
-            tone="critical"
-            icon="alert-triangle"
-            label={expiredLabel}
-            size="sm"
-          />
+          <StatusBadge status="expired" tone="critical" icon="alert-triangle" label={expiredLabel} size="sm" />
         ) : expiryLabel ? (
           <StatusBadge status="due" tone="warning" icon="clock" label={expiryLabel} size="sm" />
         ) : null}
@@ -810,11 +774,7 @@ function IssuerCard({
         <View
           style={styles.patientRow}
           accessible
-          accessibilityLabel={a11yJoin(
-            t('opesMeds.prescription.patient'),
-            patient.name,
-            patient.healthId,
-          )}
+          accessibilityLabel={a11yJoin(t('opesMeds.prescription.patient'), patient.name, patient.healthId)}
         >
           <TintCircle icon="person" tint="blue" size={40} />
           <View style={styles.patientBody}>
@@ -842,13 +802,7 @@ function IssuerCard({
  * same thing for a screen reader. Skipped entirely when there are no lines to
  * count.
  */
-function DispensingCard({
-  prescription,
-  state,
-}: {
-  prescription: PrescriptionDetail;
-  state: RxState;
-}) {
+function DispensingCard({ prescription, state }: { prescription: PrescriptionDetail; state: RxState }) {
   const { colors, statusMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const vocab = usePrescriptionVocab();
@@ -863,7 +817,12 @@ function DispensingCard({
     defaultValue: '{{done}} of {{total}} collected',
   });
 
-  const chips: { key: string; tone: StatusTone; icon: IconName; label: string }[] = [];
+  const chips: {
+    key: string;
+    tone: StatusTone;
+    icon: IconName;
+    label: string;
+  }[] = [];
   if (counts.pending > 0) {
     chips.push({
       key: 'pending',
@@ -902,7 +861,9 @@ function DispensingCard({
     <Card>
       <SectionHeader
         variant="overline"
-        title={vocab.tx('prescriptions.dispensingTitle', { defaultValue: 'Dispensing' })}
+        title={vocab.tx('prescriptions.dispensingTitle', {
+          defaultValue: 'Dispensing',
+        })}
       />
 
       <View
@@ -933,7 +894,9 @@ function DispensingCard({
               key={item.id}
               style={[
                 styles.barSegment,
-                { backgroundColor: settled ? statusMap[tone].fg : colors.border },
+                {
+                  backgroundColor: settled ? statusMap[tone].fg : colors.border,
+                },
               ]}
             />
           );
@@ -972,7 +935,11 @@ function DispensingCard({
  * in a mono face: the kit ships only Poppins, where `0`/`O` and `1`/`I` are
  * easy to confuse at a counter. Sizes, colours and spacing stay the kit's.
  */
-const MONO_FONT = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
+const MONO_FONT = Platform.select({
+  ios: 'Menlo',
+  android: 'monospace',
+  default: 'monospace',
+});
 
 /** Large enough to scan off a phone held across a pharmacy counter. */
 const SHARE_QR_SIZE = 188;
@@ -1016,13 +983,7 @@ function serverReference(rx: PrescriptionDetail): string | null {
  *    yet, the request settles on the 404 with no retry (`accessRetry`) and the
  *    section says so plainly — no spinner, no invented code.
  */
-function ShowToPharmacyCard({
-  prescription,
-  state,
-}: {
-  prescription: PrescriptionDetail;
-  state: RxState;
-}) {
+function ShowToPharmacyCard({ prescription, state }: { prescription: PrescriptionDetail; state: RxState }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const vocab = usePrescriptionVocab();
@@ -1049,7 +1010,9 @@ function ShowToPharmacyCard({
   const live = !!grant && !expiry.expired;
   const reference = grant?.reference ?? serverReference(prescription);
 
-  const title = vocab.tx('prescriptions.shareTitle', { defaultValue: 'Show to pharmacy' });
+  const title = vocab.tx('prescriptions.shareTitle', {
+    defaultValue: 'Show to pharmacy',
+  });
 
   // ── A prescription that must not be dispensed is not presentable ─────────
   // `state.fillable` is the screen's single answer to "could a pharmacy act on
@@ -1059,28 +1022,23 @@ function ShowToPharmacyCard({
   if (!state.fillable) {
     const reason = state.retracted
       ? vocab.tx('prescriptions.shareBlockedRetracted', {
-          defaultValue:
-            'This prescription was retracted by your care team, so it cannot be presented for dispensing.',
+          defaultValue: 'This prescription was retracted by your care team, so it cannot be presented for dispensing.',
         })
       : state.cancelled
         ? vocab.tx('prescriptions.shareBlockedCancelled', {
-            defaultValue:
-              'This prescription was cancelled, so a pharmacy cannot dispense against it.',
+            defaultValue: 'This prescription was cancelled, so a pharmacy cannot dispense against it.',
           })
         : state.amended
           ? vocab.tx('prescriptions.shareBlockedAmended', {
-              defaultValue:
-                'This version was replaced by a newer prescription. Show that one instead.',
+              defaultValue: 'This version was replaced by a newer prescription. Show that one instead.',
             })
           : state.expired
             ? vocab.tx('prescriptions.shareBlockedExpired', {
-                defaultValue:
-                  'This prescription has expired, so a pharmacy can no longer dispense against it.',
+                defaultValue: 'This prescription has expired, so a pharmacy can no longer dispense against it.',
               })
             : state.dispensed
               ? vocab.tx('prescriptions.shareBlockedDispensed', {
-                  defaultValue:
-                    'Every medicine on this prescription has already been collected.',
+                  defaultValue: 'Every medicine on this prescription has already been collected.',
                 })
               : vocab.tx('prescriptions.shareBlockedGeneric', {
                   defaultValue: 'A pharmacy can no longer dispense against this prescription.',
@@ -1093,11 +1051,7 @@ function ShowToPharmacyCard({
     return (
       <Card>
         <SectionHeader variant="overline" title={title} />
-        <View
-          style={styles.shareBlocked}
-          accessible
-          accessibilityLabel={a11yJoin(blockedTitle, reason)}
-        >
+        <View style={styles.shareBlocked} accessible accessibilityLabel={a11yJoin(blockedTitle, reason)}>
           <Icon name="lock" size={22} color={colors.textMuted} />
           <View style={styles.shareBlockedBody}>
             <Text style={styles.shareBlockedTitle}>{blockedTitle}</Text>
@@ -1113,9 +1067,13 @@ function ShowToPharmacyCard({
   const failed = share.isError && !unavailable;
 
   const expiryLabel = !expiry.hasExpiry
-    ? vocab.tx('prescriptions.shareNoExpiry', { defaultValue: 'No automatic expiry' })
+    ? vocab.tx('prescriptions.shareNoExpiry', {
+        defaultValue: 'No automatic expiry',
+      })
     : expiry.at === null
-      ? vocab.tx('prescriptions.shareExpiryUnknown', { defaultValue: 'Expiry unknown' })
+      ? vocab.tx('prescriptions.shareExpiryUnknown', {
+          defaultValue: 'Expiry unknown',
+        })
       : expiry.minutesLeft === null || expiry.minutesLeft >= EXPIRY_COUNTDOWN_MINUTES
         ? vocab.tx('prescriptions.shareExpiresAt', {
             date: formatDateTime(expiry.at),
@@ -1131,18 +1089,20 @@ function ShowToPharmacyCard({
             });
 
   const expiryTone: StatusTone =
-    expiry.minutesLeft !== null && expiry.minutesLeft < EXPIRY_COUNTDOWN_MINUTES
-      ? 'warning'
-      : 'neutral';
+    expiry.minutesLeft !== null && expiry.minutesLeft < EXPIRY_COUNTDOWN_MINUTES ? 'warning' : 'neutral';
 
   const confirmWithdraw = () =>
     dialog.confirm({
-      title: vocab.tx('prescriptions.shareWithdrawTitle', { defaultValue: 'Withdraw access?' }),
+      title: vocab.tx('prescriptions.shareWithdrawTitle', {
+        defaultValue: 'Withdraw access?',
+      }),
       message: vocab.tx('prescriptions.shareWithdrawBody', {
         defaultValue:
           'The code and the link stop working straight away, and a pharmacy that has not dispensed yet will no longer be able to open this prescription. You can show it again whenever you need to.',
       }),
-      confirmLabel: vocab.tx('prescriptions.shareWithdrawConfirm', { defaultValue: 'Withdraw' }),
+      confirmLabel: vocab.tx('prescriptions.shareWithdrawConfirm', {
+        defaultValue: 'Withdraw',
+      }),
       destructive: true,
       onConfirm: async () => {
         try {
@@ -1156,8 +1116,7 @@ function ShowToPharmacyCard({
               defaultValue: 'Access was not withdrawn',
             }),
             vocab.tx('prescriptions.shareWithdrawFailedBody', {
-              defaultValue:
-                'The code is still live. Check your connection and try withdrawing it again.',
+              defaultValue: 'The code is still live. Check your connection and try withdrawing it again.',
             }),
           );
         }
@@ -1177,14 +1136,18 @@ function ShowToPharmacyCard({
               style={styles.shareRef}
               accessible
               accessibilityLabel={a11yJoin(
-                vocab.tx('prescriptions.shareRefLabel', { defaultValue: 'Reference' }),
+                vocab.tx('prescriptions.shareRefLabel', {
+                  defaultValue: 'Reference',
+                }),
                 // Spoken character by character — this is a code a pharmacist
                 // types in, not a word.
                 reference.split('').join(' '),
               )}
             >
               <Text style={styles.shareRefLabel}>
-                {vocab.tx('prescriptions.shareRefLabel', { defaultValue: 'Reference' })}
+                {vocab.tx('prescriptions.shareRefLabel', {
+                  defaultValue: 'Reference',
+                })}
               </Text>
               <Text style={styles.shareRefValue} selectable>
                 {reference}
@@ -1223,19 +1186,15 @@ function ShowToPharmacyCard({
               </Text>
 
               <View style={styles.shareExpiryRow}>
-                <StatusBadge
-                  status="access"
-                  tone={expiryTone}
-                  icon="clock"
-                  label={expiryLabel}
-                  size="sm"
-                />
+                <StatusBadge status="access" tone={expiryTone} icon="clock" label={expiryLabel} size="sm" />
               </View>
 
               <ListRow
                 icon="lock"
                 tint="red"
-                title={vocab.tx('prescriptions.shareWithdraw', { defaultValue: 'Withdraw access' })}
+                title={vocab.tx('prescriptions.shareWithdraw', {
+                  defaultValue: 'Withdraw access',
+                })}
                 subtitle={vocab.tx('prescriptions.shareWithdrawHint', {
                   defaultValue: 'The code and the link stop working straight away.',
                 })}
@@ -1249,8 +1208,7 @@ function ShowToPharmacyCard({
               <Text style={styles.shareIntro}>
                 {grant
                   ? vocab.tx('prescriptions.shareLapsedIntro', {
-                      defaultValue:
-                        'The code you created has expired. Make a new one when you are at the counter.',
+                      defaultValue: 'The code you created has expired. Make a new one when you are at the counter.',
                     })
                   : vocab.tx('prescriptions.shareIntro', {
                       defaultValue:
@@ -1259,11 +1217,7 @@ function ShowToPharmacyCard({
               </Text>
 
               {unavailable || failed ? (
-                <View
-                  style={styles.shareProblem}
-                  accessibilityLiveRegion="polite"
-                  accessible
-                >
+                <View style={styles.shareProblem} accessibilityLiveRegion="polite" accessible>
                   <Icon
                     name={unavailable ? 'info' : 'alert-circle'}
                     size={18}
@@ -1276,8 +1230,7 @@ function ShowToPharmacyCard({
                             'This server cannot create a pharmacy code yet. The pharmacy can still look this prescription up at their counter.',
                         })
                       : vocab.tx('prescriptions.shareFailed', {
-                          defaultValue:
-                            'The code could not be created. Check your connection and try again.',
+                          defaultValue: 'The code could not be created. Check your connection and try again.',
                         })}
                   </Text>
                 </View>
@@ -1286,7 +1239,9 @@ function ShowToPharmacyCard({
               <GradientButton
                 label={
                   grant
-                    ? vocab.tx('prescriptions.shareAgain', { defaultValue: 'Create a new code' })
+                    ? vocab.tx('prescriptions.shareAgain', {
+                        defaultValue: 'Create a new code',
+                      })
                     : title
                 }
                 icon="none"
@@ -1336,17 +1291,7 @@ function clean(value: string | null | undefined): string | null {
  * a note says it is no longer part of the prescription — so it can never be
  * read as a live instruction.
  */
-function MedicationItem({
-  item,
-  index,
-  fillable,
-  divider,
-}: {
-  item: PrescriptionItemDetail;
-  index: number;
-  fillable: boolean;
-  divider?: boolean;
-}) {
+function MedicationItem({ item, index, fillable }: { item: PrescriptionItemDetail; index: number; fillable: boolean }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -1362,14 +1307,11 @@ function MedicationItem({
   const dose = clean(item.dose);
   const frequency = clean(item.frequency);
   const route = clean(item.route);
-  const duration =
-    item.duration_days != null
-      ? t('prescriptions.durationDays', { count: item.duration_days })
-      : null;
+  const duration = item.duration_days != null ? t('prescriptions.durationDays', { count: item.duration_days }) : null;
   const quantity = item.quantity != null ? String(item.quantity) : null;
 
   return (
-    <View style={[styles.item, divider && styles.itemDivider]}>
+    <View style={styles.item}>
       {/* Spoken as one unit: the number, the drug, and what happened to it.
           The dosage grid and the finder link below stay separately reachable —
           grouping those in too would bury the "how to take it" values. */}
@@ -1397,32 +1339,18 @@ function MedicationItem({
             {item.drug_name}
           </Text>
           {item.drug_code ? (
-            <Text style={styles.itemCode}>
-              {t('prescriptions.drugCode', { code: item.drug_code })}
-            </Text>
+            <Text style={styles.itemCode}>{t('prescriptions.drugCode', { code: item.drug_code })}</Text>
           ) : null}
           {/* Under the name, not beside it: beside it the badge squeezed
               "Metformin" to "Met / fo…" on narrow phones. */}
           <View style={styles.itemStatus}>
-            <StatusBadge
-              status={item.status || state}
-              tone={tone}
-              label={label}
-              icon={LINE_ICON[state]}
-              size="sm"
-            />
+            <StatusBadge status={item.status || state} tone={tone} label={label} icon={LINE_ICON[state]} size="sm" />
             {dispensedOn ? (
               <Text style={styles.itemMeta} numberOfLines={2}>
-                {vocab.tx(
-                  state === 'cancelled'
-                    ? 'prescriptions.itemUpdatedOn'
-                    : 'prescriptions.itemCollectedOn',
-                  {
-                    date: dispensedOn,
-                    defaultValue:
-                      state === 'cancelled' ? 'Updated {{date}}' : 'Collected {{date}}',
-                  },
-                )}
+                {vocab.tx(state === 'cancelled' ? 'prescriptions.itemUpdatedOn' : 'prescriptions.itemCollectedOn', {
+                  date: dispensedOn,
+                  defaultValue: state === 'cancelled' ? 'Updated {{date}}' : 'Collected {{date}}',
+                })}
               </Text>
             ) : null}
           </View>
@@ -1520,7 +1448,10 @@ function FindNearbyRow({ drugName }: { drugName: string }) {
 
   const hint = medicine
     ? price != null && pharmacyCount > 0
-      ? t('prescriptions.nearbyFrom', { price: formatXaf(price) ?? '', count: pharmacyCount })
+      ? t('prescriptions.nearbyFrom', {
+          price: formatXaf(price) ?? '',
+          count: pharmacyCount,
+        })
       : t('prescriptions.nearbyInCatalog', { name: medicine.name })
     : t('prescriptions.nearbySearchInstead');
 
@@ -1551,14 +1482,22 @@ function FindNearbyRow({ drugName }: { drugName: string }) {
 
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
     label: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
       color: c.textSecondary,
     },
-    link: { fontFamily: typography.fontFamily.medium, fontSize: typography.size.xs, color: c.link },
+    link: {
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.xs,
+      color: c.link,
+    },
 
     // -- Fillability notice --------------------------------------------------
     notice: {
@@ -1570,7 +1509,10 @@ const makeStyles = (c: Palette) =>
       borderLeftWidth: 4,
     },
     noticeBody: { flex: 1, minWidth: 0, gap: 3 },
-    noticeTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
+    noticeTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
     noticeText: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
@@ -1638,7 +1580,11 @@ const makeStyles = (c: Palette) =>
     },
 
     // -- Dispensing progress -------------------------------------------------
-    progressHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    progressHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
     progressValue: {
       flex: 1,
       minWidth: 0,
@@ -1764,8 +1710,6 @@ const makeStyles = (c: Palette) =>
       gap: spacing.sm,
       paddingHorizontal: spacing.md,
       paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: c.divider,
     },
     medHeadTitle: {
       flex: 1,
@@ -1777,7 +1721,6 @@ const makeStyles = (c: Palette) =>
     emptyItems: { padding: spacing.md },
 
     item: { paddingHorizontal: spacing.md, paddingVertical: 12, gap: 12 },
-    itemDivider: { borderBottomWidth: 1, borderBottomColor: c.divider },
     itemHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     itemIndex: {
       width: 22,
@@ -1833,7 +1776,11 @@ const makeStyles = (c: Palette) =>
       color: c.blue,
     },
     itemFacts: { flexDirection: 'row', alignItems: 'flex-start' },
-    itemFactsNext: { paddingTop: 10, borderTopWidth: 1, borderTopColor: c.border },
+    itemFactsNext: {
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
 
     retracted: {
       flexDirection: 'row',

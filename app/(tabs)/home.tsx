@@ -34,13 +34,23 @@
  */
 import { PaperWave } from '@/components/ui/PaperWave';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ListRow,
@@ -79,7 +89,12 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 // ── Quick actions ─────────────────────────────────────────────────────────
 
-type QuickAction = { key: string; icon: IconName; label: (t: Translate) => string; route: string };
+type QuickAction = {
+  key: string;
+  icon: IconName;
+  label: (t: Translate) => string;
+  route: string;
+};
 
 /**
  * Six tiles, two rows of three. Every route is a file under `app/` except
@@ -100,18 +115,50 @@ const QUICK_ACTIONS: QuickAction[] = [
     label: (t) => t('opesCore.quickAdd.findDoctor', { defaultValue: 'Find a doctor' }),
     route: '/doctors',
   },
-  { key: 'book', icon: 'calendar-plus', label: (t) => t('home.quickActions.bookAppointment'), route: '/appointments/book' },
-  { key: 'blood', icon: 'droplet', label: (t) => t('home.quickActions.findBlood'), route: '/blood-finder' },
-  { key: 'medicine', icon: 'pill', label: (t) => t('pharmacy.title'), route: '/pharmacy' },
-  { key: 'records', icon: 'folder-plus', label: (t) => t('home.quickActions.healthRecords'), route: '/(tabs)/records' },
+  {
+    key: 'book',
+    icon: 'calendar-plus',
+    label: (t) => t('home.quickActions.bookAppointment'),
+    route: '/appointments/book',
+  },
+  {
+    key: 'blood',
+    icon: 'droplet',
+    label: (t) => t('home.quickActions.findBlood'),
+    route: '/blood-finder',
+  },
+  {
+    key: 'medicine',
+    icon: 'pill',
+    label: (t) => t('pharmacy.title'),
+    route: '/pharmacy',
+  },
+  {
+    key: 'records',
+    icon: 'folder-plus',
+    label: (t) => t('home.quickActions.healthRecords'),
+    route: '/(tabs)/records',
+  },
 ];
 
 // ── Recent-record presentation ────────────────────────────────────────────
 
 const RECORD_META: Record<TimelineEvent['event_type'], { icon: IconName; tint: Tint; titleKey: string }> = {
-  visit: { icon: 'stethoscope', tint: 'purple', titleKey: 'records.item.visitTitle' },
-  lab_result: { icon: 'flask', tint: 'green', titleKey: 'records.item.labTitle' },
-  prescription: { icon: 'capsule', tint: 'blue', titleKey: 'records.item.prescriptionTitle' },
+  visit: {
+    icon: 'stethoscope',
+    tint: 'purple',
+    titleKey: 'records.item.visitTitle',
+  },
+  lab_result: {
+    icon: 'flask',
+    tint: 'green',
+    titleKey: 'records.item.labTitle',
+  },
+  prescription: {
+    icon: 'capsule',
+    tint: 'blue',
+    titleKey: 'records.item.prescriptionTitle',
+  },
 };
 
 /** How many timeline rows Home shows before "View all" takes over. */
@@ -128,7 +175,10 @@ const VITAL_META: Record<VitalKey, { icon: IconName; labelKey: string }> = {
   heart_rate: { icon: 'heart-rate', labelKey: 'home.vitals.heartRate' },
   blood_pressure: { icon: 'activity', labelKey: 'home.vitals.bloodPressure' },
   blood_sugar: { icon: 'droplet', labelKey: 'home.vitals.bloodSugar' },
-  oxygen_saturation: { icon: 'lungs', labelKey: 'home.vitals.oxygenSaturation' },
+  oxygen_saturation: {
+    icon: 'lungs',
+    labelKey: 'home.vitals.oxygenSaturation',
+  },
   temperature: { icon: 'sun', labelKey: 'home.vitals.temperature' },
   respiratory_rate: { icon: 'lungs', labelKey: 'home.vitals.respiratoryRate' },
 };
@@ -280,13 +330,7 @@ export default function HomeScreen() {
         <BrandHeader
           onBell={() => router.push('/notifications')}
           bellBadge={unreadCount}
-          right={
-            <Avatar
-              name={displayName}
-              uri={patient?.photo_url}
-              onPress={() => router.push('/(tabs)/profile')}
-            />
-          }
+          right={<Avatar name={displayName} uri={patient?.photo_url} onPress={() => router.push('/(tabs)/profile')} />}
         />
 
         <ScrollView
@@ -333,7 +377,9 @@ export default function HomeScreen() {
                 ) : (
                   <View style={styles.idCardValueRow}>
                     <Text style={styles.idCardValue} numberOfLines={1}>
-                      {t('opesCore.home.idCardValue', { id: healthIdValue ?? '—' })}
+                      {t('opesCore.home.idCardValue', {
+                        id: healthIdValue ?? '—',
+                      })}
                     </Text>
                     {healthIdValue ? (
                       <TouchableOpacity
@@ -356,7 +402,12 @@ export default function HomeScreen() {
 
                 {copyState !== 'idle' ? (
                   <Text
-                    style={[styles.copyFeedback, copyState === 'failed' && { color: colors.statusCritical }]}
+                    style={[
+                      styles.copyFeedback,
+                      copyState === 'failed' && {
+                        color: colors.statusCritical,
+                      },
+                    ]}
                     numberOfLines={2}
                     accessibilityLiveRegion="polite"
                   >
@@ -455,7 +506,9 @@ export default function HomeScreen() {
                 value={prescriptions.data ? String(prescriptions.data.prescriptionCount) : '—'}
                 caption={
                   prescriptions.data
-                    ? t('records.item.prescriptionItems', { count: prescriptions.data.medicationCount })
+                    ? t('records.item.prescriptionItems', {
+                        count: prescriptions.data.medicationCount,
+                      })
                     : prescriptions.isLoading
                       ? t('opesCore.common.loading')
                       : t('opesCore.common.unknown')
@@ -536,27 +589,33 @@ export default function HomeScreen() {
           {/* ── Recent records ────────────────────────────────────────── */}
           <View>
             <SectionHeader title={t('opesCore.home.recentRecords')} onAction={() => router.push('/(tabs)/records')} />
-            <Card variant="flush">
+            <CardStack spacing="sm">
               {timeline.isLoading ? (
-                <LoadingBlock label={t('records.loading')} />
+                <Card variant="flush">
+                  <LoadingBlock label={t('records.loading')} />
+                </Card>
               ) : timeline.isError ? (
-                <EmptyState
-                  icon="alert-circle"
-                  tint="red"
-                  title={t('records.error.title')}
-                  message={t('records.error.body')}
-                  actionLabel={t('records.error.retry')}
-                  onAction={() => timeline.refetch()}
-                />
+                <Card variant="flush">
+                  <EmptyState
+                    icon="alert-circle"
+                    tint="red"
+                    title={t('records.error.title')}
+                    message={t('records.error.body')}
+                    actionLabel={t('records.error.retry')}
+                    onAction={() => timeline.refetch()}
+                  />
+                </Card>
               ) : events.length === 0 ? (
-                <EmptyState
-                  icon="folder"
-                  tint="blue"
-                  title={t('opesCore.home.noRecords')}
-                  message={t('opesCore.home.noRecordsHint')}
-                />
+                <Card variant="flush">
+                  <EmptyState
+                    icon="folder"
+                    tint="blue"
+                    title={t('opesCore.home.noRecords')}
+                    message={t('opesCore.home.noRecordsHint')}
+                  />
+                </Card>
               ) : (
-                events.slice(0, RECENT_RECORDS_COUNT).map((ev, i, all) => {
+                events.slice(0, RECENT_RECORDS_COUNT).map((ev) => {
                   const meta = RECORD_META[ev.event_type];
                   const category = t(`records.category.${ev.event_type}`);
                   // `summary` is the endpoint's English string — a French
@@ -567,22 +626,22 @@ export default function HomeScreen() {
                   // that predates it.
                   const summary = (ev.summary_label ?? ev.summary)?.trim();
                   return (
-                    <ListRow
-                      key={`${ev.event_type}-${ev.id}`}
-                      icon={meta.icon}
-                      tint={meta.tint}
-                      title={summary || t(meta.titleKey)}
-                      meta={[
-                        summary ? category : (ev.facility_name ?? t('records.item.unknownFacility')),
-                        formatDate(ev.occurred_at),
-                      ]}
-                      onPress={() => openRecord(ev)}
-                      divider={i < all.length - 1}
-                    />
+                    <Card key={`${ev.event_type}-${ev.id}`} variant="flush">
+                      <ListRow
+                        icon={meta.icon}
+                        tint={meta.tint}
+                        title={summary || t(meta.titleKey)}
+                        meta={[
+                          summary ? category : (ev.facility_name ?? t('records.item.unknownFacility')),
+                          formatDate(ev.occurred_at),
+                        ]}
+                        onPress={() => openRecord(ev)}
+                      />
+                    </Card>
                   );
                 })
               )}
-            </Card>
+            </CardStack>
           </View>
 
           {/* ── Health Vitals ─────────────────────────────────────────── */}
@@ -591,27 +650,35 @@ export default function HomeScreen() {
           <View>
             <SectionHeader
               title={t('home.vitals.title')}
-              actionLabel={canExpandVitals ? t(vitalsExpanded ? 'home.vitals.showLess' : 'home.vitals.seeAll') : undefined}
+              actionLabel={
+                canExpandVitals ? t(vitalsExpanded ? 'home.vitals.showLess' : 'home.vitals.seeAll') : undefined
+              }
               onAction={canExpandVitals ? () => setVitalsExpanded((v) => !v) : undefined}
             />
-            <Card variant="flush">
+            <CardStack spacing="sm">
               {vitals.isLoading ? (
-                <LoadingBlock />
+                <Card variant="flush">
+                  <LoadingBlock />
+                </Card>
               ) : vitals.isError ? (
-                <EmptyState
-                  icon="alert-circle"
-                  tint="red"
-                  title={t('home.vitals.loadError')}
-                  actionLabel={t('home.retry')}
-                  onAction={() => vitals.refetch()}
-                />
+                <Card variant="flush">
+                  <EmptyState
+                    icon="alert-circle"
+                    tint="red"
+                    title={t('home.vitals.loadError')}
+                    actionLabel={t('home.retry')}
+                    onAction={() => vitals.refetch()}
+                  />
+                </Card>
               ) : measures.length === 0 ? (
-                <EmptyState
-                  icon="heart-rate"
-                  tint="blue"
-                  title={t('home.vitals.empty')}
-                  message={t('home.vitals.emptyBody')}
-                />
+                <Card variant="flush">
+                  <EmptyState
+                    icon="heart-rate"
+                    tint="blue"
+                    title={t('home.vitals.empty')}
+                    message={t('home.vitals.emptyBody')}
+                  />
+                </Card>
               ) : (
                 <>
                   {visibleMeasures.map((m: VitalMeasure) => {
@@ -619,18 +686,18 @@ export default function HomeScreen() {
                     const { tone, tint } = vitalTone(m.status);
                     const flagged = isOutOfRange(m.status) || m.status === 'unknown';
                     return (
-                      <ListRow
-                        key={m.key}
-                        icon={meta?.icon ?? 'heart-rate'}
-                        tint={tint}
-                        title={meta ? t(meta.labelKey) : m.key}
-                        // The status in words as well as in colour — never colour alone.
-                        subtitle={flagged ? t(`home.vitals.status.${m.status}`) : undefined}
-                        value={m.unit ? `${m.value} ${m.unit}` : m.value}
-                        valueColor={statusMap[tone].fg}
-                        chevron={false}
-                        divider
-                      />
+                      <Card key={m.key} variant="flush">
+                        <ListRow
+                          icon={meta?.icon ?? 'heart-rate'}
+                          tint={tint}
+                          title={meta ? t(meta.labelKey) : m.key}
+                          // The status in words as well as in colour — never colour alone.
+                          subtitle={flagged ? t(`home.vitals.status.${m.status}`) : undefined}
+                          value={m.unit ? `${m.value} ${m.unit}` : m.value}
+                          valueColor={statusMap[tone].fg}
+                          chevron={false}
+                        />
+                      </Card>
                     );
                   })}
                   <View style={styles.vitalsFooter}>
@@ -645,7 +712,7 @@ export default function HomeScreen() {
                   </View>
                 </>
               )}
-            </Card>
+            </CardStack>
           </View>
 
           {/* ── Care-plan card ────────────────────────────────────────── */}
@@ -720,7 +787,8 @@ function SummaryCell({
     </>
   );
 
-  if (!onPress) return <View style={[styles.cell, half && styles.cellHalf, divided && styles.cellDivided]}>{body}</View>;
+  if (!onPress)
+    return <View style={[styles.cell, half && styles.cellHalf, divided && styles.cellDivided]}>{body}</View>;
   return (
     <TouchableOpacity
       style={[styles.cell, half && styles.cellHalf, divided && styles.cellDivided]}
@@ -747,7 +815,11 @@ const makeStyles = (colors: Palette) =>
       gap: spacing.md,
     },
 
-    greetRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+    greetRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.md,
+    },
     greetCol: { flex: 1, minWidth: 0 },
     greeting: {
       fontFamily: typography.fontFamily.regular,
@@ -784,7 +856,12 @@ const makeStyles = (colors: Palette) =>
       color: colors.blue,
     },
     idCardSpinner: { alignSelf: 'flex-start', marginVertical: 6 },
-    idCardValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+    idCardValueRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 2,
+    },
     idCardValue: {
       flexShrink: 1,
       fontFamily: typography.fontFamily.regular,
@@ -805,7 +882,12 @@ const makeStyles = (colors: Palette) =>
       color: colors.statusNormal,
     },
     idCardBadgeRow: { flexDirection: 'row', marginTop: 6 },
-    idCardRetry: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+    idCardRetry: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 4,
+    },
     idCardRetryText: {
       flex: 1,
       fontFamily: typography.fontFamily.regular,
@@ -813,7 +895,13 @@ const makeStyles = (colors: Palette) =>
       lineHeight: 13,
       color: colors.textSecondary,
     },
-    idCardLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 6, alignSelf: 'flex-start' },
+    idCardLinkRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      marginTop: 6,
+      alignSelf: 'flex-start',
+    },
     idCardLink: {
       fontFamily: typography.fontFamily.medium,
       fontSize: typography.size.xs,
@@ -934,7 +1022,12 @@ const makeStyles = (colors: Palette) =>
       lineHeight: typography.lineHeight.sm,
       color: colors.textSecondary,
     },
-    promoCtaRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 12 },
+    promoCtaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      marginTop: 12,
+    },
     promoCta: {
       fontFamily: typography.fontFamily.medium,
       fontSize: typography.size.sm,

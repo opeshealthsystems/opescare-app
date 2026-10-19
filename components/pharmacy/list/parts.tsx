@@ -1,15 +1,10 @@
-import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Children, isValidElement, useMemo, useState } from 'react';
+import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   Icon,
   ListRow,
   StatusBadge,
@@ -127,7 +122,13 @@ export function DropPill({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ expanded: open }}
-      style={[styles.dropPill, open && { borderColor: colors.blue, backgroundColor: colors.primarySoft }]}
+      style={[
+        styles.dropPill,
+        open && {
+          borderColor: colors.blue,
+          backgroundColor: colors.primarySoft,
+        },
+      ]}
     >
       <Icon name={icon} size={15} color={fg} />
       <Text style={[styles.dropPillText, open && { color: colors.blue }]} numberOfLines={1}>
@@ -138,9 +139,7 @@ export function DropPill({
           <Text style={styles.dropPillCountText}>{count}</Text>
         </View>
       ) : null}
-      {chevron ? (
-        <Icon name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textMuted} />
-      ) : null}
+      {chevron ? <Icon name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textMuted} /> : null}
     </TouchableOpacity>
   );
 }
@@ -192,10 +191,7 @@ export function CategoryTile({
       <View style={styles.catMark}>
         <Icon name={icon} size={24} color={stroke} />
       </View>
-      <Text
-        style={[styles.catLabel, selected && { color: colors.textPrimary }]}
-        numberOfLines={2}
-      >
+      <Text style={[styles.catLabel, selected && { color: colors.textPrimary }]} numberOfLines={2}>
         {label}
       </Text>
       {count !== undefined ? <Text style={styles.catCount}>{count}</Text> : null}
@@ -203,15 +199,17 @@ export function CategoryTile({
   );
 }
 
-/** Bordered picker used by the city / radius sheets. */
+/** Picker used by the city / radius sheets: a heading, then one card per option. */
 export function OptionCard({ title, children }: { title: string; children: React.ReactNode }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <Card variant="flush">
+    <View>
       <Text style={styles.optionTitle}>{title}</Text>
-      {children}
-    </Card>
+      <CardStack spacing="sm">
+        {Children.map(children, (child) => (isValidElement(child) ? <Card variant="flush">{child}</Card> : null))}
+      </CardStack>
+    </View>
   );
 }
 
@@ -227,15 +225,7 @@ export function LoadingBlock({ label }: { label: string }) {
 }
 
 /** Tinted one-liner used for cautions that are not errors. */
-export function NoticeStrip({
-  icon,
-  tone,
-  text,
-}: {
-  icon: IconName;
-  tone: 'warning' | 'info';
-  text: string;
-}) {
+export function NoticeStrip({ icon, tone, text }: { icon: IconName; tone: 'warning' | 'info'; text: string }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const bg = tone === 'warning' ? colors.statusWarningBg : colors.primarySoft;
@@ -284,11 +274,11 @@ export function NoticeStrip({
  */
 export function MedicineRow({
   medicine,
-  divider,
   onPress,
 }: {
   medicine: Medicine;
-  divider: boolean;
+  /** Ignored: every row sits in its own card, so none draws a hairline. */
+  divider?: boolean;
   onPress: () => void;
 }) {
   const { t } = useTranslation();
@@ -310,7 +300,10 @@ export function MedicineRow({
     medicine.generic_name && !sameAsName(medicine.generic_name)
       ? t('pharmacy.generic', { name: medicine.generic_name })
       : medicine.brand_name && !sameAsName(medicine.brand_name)
-        ? t('pharmacy.brand', { name: medicine.brand_name, defaultValue: 'Brand: {{name}}' })
+        ? t('pharmacy.brand', {
+            name: medicine.brand_name,
+            defaultValue: 'Brand: {{name}}',
+          })
         : null;
 
   // The render's three tag pills. These are the medicine's own `indications`;
@@ -346,7 +339,6 @@ export function MedicineRow({
         // fact it is honest for it to carry: a pharmacy somewhere has reported
         // this medicine. Rows nobody has reported stay on the plain surface.
         available && styles.medRowAvailable,
-        divider && styles.medRowDivider,
       ]}
     >
       <View style={styles.medHead}>
@@ -360,13 +352,7 @@ export function MedicineRow({
               <Icon
                 name={CATEGORY_ICONS[medicine.category_icon] ?? 'pill'}
                 size={40}
-                color={
-                  medicine.is_controlled
-                    ? colors.tintAmber
-                    : available
-                      ? colors.tintGreen
-                      : colors.tintBlue
-                }
+                color={medicine.is_controlled ? colors.tintAmber : available ? colors.tintGreen : colors.tintBlue}
               />
             </View>
           }
@@ -407,21 +393,13 @@ export function MedicineRow({
               color={rx ? colors.statusWarning : colors.statusNormal}
             />
             <Text
-              style={[
-                styles.rxLineText,
-                { color: rx ? colors.statusWarning : colors.statusNormal },
-              ]}
+              style={[styles.rxLineText, { color: rx ? colors.statusWarning : colors.statusNormal }]}
               numberOfLines={2}
             >
               {rx ? t('pharmacy.prescriptionRequired') : t('pharmacy.prescriptionNotRequired')}
             </Text>
             {medicine.is_controlled ? (
-              <StatusBadge
-                status="controlled"
-                tone="warning"
-                label={t('pharmacy.controlled')}
-                size="sm"
-              />
+              <StatusBadge status="controlled" tone="warning" label={t('pharmacy.controlled')} size="sm" />
             ) : null}
           </View>
         </View>
@@ -445,15 +423,10 @@ export function MedicineRow({
             </Text>
           </View>
           <Text
-            style={[
-              styles.medFootValue,
-              { color: available ? colors.statusNormal : colors.textMuted },
-            ]}
+            style={[styles.medFootValue, { color: available ? colors.statusNormal : colors.textMuted }]}
             numberOfLines={2}
           >
-            {available
-              ? t('pharmacy.available')
-              : t('pharmacy.notReported', { defaultValue: 'Not reported' })}
+            {available ? t('pharmacy.available') : t('pharmacy.notReported', { defaultValue: 'Not reported' })}
           </Text>
         </View>
 
@@ -463,7 +436,9 @@ export function MedicineRow({
               {/* A figure nobody is charging must not look like a quote. */}
               {quote.reported
                 ? t('pharmacy.priceRange')
-                : t('pharmacy.priceIndicative', { defaultValue: 'Catalogue price' })}
+                : t('pharmacy.priceIndicative', {
+                    defaultValue: 'Catalogue price',
+                  })}
             </Text>
             <Text style={styles.medFootPrice} numberOfLines={2}>
               {quote.label}
@@ -502,11 +477,11 @@ export function MedicineRow({
  */
 export function PharmacyRow({
   pharmacy,
-  divider,
   onPress,
 }: {
   pharmacy: NearbyPharmacy;
-  divider: boolean;
+  /** Ignored: every row sits in its own card, so none draws a hairline. */
+  divider?: boolean;
   onPress: () => void;
 }) {
   const { t } = useTranslation();
@@ -552,11 +527,9 @@ export function PharmacyRow({
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel={[pharmacy.name, openLabel, distanceHours, verification]
-        .filter(Boolean)
-        .join(', ')}
+      accessibilityLabel={[pharmacy.name, openLabel, distanceHours, verification].filter(Boolean).join(', ')}
       accessibilityHint={t('pharmacy.viewPharmacy')}
-      style={[styles.phRow, divider && styles.phRowDivider]}
+      style={styles.phRow}
     >
       {/* The pharmacy's own logo when it uploaded one; otherwise the storefront mark. */}
       <CatalogImage
@@ -677,17 +650,20 @@ export function HoldCard({
             {reservation.medicine?.name ?? t('pharmacy.selectedMedicine')}
           </Text>
           {reservation.medicine?.generic_name &&
-          reservation.medicine.generic_name.toLowerCase() !==
-            (reservation.medicine.name ?? '').toLowerCase() ? (
+          reservation.medicine.generic_name.toLowerCase() !== (reservation.medicine.name ?? '').toLowerCase() ? (
             <Text style={styles.holdMeta} numberOfLines={1}>
-              {t('pharmacy.generic', { name: reservation.medicine.generic_name })}
+              {t('pharmacy.generic', {
+                name: reservation.medicine.generic_name,
+              })}
             </Text>
           ) : null}
           <Text style={styles.holdMeta} numberOfLines={2}>
             {[
               reservation.pharmacy?.name,
               reservation.pharmacy?.city,
-              t('pharmacy.reservationQuantity', { count: reservation.quantity }),
+              t('pharmacy.reservationQuantity', {
+                count: reservation.quantity,
+              }),
               reservation.pack_size,
             ]
               .filter(Boolean)
@@ -698,7 +674,12 @@ export function HoldCard({
       </View>
 
       <View style={styles.holdFacts}>
-        <HoldFact label={t('pharmacy.reservationRef', { reference: reservation.reference })} strong />
+        <HoldFact
+          label={t('pharmacy.reservationRef', {
+            reference: reservation.reference,
+          })}
+          strong
+        />
         {unit ? <HoldFact label={`${t('pharmacy.unitPrice')}: ${unit}`} /> : null}
         {totalLabel ? <HoldFact label={`${t('pharmacy.totalPrice')}: ${totalLabel}`} strong /> : null}
         {reservation.created_at ? (
@@ -714,7 +695,9 @@ export function HoldCard({
             expired
               ? t('pharmacy.reservationExpired')
               : expiresAt
-                ? t('pharmacy.reservationExpires', { when: formatDateTime(expiresAt) })
+                ? t('pharmacy.reservationExpires', {
+                    when: formatDateTime(expiresAt),
+                  })
                 : statusLabel
           }
           tone={expired ? 'critical' : undefined}
@@ -738,8 +721,7 @@ export function HoldCard({
       ) : null}
       {reservation.patient_note ? (
         <Text style={styles.holdNote}>
-          {t('pharmacy.reservationYourNote', { defaultValue: 'Your note' })}:{' '}
-          {reservation.patient_note}
+          {t('pharmacy.reservationYourNote', { defaultValue: 'Your note' })}: {reservation.patient_note}
         </Text>
       ) : null}
 
@@ -780,15 +762,7 @@ export function HoldCard({
   );
 }
 
-export function HoldFact({
-  label,
-  strong,
-  tone,
-}: {
-  label: string;
-  strong?: boolean;
-  tone?: 'critical';
-}) {
+export function HoldFact({ label, strong, tone }: { label: string; strong?: boolean; tone?: 'critical' }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
@@ -806,4 +780,3 @@ export function HoldFact({
 }
 
 /* ── Styles ───────────────────────────────────────────────────────────────── */
-

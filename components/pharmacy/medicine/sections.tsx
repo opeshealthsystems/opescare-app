@@ -2,15 +2,10 @@
  * Large JSX sections of the medicine detail screen (app/pharmacy/[medicineId].tsx).
  * Each renders only once the medicine has loaded, as it did inline.
  */
-import {
-  ActivityIndicator,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   LastUpdatedLine,
@@ -52,68 +47,86 @@ import {
 import type { MedicineDetailModel } from './useMedicineDetail';
 
 export function HoldsAndSearchSection({ vm }: { vm: MedicineDetailModel }) {
-  const { t, colors, styles, radiusKm, radiusOpen, setRadiusOpen, medicine, cancelReservation, existingHolds, goBack, changeRadius, confirmCancel, originLabel } = vm;
+  const {
+    t,
+    colors,
+    styles,
+    radiusKm,
+    radiusOpen,
+    setRadiusOpen,
+    medicine,
+    cancelReservation,
+    existingHolds,
+    goBack,
+    changeRadius,
+    confirmCancel,
+    originLabel,
+  } = vm;
   if (!medicine.data) return null;
   return (
     <>
       {/* -- Existing holds on this medicine -------------------------- */}
       {existingHolds.length > 0 ? (
-        <Card>
+        <CardStack spacing="sm">
           <CardOverline title={t('pharmacy.reservationsTitle')} />
-          {existingHolds.map((hold, index) => {
+          {existingHolds.map((hold) => {
             const expiresAt = hold.expires_at ? new Date(hold.expires_at) : null;
             const expired =
               hold.status === 'expired' ||
-              (!!expiresAt &&
-                !Number.isNaN(expiresAt.getTime()) &&
-                expiresAt.getTime() <= Date.now());
-            const busy =
-              cancelReservation.isPending && cancelReservation.variables?.id === hold.id;
+              (!!expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() <= Date.now());
+            const busy = cancelReservation.isPending && cancelReservation.variables?.id === hold.id;
             return (
-              <ListRow
-                key={hold.id}
-                icon="receipt"
-                tint={expired ? 'red' : 'amber'}
-                title={hold.pharmacy?.name ?? t('pharmacy.selectedMedicine')}
-                meta={[
-                  t('pharmacy.reservationRef', { reference: hold.reference }),
-                  [t('pharmacy.reservationQuantity', { count: hold.quantity }), hold.pack_size]
-                    .filter(Boolean)
-                    .join(' · '),
-                  money(hold.total_price, hold.currency),
-                  expired
-                    ? t('pharmacy.reservationExpired')
-                    : expiresAt
-                      ? t('pharmacy.reservationExpires', { when: formatDateTime(expiresAt) })
-                      : t(`pharmacy.reservationStatus.${hold.status}`, {
+              <Card key={hold.id}>
+                <ListRow
+                  icon="receipt"
+                  tint={expired ? 'red' : 'amber'}
+                  title={hold.pharmacy?.name ?? t('pharmacy.selectedMedicine')}
+                  meta={[
+                    t('pharmacy.reservationRef', { reference: hold.reference }),
+                    [
+                      t('pharmacy.reservationQuantity', {
+                        count: hold.quantity,
+                      }),
+                      hold.pack_size,
+                    ]
+                      .filter(Boolean)
+                      .join(' · '),
+                    money(hold.total_price, hold.currency),
+                    expired
+                      ? t('pharmacy.reservationExpired')
+                      : expiresAt
+                        ? t('pharmacy.reservationExpires', {
+                            when: formatDateTime(expiresAt),
+                          })
+                        : t(`pharmacy.reservationStatus.${hold.status}`, {
+                            defaultValue: hold.status_label,
+                          }),
+                  ]}
+                  trailing={
+                    hold.is_cancellable ? (
+                      <MedButton
+                        label={t('pharmacy.reservationCancel')}
+                        icon="close"
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy}
+                        onPress={() => confirmCancel(hold)}
+                      />
+                    ) : (
+                      <StatusBadge
+                        status={hold.status}
+                        tone={expired ? 'critical' : (RESERVATION_TONES[hold.status] ?? 'pending')}
+                        label={t(`pharmacy.reservationStatus.${hold.status}`, {
                           defaultValue: hold.status_label,
-                        }),
-                ]}
-                trailing={
-                  hold.is_cancellable ? (
-                    <MedButton
-                      label={t('pharmacy.reservationCancel')}
-                      icon="close"
-                      variant="ghost"
-                      size="sm"
-                      disabled={busy}
-                      onPress={() => confirmCancel(hold)}
-                    />
-                  ) : (
-                    <StatusBadge
-                      status={hold.status}
-                      tone={expired ? 'critical' : (RESERVATION_TONES[hold.status] ?? 'pending')}
-                      label={t(`pharmacy.reservationStatus.${hold.status}`, {
-                        defaultValue: hold.status_label,
-                      })}
-                      size="sm"
-                    />
-                  )
-                }
-                chevron={false}
-                divider={index < existingHolds.length - 1}
-                style={styles.flushRow}
-              />
+                        })}
+                        size="sm"
+                      />
+                    )
+                  }
+                  chevron={false}
+                  style={styles.flushRow}
+                />
+              </Card>
             );
           })}
           {existingHolds.some((h) => h.pharmacy_note) ? (
@@ -129,7 +142,7 @@ export function HoldsAndSearchSection({ vm }: { vm: MedicineDetailModel }) {
                 .join('\n')}
             />
           ) : null}
-        </Card>
+        </CardStack>
       ) : null}
 
       {/* MED-02's two-up: "Your Location [Change]" | "Search Radius ▾".
@@ -176,39 +189,49 @@ export function HoldsAndSearchSection({ vm }: { vm: MedicineDetailModel }) {
             <Text style={styles.searchCellValue} numberOfLines={1}>
               {t('pharmacy.radius', { km: radiusKm })}
             </Text>
-            <Icon
-              name={radiusOpen ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color={colors.textMuted}
-            />
+            <Icon name={radiusOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
           </View>
         </TouchableOpacity>
       </View>
 
       {radiusOpen ? (
-        <Card variant="flush">
-          {RADIUS_LADDER.map((km, index) => (
-            <ListRow
-              key={km}
-              title={t('pharmacy.radius', { km })}
-              trailing={
-                km === radiusKm ? (
-                  <Icon name="check" size={18} color={colors.blue} />
-                ) : undefined
-              }
-              chevron={false}
-              divider={index < RADIUS_LADDER.length - 1}
-              onPress={() => changeRadius(km)}
-            />
+        <CardStack spacing="sm">
+          {RADIUS_LADDER.map((km) => (
+            <Card key={km} variant="flush">
+              <ListRow
+                title={t('pharmacy.radius', { km })}
+                trailing={km === radiusKm ? <Icon name="check" size={18} color={colors.blue} /> : undefined}
+                chevron={false}
+                onPress={() => changeRadius(km)}
+              />
+            </Card>
           ))}
-        </Card>
+        </CardStack>
       ) : null}
     </>
   );
 }
 
 export function PharmacyListSection({ vm }: { vm: MedicineDetailModel }) {
-  const { t, colors, styles, radiusKm, nextRadiusKm, setPharmacyId, setPackSize, setConfirmed, setErrorCode, medicine, pharmacies, pharmacyRows, withoutStockRow, pharmacy, changeRadius, callPharmacy, onPharmacyListLayout } = vm;
+  const {
+    t,
+    colors,
+    styles,
+    radiusKm,
+    nextRadiusKm,
+    setPharmacyId,
+    setPackSize,
+    setConfirmed,
+    setErrorCode,
+    medicine,
+    pharmacies,
+    pharmacyRows,
+    withoutStockRow,
+    pharmacy,
+    changeRadius,
+    callPharmacy,
+    onPharmacyListLayout,
+  } = vm;
   if (!medicine.data) return null;
   return (
     <>
@@ -232,8 +255,7 @@ export function PharmacyListSection({ vm }: { vm: MedicineDetailModel }) {
           {t('pharmacy.pharmaciesStockingHint')}
           {'\n'}
           {t('pharmacy.stockProvenance', {
-            defaultValue:
-              'Stock levels and prices are reported by each pharmacy, not measured by OpesCare.',
+            defaultValue: 'Stock levels and prices are reported by each pharmacy, not measured by OpesCare.',
           })}
         </Text>
 
@@ -281,8 +303,7 @@ export function PharmacyListSection({ vm }: { vm: MedicineDetailModel }) {
                 }),
                 withoutStockRow > 0
                   ? t('pharmacy.nearbyNoStockRow', {
-                      defaultValue:
-                        'Pharmacies here that have never reported this medicine are not listed.',
+                      defaultValue: 'Pharmacies here that have never reported this medicine are not listed.',
                     })
                   : t('pharmacy.noPharmacies', { km: radiusKm }),
               ].join('  ·  ')}
@@ -305,7 +326,6 @@ export function PharmacyListSection({ vm }: { vm: MedicineDetailModel }) {
                   <PharmacyOptionRow
                     pharmacy={row}
                     selected={pharmacy?.id === row.id}
-                    divider={false}
                     onSelect={() => {
                       setPharmacyId(row.id);
                       setPackSize(null);
@@ -320,8 +340,7 @@ export function PharmacyListSection({ vm }: { vm: MedicineDetailModel }) {
             {withoutStockRow > 0 ? (
               <Text style={styles.footNote}>
                 {t('pharmacy.nearbyNoStockRow', {
-                  defaultValue:
-                    'Pharmacies here that have never reported this medicine are not listed.',
+                  defaultValue: 'Pharmacies here that have never reported this medicine are not listed.',
                 })}
               </Text>
             ) : null}
@@ -333,7 +352,8 @@ export function PharmacyListSection({ vm }: { vm: MedicineDetailModel }) {
 }
 
 export function ChosenPharmacySection({ vm }: { vm: MedicineDetailModel }) {
-  const { t, router, styles, jumpToMap, medicine, pharmacy, stock, stockFreshness, callPharmacy, phone, onMapLayout } = vm;
+  const { t, router, styles, jumpToMap, medicine, pharmacy, stock, stockFreshness, callPharmacy, phone, onMapLayout } =
+    vm;
   if (!medicine.data) return null;
   return (
     <>
@@ -341,12 +361,16 @@ export function ChosenPharmacySection({ vm }: { vm: MedicineDetailModel }) {
       {pharmacy && stock ? (
         <Card>
           <CardOverline
-            title={t('pharmacy.selectedPharmacyTitle', { defaultValue: 'Selected pharmacy' })}
+            title={t('pharmacy.selectedPharmacyTitle', {
+              defaultValue: 'Selected pharmacy',
+            })}
             right={
               <StatusBadge
                 status={stock.status}
                 tone={stockTone(stock.status)}
-                label={t(`pharmacy.stock.${stock.status}`, { defaultValue: stock.status_label })}
+                label={t(`pharmacy.stock.${stock.status}`, {
+                  defaultValue: stock.status_label,
+                })}
                 size="sm"
               />
             }
@@ -396,7 +420,10 @@ export function ChosenPharmacySection({ vm }: { vm: MedicineDetailModel }) {
               icon="store"
               variant="outline"
               onPress={() =>
-                router.push({ pathname: '/facility/[id]', params: { id: pharmacy.id } })
+                router.push({
+                  pathname: '/facility/[id]',
+                  params: { id: pharmacy.id },
+                })
               }
               style={styles.pharmacyAction}
             />
@@ -409,19 +436,27 @@ export function ChosenPharmacySection({ vm }: { vm: MedicineDetailModel }) {
             />
             {stock.pack_size ? (
               <SummaryLine
-                label={t('pharmacy.packSizeLabel', { defaultValue: 'Pack size' })}
+                label={t('pharmacy.packSizeLabel', {
+                  defaultValue: 'Pack size',
+                })}
                 value={stock.pack_size}
               />
             ) : null}
             {stock.packs_available !== null ? (
               <SummaryLine
-                label={t('pharmacy.packsOnShelf', { defaultValue: 'Packs reported' })}
-                value={t('pharmacy.packsAvailable', { count: stock.packs_available })}
+                label={t('pharmacy.packsOnShelf', {
+                  defaultValue: 'Packs reported',
+                })}
+                value={t('pharmacy.packsAvailable', {
+                  count: stock.packs_available,
+                })}
               />
             ) : null}
             {/* Always present: a pack count is not a substitute for a date. */}
             <SummaryLine
-              label={t('pharmacy.lastReported', { defaultValue: 'Last reported' })}
+              label={t('pharmacy.lastReported', {
+                defaultValue: 'Last reported',
+              })}
               value={stockFreshness.date}
             />
           </View>
@@ -432,8 +467,7 @@ export function ChosenPharmacySection({ vm }: { vm: MedicineDetailModel }) {
               tone="warning"
               text={t('pharmacy.stockStale', {
                 days: STOCK_STALE_DAYS,
-                defaultValue:
-                  'This stock report is more than {{days}} days old. Call the pharmacy before you travel.',
+                defaultValue: 'This stock report is more than {{days}} days old. Call the pharmacy before you travel.',
               })}
             />
           ) : null}
@@ -441,11 +475,7 @@ export function ChosenPharmacySection({ vm }: { vm: MedicineDetailModel }) {
             <NoticeStrip
               icon="info"
               tone="info"
-              text={
-                stock.status === 'out_of_stock'
-                  ? t('pharmacy.outOfStockNote')
-                  : t('pharmacy.noReservationEnabled')
-              }
+              text={stock.status === 'out_of_stock' ? t('pharmacy.outOfStockNote') : t('pharmacy.noReservationEnabled')}
             />
           ) : null}
         </Card>
@@ -464,7 +494,20 @@ export function ChosenPharmacySection({ vm }: { vm: MedicineDetailModel }) {
 }
 
 export function PricingAndAboutSection({ vm }: { vm: MedicineDetailModel }) {
-  const { t, colors, styles, packSize, setPackSize, jumpToPharmacies, medicine, pharmacyRows, pharmacy, stock, packMismatch, stockHere } = vm;
+  const {
+    t,
+    colors,
+    styles,
+    packSize,
+    setPackSize,
+    jumpToPharmacies,
+    medicine,
+    pharmacyRows,
+    pharmacy,
+    stock,
+    packMismatch,
+    stockHere,
+  } = vm;
   if (!medicine.data) return null;
   return (
     <>
@@ -485,14 +528,11 @@ export function PricingAndAboutSection({ vm }: { vm: MedicineDetailModel }) {
             <Text style={styles.pricingLabel}>
               {stock ? t('pharmacy.stockAtPharmacy') : t('pharmacy.pricingStock')}
             </Text>
-            <Text
-              style={[
-                styles.pricingValue,
-                { color: stockHere ? colors.statusNormal : colors.textMuted },
-              ]}
-            >
+            <Text style={[styles.pricingValue, { color: stockHere ? colors.statusNormal : colors.textMuted }]}>
               {stock
-                ? t(`pharmacy.stock.${stock.status}`, { defaultValue: stock.status_label })
+                ? t(`pharmacy.stock.${stock.status}`, {
+                    defaultValue: stock.status_label,
+                  })
                 : medicine.data.availability.is_available
                   ? t('pharmacy.pricingInStock')
                   : t('pharmacy.pricingNotReported')}
@@ -500,9 +540,7 @@ export function PricingAndAboutSection({ vm }: { vm: MedicineDetailModel }) {
             {stock ? <StockMeter status={stock.status} /> : null}
             {/* Never rendered as 0 when the pharmacy reported no count. */}
             {stock?.packs_available != null ? (
-              <Text style={styles.pricingSub}>
-                {t('pharmacy.packsAvailable', { count: stock.packs_available })}
-              </Text>
+              <Text style={styles.pricingSub}>{t('pharmacy.packsAvailable', { count: stock.packs_available })}</Text>
             ) : null}
           </View>
 
@@ -518,9 +556,7 @@ export function PricingAndAboutSection({ vm }: { vm: MedicineDetailModel }) {
                 {money(stock.unit_price, stock.currency) ?? t('pharmacy.priceUnavailable')}
               </Text>
               {stock.pack_size ? (
-                <Text style={styles.pricingSub}>
-                  {t('pharmacy.pricePerPack', { size: stock.pack_size })}
-                </Text>
+                <Text style={styles.pricingSub}>{t('pharmacy.pricePerPack', { size: stock.pack_size })}</Text>
               ) : null}
             </View>
           ) : (
@@ -537,8 +573,7 @@ export function PricingAndAboutSection({ vm }: { vm: MedicineDetailModel }) {
             <Icon name="bar-chart" size={18} color={colors.blue} />
             <Text style={styles.pricingLabel}>{t('pharmacy.pricingRange')}</Text>
             <Text style={[styles.pricingValue, { color: colors.blue }]}>
-              {medicine.data.availability.price_min !== null &&
-              medicine.data.availability.price_max !== null
+              {medicine.data.availability.price_min !== null && medicine.data.availability.price_max !== null
                 ? `${formatXafBare(medicine.data.availability.price_min)} – ${formatXafBare(
                     medicine.data.availability.price_max,
                   )}`
@@ -575,9 +610,7 @@ export function PricingAndAboutSection({ vm }: { vm: MedicineDetailModel }) {
           is labelled as the category. */}
       <Card>
         <CardOverline title={t('pharmacy.aboutMedicine')} />
-        <Text style={styles.body}>
-          {medicine.data.description ?? t('pharmacy.noDescription')}
-        </Text>
+        <Text style={styles.body}>{medicine.data.description ?? t('pharmacy.noDescription')}</Text>
 
         {medicine.data.indications.length > 0 ? (
           <View style={styles.tagRow}>
@@ -593,11 +626,7 @@ export function PricingAndAboutSection({ vm }: { vm: MedicineDetailModel }) {
 
         <View style={styles.aboutTable}>
           <TableCell label={t('pharmacy.form')} value={medicine.data.form ?? '—'} />
-          <TableCell
-            label={t('pharmacy.strength')}
-            value={medicine.data.strength ?? '—'}
-            divided
-          />
+          <TableCell label={t('pharmacy.strength')} value={medicine.data.strength ?? '—'} divided />
           <TableCell
             label={t('pharmacy.category')}
             value={t(`pharmacy.categories.${medicine.data.category}`, {
@@ -613,9 +642,7 @@ export function PricingAndAboutSection({ vm }: { vm: MedicineDetailModel }) {
             <Text style={styles.importantTitle}>{t('pharmacy.importantTitle')}</Text>
           </View>
           <Text style={styles.importantBody}>{t('pharmacy.importantBody')}</Text>
-          {medicine.data.is_controlled ? (
-            <Text style={styles.importantBody}>{t('pharmacy.controlled')}</Text>
-          ) : null}
+          {medicine.data.is_controlled ? <Text style={styles.importantBody}>{t('pharmacy.controlled')}</Text> : null}
         </View>
       </Card>
 
@@ -629,8 +656,7 @@ export function PricingAndAboutSection({ vm }: { vm: MedicineDetailModel }) {
           <CardOverline title={t('pharmacy.choosePackSize')} />
           <View style={styles.packGrid}>
             {medicine.data.pack_size_options.map((option) => {
-              const quoted =
-                stock?.pack_size === option ? money(stock.unit_price, stock.currency) : null;
+              const quoted = stock?.pack_size === option ? money(stock.unit_price, stock.currency) : null;
               const on = option === packSize;
               return (
                 <TouchableOpacity
@@ -648,10 +674,7 @@ export function PricingAndAboutSection({ vm }: { vm: MedicineDetailModel }) {
                     },
                   ]}
                 >
-                  <Text
-                    style={[styles.packSizeText, on && { color: colors.statusNormal }]}
-                    numberOfLines={2}
-                  >
+                  <Text style={[styles.packSizeText, on && { color: colors.statusNormal }]} numberOfLines={2}>
                     {option}
                   </Text>
                   <Text style={styles.packPriceText} numberOfLines={1}>
@@ -668,8 +691,7 @@ export function PricingAndAboutSection({ vm }: { vm: MedicineDetailModel }) {
               text={t('pharmacy.packMismatch', {
                 pharmacy: pharmacy?.name ?? '',
                 size: packMismatch,
-                defaultValue:
-                  '{{pharmacy}} quoted this price for {{size}}. Confirm the total at the counter.',
+                defaultValue: '{{pharmacy}} quoted this price for {{size}}. Confirm the total at the counter.',
               })}
             />
           ) : null}
@@ -680,7 +702,25 @@ export function PricingAndAboutSection({ vm }: { vm: MedicineDetailModel }) {
 }
 
 export function QuantityAndPrescriptionSection({ vm }: { vm: MedicineDetailModel }) {
-  const { t, router, colors, styles, quantity, setQuantity, note, setNote, prescriptionId, setPrescriptionId, prescriptionListOpen, setPrescriptionListOpen, setErrorCode, medicine, needsPrescription, prescriptions, chosenPrescription } = vm;
+  const {
+    t,
+    router,
+    colors,
+    styles,
+    quantity,
+    setQuantity,
+    note,
+    setNote,
+    prescriptionId,
+    setPrescriptionId,
+    prescriptionListOpen,
+    setPrescriptionListOpen,
+    setErrorCode,
+    medicine,
+    needsPrescription,
+    prescriptions,
+    chosenPrescription,
+  } = vm;
   if (!medicine.data) return null;
   return (
     <>
@@ -712,7 +752,9 @@ export function QuantityAndPrescriptionSection({ vm }: { vm: MedicineDetailModel
 
         {/* Optional message the pharmacist sees on the hold. */}
         <Text style={styles.fieldLabel}>
-          {t('pharmacy.noteLabel', { defaultValue: 'Note for the pharmacy (optional)' })}
+          {t('pharmacy.noteLabel', {
+            defaultValue: 'Note for the pharmacy (optional)',
+          })}
         </Text>
         <TextInput
           value={note}
@@ -731,8 +773,7 @@ export function QuantityAndPrescriptionSection({ vm }: { vm: MedicineDetailModel
         <Text style={styles.hint}>
           {t('pharmacy.noteHint', {
             max: MAX_NOTE_LENGTH,
-            defaultValue:
-              'Up to {{max}} characters. Do not include payment card or ID numbers.',
+            defaultValue: 'Up to {{max}} characters. Do not include payment card or ID numbers.',
           })}
         </Text>
       </Card>
@@ -753,18 +794,12 @@ export function QuantityAndPrescriptionSection({ vm }: { vm: MedicineDetailModel
             <View style={styles.rxBody}>
               <Text style={styles.rxTitle}>{t('pharmacy.prescriptionExplainerTitle')}</Text>
               <Text style={styles.body}>{t('pharmacy.prescriptionExplainerBody')}</Text>
-              {medicine.data.is_controlled ? (
-                <Text style={styles.body}>{t('pharmacy.controlled')}</Text>
-              ) : null}
+              {medicine.data.is_controlled ? <Text style={styles.body}>{t('pharmacy.controlled')}</Text> : null}
             </View>
           </View>
 
           <MedButton
-            label={
-              chosenPrescription
-                ? t('pharmacy.prescriptionAttached')
-                : t('pharmacy.attachPrescription')
-            }
+            label={chosenPrescription ? t('pharmacy.prescriptionAttached') : t('pharmacy.attachPrescription')}
             icon={chosenPrescription ? 'check' : 'paperclip'}
             iconRight={prescriptionListOpen ? 'chevron-up' : 'chevron-down'}
             variant={chosenPrescription ? 'ghost' : 'secondary'}
@@ -776,7 +811,9 @@ export function QuantityAndPrescriptionSection({ vm }: { vm: MedicineDetailModel
             <Text style={styles.hint}>
               {[
                 chosenPrescription.facility_name ?? t('prescriptions.unknownFacility'),
-                t('pharmacy.prescriptionItems', { count: chosenPrescription.item_count }),
+                t('pharmacy.prescriptionItems', {
+                  count: chosenPrescription.item_count,
+                }),
                 chosenPrescription.prescribed_at
                   ? formatDate(chosenPrescription.prescribed_at)
                   : t('prescriptions.dateUnknown'),
@@ -822,49 +859,51 @@ export function QuantityAndPrescriptionSection({ vm }: { vm: MedicineDetailModel
                 onAction={() => router.push('/prescriptions')}
               />
             ) : (
-              <Card variant="flush" style={styles.rxList}>
-                {(prescriptions.data ?? []).map((rx, index, all) => {
+              <CardStack spacing="sm" style={styles.rxList}>
+                {(prescriptions.data ?? []).map((rx) => {
                   const active = rx.id === prescriptionId;
                   const unusable = prescriptionUnusable(rx);
                   // facility_name is nullable on the prescriptions payload;
                   // when it is absent the row says so rather than guessing.
                   return (
-                    <ListRow
-                      key={rx.id}
-                      icon="document-text"
-                      tint={active ? 'green' : unusable ? 'red' : 'blue'}
-                      title={rx.facility_name ?? t('prescriptions.unknownFacility')}
-                      meta={[
-                        t('pharmacy.prescriptionItems', { count: rx.item_count }),
-                        prescriptionStatusLabel(rx.status, t),
-                        rx.prescribed_at ? formatDate(rx.prescribed_at) : null,
-                        rx.expires_at
-                          ? `${t('prescriptions.expiresAt')} ${formatDate(rx.expires_at)}`
-                          : t('prescriptions.noExpiry'),
-                      ]}
-                      trailing={
-                        active ? (
-                          <Icon name="check" size={18} color={colors.blue} />
-                        ) : unusable ? (
-                          <StatusBadge
-                            status={rx.status}
-                            tone="critical"
-                            label={t('prescriptions.statusExpired')}
-                            size="sm"
-                          />
-                        ) : undefined
-                      }
-                      chevron={false}
-                      divider={index < all.length - 1}
-                      onPress={() => {
-                        setPrescriptionId(active ? null : rx.id);
-                        setPrescriptionListOpen(false);
-                        setErrorCode(null);
-                      }}
-                    />
+                    <Card key={rx.id} variant="flush">
+                      <ListRow
+                        icon="document-text"
+                        tint={active ? 'green' : unusable ? 'red' : 'blue'}
+                        title={rx.facility_name ?? t('prescriptions.unknownFacility')}
+                        meta={[
+                          t('pharmacy.prescriptionItems', {
+                            count: rx.item_count,
+                          }),
+                          prescriptionStatusLabel(rx.status, t),
+                          rx.prescribed_at ? formatDate(rx.prescribed_at) : null,
+                          rx.expires_at
+                            ? `${t('prescriptions.expiresAt')} ${formatDate(rx.expires_at)}`
+                            : t('prescriptions.noExpiry'),
+                        ]}
+                        trailing={
+                          active ? (
+                            <Icon name="check" size={18} color={colors.blue} />
+                          ) : unusable ? (
+                            <StatusBadge
+                              status={rx.status}
+                              tone="critical"
+                              label={t('prescriptions.statusExpired')}
+                              size="sm"
+                            />
+                          ) : undefined
+                        }
+                        chevron={false}
+                        onPress={() => {
+                          setPrescriptionId(active ? null : rx.id);
+                          setPrescriptionListOpen(false);
+                          setErrorCode(null);
+                        }}
+                      />
+                    </Card>
                   );
                 })}
-              </Card>
+              </CardStack>
             )
           ) : null}
         </Card>
@@ -874,7 +913,24 @@ export function QuantityAndPrescriptionSection({ vm }: { vm: MedicineDetailModel
 }
 
 export function SummaryAndOutcomeSection({ vm }: { vm: MedicineDetailModel }) {
-  const { t, router, colors, styles, packSize, quantity, confirmed, errorCode, medicine, cancelReservation, pharmacy, unitPrice, totalPrice, currency, confirmCancel, disabledReason } = vm;
+  const {
+    t,
+    router,
+    colors,
+    styles,
+    packSize,
+    quantity,
+    confirmed,
+    errorCode,
+    medicine,
+    cancelReservation,
+    pharmacy,
+    unitPrice,
+    totalPrice,
+    currency,
+    confirmCancel,
+    disabledReason,
+  } = vm;
   if (!medicine.data) return null;
   return (
     <>
@@ -891,23 +947,17 @@ export function SummaryAndOutcomeSection({ vm }: { vm: MedicineDetailModel }) {
         />
         <SummaryLine
           label={t('pharmacy.quantity')}
-          value={[t('pharmacy.reservationQuantity', { count: quantity }), packSize]
-            .filter(Boolean)
-            .join(' · ')}
+          value={[t('pharmacy.reservationQuantity', { count: quantity }), packSize].filter(Boolean).join(' · ')}
         />
         <View style={styles.totalRow}>
-          <Text style={styles.total}>
-            {money(totalPrice, currency) ?? t('pharmacy.priceUnavailable')}
-          </Text>
+          <Text style={styles.total}>{money(totalPrice, currency) ?? t('pharmacy.priceUnavailable')}</Text>
         </View>
         <View style={styles.infoStrip}>
           <Icon name="info" size={18} color={colors.blue} />
           <Text style={styles.infoText}>{t('pharmacy.paymentNote')}</Text>
         </View>
         {/* Never leave the sticky footer's dead CTA unexplained. */}
-        {disabledReason ? (
-          <Text style={styles.disabledReason}>{disabledReason}</Text>
-        ) : null}
+        {disabledReason ? <Text style={styles.disabledReason}>{disabledReason}</Text> : null}
       </Card>
 
       {/* -- Outcome strips (the Dialog is transient; these persist) --- */}
@@ -927,7 +977,9 @@ export function SummaryAndOutcomeSection({ vm }: { vm: MedicineDetailModel }) {
             <Text style={styles.body}>
               {[
                 [
-                  t('pharmacy.reservationQuantity', { count: confirmed.quantity }),
+                  t('pharmacy.reservationQuantity', {
+                    count: confirmed.quantity,
+                  }),
                   confirmed.pack_size,
                 ]
                   .filter(Boolean)
@@ -972,29 +1024,21 @@ export function SummaryAndOutcomeSection({ vm }: { vm: MedicineDetailModel }) {
           style={[
             styles.outcome,
             {
-              backgroundColor:
-                errorCode === 'PRESCRIPTION_REQUIRED'
-                  ? colors.statusPendingBg
-                  : colors.statusCriticalBg,
+              backgroundColor: errorCode === 'PRESCRIPTION_REQUIRED' ? colors.statusPendingBg : colors.statusCriticalBg,
             },
           ]}
         >
           <Icon
             name={errorCode === 'PRESCRIPTION_REQUIRED' ? 'document-text' : 'alert-circle'}
             size={20}
-            color={
-              errorCode === 'PRESCRIPTION_REQUIRED' ? colors.statusPending : colors.statusCritical
-            }
+            color={errorCode === 'PRESCRIPTION_REQUIRED' ? colors.statusPending : colors.statusCritical}
           />
           <View style={styles.outcomeBody}>
             <Text
               style={[
                 styles.outcomeTitle,
                 {
-                  color:
-                    errorCode === 'PRESCRIPTION_REQUIRED'
-                      ? colors.statusPending
-                      : colors.statusCritical,
+                  color: errorCode === 'PRESCRIPTION_REQUIRED' ? colors.statusPending : colors.statusCritical,
                 },
               ]}
             >

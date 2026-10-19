@@ -6,6 +6,7 @@ import * as Application from 'expo-application';
 import { Screen } from '@/components/ui/Screen';
 import {
   Card,
+  CardStack,
   Icon,
   ScreenHeader,
   SectionHeader,
@@ -96,60 +97,45 @@ export default function AboutScreen() {
         {/* ── What it stands on ────────────────────────────────────────────── */}
         <View style={styles.stack}>
           <SectionHeader title={t('about.principlesTitle')} />
-          <Card>
-            {PRINCIPLES.map((item, index) => (
-              <View
-                key={item.key}
-                style={[
-                  styles.principle,
-                  index < PRINCIPLES.length - 1 && {
-                    borderBottomWidth: StyleSheet.hairlineWidth,
-                    borderBottomColor: colors.border,
-                  },
-                ]}
-              >
-                <View style={styles.principleMark}>
-                  <Icon name={item.icon} size={26} color={colors.blue} />
+          <CardStack spacing="sm">
+            {PRINCIPLES.map((item) => (
+              <Card key={item.key}>
+                <View style={styles.principle}>
+                  <View style={styles.principleMark}>
+                    <Icon name={item.icon} size={26} color={colors.blue} />
+                  </View>
+                  <View style={styles.principleBody}>
+                    <Text style={styles.principleTitle}>{t(`about.principles.${item.key}.title`)}</Text>
+                    <Text style={styles.principleText}>{t(`about.principles.${item.key}.body`)}</Text>
+                  </View>
                 </View>
-                <View style={styles.principleBody}>
-                  <Text style={styles.principleTitle}>
-                    {t(`about.principles.${item.key}.title`)}
-                  </Text>
-                  <Text style={styles.principleText}>
-                    {t(`about.principles.${item.key}.body`)}
-                  </Text>
-                </View>
-              </View>
+              </Card>
             ))}
-          </Card>
+          </CardStack>
         </View>
 
         {/* ── This build ───────────────────────────────────────────────────── */}
         <View style={styles.stack}>
           <SectionHeader title={t('about.buildTitle')} />
-          <Card>
-            <InfoRow
-              icon="info"
-              label={t('about.versionLabel')}
-              value={version ?? t('about.versionUnknown')}
-            />
-            <InfoRow
-              icon="grid"
-              label={t('about.buildLabel')}
-              value={build ?? t('about.versionUnknown')}
-            />
-            <InfoRow
-              icon="id-card"
-              label={t('about.packageLabel')}
-              value={Application.applicationId ?? t('about.versionUnknown')}
-            />
-          </Card>
+          <CardStack spacing="sm">
+            <Card>
+              <InfoRow icon="info" label={t('about.versionLabel')} value={version ?? t('about.versionUnknown')} />
+            </Card>
+            <Card>
+              <InfoRow icon="grid" label={t('about.buildLabel')} value={build ?? t('about.versionUnknown')} />
+            </Card>
+            <Card>
+              <InfoRow
+                icon="id-card"
+                label={t('about.packageLabel')}
+                value={Application.applicationId ?? t('about.versionUnknown')}
+              />
+            </Card>
+          </CardStack>
           {/* Honest about what "unknown" means here rather than printing a
               plausible number: on the web build there is no native layer to
               read, so there is genuinely no installed version. */}
-          {version === null ? (
-            <Text style={styles.note}>{t('about.versionUnknownNote')}</Text>
-          ) : null}
+          {version === null ? <Text style={styles.note}>{t('about.versionUnknownNote')}</Text> : null}
         </View>
 
         {/* ── Where the rules are written ──────────────────────────────────── */}
@@ -191,7 +177,11 @@ export default function AboutScreen() {
 
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
     stack: { gap: spacing.sm },
 
     crest: { alignItems: 'center', paddingTop: spacing.sm, gap: 2 },
@@ -218,7 +208,11 @@ const makeStyles = (c: Palette) =>
       color: c.textSecondary,
     },
 
-    principle: { flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.sm },
+    principle: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      paddingVertical: spacing.sm,
+    },
     principleMark: {
       width: 36,
       height: 36,

@@ -1,13 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  Image,
-  Text,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import { Image, Text, TouchableOpacity, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Card, Icon, spacing, useTheme, type IconName, type Tint } from '@/components/opes-ui';
 import { HEALTH_ID_ART } from '@/components/health-id/assets';
@@ -155,22 +147,16 @@ export function FactGrid({ facts }: { facts: Fact[] }) {
   const styles = useProfileStyles();
   return (
     <View style={styles.factGrid}>
-      {facts.map((fact, index) => (
-        <FactCell
-          key={fact.label}
-          fact={fact}
-          // A rule only where a cell actually sits on the other side of it:
-          // never against a full-width field, and never trailing into the
-          // empty half of an odd last row.
-          rule={!fact.wide && index % 2 === 0 && !!facts[index + 1] && !facts[index + 1]!.wide}
-        />
+      {/* Each fact is its own card: facts never share one slab with rules between them. */}
+      {facts.map((fact) => (
+        <FactCell key={fact.label} fact={fact} />
       ))}
     </View>
   );
 }
 
 /** One cell of the two-column fact grid. */
-export function FactCell({ fact, rule }: { fact: Fact; rule: boolean }) {
+export function FactCell({ fact }: { fact: Fact }) {
   const { colors, tintMap } = useTheme();
   const styles = useProfileStyles();
   const skin = tintMap[fact.tint];
@@ -197,7 +183,7 @@ export function FactCell({ fact, rule }: { fact: Fact; rule: boolean }) {
   );
 
   return (
-    <View style={[styles.factCell, fact.wide && styles.factCellWide, rule && styles.factCellRule]}>
+    <Card style={[styles.factCell, fact.wide && styles.factCellWide]}>
       {fact.onPress ? (
         <TouchableOpacity
           onPress={fact.onPress}
@@ -209,15 +195,11 @@ export function FactCell({ fact, rule }: { fact: Fact; rule: boolean }) {
           {body}
         </TouchableOpacity>
       ) : (
-        <View
-          style={styles.factInner}
-          accessible
-          accessibilityLabel={`${fact.label}: ${fact.value}`}
-        >
+        <View style={styles.factInner} accessible accessibilityLabel={`${fact.label}: ${fact.value}`}>
           {body}
         </View>
       )}
-    </View>
+    </Card>
   );
 }
 
@@ -301,7 +283,9 @@ export function PrivacyFooter({ title, body }: { title: string; body: string }) 
         <>
           <View style={styles.privacyRule} />
           <Text style={styles.privacyMotto}>
-            {t('profile.privacyMotto', { defaultValue: 'SECURE\nINTEROPERABLE\nPEOPLE-CENTERED' })}
+            {t('profile.privacyMotto', {
+              defaultValue: 'SECURE\nINTEROPERABLE\nPEOPLE-CENTERED',
+            })}
           </Text>
         </>
       ) : null}

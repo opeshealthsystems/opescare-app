@@ -1,11 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-import {
-  radii,
-  spacing,
-  typography,
-  type Palette,
-} from '@/components/opes-ui';
+import { radii, spacing, typography, type Palette } from '@/components/opes-ui';
 
 /** Split verbatim out of app/pharmacy.tsx. */
 
@@ -45,7 +40,11 @@ export const makeStyles = (c: Palette) =>
     },
 
     screen: { flex: 1, backgroundColor: c.page },
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
     stack: { gap: spacing.md },
 
     /* MED-01 search field */
@@ -168,7 +167,11 @@ export const makeStyles = (c: Palette) =>
     },
     staleWrap: { marginBottom: spacing.sm + 2 },
 
-    loading: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm },
+    loading: {
+      alignItems: 'center',
+      paddingVertical: spacing.lg,
+      gap: spacing.sm,
+    },
     loadingText: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
@@ -195,9 +198,12 @@ export const makeStyles = (c: Palette) =>
        availability, price and pack size sit on their own tier underneath.
        `medBody` needs `minWidth: 0` or the flex child refuses to shrink and
        the text overflows the row instead of wrapping inside it. */
-    medRow: { paddingVertical: 14, paddingHorizontal: spacing.md, gap: spacing.sm + 2 },
+    medRow: {
+      paddingVertical: 14,
+      paddingHorizontal: spacing.md,
+      gap: spacing.sm + 2,
+    },
     medRowAvailable: { backgroundColor: c.statusNormalBg },
-    medRowDivider: { borderBottomWidth: 1, borderBottomColor: c.divider },
     medHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
     medShot: {
       width: 62,
@@ -234,7 +240,13 @@ export const makeStyles = (c: Palette) =>
       fontSize: 11,
       color: c.textSecondary,
     },
-    rxLine: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+    rxLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginTop: 6,
+    },
     rxLineText: {
       flexShrink: 1,
       fontFamily: typography.fontFamily.semiBold,
@@ -251,8 +263,18 @@ export const makeStyles = (c: Palette) =>
       borderTopWidth: 1,
       borderTopColor: c.divider,
     },
-    medFootCell: { flexGrow: 1, flexBasis: '30%', minWidth: 92, gap: 2, paddingRight: 8 },
-    medFootCellDivided: { borderLeftWidth: 1, borderLeftColor: c.divider, paddingLeft: 10 },
+    medFootCell: {
+      flexGrow: 1,
+      flexBasis: '30%',
+      minWidth: 92,
+      gap: 2,
+      paddingRight: 8,
+    },
+    medFootCellDivided: {
+      borderLeftWidth: 1,
+      borderLeftColor: c.divider,
+      paddingLeft: 10,
+    },
     medFootHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     medFootLabel: {
       fontFamily: typography.fontFamily.regular,
@@ -274,8 +296,12 @@ export const makeStyles = (c: Palette) =>
     },
 
     /* MED-01 pharmacy card */
-    phRow: { flexDirection: 'row', gap: 12, paddingVertical: 14, paddingHorizontal: spacing.md },
-    phRowDivider: { borderBottomWidth: 1, borderBottomColor: c.divider },
+    phRow: {
+      flexDirection: 'row',
+      gap: 12,
+      paddingVertical: 14,
+      paddingHorizontal: spacing.md,
+    },
     phShot: {
       width: 56,
       height: 56,
@@ -301,7 +327,11 @@ export const makeStyles = (c: Palette) =>
     },
     phAction: { alignSelf: 'flex-start', marginTop: spacing.sm },
 
-    holdHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 4 },
+    holdHead: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm + 4,
+    },
     holdBody: { flex: 1, minWidth: 0, gap: 2 },
     holdTitle: {
       fontFamily: typography.fontFamily.semiBold,

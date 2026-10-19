@@ -18,6 +18,7 @@ import { FacilityMap } from '@/components/map/FacilityMap';
 import { PharmacyStockSection } from '@/components/pharmacy/detail/PharmacyStockSection';
 import {
   Card,
+  CardStack,
   EmptyState,
   GradientButton,
   Icon,
@@ -178,7 +179,14 @@ const SERVICE_TINT: Record<DepartmentType, Tint> = {
 
 function serviceDepartmentType(category: string | null): DepartmentType | null {
   if (!category) return null;
-  return SERVICE_CATEGORY_TYPE[category.trim().toLowerCase().replace(/[\s-]+/g, '_')] ?? null;
+  return (
+    SERVICE_CATEGORY_TYPE[
+      category
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, '_')
+    ] ?? null
+  );
 }
 
 /**
@@ -199,7 +207,11 @@ const AVAILABILITY_TONE: Record<string, StatusTone> = {
   closed: 'critical',
 };
 
-const normalizeStatus = (value: string) => value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+const normalizeStatus = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
 
 /** `undefined` hands the decision back to the badge's own keyword map. */
 function availabilityTone(value: string): StatusTone | undefined {
@@ -308,15 +320,7 @@ function CircleAction({
   );
 }
 
-function ServiceRow({
-  service,
-  divider,
-  tr,
-}: {
-  service: CareFacilityService;
-  divider: boolean;
-  tr: Translate;
-}) {
+function ServiceRow({ service, tr }: { service: CareFacilityService; tr: Translate }) {
   const type = serviceDepartmentType(service.service_category);
   const availability = service.availability_status?.trim();
   return (
@@ -342,7 +346,6 @@ function ServiceRow({
           />
         ) : undefined
       }
-      divider={divider}
     />
   );
 }
@@ -351,14 +354,12 @@ function ServiceRow({
 function HourRow({
   hour,
   isToday,
-  divider,
   language,
   tr,
   todayColor,
 }: {
   hour: CareFacilityHour;
   isToday: boolean;
-  divider: boolean;
   language: string;
   tr: Translate;
   todayColor: string;
@@ -377,7 +378,6 @@ function HourRow({
             : `${trimTime(hour.opens_at) ?? '—'} – ${trimTime(hour.closes_at) ?? '—'}`
       }
       valueColor={isToday ? todayColor : undefined}
-      divider={divider}
     />
   );
 }
@@ -436,7 +436,10 @@ export default function FacilityDetailScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const mapY = useRef(0);
   const jumpToMap = () =>
-    scrollRef.current?.scrollTo({ y: Math.max(0, mapY.current - 8), animated: true });
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, mapY.current - 8),
+      animated: true,
+    });
 
   const facilityQuery = useFacilityDetail(facilityId);
   const providersQuery = useFacilityProviders(facilityId);
@@ -456,8 +459,7 @@ export default function FacilityDetailScreen() {
    * neither is present (an older API) the value is undefined and the
    * connectivity card is skipped rather than guessed.
    */
-  const connected: boolean | undefined =
-    facility?.connected ?? (roster ? roster.facility_id !== null : undefined);
+  const connected: boolean | undefined = facility?.connected ?? (roster ? roster.facility_id !== null : undefined);
   const rosterStatus =
     roster?.roster_status ??
     (roster
@@ -470,9 +472,7 @@ export default function FacilityDetailScreen() {
 
   const hours = useMemo(
     () =>
-      [...(facility?.hours ?? [])].sort(
-        (a: CareFacilityHour, b: CareFacilityHour) => a.day_of_week - b.day_of_week,
-      ),
+      [...(facility?.hours ?? [])].sort((a: CareFacilityHour, b: CareFacilityHour) => a.day_of_week - b.day_of_week),
     [facility?.hours],
   );
 
@@ -511,9 +511,7 @@ export default function FacilityDetailScreen() {
   const allWeek24 = generalHours.length >= 7 && generalHours.every((hour) => !!hour.is_24_hours);
   const some24 = !allWeek24 && hours.some((hour) => !!hour.is_24_hours);
 
-  const address = facility
-    ? joinLocationParts(facility.address, facility.city, facility.region)
-    : '';
+  const address = facility ? joinLocationParts(facility.address, facility.city, facility.region) : '';
   const hasCoords = facility?.latitude != null && facility?.longitude != null;
 
   /**
@@ -558,7 +556,10 @@ export default function FacilityDetailScreen() {
   /* ── Actions — every one the previous screen offered survives ──────── */
   const goToBooking = () => {
     if (!facility) return;
-    router.push({ pathname: '/appointments/book', params: { facilityId: facility.id } });
+    router.push({
+      pathname: '/appointments/book',
+      params: { facilityId: facility.id },
+    });
   };
 
   const callFacility = () => {
@@ -626,9 +627,7 @@ export default function FacilityDetailScreen() {
   });
 
   /* ── State 1 — no id in the route, or the directory has no such row ── */
-  const isNotFound =
-    !facilityId ||
-    (isAxiosError(facilityQuery.error) && facilityQuery.error.response?.status === 404);
+  const isNotFound = !facilityId || (isAxiosError(facilityQuery.error) && facilityQuery.error.response?.status === 404);
 
   if (isNotFound) {
     return (
@@ -638,12 +637,16 @@ export default function FacilityDetailScreen() {
           <EmptyState
             icon="building"
             tint="blue"
-            title={t('facility.notFoundTitle', { defaultValue: 'This facility is no longer listed.' })}
+            title={t('facility.notFoundTitle', {
+              defaultValue: 'This facility is no longer listed.',
+            })}
             message={t('facility.notFoundBody', {
               defaultValue:
                 'It may have been removed from the national register, or the link you followed may be out of date. You can browse the facilities near you instead.',
             })}
-            actionLabel={t('facility.findAnother', { defaultValue: 'Find care nearby' })}
+            actionLabel={t('facility.findAnother', {
+              defaultValue: 'Find care nearby',
+            })}
             onAction={findCareNearby}
           />
         </View>
@@ -671,7 +674,9 @@ export default function FacilityDetailScreen() {
           <EmptyState
             icon="alert-circle"
             tint="red"
-            title={t('facility.loadErrorTitle', { defaultValue: 'Facility unavailable' })}
+            title={t('facility.loadErrorTitle', {
+              defaultValue: 'Facility unavailable',
+            })}
             message={failure.message}
             actionLabel={t('facility.retry')}
             onAction={() => facilityQuery.refetch()}
@@ -694,7 +699,13 @@ export default function FacilityDetailScreen() {
     : null;
 
   // "Facility information" — one row per scalar the payload actually carries.
-  const infoRows: { key: string; icon: IconName; tint?: Tint; label: string; value: string }[] = [
+  const infoRows: {
+    key: string;
+    icon: IconName;
+    tint?: Tint;
+    label: string;
+    value: string;
+  }[] = [
     {
       key: 'type',
       icon: facilityTypeIcon(facility.facility_type),
@@ -748,10 +759,14 @@ export default function FacilityDetailScreen() {
       key: 'roundTheClock',
       icon: 'clock',
       tint: 'green',
-      label: t('facility.roundTheClockLabel', { defaultValue: 'Round-the-clock' }),
+      label: t('facility.roundTheClockLabel', {
+        defaultValue: 'Round-the-clock',
+      }),
       value: allWeek24
         ? t('opesCare.facilityProfile.emergency247')
-        : t('facility.roundTheClockSomeDays', { defaultValue: '24 hours on some days' }),
+        : t('facility.roundTheClockSomeDays', {
+            defaultValue: '24 hours on some days',
+          }),
     });
   }
   // `care_facilities.integration_status` is `none | connected | read_only` —
@@ -786,7 +801,9 @@ export default function FacilityDetailScreen() {
       ? {
           key: 'phone2',
           icon: 'phone' as IconName,
-          title: t('facility.phoneSecondary', { defaultValue: 'Alternative phone' }),
+          title: t('facility.phoneSecondary', {
+            defaultValue: 'Alternative phone',
+          }),
           value: phoneSecondary,
           onPress: () => {
             const url = telUrl(phoneSecondary);
@@ -835,8 +852,7 @@ export default function FacilityDetailScreen() {
       ]
     : contactRows;
 
-  const refreshing =
-    facilityQuery.isRefetching || providersQuery.isRefetching || slotsQuery.isRefetching;
+  const refreshing = facilityQuery.isRefetching || providersQuery.isRefetching || slotsQuery.isRefetching;
 
   return (
     <Screen className="px-0">
@@ -875,12 +891,7 @@ export default function FacilityDetailScreen() {
                 {facility.facility_name}
               </Text>
               <View style={styles.tagRow}>
-                <StatusBadge
-                  status={facility.facility_type}
-                  tone="neutral"
-                  size="sm"
-                  label={typeLabel}
-                />
+                <StatusBadge status={facility.facility_type} tone="neutral" size="sm" label={typeLabel} />
                 {ownershipLabel ? (
                   <StatusBadge
                     status={facility.ownership_type as string}
@@ -925,7 +936,9 @@ export default function FacilityDetailScreen() {
                 scroll to. */}
             <CircleAction
               icon="send"
-              label={t('facility.directionsAction', { defaultValue: 'Directions' })}
+              label={t('facility.directionsAction', {
+                defaultValue: 'Directions',
+              })}
               disabled={!hasCoords}
               hint={
                 hasCoords
@@ -938,23 +951,14 @@ export default function FacilityDetailScreen() {
               }
               onPress={jumpToMap}
             />
-            <CircleAction
-              icon="mail"
-              label={t('facility.email')}
-              disabled={!facility.email}
-              onPress={emailFacility}
-            />
+            <CircleAction icon="mail" label={t('facility.email')} disabled={!facility.email} onPress={emailFacility} />
             <CircleAction
               icon="globe"
               label={t('facility.website')}
               disabled={!facility.website}
               onPress={openWebsite}
             />
-            <CircleAction
-              icon="share"
-              label={t('opesCare.facilityProfile.share')}
-              onPress={shareFacility}
-            />
+            <CircleAction icon="share" label={t('opesCare.facilityProfile.share')} onPress={shareFacility} />
           </View>
         </Card>
 
@@ -970,7 +974,9 @@ export default function FacilityDetailScreen() {
             icon={connected ? 'shield-check' : 'building'}
             title={
               connected
-                ? t('facilityRegistry.connectedTitle', { defaultValue: 'Connected to OpesCare' })
+                ? t('facilityRegistry.connectedTitle', {
+                    defaultValue: 'Connected to OpesCare',
+                  })
                 : t('facilityRegistry.directoryOnlyTitle', {
                     defaultValue: 'Public directory listing',
                   })
@@ -1001,11 +1007,7 @@ export default function FacilityDetailScreen() {
               </View>
             ) : slotsQuery.isError ? (
               <View style={styles.stack}>
-                <NoticeBanner
-                  tone="warning"
-                  icon="alert-triangle"
-                  message={t('facility.booking.errorBody')}
-                />
+                <NoticeBanner tone="warning" icon="alert-triangle" message={t('facility.booking.errorBody')} />
                 <CareButton
                   variant="secondary"
                   icon="refresh"
@@ -1067,20 +1069,20 @@ export default function FacilityDetailScreen() {
                     when: nextSlotLabel ?? '',
                   })}
                 />
-                <View style={styles.slotList}>
-                  {inlineSlots.map((slot, index) => (
-                    <ListRow
-                      key={slot.id}
-                      icon="clock"
-                      tint="blue"
-                      title={`${formatTime(slot.starts_at)} – ${formatTime(slot.ends_at)}`}
-                      meta={slotSubtitle(slot)}
-                      onPress={goToBooking}
-                      accessibilityHint={t('doctor.nextSlotsHint')}
-                      divider={index < inlineSlots.length - 1}
-                    />
+                <CardStack spacing="sm">
+                  {inlineSlots.map((slot) => (
+                    <Card key={slot.id} variant="flush">
+                      <ListRow
+                        icon="clock"
+                        tint="blue"
+                        title={`${formatTime(slot.starts_at)} – ${formatTime(slot.ends_at)}`}
+                        meta={slotSubtitle(slot)}
+                        onPress={goToBooking}
+                        accessibilityHint={t('doctor.nextSlotsHint')}
+                      />
+                    </Card>
                   ))}
-                </View>
+                </CardStack>
                 <GradientButton
                   label={t('facility.bookHere')}
                   onPress={goToBooking}
@@ -1116,7 +1118,9 @@ export default function FacilityDetailScreen() {
               <EmptyState
                 icon="location"
                 tint="amber"
-                title={t('facility.noLocationTitle', { defaultValue: 'No map location published' })}
+                title={t('facility.noLocationTitle', {
+                  defaultValue: 'No map location published',
+                })}
                 message={
                   address
                     ? t('facility.noLocationBodyWithAddress', {
@@ -1125,8 +1129,7 @@ export default function FacilityDetailScreen() {
                           'The register lists this facility at {{address}} but has no map coordinates for it, so it cannot be shown on the map.',
                       })
                     : t('facility.noLocationBody', {
-                        defaultValue:
-                          'The national register holds no map coordinates for this facility.',
+                        defaultValue: 'The national register holds no map coordinates for this facility.',
                       })
                 }
               />
@@ -1147,32 +1150,27 @@ export default function FacilityDetailScreen() {
         {/* ── Facility information ──────────────────────────────────── */}
         <View>
           <SectionHeader
-            title={t('facility.informationTitle', { defaultValue: 'Facility information' })}
+            title={t('facility.informationTitle', {
+              defaultValue: 'Facility information',
+            })}
             variant="overline"
           />
-          <Card variant="flush">
-            <View style={styles.rowsPad}>
-              {infoRows.map((row, index) => (
-                <InfoRow
-                  key={row.key}
-                  icon={row.icon}
-                  tint={row.tint ?? 'blue'}
-                  label={row.label}
-                  value={row.value}
-                  divider={index < infoRows.length - 1}
-                />
-              ))}
-            </View>
-          </Card>
+          <CardStack spacing="sm">
+            {infoRows.map((row) => (
+              <Card key={row.key} variant="flush">
+                <View style={styles.rowsPad}>
+                  <InfoRow icon={row.icon} tint={row.tint ?? 'blue'} label={row.label} value={row.value} />
+                </View>
+              </Card>
+            ))}
+          </CardStack>
         </View>
 
         {/* ── Doctors & specialists ─────────────────────────────────── */}
         <View>
           <SectionHeader
             title={
-              providers.length > 0
-                ? `${t('facility.doctorsTitle')} (${providers.length})`
-                : t('facility.doctorsTitle')
+              providers.length > 0 ? `${t('facility.doctorsTitle')} (${providers.length})` : t('facility.doctorsTitle')
             }
             variant="overline"
           />
@@ -1218,8 +1216,7 @@ export default function FacilityDetailScreen() {
                further down this screen stay flush. */
             <ResultList>
               {providers.map((provider) => {
-                const registered =
-                  provider.credentials.length > 0 || provider.licenses.length > 0;
+                const registered = provider.credentials.length > 0 || provider.licenses.length > 0;
                 return (
                   <Card key={provider.id} variant="flush">
                     <ListRow
@@ -1269,9 +1266,7 @@ export default function FacilityDetailScreen() {
         <View>
           <SectionHeader
             title={
-              services.length > 0
-                ? `${t('facility.servicesTitle')} (${services.length})`
-                : t('facility.servicesTitle')
+              services.length > 0 ? `${t('facility.servicesTitle')} (${services.length})` : t('facility.servicesTitle')
             }
             variant="overline"
           />
@@ -1280,16 +1275,13 @@ export default function FacilityDetailScreen() {
               <EmptyState icon="clipboard" title={t('facility.noServices')} />
             </Card>
           ) : (
-            <Card variant="flush">
+            <CardStack spacing="sm">
               {services.map((service, index) => (
-                <ServiceRow
-                  key={`${service.service_name}-${index}`}
-                  service={service}
-                  divider={index < services.length - 1}
-                  tr={tr}
-                />
+                <Card key={`${service.service_name}-${index}`} variant="flush">
+                  <ServiceRow service={service} tr={tr} />
+                </Card>
               ))}
-            </Card>
+            </CardStack>
           )}
         </View>
 
@@ -1311,21 +1303,21 @@ export default function FacilityDetailScreen() {
                       })}
                     </Text>
                   ) : null}
-                  <Card variant="flush">
-                    <View style={styles.rowsPad}>
-                      {group.rows.map((hour, index) => (
-                        <HourRow
-                          key={`${group.context ?? 'general'}-${hour.day_of_week}-${index}`}
-                          hour={hour}
-                          isToday={hour.day_of_week === todayIndex}
-                          divider={index < group.rows.length - 1}
-                          language={i18n.language}
-                          tr={tr}
-                          todayColor={colors.link}
-                        />
-                      ))}
-                    </View>
-                  </Card>
+                  <CardStack spacing="sm">
+                    {group.rows.map((hour, index) => (
+                      <Card key={`${group.context ?? 'general'}-${hour.day_of_week}-${index}`} variant="flush">
+                        <View style={styles.rowsPad}>
+                          <HourRow
+                            hour={hour}
+                            isToday={hour.day_of_week === todayIndex}
+                            language={i18n.language}
+                            tr={tr}
+                            todayColor={colors.link}
+                          />
+                        </View>
+                      </Card>
+                    ))}
+                  </CardStack>
                 </View>
               ))}
             </View>
@@ -1335,9 +1327,7 @@ export default function FacilityDetailScreen() {
         {/* ── Accepted insurance ────────────────────────────────────── */}
         <View>
           <SectionHeader title={t('facility.insurancesTitle')} variant="overline" />
-          {insurances.length > 0 ? (
-            <Text style={styles.hint}>{t('facility.insurancesSubtitle')}</Text>
-          ) : null}
+          {insurances.length > 0 ? <Text style={styles.hint}>{t('facility.insurancesSubtitle')}</Text> : null}
           {insurances.length === 0 ? (
             <Card>
               <EmptyState
@@ -1348,42 +1338,42 @@ export default function FacilityDetailScreen() {
               />
             </Card>
           ) : (
-            <Card variant="flush">
+            <CardStack spacing="sm">
               {insurances.map((insurance, index) => {
                 const status = insurance.status?.trim();
                 return (
-                  <ListRow
-                    key={`${insurance.insurance_name}-${index}`}
-                    icon="shield-check"
-                    tint="green"
-                    title={insurance.insurance_name}
-                    meta={[
-                      status
-                        ? t(`facility.insuranceStatus.${normalizeStatus(status)}`, {
-                            defaultValue: formatLabel(status),
-                          })
-                        : null,
-                      insurance.cashless_available === false
-                        ? t('facility.insuranceNoCashless', {
-                            defaultValue: 'Pay and claim back',
-                          })
-                        : null,
-                    ]}
-                    trailing={
-                      insurance.cashless_available ? (
-                        <StatusBadge
-                          status="cashless"
-                          tone="normal"
-                          size="sm"
-                          label={t('facility.insuranceCashless')}
-                        />
-                      ) : undefined
-                    }
-                    divider={index < insurances.length - 1}
-                  />
+                  <Card key={`${insurance.insurance_name}-${index}`} variant="flush">
+                    <ListRow
+                      icon="shield-check"
+                      tint="green"
+                      title={insurance.insurance_name}
+                      meta={[
+                        status
+                          ? t(`facility.insuranceStatus.${normalizeStatus(status)}`, {
+                              defaultValue: formatLabel(status),
+                            })
+                          : null,
+                        insurance.cashless_available === false
+                          ? t('facility.insuranceNoCashless', {
+                              defaultValue: 'Pay and claim back',
+                            })
+                          : null,
+                      ]}
+                      trailing={
+                        insurance.cashless_available ? (
+                          <StatusBadge
+                            status="cashless"
+                            tone="normal"
+                            size="sm"
+                            label={t('facility.insuranceCashless')}
+                          />
+                        ) : undefined
+                      }
+                    />
+                  </Card>
                 );
               })}
-            </Card>
+            </CardStack>
           )}
         </View>
 
@@ -1400,18 +1390,13 @@ export default function FacilityDetailScreen() {
               />
             </Card>
           ) : (
-            <Card variant="flush">
-              {renderedContactRows.map((row, index) => (
-                <ListRow
-                  key={row.key}
-                  icon={row.icon}
-                  title={row.title}
-                  subtitle={row.value}
-                  onPress={row.onPress}
-                  divider={index < renderedContactRows.length - 1}
-                />
+            <CardStack spacing="sm">
+              {renderedContactRows.map((row) => (
+                <Card key={row.key} variant="flush">
+                  <ListRow icon={row.icon} title={row.title} subtitle={row.value} onPress={row.onPress} />
+                </Card>
               ))}
-            </Card>
+            </CardStack>
           )}
         </View>
 
@@ -1424,10 +1409,23 @@ export default function FacilityDetailScreen() {
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     scroll: { flex: 1 },
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
-    center: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing.lg, gap: spacing.sm },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
+    center: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+      gap: spacing.sm,
+    },
 
-    identity: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md - 2 },
+    identity: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.md - 2,
+    },
     thumb: {
       width: 82,
       height: 82,
@@ -1488,7 +1486,12 @@ const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
     },
 
-    checking: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2, paddingVertical: 2 },
+    checking: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 2,
+      paddingVertical: 2,
+    },
     checkingText: {
       flex: 1,
       fontFamily: typography.fontFamily.regular,
@@ -1497,11 +1500,6 @@ const makeStyles = (colors: Palette) =>
     },
     stack: { gap: spacing.md },
     groupStack: { gap: spacing.sm + 2 },
-
-    // Inline slot rows sit inside a padded booking Card, so they claw the
-    // card's 16px inset back to reach the same edge-to-edge rhythm the
-    // `variant="flush"` list cards have.
-    slotList: { marginHorizontal: -spacing.md },
 
     rowsPad: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
 

@@ -1,13 +1,5 @@
 /** The step bodies of the booking wizard (app/appointments/book.tsx). */
-import {
-  ActivityIndicator,
-  FlatList,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { FacilityMap } from '@/components/map/FacilityMap';
 import {
   Card,
@@ -24,14 +16,7 @@ import {
   formatDateLong,
   formatTime,
 } from '@/components/opes-ui';
-import {
-  CareButton,
-  InfoRow,
-  NoticeBanner,
-  ProviderAvatar,
-  SummaryLine,
-  fmtDuration,
-} from '@/components/care/shared';
+import { CareButton, InfoRow, NoticeBanner, ProviderAvatar, SummaryLine, fmtDuration } from '@/components/care/shared';
 import {
   appointmentReference,
   statusIconOf,
@@ -59,7 +44,31 @@ import {
 import type { BookingFlowModel } from './useBookingFlow';
 
 export function FacilityStep({ vm }: { vm: BookingFlowModel }) {
-  const { t, router, colors, styles, step, searchInput, setSearchInput, appliedSearch, setAppliedSearch, typeFilter, setTypeFilter, scope, setScope, hydratedFromLink, facilitiesQuery, facilities, totalFacilities, registry, onViewableItemsChanged, viewabilityConfig, bookabilityByFacility, facilityTypeLabel, handleSelectFacility } = vm;
+  const {
+    t,
+    router,
+    colors,
+    styles,
+    step,
+    searchInput,
+    setSearchInput,
+    appliedSearch,
+    setAppliedSearch,
+    typeFilter,
+    setTypeFilter,
+    scope,
+    setScope,
+    hydratedFromLink,
+    facilitiesQuery,
+    facilities,
+    totalFacilities,
+    registry,
+    onViewableItemsChanged,
+    viewabilityConfig,
+    bookabilityByFacility,
+    facilityTypeLabel,
+    handleSelectFacility,
+  } = vm;
   return (
     <>
       {/* ── Step 1 · Facility ─────────────────────────────────────────── */}
@@ -89,7 +98,9 @@ export function FacilityStep({ vm }: { vm: BookingFlowModel }) {
             >
               <Chip
                 icon="calendar-check"
-                label={t('discovery.scope.bookable', { defaultValue: 'Bookable' })}
+                label={t('discovery.scope.bookable', {
+                  defaultValue: 'Bookable',
+                })}
                 count={registry?.bookable_total}
                 selected={scope === 'bookable'}
                 onPress={() => setScope('bookable')}
@@ -99,18 +110,21 @@ export function FacilityStep({ vm }: { vm: BookingFlowModel }) {
               />
               <Chip
                 icon="shield-check"
-                label={t('facilityRegistry.connectedOnly', { defaultValue: 'Connected' })}
+                label={t('facilityRegistry.connectedOnly', {
+                  defaultValue: 'Connected',
+                })}
                 count={registry?.connected_total}
                 selected={scope === 'connected'}
                 onPress={() => setScope('connected')}
                 accessibilityHint={t('facilityRegistry.connectedOnlyHint', {
-                  defaultValue:
-                    'Show only facilities that can publish clinicians and take bookings',
+                  defaultValue: 'Show only facilities that can publish clinicians and take bookings',
                 })}
               />
               <Chip
                 icon="grid"
-                label={t('facilityRegistry.allListings', { defaultValue: 'All listings' })}
+                label={t('facilityRegistry.allListings', {
+                  defaultValue: 'All listings',
+                })}
                 count={registry?.directory_total}
                 selected={scope === 'all'}
                 onPress={() => setScope('all')}
@@ -284,7 +298,9 @@ export function FacilityStep({ vm }: { vm: BookingFlowModel }) {
                     }
                   >
                     <CareButton
-                      label={t('facilityRegistry.connectedOnly', { defaultValue: 'Connected' })}
+                      label={t('facilityRegistry.connectedOnly', {
+                        defaultValue: 'Connected',
+                      })}
                       icon="shield-check"
                       variant="secondary"
                       onPress={() => setScope('connected')}
@@ -305,7 +321,9 @@ export function FacilityStep({ vm }: { vm: BookingFlowModel }) {
                   >
                     {scope === 'connected' ? (
                       <CareButton
-                        label={t('facilityRegistry.allListings', { defaultValue: 'All listings' })}
+                        label={t('facilityRegistry.allListings', {
+                          defaultValue: 'All listings',
+                        })}
                         icon="grid"
                         variant="secondary"
                         onPress={() => setScope('all')}
@@ -334,18 +352,29 @@ export function FacilityStep({ vm }: { vm: BookingFlowModel }) {
 }
 
 export function DoctorStep({ vm }: { vm: BookingFlowModel }) {
-  const { t, router, colors, styles, step, selectedFacility, providersQuery, providers, facilityIsUnlinked, facilityPhone, facilityTypeLabel, handleChangeFacility, handleSelectProvider, handleCallFacility } = vm;
+  const {
+    t,
+    router,
+    colors,
+    styles,
+    step,
+    selectedFacility,
+    providersQuery,
+    providers,
+    facilityIsUnlinked,
+    facilityPhone,
+    facilityTypeLabel,
+    handleChangeFacility,
+    handleSelectProvider,
+    handleCallFacility,
+  } = vm;
   return (
     <>
       {/* ── Step 2 · Clinician ────────────────────────────────────────────
           Optional and always skippable. Picking "any available clinician"
           leaves selectedProviderId null and the slot list unfiltered. */}
       {step === 'doctor' && selectedFacility ? (
-        <ScrollView
-          style={styles.fill}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView style={styles.fill} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <ChosenFacilityCard
             facility={selectedFacility}
             typeLabel={facilityTypeLabel(selectedFacility.facility_type)}
@@ -386,11 +415,7 @@ export function DoctorStep({ vm }: { vm: BookingFlowModel }) {
                   onPress={handleCallFacility}
                 />
               ) : null}
-              <GradientButton
-                label={t('appointments.book.chooseAnother')}
-                icon="none"
-                onPress={handleChangeFacility}
-              />
+              <GradientButton label={t('appointments.book.chooseAnother')} icon="none" onPress={handleChangeFacility} />
             </EmptyCard>
           ) : (
             <>
@@ -443,7 +468,9 @@ export function DoctorStep({ vm }: { vm: BookingFlowModel }) {
                 <>
                   <SectionHeader
                     variant="overline"
-                    title={t('appointments.book.cliniciansHeading', { count: providers.length })}
+                    title={t('appointments.book.cliniciansHeading', {
+                      count: providers.length,
+                    })}
                     style={styles.overline}
                   />
                   {providers.map((provider) => (
@@ -465,17 +492,42 @@ export function DoctorStep({ vm }: { vm: BookingFlowModel }) {
 }
 
 export function SlotStep({ vm }: { vm: BookingFlowModel }) {
-  const { t, locale, router, colors, styles, step, setStep, selectedFacility, selectedProviderId, setSelectedProviderId, days, selectedDate, setSelectedDate, selectedSlot, setSelectedSlot, slotsQuery, selectedProvider, facilityIsUnlinked, slotWindow, daySlots, slotGroups, daysWithSlots, nextSlotAhead, facilityHasSlotsOnDay, facilityPhone, facilityTypeLabel, handleChangeFacility, handleCallFacility } = vm;
+  const {
+    t,
+    locale,
+    router,
+    colors,
+    styles,
+    step,
+    setStep,
+    selectedFacility,
+    selectedProviderId,
+    setSelectedProviderId,
+    days,
+    selectedDate,
+    setSelectedDate,
+    selectedSlot,
+    setSelectedSlot,
+    slotsQuery,
+    selectedProvider,
+    facilityIsUnlinked,
+    slotWindow,
+    daySlots,
+    slotGroups,
+    daysWithSlots,
+    nextSlotAhead,
+    facilityHasSlotsOnDay,
+    facilityPhone,
+    facilityTypeLabel,
+    handleChangeFacility,
+    handleCallFacility,
+  } = vm;
   return (
     <>
       {/* ── Step 3 · Date & time ──────────────────────────────────────── */}
       {step === 'slot' && selectedFacility ? (
         <View style={styles.fill}>
-          <ScrollView
-            style={styles.fill}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.content}
-          >
+          <ScrollView style={styles.fill} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
             <ChosenFacilityCard
               facility={selectedFacility}
               typeLabel={facilityTypeLabel(selectedFacility.facility_type)}
@@ -501,9 +553,7 @@ export function SlotStep({ vm }: { vm: BookingFlowModel }) {
 
             <View style={styles.rowBetween}>
               <SectionHeader title={t('opesCare.slots.selectDate')} style={styles.rowHeader} />
-              <Text style={styles.monthLabel}>
-                {formatMonth(new Date(`${selectedDate}T12:00:00`), locale)}
-              </Text>
+              <Text style={styles.monthLabel}>{formatMonth(new Date(`${selectedDate}T12:00:00`), locale)}</Text>
             </View>
 
             <ScrollView
@@ -535,12 +585,7 @@ export function SlotStep({ vm }: { vm: BookingFlowModel }) {
                   >
                     <Text style={[styles.dayWeek, active && styles.dayTextOn]}>{weekdayLabel}</Text>
                     <Text style={[styles.dayDate, active && styles.dayTextOn]}>{day}</Text>
-                    <View
-                      style={[
-                        styles.dayDot,
-                        known && (active ? styles.dayDotOnActive : styles.dayDotOn),
-                      ]}
-                    />
+                    <View style={[styles.dayDot, known && (active ? styles.dayDotOnActive : styles.dayDotOn)]} />
                   </TouchableOpacity>
                 );
               })}
@@ -651,17 +696,13 @@ export function SlotStep({ vm }: { vm: BookingFlowModel }) {
                 {slotGroups.map((group) => (
                   <View key={group.period}>
                     <View style={styles.bucketHead}>
-                      <Icon
-                        name={PERIOD_META[group.period].icon}
-                        size={18}
-                        color={colors.statusWarning}
-                      />
-                      <Text style={styles.bucketLabel}>
-                        {t(`opesCare.slots.${PERIOD_META[group.period].key}`)}
-                      </Text>
+                      <Icon name={PERIOD_META[group.period].icon} size={18} color={colors.statusWarning} />
+                      <Text style={styles.bucketLabel}>{t(`opesCare.slots.${PERIOD_META[group.period].key}`)}</Text>
                       <View style={styles.bucketRule} />
                       <Text style={styles.bucketCount}>
-                        {t('appointments.book.slotsOpen', { count: group.slots.length })}
+                        {t('appointments.book.slotsOpen', {
+                          count: group.slots.length,
+                        })}
                       </Text>
                     </View>
                     <View style={styles.slotGrid}>
@@ -690,7 +731,9 @@ export function SlotStep({ vm }: { vm: BookingFlowModel }) {
                             accessibilityLabel={`${start} – ${end}`}
                             accessibilityHint={
                               scarce
-                                ? t('appointments.book.spotsLeft', { count: slot.available_count })
+                                ? t('appointments.book.spotsLeft', {
+                                    count: slot.available_count,
+                                  })
                                 : undefined
                             }
                             style={styles.slotChip}
@@ -743,7 +786,28 @@ export function SlotStep({ vm }: { vm: BookingFlowModel }) {
 }
 
 export function ConfirmStep({ vm }: { vm: BookingFlowModel }) {
-  const { t, patient, colors, styles, step, selectedFacility, selectedProviderId, selectedSlot, appointmentType, setAppointmentType, reason, setReason, bookMutation, selectedProvider, appointmentTypeLabel, handleConfirmBooking, handlePickAnotherTime, bookedDuration, bookingErrorKeyNow, facilityAddress } = vm;
+  const {
+    t,
+    patient,
+    colors,
+    styles,
+    step,
+    selectedFacility,
+    selectedProviderId,
+    selectedSlot,
+    appointmentType,
+    setAppointmentType,
+    reason,
+    setReason,
+    bookMutation,
+    selectedProvider,
+    appointmentTypeLabel,
+    handleConfirmBooking,
+    handlePickAnotherTime,
+    bookedDuration,
+    bookingErrorKeyNow,
+    facilityAddress,
+  } = vm;
   return (
     <>
       {/* ── Step 4 · Confirm ──────────────────────────────────────────── */}
@@ -787,11 +851,7 @@ export function ConfirmStep({ vm }: { vm: BookingFlowModel }) {
               the API accepts up to 1000 characters, so give it real room and
               show the budget rather than truncating silently. */}
           <Card>
-            <CardHead
-              icon="edit"
-              title={t('appointments.book.reasonLabel')}
-              hint={t('appointments.book.reasonHint')}
-            />
+            <CardHead icon="edit" title={t('appointments.book.reasonLabel')} hint={t('appointments.book.reasonHint')} />
             <TextInput
               style={styles.textarea}
               placeholder={t('appointments.book.reasonPlaceholder')}
@@ -813,8 +873,8 @@ export function ConfirmStep({ vm }: { vm: BookingFlowModel }) {
 
           <View>
             <SectionHeader title={t('appointments.book.reviewTitle')} />
-            <Card variant="flush">
-              <View style={styles.rows}>
+            <CardStack spacing="sm">
+              <Card variant="flush" style={styles.rows}>
                 <InfoRow
                   icon="building"
                   label={t('appointments.book.reviewFacility')}
@@ -823,21 +883,21 @@ export function ConfirmStep({ vm }: { vm: BookingFlowModel }) {
                       ? `${selectedFacility.facility_name} · ${facilityAddress(selectedFacility)}`
                       : selectedFacility.facility_name
                   }
-                  divider
                 />
+              </Card>
+              <Card variant="flush" style={styles.rows}>
                 <InfoRow
                   icon="stethoscope"
                   tint="purple"
                   label={t('appointments.book.reviewDoctor')}
                   value={
                     selectedProviderId
-                      ? [selectedProvider?.name ?? '—', selectedProvider?.job_title]
-                          .filter(Boolean)
-                          .join(' · ')
+                      ? [selectedProvider?.name ?? '—', selectedProvider?.job_title].filter(Boolean).join(' · ')
                       : t('appointments.book.anyDoctor')
                   }
-                  divider
                 />
+              </Card>
+              <Card variant="flush" style={styles.rows}>
                 <InfoRow
                   icon="calendar"
                   label={t('appointments.book.reviewDateTime')}
@@ -846,33 +906,33 @@ export function ConfirmStep({ vm }: { vm: BookingFlowModel }) {
                       ? `${formatFullDateTime(selectedSlot.starts_at)} (${fmtDuration(bookedDuration)})`
                       : formatFullDateTime(selectedSlot.starts_at)
                   }
-                  divider
                 />
+              </Card>
+              <Card variant="flush" style={styles.rows}>
                 <InfoRow
                   icon={typeIconOf(appointmentType)}
                   tint="green"
                   label={t('appointments.book.reviewType')}
                   value={appointmentTypeLabel(appointmentType)}
-                  divider={!!patient}
                 />
-                {patient ? (
-                  <InfoRow
-                    icon="id-card"
-                    label={t('appointments.book.reviewPatient')}
-                    value={patient.display_name}
+              </Card>
+              {patient ? (
+                <Card variant="flush" style={styles.rows}>
+                  <InfoRow icon="id-card" label={t('appointments.book.reviewPatient')} value={patient.display_name} />
+                </Card>
+              ) : null}
+              <Card variant="flush">
+                <View style={styles.summary}>
+                  <SummaryLine
+                    label={t('opesCare.review.reasonTitle')}
+                    value={reason.trim() || t('appointments.book.noReasonGiven')}
                   />
-                ) : null}
-              </View>
-              <View style={styles.summary}>
-                <SummaryLine
-                  label={t('opesCare.review.reasonTitle')}
-                  value={reason.trim() || t('appointments.book.noReasonGiven')}
-                />
-                {patient ? (
-                  <SummaryLine label={t('appointments.book.healthId')} value={patient.health_id} strong />
-                ) : null}
-              </View>
-            </Card>
+                  {patient ? (
+                    <SummaryLine label={t('appointments.book.healthId')} value={patient.health_id} strong />
+                  ) : null}
+                </View>
+              </Card>
+            </CardStack>
           </View>
 
           <NoticeBanner icon="info" tone="pending" message={t('appointments.book.confirmNote')} />
@@ -901,11 +961,7 @@ export function ConfirmStep({ vm }: { vm: BookingFlowModel }) {
           ) : null}
 
           <GradientButton
-            label={
-              bookMutation.isPending
-                ? t('appointments.book.booking')
-                : t('appointments.book.confirmButton')
-            }
+            label={bookMutation.isPending ? t('appointments.book.booking') : t('appointments.book.confirmButton')}
             onPress={handleConfirmBooking}
             loading={bookMutation.isPending}
             icon="none"
@@ -918,18 +974,32 @@ export function ConfirmStep({ vm }: { vm: BookingFlowModel }) {
 }
 
 export function SuccessStep({ vm }: { vm: BookingFlowModel }) {
-  const { t, router, patient, colors, styles, tt, step, selectedFacility, selectedSlot, bookedAppointment, selectedProvider, facilityPhone, appointmentTypeLabel, handleCallFacility, handleShareAppointment, bookedDuration, facilityAddress } = vm;
+  const {
+    t,
+    router,
+    patient,
+    colors,
+    styles,
+    tt,
+    step,
+    selectedFacility,
+    selectedSlot,
+    bookedAppointment,
+    selectedProvider,
+    facilityPhone,
+    appointmentTypeLabel,
+    handleCallFacility,
+    handleShareAppointment,
+    bookedDuration,
+    facilityAddress,
+  } = vm;
   return (
     <>
       {/* ── Success ───────────────────────────────────────────────────── */}
       {step === 'success' && bookedAppointment ? (
         <>
           <ScreenHeader title={t('opesCare.confirmed.title')} align="center" showBack={false} />
-          <ScrollView
-            style={styles.fill}
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-          >
+          <ScrollView style={styles.fill} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             <View style={styles.hero} accessibilityLiveRegion="polite">
               <View style={styles.heroMark}>
                 <Icon name="check" size={40} color={colors.statusNormal} />
@@ -940,89 +1010,83 @@ export function SuccessStep({ vm }: { vm: BookingFlowModel }) {
               <Text style={styles.heroText}>{t('appointments.book.confirmedBody')}</Text>
             </View>
 
-            <Card variant="flush">
-              <View style={styles.detailsHead}>
-                <Icon name="calendar" size={22} color={colors.blue} />
-                <Text style={styles.detailsTitle} accessibilityRole="header">
-                  {t('opesCare.confirmed.detailsTitle')}
-                </Text>
-                {/* The status the API actually assigned — `booked` until the
-                    facility acknowledges it — never an assumed "confirmed". */}
-                <StatusBadge
-                  status={bookedAppointment.status}
-                  tone={statusToneOf(bookedAppointment.status)}
-                  icon={statusIconOf(bookedAppointment.status)}
-                  size="sm"
-                  label={statusLabelOf(tt, bookedAppointment.status)}
-                />
-              </View>
-
-              <View style={styles.summary}>
-                <SummaryLine
-                  label={t('appointments.book.bookingIdLabel')}
-                  value={appointmentReference(bookedAppointment.id)}
-                  strong
-                />
-              </View>
-
-              {/* "Any available clinician" still books a real person — the API
-                  copies the locked slot's provider onto the appointment — so
-                  name them here even though the patient never picked them. */}
-              <View style={styles.providerRow}>
-                <ProviderAvatar
-                  name={
-                    selectedProvider?.name ??
-                    bookedAppointment.provider_name ??
-                    t('opesCare.appt.careTeam')
-                  }
-                  size={64}
-                />
-                <View style={styles.providerBody}>
-                  <Text style={styles.providerLabel}>{t('opesCare.confirmed.providerLabel')}</Text>
-                  <Text style={styles.providerName} numberOfLines={2}>
-                    {selectedProvider?.name ??
-                      bookedAppointment.provider_name ??
-                      t('opesCare.appt.providerTbd')}
+            <CardStack spacing="sm">
+              <Card variant="flush">
+                <View style={styles.detailsHead}>
+                  <Icon name="calendar" size={22} color={colors.blue} />
+                  <Text style={styles.detailsTitle} accessibilityRole="header">
+                    {t('opesCare.confirmed.detailsTitle')}
                   </Text>
-                  {!!selectedProvider?.job_title && (
-                    <Text style={styles.providerSpecialty}>{selectedProvider.job_title}</Text>
-                  )}
-                  <View style={styles.metaRow}>
-                    <Icon name="building" size={15} color={colors.textSecondary} />
-                    <Text style={styles.meta} numberOfLines={1}>
-                      {bookedAppointment.facility_name ??
-                        selectedFacility?.facility_name ??
-                        t('opesCare.appt.facilityTbd')}
-                    </Text>
-                  </View>
-                  {selectedFacility && facilityAddress(selectedFacility) ? (
-                    <View style={styles.metaRow}>
-                      <Icon name="location" size={15} color={colors.textSecondary} />
-                      <Text style={styles.meta} numberOfLines={1}>
-                        {facilityAddress(selectedFacility)}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              </View>
-              {selectedProvider ? (
-                <View style={styles.cardFoot}>
-                  <LinkAction
-                    label={t('appointments.book.viewDoctorProfile')}
-                    onPress={() => router.push(`/doctor/${selectedProvider.id}`)}
+                  {/* The status the API actually assigned — `booked` until the
+                    facility acknowledges it — never an assumed "confirmed". */}
+                  <StatusBadge
+                    status={bookedAppointment.status}
+                    tone={statusToneOf(bookedAppointment.status)}
+                    icon={statusIconOf(bookedAppointment.status)}
+                    size="sm"
+                    label={statusLabelOf(tt, bookedAppointment.status)}
                   />
                 </View>
-              ) : null}
 
-              <View style={styles.rows}>
+                <View style={styles.summary}>
+                  <SummaryLine
+                    label={t('appointments.book.bookingIdLabel')}
+                    value={appointmentReference(bookedAppointment.id)}
+                    strong
+                  />
+                </View>
+
+                {/* "Any available clinician" still books a real person — the API
+                  copies the locked slot's provider onto the appointment — so
+                  name them here even though the patient never picked them. */}
+                <View style={styles.providerRow}>
+                  <ProviderAvatar
+                    name={selectedProvider?.name ?? bookedAppointment.provider_name ?? t('opesCare.appt.careTeam')}
+                    size={64}
+                  />
+                  <View style={styles.providerBody}>
+                    <Text style={styles.providerLabel}>{t('opesCare.confirmed.providerLabel')}</Text>
+                    <Text style={styles.providerName} numberOfLines={2}>
+                      {selectedProvider?.name ?? bookedAppointment.provider_name ?? t('opesCare.appt.providerTbd')}
+                    </Text>
+                    {!!selectedProvider?.job_title && (
+                      <Text style={styles.providerSpecialty}>{selectedProvider.job_title}</Text>
+                    )}
+                    <View style={styles.metaRow}>
+                      <Icon name="building" size={15} color={colors.textSecondary} />
+                      <Text style={styles.meta} numberOfLines={1}>
+                        {bookedAppointment.facility_name ??
+                          selectedFacility?.facility_name ??
+                          t('opesCare.appt.facilityTbd')}
+                      </Text>
+                    </View>
+                    {selectedFacility && facilityAddress(selectedFacility) ? (
+                      <View style={styles.metaRow}>
+                        <Icon name="location" size={15} color={colors.textSecondary} />
+                        <Text style={styles.meta} numberOfLines={1}>
+                          {facilityAddress(selectedFacility)}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+                {selectedProvider ? (
+                  <View style={styles.cardFoot}>
+                    <LinkAction
+                      label={t('appointments.book.viewDoctorProfile')}
+                      onPress={() => router.push(`/doctor/${selectedProvider.id}`)}
+                    />
+                  </View>
+                ) : null}
+              </Card>
+              <Card variant="flush" style={styles.rows}>
                 <InfoRow
                   icon="calendar"
                   label={t('opesCare.confirmed.labelDate')}
-                  value={
-                    bookedAppointment.scheduled_at ? formatDateLong(bookedAppointment.scheduled_at) : '—'
-                  }
-                  divider
+                  value={bookedAppointment.scheduled_at ? formatDateLong(bookedAppointment.scheduled_at) : '—'}
                 />
+              </Card>
+              <Card variant="flush" style={styles.rows}>
                 <InfoRow
                   icon="clock"
                   label={t('opesCare.confirmed.labelTime')}
@@ -1035,30 +1099,33 @@ export function SuccessStep({ vm }: { vm: BookingFlowModel }) {
                         : formatTime(bookedAppointment.scheduled_at)
                       : '—'
                   }
-                  divider
                 />
+              </Card>
+              <Card variant="flush" style={styles.rows}>
                 <InfoRow
                   icon={typeIconOf(bookedAppointment.appointment_type)}
                   tint="green"
                   label={t('opesCare.confirmed.labelType')}
                   value={appointmentTypeLabel(bookedAppointment.appointment_type)}
-                  divider
                 />
+              </Card>
+              <Card variant="flush" style={styles.rows}>
                 <InfoRow
                   icon="edit"
                   label={t('opesCare.confirmed.labelReason')}
                   value={bookedAppointment.reason ?? t('opesCare.appt.notSpecified')}
-                  divider={!!patient}
                 />
-                {patient ? (
+              </Card>
+              {patient ? (
+                <Card variant="flush" style={styles.rows}>
                   <InfoRow
                     icon="id-card"
                     label={t('appointments.book.reviewPatient')}
                     value={`${patient.display_name} · ${t('appointments.book.healthId')} ${patient.health_id}`}
                   />
-                ) : null}
-              </View>
-            </Card>
+                </Card>
+              ) : null}
+            </CardStack>
 
             <NoticeBanner
               icon="info"

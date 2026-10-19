@@ -85,26 +85,66 @@ const FEED_META: Record<FeedType, { icon: IconName; tint: Tint }> = {
 };
 
 const VITAL_META: Record<VitalKey, { labelKey: string; fallback: string; icon: IconName }> = {
-  heart_rate: { labelKey: 'opesRecords.vitals.pulse', fallback: 'Pulse', icon: 'heart-rate' },
-  blood_pressure: { labelKey: 'opesRecords.vitals.bloodPressure', fallback: 'Blood pressure', icon: 'heart-pulse' },
-  blood_sugar: { labelKey: 'opesRecords.vitals.bloodSugar', fallback: 'Blood sugar', icon: 'droplet' },
-  oxygen_saturation: { labelKey: 'opesRecords.vitals.oxygenLevel', fallback: 'Oxygen level', icon: 'lungs' },
+  heart_rate: {
+    labelKey: 'opesRecords.vitals.pulse',
+    fallback: 'Pulse',
+    icon: 'heart-rate',
+  },
+  blood_pressure: {
+    labelKey: 'opesRecords.vitals.bloodPressure',
+    fallback: 'Blood pressure',
+    icon: 'heart-pulse',
+  },
+  blood_sugar: {
+    labelKey: 'opesRecords.vitals.bloodSugar',
+    fallback: 'Blood sugar',
+    icon: 'droplet',
+  },
+  oxygen_saturation: {
+    labelKey: 'opesRecords.vitals.oxygenLevel',
+    fallback: 'Oxygen level',
+    icon: 'lungs',
+  },
   // No thermometer glyph in the kit set yet — `activity` stands in.
-  temperature: { labelKey: 'opesRecords.vitals.temperature', fallback: 'Temperature', icon: 'activity' },
-  respiratory_rate: { labelKey: 'opesRecords.vitals.breathingRate', fallback: 'Breathing rate', icon: 'lungs' },
+  temperature: {
+    labelKey: 'opesRecords.vitals.temperature',
+    fallback: 'Temperature',
+    icon: 'activity',
+  },
+  respiratory_rate: {
+    labelKey: 'opesRecords.vitals.breathingRate',
+    fallback: 'Breathing rate',
+    icon: 'lungs',
+  },
 };
 
 /** Advisory band for a vital — the API flags, a human decides. */
-function vitalBand(status: VitalStatus): { tone: StatusTone; tint: Tint; labelKey: string | null } {
+function vitalBand(status: VitalStatus): {
+  tone: StatusTone;
+  tint: Tint;
+  labelKey: string | null;
+} {
   switch (status) {
     case 'normal':
-      return { tone: 'normal', tint: 'green', labelKey: 'opesRecords.vitals.bandInRange' };
+      return {
+        tone: 'normal',
+        tint: 'green',
+        labelKey: 'opesRecords.vitals.bandInRange',
+      };
     case 'critical':
-      return { tone: 'critical', tint: 'red', labelKey: 'opesRecords.vitals.bandWellOutside' };
+      return {
+        tone: 'critical',
+        tint: 'red',
+        labelKey: 'opesRecords.vitals.bandWellOutside',
+      };
     case 'low':
     case 'high':
     case 'abnormal':
-      return { tone: 'warning', tint: 'amber', labelKey: 'opesRecords.vitals.bandOutside' };
+      return {
+        tone: 'warning',
+        tint: 'amber',
+        labelKey: 'opesRecords.vitals.bandOutside',
+      };
     default:
       return { tone: 'neutral', tint: 'blue', labelKey: null };
   }
@@ -204,9 +244,7 @@ export default function RecordsScreen() {
       } else if (ev.event_type === 'prescription') {
         // "3 item(s)" — recover the real count so it can be pluralised properly.
         const n = tail ? Number.parseInt(tail, 10) : Number.NaN;
-        descriptor =
-          ev.detail_label ??
-          (Number.isNaN(n) ? tail : t('records.item.prescriptionItems', { count: n }));
+        descriptor = ev.detail_label ?? (Number.isNaN(n) ? tail : t('records.item.prescriptionItems', { count: n }));
         href = `/prescriptions/${ev.id}`;
         actionLabel = t('records.action.viewPrescription');
       } else {
@@ -255,8 +293,16 @@ export default function RecordsScreen() {
         subtitle={t('records.subtitle')}
         showBack={false}
         actions={[
-          { icon: 'download', onPress: () => router.push('/export-records'), accessibilityLabel: t('records.exportA11y') },
-          { icon: 'upload', onPress: () => router.push('/import-records'), accessibilityLabel: t('importRecords.importA11y') },
+          {
+            icon: 'download',
+            onPress: () => router.push('/export-records'),
+            accessibilityLabel: t('records.exportA11y'),
+          },
+          {
+            icon: 'upload',
+            onPress: () => router.push('/import-records'),
+            accessibilityLabel: t('importRecords.importA11y'),
+          },
         ]}
       />
       <ScrollView
@@ -266,7 +312,12 @@ export default function RecordsScreen() {
       >
         {bloodGroup ? (
           <View style={s.badgeRow}>
-            <StatusBadge status="blood-group" tone="critical" icon="droplet" label={t('records.bloodGroup', { group: bloodGroup })} />
+            <StatusBadge
+              status="blood-group"
+              tone="critical"
+              icon="droplet"
+              label={t('records.bloodGroup', { group: bloodGroup })}
+            />
           </View>
         ) : null}
 
@@ -321,7 +372,9 @@ export default function RecordsScreen() {
                     icon="clipboard"
                     tint="blue"
                     title={t('carePlans.title')}
-                    subtitle={t('opesRecords.hub.carePlansHint', { defaultValue: 'Goals and next steps from your care team' })}
+                    subtitle={t('opesRecords.hub.carePlansHint', {
+                      defaultValue: 'Goals and next steps from your care team',
+                    })}
                     onPress={() => router.push('/care-plans')}
                   />
                 </Card>
@@ -355,21 +408,31 @@ export default function RecordsScreen() {
                     {allergyRows.length === 0 ? (
                       <EmptyState icon="alert-triangle" tint="red" title={t('opesRecords.allergies.empty')} />
                     ) : (
-                      limit(allergyRows, 'allergies').map((a, i, arr) => (
+                      limit(allergyRows, 'allergies').map((a) => (
                         <ListRow
                           key={a.id}
                           icon="alert-triangle"
                           tint="red"
                           title={a.substance}
-                          meta={[a.recorded ? t('records.item.recordedOn', { date: formatDate(a.recorded, '') }) : null]}
+                          meta={[
+                            a.recorded
+                              ? t('records.item.recordedOn', {
+                                  date: formatDate(a.recorded, ''),
+                                })
+                              : null,
+                          ]}
                           trailing={
                             a.severity ? (
-                              <StatusBadge status={a.severity} tone={severityTone(a.severity)} label={enumLabel('status', a.severity) ?? ''} size="sm" />
+                              <StatusBadge
+                                status={a.severity}
+                                tone={severityTone(a.severity)}
+                                label={enumLabel('status', a.severity) ?? ''}
+                                size="sm"
+                              />
                             ) : (
                               <StatusBadge status={a.status} label={enumLabel('status', a.status) ?? ''} size="sm" />
                             )
                           }
-                          divider={i < arr.length - 1}
                         />
                       ))
                     )}
@@ -387,7 +450,7 @@ export default function RecordsScreen() {
                     {conditionRows.length === 0 ? (
                       <EmptyState icon="activity" tint="amber" title={t('opesRecords.diagnoses.empty')} />
                     ) : (
-                      limit(conditionRows, 'conditions').map((c, i, arr) => (
+                      limit(conditionRows, 'conditions').map((c) => (
                         <ListRow
                           key={c.id}
                           icon="activity"
@@ -395,10 +458,15 @@ export default function RecordsScreen() {
                           title={c.display_name}
                           meta={[
                             c.code ? `${c.code_system ? `${c.code_system} ` : ''}${c.code}` : null,
-                            c.recorded ? t('records.item.recordedOn', { date: formatDate(c.recorded, '') }) : null,
+                            c.recorded
+                              ? t('records.item.recordedOn', {
+                                  date: formatDate(c.recorded, ''),
+                                })
+                              : null,
                           ]}
-                          trailing={<StatusBadge status={c.status} label={enumLabel('status', c.status) ?? ''} size="sm" />}
-                          divider={i < arr.length - 1}
+                          trailing={
+                            <StatusBadge status={c.status} label={enumLabel('status', c.status) ?? ''} size="sm" />
+                          }
                         />
                       ))
                     )}
@@ -416,20 +484,27 @@ export default function RecordsScreen() {
                     {immunizationRows.length === 0 ? (
                       <EmptyState icon="syringe" tint="green" title={t('opesRecords.immunizations.empty')} />
                     ) : (
-                      limit(immunizationRows, 'immunizations').map((im, i, arr) => (
+                      limit(immunizationRows, 'immunizations').map((im) => (
                         <ListRow
                           key={im.id}
                           icon="syringe"
                           tint="green"
                           title={im.vaccine_name}
                           meta={[
-                            im.dose_number ? t('opesRecords.immunizations.dose', { number: im.dose_number }) : null,
+                            im.dose_number
+                              ? t('opesRecords.immunizations.dose', {
+                                  number: im.dose_number,
+                                })
+                              : null,
                             im.administered_at
-                              ? t('opesRecords.immunizations.given', { date: formatDate(im.administered_at, '') })
+                              ? t('opesRecords.immunizations.given', {
+                                  date: formatDate(im.administered_at, ''),
+                                })
                               : null,
                           ]}
-                          trailing={<StatusBadge status={im.status} label={enumLabel('status', im.status) ?? ''} size="sm" />}
-                          divider={i < arr.length - 1}
+                          trailing={
+                            <StatusBadge status={im.status} label={enumLabel('status', im.status) ?? ''} size="sm" />
+                          }
                         />
                       ))
                     )}
@@ -440,24 +515,26 @@ export default function RecordsScreen() {
                 {vitalRows.length > 0 ? (
                   <View>
                     <SectionHeader title={t('opesRecords.vitals.title')} />
-                    <Card variant="flush">
-                      {vitalRows.map((m, i) => {
+                    <CardStack spacing="sm">
+                      {vitalRows.map((m) => {
                         const meta = VITAL_META[m.key] ?? VITAL_META.heart_rate;
                         const band = vitalBand(m.status);
                         return (
-                          <ListRow
-                            key={m.key}
-                            icon={meta.icon}
-                            tint={band.tint}
-                            title={t(meta.labelKey, { defaultValue: meta.fallback })}
-                            meta={[band.labelKey ? t(band.labelKey) : null, formatDate(m.recorded_at, '')]}
-                            value={`${m.value}${m.unit ? ` ${m.unit}` : ''}`}
-                            valueColor={band.tone === 'neutral' ? colors.textPrimary : statusMap[band.tone].fg}
-                            divider={i < vitalRows.length - 1}
-                          />
+                          <Card key={m.key} variant="flush">
+                            <ListRow
+                              icon={meta.icon}
+                              tint={band.tint}
+                              title={t(meta.labelKey, {
+                                defaultValue: meta.fallback,
+                              })}
+                              meta={[band.labelKey ? t(band.labelKey) : null, formatDate(m.recorded_at, '')]}
+                              value={`${m.value}${m.unit ? ` ${m.unit}` : ''}`}
+                              valueColor={band.tone === 'neutral' ? colors.textPrimary : statusMap[band.tone].fg}
+                            />
+                          </Card>
                         );
                       })}
-                    </Card>
+                    </CardStack>
                   </View>
                 ) : null}
 
@@ -485,7 +562,6 @@ export default function RecordsScreen() {
                             meta={[item.descriptor, item.facility ?? t('records.item.unknownFacility'), item.dateLabel]}
                             onPress={item.href ? () => router.push(item.href as string) : undefined}
                             accessibilityHint={item.actionLabel ?? undefined}
-                            divider={false}
                           />
                         );
                       })
@@ -572,7 +648,17 @@ function Section({
           )}
         </ResultList>
       ) : (
-        <Card variant="flush">{children}</Card>
+        <CardStack spacing="sm">
+          {React.Children.map(children, (child, index) =>
+            React.isValidElement(child) ? (
+              <Card key={index} variant="flush">
+                {child}
+              </Card>
+            ) : (
+              child
+            ),
+          )}
+        </CardStack>
       )}
     </View>
   );
@@ -587,9 +673,21 @@ function Section({
 function EmptyRecord({ onFindCare, onBook }: { onFindCare: () => void; onBook: () => void }) {
   const { t } = useTranslation();
   const steps: { icon: IconName; title: string; body: string }[] = [
-    { icon: 'building', title: t('records.empty.step1Title'), body: t('records.empty.step1Body') },
-    { icon: 'stethoscope', title: t('records.empty.step2Title'), body: t('records.empty.step2Body') },
-    { icon: 'heart-pulse', title: t('records.empty.step3Title'), body: t('records.empty.step3Body') },
+    {
+      icon: 'building',
+      title: t('records.empty.step1Title'),
+      body: t('records.empty.step1Body'),
+    },
+    {
+      icon: 'stethoscope',
+      title: t('records.empty.step2Title'),
+      body: t('records.empty.step2Body'),
+    },
+    {
+      icon: 'heart-pulse',
+      title: t('records.empty.step3Title'),
+      body: t('records.empty.step3Body'),
+    },
   ];
   return (
     <>
@@ -605,11 +703,13 @@ function EmptyRecord({ onFindCare, onBook }: { onFindCare: () => void; onBook: (
       </Card>
       <View>
         <SectionHeader title={t('records.empty.stepsHeading')} />
-        <Card variant="flush">
-          {steps.map((step, i) => (
-            <StepRow key={step.title} icon={step.icon} title={step.title} body={step.body} divider={i < steps.length - 1} />
+        <CardStack spacing="sm">
+          {steps.map((step) => (
+            <Card key={step.title} variant="flush">
+              <StepRow icon={step.icon} title={step.title} body={step.body} />
+            </Card>
           ))}
-        </Card>
+        </CardStack>
       </View>
       <CareButton variant="secondary" icon="calendar" label={t('records.empty.bookVisit')} onPress={onBook} />
     </>
@@ -617,12 +717,12 @@ function EmptyRecord({ onFindCare, onBook }: { onFindCare: () => void; onBook: (
 }
 
 /** A §8 row whose body is allowed to wrap — explanatory prose, not a record. */
-function StepRow({ icon, title, body, divider }: { icon: IconName; title: string; body: string; divider: boolean }) {
+function StepRow({ icon, title, body }: { icon: IconName; title: string; body: string }) {
   const { colors, tintMap } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const tint = tintMap.blue;
   return (
-    <View style={[s.stepRow, divider && s.rowDivider]} accessible accessibilityLabel={`${title}. ${body}`}>
+    <View style={s.stepRow} accessible accessibilityLabel={`${title}. ${body}`}>
       <View style={s.stepMark}>
         <Icon name={icon} size={26} color={tint.fg} />
       </View>
@@ -639,10 +739,13 @@ function StepRow({ icon, title, body, divider }: { icon: IconName; title: string
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xl,
+    },
     badgeRow: { flexDirection: 'row' },
 
-    rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
     stepRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',

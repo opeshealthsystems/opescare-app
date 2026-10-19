@@ -28,6 +28,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   Icon,
@@ -69,7 +70,10 @@ const TYPE_META: Record<string, { icon: IconName; tint: Tint }> = {
   MC: { icon: 'check-circle', tint: 'blue' },
   ICV: { icon: 'syringe', tint: 'green' },
 };
-const DEFAULT_META: { icon: IconName; tint: Tint } = { icon: 'document', tint: 'blue' };
+const DEFAULT_META: { icon: IconName; tint: Tint } = {
+  icon: 'document',
+  tint: 'blue',
+};
 
 type NoticeTone = 'pending' | 'warning' | 'critical' | 'normal';
 type Notice = { tone: NoticeTone; message: string };
@@ -95,8 +99,7 @@ export default function DocumentsScreen() {
   const documents = useMemo(() => library.data?.documents ?? [], [library.data]);
   const total = library.data?.total ?? 0;
 
-  const typeLabel = (type: string) =>
-    t(`documents.type.${type}`, { defaultValue: t('documents.type.other') });
+  const typeLabel = (type: string) => t(`documents.type.${type}`, { defaultValue: t('documents.type.other') });
 
   /** Distinct types present, with their counts — only offered once there is
    * genuinely something to narrow down. */
@@ -152,7 +155,11 @@ export default function DocumentsScreen() {
     setBusy('download');
     try {
       await downloadPdfWithRefresh(
-        { url: doc.download_url, filename: doc.document_number ?? doc.title, shareTitle: doc.title },
+        {
+          url: doc.download_url,
+          filename: doc.document_number ?? doc.title,
+          shareTitle: doc.title,
+        },
         async () => {
           const fresh = await library.refetch();
           return fresh.data?.documents.find((d) => d.id === doc.id)?.download_url ?? null;
@@ -214,7 +221,13 @@ export default function DocumentsScreen() {
           title={t('opesDocs.preview.title')}
           align="center"
           onBack={closePreview}
-          actions={[{ icon: 'lock', onPress: () => router.push('/privacy'), accessibilityLabel: t('documents.manageAccess') }]}
+          actions={[
+            {
+              icon: 'lock',
+              onPress: () => router.push('/privacy'),
+              accessibilityLabel: t('documents.manageAccess'),
+            },
+          ]}
         />
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
           <PreviewPanel
@@ -240,7 +253,13 @@ export default function DocumentsScreen() {
       <ScreenHeader
         title={t('documents.title')}
         subtitle={t('documents.subtitle')}
-        actions={[{ icon: 'lock', onPress: () => router.push('/privacy'), accessibilityLabel: t('documents.manageAccess') }]}
+        actions={[
+          {
+            icon: 'lock',
+            onPress: () => router.push('/privacy'),
+            accessibilityLabel: t('documents.manageAccess'),
+          },
+        ]}
       />
       <ScrollView
         contentContainerStyle={s.content}
@@ -254,7 +273,12 @@ export default function DocumentsScreen() {
           />
         }
       >
-        <NoticeBanner icon="shield-check" tone="normal" title={t('documents.verifiedTitle')} message={t('documents.verifiedBody')} />
+        <NoticeBanner
+          icon="shield-check"
+          tone="normal"
+          title={t('documents.verifiedTitle')}
+          message={t('documents.verifiedBody')}
+        />
         {notice ? <NoticeBanner icon="alert-circle" tone={notice.tone} message={notice.message} /> : null}
 
         <AsyncBoundary
@@ -314,7 +338,11 @@ export default function DocumentsScreen() {
 
               <SectionHeader
                 variant="overline"
-                title={isNarrowed ? t('documents.matchLabel', { count: visible.length }) : t('documents.countLabel', { count: total })}
+                title={
+                  isNarrowed
+                    ? t('documents.matchLabel', { count: visible.length })
+                    : t('documents.countLabel', { count: total })
+                }
                 style={s.listHeader}
               />
 
@@ -343,7 +371,14 @@ export default function DocumentsScreen() {
                           tint={meta.tint}
                           title={doc.title}
                           meta={[doc.facility_name, doc.issued_at ? fmtDocDate(doc.issued_at) : null]}
-                          trailing={<StatusBadge status={doc.document_type} tone="neutral" label={typeLabel(doc.document_type)} size="sm" />}
+                          trailing={
+                            <StatusBadge
+                              status={doc.document_type}
+                              tone="neutral"
+                              label={typeLabel(doc.document_type)}
+                              size="sm"
+                            />
+                          }
                           onPress={() => openPreview(doc)}
                           accessibilityHint={t('documents.view')}
                           divider={false}
@@ -437,12 +472,7 @@ function PreviewPanel({
             its verification is minted at the moment it is downloaded, so
             "pending" would be a status invented for it. */}
         {doc.download_url ? (
-          <StatusBadge
-            status="on_demand"
-            tone="normal"
-            icon="refresh"
-            label={t('documents.onDemandBadge')}
-          />
+          <StatusBadge status="on_demand" tone="normal" icon="refresh" label={t('documents.onDemandBadge')} />
         ) : (
           <StatusBadge
             status={verified ? 'verified' : 'pending'}
@@ -496,99 +526,133 @@ function PreviewPanel({
       </Card>
 
       {/* Details */}
-      <Card variant="flush">
-        <View style={s.rows}>
-          <InfoRow
-            icon="building"
-            tint="blue"
-            label={t('opesDocs.detail.facility', { defaultValue: 'Issuing facility' })}
-            value={doc.facility_name ?? t('opesCore.common.notRecorded')}
-            divider
-          />
-          <InfoRow
-            icon="calendar"
-            tint="blue"
-            label={t('opesDocs.detail.issued', { defaultValue: 'Issued' })}
-            value={issued || t('opesCore.common.notRecorded')}
-            divider={!!doc.document_number || !!doc.verification_code || !!detail?.expires_at}
-          />
-          {doc.document_number ? (
+      <CardStack spacing="sm">
+        <Card variant="flush">
+          <View style={s.rows}>
             <InfoRow
-              icon="document"
+              icon="building"
               tint="blue"
-              label={t('opesDocs.detail.reference', { defaultValue: 'Reference number' })}
-              value={doc.document_number}
-              divider={!!doc.verification_code || !!detail?.expires_at}
+              label={t('opesDocs.detail.facility', {
+                defaultValue: 'Issuing facility',
+              })}
+              value={doc.facility_name ?? t('opesCore.common.notRecorded')}
             />
-          ) : null}
-          {doc.verification_code ? (
+          </View>
+        </Card>
+        <Card variant="flush">
+          <View style={s.rows}>
             <InfoRow
-              icon="shield-check"
-              tint="green"
-              label={t('documents.verificationCode')}
-              value={doc.verification_code}
-              divider={!!detail?.expires_at}
+              icon="calendar"
+              tint="blue"
+              label={t('opesDocs.detail.issued', { defaultValue: 'Issued' })}
+              value={issued || t('opesCore.common.notRecorded')}
             />
-          ) : null}
-          {detail?.expires_at ? (
-            <InfoRow
-              icon="clock"
-              tint="amber"
-              label={t('opesDocs.detail.expires', { defaultValue: 'Valid until' })}
-              value={fmtDocDate(detail.expires_at)}
-            />
-          ) : null}
-        </View>
-      </Card>
+          </View>
+        </Card>
+        {doc.document_number ? (
+          <Card variant="flush">
+            <View style={s.rows}>
+              <InfoRow
+                icon="document"
+                tint="blue"
+                label={t('opesDocs.detail.reference', {
+                  defaultValue: 'Reference number',
+                })}
+                value={doc.document_number}
+              />
+            </View>
+          </Card>
+        ) : null}
+        {doc.verification_code ? (
+          <Card variant="flush">
+            <View style={s.rows}>
+              <InfoRow
+                icon="shield-check"
+                tint="green"
+                label={t('documents.verificationCode')}
+                value={doc.verification_code}
+              />
+            </View>
+          </Card>
+        ) : null}
+        {detail?.expires_at ? (
+          <Card variant="flush">
+            <View style={s.rows}>
+              <InfoRow
+                icon="clock"
+                tint="amber"
+                label={t('opesDocs.detail.expires', {
+                  defaultValue: 'Valid until',
+                })}
+                value={fmtDocDate(detail.expires_at)}
+              />
+            </View>
+          </Card>
+        ) : null}
+      </CardStack>
 
       {/* Actions */}
-      <Card variant="flush">
+      <CardStack spacing="sm">
         {doc.download_url ? (
-          <ListRow
-            icon="download"
-            tint="green"
-            title={t('documents.download')}
-            subtitle={t('documents.downloadSub')}
-            onPress={busy ? undefined : onDownload}
-            chevron={busy !== 'download'}
-            trailing={busy === 'download' ? <ActivityIndicator size="small" color={colors.blue} /> : undefined}
-          />
+          <Card variant="flush">
+            <ListRow
+              icon="download"
+              tint="green"
+              title={t('documents.download')}
+              subtitle={t('documents.downloadSub')}
+              onPress={busy ? undefined : onDownload}
+              chevron={busy !== 'download'}
+              trailing={busy === 'download' ? <ActivityIndicator size="small" color={colors.blue} /> : undefined}
+            />
+          </Card>
         ) : null}
-        {doc.download_url ? null : <ListRow
-          icon="external-link"
-          tint="blue"
-          title={t('documents.view')}
-          subtitle={t('opesDocs.preview.openSub', { defaultValue: 'Opens the sealed original with its verification link' })}
-          onPress={busy ? undefined : onOpen}
-          chevron={busy !== 'open'}
-          trailing={busy === 'open' ? <ActivityIndicator size="small" color={colors.blue} /> : undefined}
-          divider
-        />}
-        {doc.download_url ? null : <ListRow
-          icon="share"
-          tint="blue"
-          title={t('opesDocs.preview.shareTitle')}
-          subtitle={t('opesDocs.preview.shareSub')}
-          onPress={busy ? undefined : onShare}
-          chevron={busy !== 'share'}
-          trailing={busy === 'share' ? <ActivityIndicator size="small" color={colors.blue} /> : undefined}
-          divider
-        />}
-        <ListRow
-          icon="lock"
-          tint="purple"
-          title={t('documents.manageAccess')}
-          subtitle={t('documents.privacyBlockBody')}
-          onPress={onManageAccess}
-        />
-      </Card>
+        {doc.download_url ? null : (
+          <Card variant="flush">
+            <ListRow
+              icon="external-link"
+              tint="blue"
+              title={t('documents.view')}
+              subtitle={t('opesDocs.preview.openSub', {
+                defaultValue: 'Opens the sealed original with its verification link',
+              })}
+              onPress={busy ? undefined : onOpen}
+              chevron={busy !== 'open'}
+              trailing={busy === 'open' ? <ActivityIndicator size="small" color={colors.blue} /> : undefined}
+            />
+          </Card>
+        )}
+        {doc.download_url ? null : (
+          <Card variant="flush">
+            <ListRow
+              icon="share"
+              tint="blue"
+              title={t('opesDocs.preview.shareTitle')}
+              subtitle={t('opesDocs.preview.shareSub')}
+              onPress={busy ? undefined : onShare}
+              chevron={busy !== 'share'}
+              trailing={busy === 'share' ? <ActivityIndicator size="small" color={colors.blue} /> : undefined}
+            />
+          </Card>
+        )}
+        <Card variant="flush">
+          <ListRow
+            icon="lock"
+            tint="purple"
+            title={t('documents.manageAccess')}
+            subtitle={t('documents.privacyBlockBody')}
+            onPress={onManageAccess}
+          />
+        </Card>
+      </CardStack>
 
       <NoticeBanner icon="shield-check" tone="pending" message={t('documents.footerNote')} />
 
       <CareButton
         variant="secondary"
         icon="chevron-left"
-        label={t('opesDocs.preview.backToLibrary', { defaultValue: 'Back to documents' })}
+        label={t('opesDocs.preview.backToLibrary', {
+          defaultValue: 'Back to documents',
+        })}
         onPress={onBack}
       />
     </>
@@ -613,7 +677,13 @@ function PrivacyBlock({ onManageAccess }: { onManageAccess: () => void }) {
           <Text style={s.privacyText}>{t('documents.privacyBlockBody')}</Text>
         </View>
       </View>
-      <CareButton variant="secondary" label={t('documents.manageAccess')} iconRight="chevron-right" onPress={onManageAccess} style={s.privacyButton} />
+      <CareButton
+        variant="secondary"
+        label={t('documents.manageAccess')}
+        iconRight="chevron-right"
+        onPress={onManageAccess}
+        style={s.privacyButton}
+      />
     </Card>
   );
 }
@@ -623,11 +693,19 @@ function PrivacyBlock({ onManageAccess }: { onManageAccess: () => void }) {
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xl,
+    },
     chips: { flexDirection: 'row', gap: spacing.sm, paddingRight: spacing.md },
     listHeader: { marginBottom: 0 },
 
-    hero: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md - 4 },
+    hero: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.md - 4,
+    },
     heroIcon: {
       width: 56,
       height: 56,
@@ -635,10 +713,23 @@ const makeStyles = (colors: Palette) =>
       justifyContent: 'center',
     },
     heroBody: { flex: 1, minWidth: 0, gap: 3 },
-    heroTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.size.lg, color: colors.textPrimary },
-    heroMeta: { fontFamily: typography.fontFamily.regular, fontSize: typography.size.sm, color: colors.textSecondary },
+    heroTitle: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+      color: colors.textPrimary,
+    },
+    heroMeta: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      color: colors.textSecondary,
+    },
     heroPlace: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    heroPlaceText: { flex: 1, fontFamily: typography.fontFamily.medium, fontSize: typography.size.sm, color: colors.link },
+    heroPlaceText: {
+      flex: 1,
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.link,
+    },
 
     previewRow: { flexDirection: 'row', gap: spacing.md - 4 },
     sheet: {
@@ -660,7 +751,11 @@ const makeStyles = (colors: Palette) =>
       color: colors.textMuted,
     },
     previewBody: { flex: 1, minWidth: 0, gap: spacing.sm },
-    previewHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    previewHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
     fileIcon: {
       width: 40,
       height: 40,
@@ -668,8 +763,16 @@ const makeStyles = (colors: Palette) =>
       justifyContent: 'center',
     },
     previewNameBox: { flex: 1, minWidth: 0, gap: 2 },
-    previewName: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm, color: colors.link },
-    previewMeta: { fontFamily: typography.fontFamily.regular, fontSize: typography.size.xs, color: colors.textSecondary },
+    previewName: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.link,
+    },
+    previewMeta: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textSecondary,
+    },
     previewDesc: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.sm,
@@ -686,12 +789,21 @@ const makeStyles = (colors: Palette) =>
       borderRadius: radii.pill,
       backgroundColor: colors.primarySoft,
     },
-    chipText: { flexShrink: 1, fontFamily: typography.fontFamily.medium, fontSize: typography.size.sm, color: colors.link },
+    chipText: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.medium,
+      fontSize: typography.size.sm,
+      color: colors.link,
+    },
 
     // InfoRow carries no horizontal inset of its own — it expects a padded card.
     rows: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
 
-    privacyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md - 4 },
+    privacyRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.md - 4,
+    },
     privacyMark: {
       width: 40,
       height: 40,
@@ -699,7 +811,11 @@ const makeStyles = (colors: Palette) =>
       justifyContent: 'center',
     },
     privacyBody: { flex: 1, minWidth: 0, gap: 3 },
-    privacyTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.md, color: colors.textPrimary },
+    privacyTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.md,
+      color: colors.textPrimary,
+    },
     privacyText: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.sm,

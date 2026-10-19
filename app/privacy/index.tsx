@@ -1,13 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -226,13 +218,14 @@ export default function PrivacyHubScreen() {
     [t],
   );
 
-  const succeed = useCallback(
-    (body: string) => setNotice({ tone: 'normal', icon: 'check-circle', body }),
-    [],
-  );
+  const succeed = useCallback((body: string) => setNotice({ tone: 'normal', icon: 'check-circle', body }), []);
   const fail = useCallback(
     (err: unknown) =>
-      setNotice({ tone: 'critical', icon: 'alert-circle', body: extractApiErrorMessage(err) }),
+      setNotice({
+        tone: 'critical',
+        icon: 'alert-circle',
+        body: extractApiErrorMessage(err),
+      }),
     [],
   );
 
@@ -241,7 +234,11 @@ export default function PrivacyHubScreen() {
       new Promise<void>((resolve) => {
         approveMutation.mutate(item.id, {
           onSuccess: () => {
-            succeed(t('privacy.approveSuccessNamed', { facility: facilityLabel(item) }));
+            succeed(
+              t('privacy.approveSuccessNamed', {
+                facility: facilityLabel(item),
+              }),
+            );
             resolve();
           },
           onError: (err) => {
@@ -280,7 +277,11 @@ export default function PrivacyHubScreen() {
       new Promise<void>((resolve) => {
         revokeMutation.mutate(item.id, {
           onSuccess: () => {
-            succeed(t('privacy.revokeSuccessNamed', { facility: grantFacilityLabel(item) }));
+            succeed(
+              t('privacy.revokeSuccessNamed', {
+                facility: grantFacilityLabel(item),
+              }),
+            );
             // It has moved to History — open it, so the row is seen to move
             // rather than seen to vanish.
             setHistoryOpen(true);
@@ -330,7 +331,9 @@ export default function PrivacyHubScreen() {
       setNotice(null);
       dialog.confirm({
         title: t('privacy.deny'),
-        message: t('privacy.confirmDenyBody', { facility: facilityLabel(item) }),
+        message: t('privacy.confirmDenyBody', {
+          facility: facilityLabel(item),
+        }),
         confirmLabel: t('privacy.confirmDenyCta'),
         cancelLabel: t('privacy.cancel'),
         destructive: true,
@@ -345,7 +348,9 @@ export default function PrivacyHubScreen() {
       setNotice(null);
       dialog.confirm({
         title: t('privacy.revoke'),
-        message: t('privacy.confirmRevokeBody', { facility: grantFacilityLabel(item) }),
+        message: t('privacy.confirmRevokeBody', {
+          facility: grantFacilityLabel(item),
+        }),
         confirmLabel: t('privacy.confirmRevokeCta'),
         // "Keep access" — the safe way out, in the patient's own words.
         cancelLabel: t('privacy.keepAccess'),
@@ -358,11 +363,7 @@ export default function PrivacyHubScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <ScreenHeader
-        title={t('privacy.title')}
-        subtitle={t('privacy.subtitle')}
-        onBack={() => router.back()}
-      />
+      <ScreenHeader title={t('privacy.title')} subtitle={t('privacy.subtitle')} onBack={() => router.back()} />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -377,12 +378,7 @@ export default function PrivacyHubScreen() {
         }
       >
         {/* The law, named. Kept verbatim — this is the whole basis of the screen. */}
-        <Notice
-          tone="pending"
-          icon="book"
-          title={t('privacy.rightsTitle')}
-          body={t('privacy.rightsBody')}
-        />
+        <Notice tone="pending" icon="book" title={t('privacy.rightsTitle')} body={t('privacy.rightsBody')} />
 
         {notice ? <Notice tone={notice.tone} icon={notice.icon} body={notice.body} /> : null}
 
@@ -419,61 +415,69 @@ export default function PrivacyHubScreen() {
                 Active would overstate what withdrawing achieves. */}
             <View>
               <SectionHeader title={t('privacy.overviewTitle')} variant="overline" />
-              <Card variant="flush">
-                <OverviewRow
-                  icon="check-circle"
-                  tint="green"
-                  value={active.length}
-                  label={t('privacy.statActive')}
-                  caption={t('privacy.statActiveCaption')}
-                  divider
-                />
-                <OverviewRow
-                  icon="clock"
-                  tint="blue"
-                  value={pending.length}
-                  label={t('privacy.statPending')}
-                  caption={t('privacy.statPendingCaption')}
-                  divider
-                />
-                <OverviewRow
-                  icon="clock"
-                  tint="amber"
-                  value={expiringSoonCount}
-                  label={t('privacy.statExpiring')}
-                  caption={t('privacy.statExpiringCaption')}
-                  divider
-                />
-                <OverviewRow
-                  icon="x-circle"
-                  tint="purple"
-                  value={history.length}
-                  label={t('privacy.statEnded')}
-                  caption={t('privacy.statEndedCaption')}
-                  divider
-                />
-                <OverviewRow
-                  icon="stethoscope"
-                  tint="amber"
-                  value={relationshipCount}
-                  label={t('consentLedger.statOther', { defaultValue: 'Through your care' })}
-                  caption={t('consentLedger.statOtherCaption', {
-                    defaultValue: 'Access that is not consent, and cannot be withdrawn here',
-                  })}
-                />
-                <View style={styles.cardFootnote}>
-                  <Icon name="lock" size={16} color={colors.textMuted} />
-                  <Text style={styles.cardFootnoteText}>{t('privacy.overviewFootnote')}</Text>
-                </View>
-              </Card>
+              <CardStack spacing="sm">
+                <Card variant="flush">
+                  <OverviewRow
+                    icon="check-circle"
+                    tint="green"
+                    value={active.length}
+                    label={t('privacy.statActive')}
+                    caption={t('privacy.statActiveCaption')}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <OverviewRow
+                    icon="clock"
+                    tint="blue"
+                    value={pending.length}
+                    label={t('privacy.statPending')}
+                    caption={t('privacy.statPendingCaption')}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <OverviewRow
+                    icon="clock"
+                    tint="amber"
+                    value={expiringSoonCount}
+                    label={t('privacy.statExpiring')}
+                    caption={t('privacy.statExpiringCaption')}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <OverviewRow
+                    icon="x-circle"
+                    tint="purple"
+                    value={history.length}
+                    label={t('privacy.statEnded')}
+                    caption={t('privacy.statEndedCaption')}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <OverviewRow
+                    icon="stethoscope"
+                    tint="amber"
+                    value={relationshipCount}
+                    label={t('consentLedger.statOther', {
+                      defaultValue: 'Through your care',
+                    })}
+                    caption={t('consentLedger.statOtherCaption', {
+                      defaultValue: 'Access that is not consent, and cannot be withdrawn here',
+                    })}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <View style={styles.cardFootnote}>
+                    <Icon name="lock" size={16} color={colors.textMuted} />
+                    <Text style={styles.cardFootnoteText}>{t('privacy.overviewFootnote')}</Text>
+                  </View>
+                </Card>
+              </CardStack>
             </View>
 
             {/* ── Pending: someone is asking ──────────────────────────────── */}
             <View>
               <SectionHeader title={t('privacy.pendingSection')} variant="overline" />
-              {pending.length > 0 ? (
-                <Text style={styles.sectionHint}>{t('privacy.pendingHint')}</Text>
-              ) : null}
+              {pending.length > 0 ? <Text style={styles.sectionHint}>{t('privacy.pendingHint')}</Text> : null}
 
               {pending.length === 0 ? (
                 <Card variant="flush">
@@ -495,7 +499,9 @@ export default function PrivacyHubScreen() {
                           activeOpacity={0.8}
                           accessibilityRole="button"
                           accessibilityLabel={t('privacy.deny')}
-                          accessibilityState={{ disabled: denyMutation.isPending }}
+                          accessibilityState={{
+                            disabled: denyMutation.isPending,
+                          }}
                           style={[styles.denyButton, denyMutation.isPending && styles.buttonOff]}
                         >
                           <Icon name="x-circle" size={18} color={colors.statusCritical} />
@@ -523,9 +529,7 @@ export default function PrivacyHubScreen() {
                 it uses the id the server listed, which is the id revoke takes. */}
             <View>
               <SectionHeader title={t('privacy.activeSection')} variant="overline" />
-              {active.length > 0 ? (
-                <Text style={styles.sectionHint}>{t('privacy.activeHint')}</Text>
-              ) : null}
+              {active.length > 0 ? <Text style={styles.sectionHint}>{t('privacy.activeHint')}</Text> : null}
 
               {active.length === 0 ? (
                 <Card variant="flush">
@@ -567,11 +571,7 @@ export default function PrivacyHubScreen() {
                   onPress={() => setHistoryOpen((v) => !v)}
                   chevron={false}
                   trailing={
-                    <Icon
-                      name={historyOpen ? 'chevron-up' : 'chevron-down'}
-                      size={18}
-                      color={colors.textMuted}
-                    />
+                    <Icon name={historyOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} />
                   }
                 />
               </Card>
@@ -608,8 +608,7 @@ export default function PrivacyHubScreen() {
                         defaultValue: 'Who can see my record',
                       })}
                       subtitle={t('consentLedger.hubCardDesc', {
-                        defaultValue:
-                          'Everyone who can open your record right now, and how to stop them',
+                        defaultValue: 'Everyone who can open your record right now, and how to stop them',
                       })}
                       value={relationshipCount > 0 ? String(relationshipCount) : undefined}
                       onPress={() => router.push('/privacy/access')}
@@ -695,10 +694,7 @@ function GrantRow({
   const whenValid = !!whenDate && !Number.isNaN(whenDate.getTime());
 
   return (
-    <Card
-      variant="flush"
-      style={live ? { borderColor: colors.blue } : styles.endedCard}
-    >
+    <Card variant="flush" style={live ? { borderColor: colors.blue } : styles.endedCard}>
       <ListRow
         icon="building"
         tint={live ? 'blue' : 'purple'}
@@ -723,15 +719,8 @@ function GrantRow({
         ]}
         chevron={false}
         trailing={
-          <StatusBadge
-            status={item.state}
-            tone={skin.tone}
-            icon={skin.icon}
-            label={item.state_label}
-            size="sm"
-          />
+          <StatusBadge status={item.state} tone={skin.tone} icon={skin.icon} label={item.state_label} size="sm" />
         }
-        divider
       />
 
       <View style={styles.detail}>
@@ -837,7 +826,7 @@ function ConsentCard({
   return (
     // The highlight is a brand-coloured hairline, not the kit's left accent
     // bar: `accentColor` adds a 20px left inset, which on a flush card would
-    // shove every row's tint circle out of line with the dividers under it.
+    // shove the row's tint circle out of line with the body under it.
     <Card variant="flush" style={highlight ? { borderColor: colors.blue } : undefined}>
       <ListRow
         icon="building"
@@ -845,7 +834,6 @@ function ConsentCard({
         title={item.requesting_facility_name ?? t('privacy.unknownFacility')}
         meta={[facilityType, requestedValid ? formatDate(requested) : undefined]}
         chevron={false}
-        divider
       />
 
       <View style={styles.detail}>
@@ -859,9 +847,7 @@ function ConsentCard({
               label at all — both leave the raw code on screen, and neither is
               something to leave unexplained on a consent decision. */}
           {item.purpose_recognised === false || item.purpose_label == null ? (
-            <Text style={styles.codeNote}>
-              {item.purpose_note ?? t('consentCopy.unnamedPurpose')}
-            </Text>
+            <Text style={styles.codeNote}>{item.purpose_note ?? t('consentCopy.unnamedPurpose')}</Text>
           ) : null}
         </View>
 
@@ -898,7 +884,9 @@ function ConsentCard({
             {expiryValid
               ? t('privacy.expiresLabel', { date: formatDateTime(expiry) })
               : item.duration_label
-                ? t('consentCopy.durationOfAccess', { duration: item.duration_label })
+                ? t('consentCopy.durationOfAccess', {
+                    duration: item.duration_label,
+                  })
                 : t('consentCopy.durationUnknown')}
           </Text>
         </View>
@@ -916,14 +904,12 @@ function OverviewRow({
   value,
   label,
   caption,
-  divider,
 }: {
   icon: IconName;
   tint: Tint;
   value: number;
   label: string;
   caption: string;
-  divider?: boolean;
 }) {
   const { colors, tintMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -934,27 +920,14 @@ function OverviewRow({
       title={label}
       subtitle={caption}
       chevron={false}
-      divider={divider}
       accessibilityLabel={`${value} ${label}. ${caption}`}
-      trailing={
-        <Text style={[styles.statValue, { color: tintMap[tint].fg }]}>{String(value)}</Text>
-      }
+      trailing={<Text style={[styles.statValue, { color: tintMap[tint].fg }]}>{String(value)}</Text>}
     />
   );
 }
 
 /** Tinted inline notice: icon in a status circle, optional title, body. */
-function Notice({
-  tone,
-  icon,
-  title,
-  body,
-}: {
-  tone: StatusTone;
-  icon: IconName;
-  title?: string;
-  body: string;
-}) {
+function Notice({ tone, icon, title, body }: { tone: StatusTone; icon: IconName; title?: string; body: string }) {
   const { colors, statusMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const skin = statusMap[tone];
@@ -980,7 +953,12 @@ function Notice({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
     stack: { gap: spacing.sm + 4 },
     stackTop: { marginTop: spacing.sm + 4 },
@@ -1016,10 +994,7 @@ const makeStyles = (colors: Palette) =>
       alignItems: 'flex-start',
       gap: spacing.sm,
       paddingHorizontal: spacing.md,
-      paddingBottom: spacing.md,
-      paddingTop: spacing.sm,
-      borderTopWidth: 1,
-      borderTopColor: colors.divider,
+      paddingVertical: spacing.md,
     },
     cardFootnoteText: {
       flex: 1,
@@ -1031,7 +1006,11 @@ const makeStyles = (colors: Palette) =>
 
     // Consent card body
     detail: { padding: spacing.md, gap: spacing.sm + 4 },
-    detailLabelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2 },
+    detailLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs + 2,
+    },
     detailLabel: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: 13,
@@ -1061,7 +1040,10 @@ const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
     },
     // An ended grant never wears the live card's surface or its brand hairline.
-    endedCard: { backgroundColor: colors.surfaceMuted, borderColor: colors.divider },
+    endedCard: {
+      backgroundColor: colors.surfaceMuted,
+      borderColor: colors.divider,
+    },
     blockedBox: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -1083,7 +1065,12 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.xs,
       color: colors.textSecondary,
     },
-    chips: { marginTop: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    chips: {
+      marginTop: spacing.sm,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
 
     // The caution under a code OpesCare could not name. Warning-toned, not
     // muted: it is telling the patient the screen does not know what a code
@@ -1146,7 +1133,10 @@ const makeStyles = (colors: Palette) =>
       justifyContent: 'center',
     },
     noticeBody: { flex: 1, minWidth: 0, gap: 2 },
-    noticeTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
+    noticeTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
     noticeText: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,

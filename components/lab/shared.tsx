@@ -82,7 +82,7 @@ export function useLabT(): LabTranslate {
   const { t } = useTranslation();
   return useCallback<LabTranslate>(
     (key, params) => String(t(`labDesk.${key}`, params as Record<string, unknown>)),
-    [t]
+    [t],
   );
 }
 
@@ -233,10 +233,10 @@ export function FlagBadge({ flag }: { flag: string | null | undefined }) {
 export function LabOrderRow({
   order,
   onPress,
-  divider,
 }: {
   order: LabOrderSummary;
   onPress: () => void;
+  /** Ignored: each order sits in its own card; none draws a hairline. */
   divider?: boolean;
 }) {
   const tx = useLabT();
@@ -257,7 +257,7 @@ export function LabOrderRow({
       activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel={a11yJoin(title, urgencyLabel(tx, order.urgency), patient, ordered, results)}
-      style={[styles.row, divider && styles.rowDivider]}
+      style={styles.row}
     >
       <View style={styles.circle}>
         <Icon name="flask" size={26} color={tint.fg} />
@@ -316,9 +316,7 @@ export function LabTile({
       <View style={styles.tileIcon}>
         <Icon name={icon} size={28} color={skin.fg} />
       </View>
-      <Text
-        style={[styles.tileValue, emphasise && count !== null && count > 0 && { color: colors.statusCritical }]}
-      >
+      <Text style={[styles.tileValue, emphasise && count !== null && count > 0 && { color: colors.statusCritical }]}>
         {value}
       </Text>
       <Text style={styles.tileLabel} numberOfLines={2}>
@@ -334,7 +332,10 @@ export function LabTile({
 export function LabTimeline({ status }: { status: LabOrderStatusLike }) {
   const tx = useLabT();
   const index = labStatusIndex(status);
-  const steps = LAB_ORDER_STATUSES.map((key) => ({ key, label: tx(`status.${key}`) }));
+  const steps = LAB_ORDER_STATUSES.map((key) => ({
+    key,
+    label: tx(`status.${key}`),
+  }));
   // `resulted` is the LAST step and also DONE: light it as completed rather
   // than "current", so a released order shows four ticks, not three and a dot.
   const current = index < 0 ? 0 : index === LAB_ORDER_STATUSES.length - 1 ? LAB_ORDER_STATUSES.length : index;
@@ -423,7 +424,6 @@ const makeStyles = (colors: Palette) =>
       paddingHorizontal: spacing.md,
       gap: 12,
     },
-    rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
     circle: {
       width: 40,
       height: 40,

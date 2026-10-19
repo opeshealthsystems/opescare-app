@@ -1,13 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import {
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { isAxiosError } from 'axios';
@@ -53,19 +45,9 @@ import {
   type Translate,
 } from '@/components/care/shared';
 import { useFacilityDetail, useProviderDetail, type ProviderDetail } from '@/lib/api/queries';
-import {
-  useMessageRecipients,
-  useStartThread,
-  type ClinicianRecipient,
-} from '@/lib/api/messagingRecipients';
+import { useMessageRecipients, useStartThread, type ClinicianRecipient } from '@/lib/api/messagingRecipients';
 import { registerMessagingRecipientStrings } from '@/lib/i18n/messagingRecipientStrings';
-import {
-  joinLocationParts,
-  openStateToday,
-  telUrl,
-  usablePhone,
-  type OpenState,
-} from '@/lib/careMap/facilityDisplay';
+import { joinLocationParts, openStateToday, telUrl, usablePhone, type OpenState } from '@/lib/careMap/facilityDisplay';
 
 /**
  * Clinician profile — the person behind a slot. OPES CARE-004 layout
@@ -232,7 +214,13 @@ function CircleAction({
   );
 }
 
-type InfoLine = { key: string; icon: IconName; label: string; value: string; valueColor?: string };
+type InfoLine = {
+  key: string;
+  icon: IconName;
+  label: string;
+  value: string;
+  valueColor?: string;
+};
 
 /**
  * What this screen may offer for "Message", resolved from the server rather
@@ -294,16 +282,12 @@ export default function DoctorDetailScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const messagingY = useRef(0);
 
-  const openState = useMemo<OpenState>(
-    () => openStateToday(facility?.hours ?? []),
-    [facility?.hours],
-  );
+  const openState = useMemo<OpenState>(() => openStateToday(facility?.hours ?? []), [facility?.hours]);
 
   // The API answers a de-listed / non-clinical id with a hard 404
   // (PROVIDER_NOT_FOUND) rather than an empty body, so "no longer listed" is
   // distinguishable from a network failure and gets its own copy.
-  const isNotFound =
-    isAxiosError(providerQuery.error) && providerQuery.error.response?.status === 404;
+  const isNotFound = isAxiosError(providerQuery.error) && providerQuery.error.response?.status === 404;
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -398,9 +382,7 @@ export default function DoctorDetailScreen() {
   // stale link lands here. Each case gets a real way out.
   if (!providerId || providerQuery.isError || !provider) {
     const failure =
-      providerQuery.error && !isNotFound
-        ? describeFailure(providerQuery.error, t('doctor.loadError'))
-        : null;
+      providerQuery.error && !isNotFound ? describeFailure(providerQuery.error, t('doctor.loadError')) : null;
 
     return (
       <Screen className="px-0">
@@ -533,564 +515,550 @@ export default function DoctorDetailScreen() {
   // booking wizard is a redirect the patient did not ask for.
   const onMessagePress = () => {
     if (!sent && messageAccess === 'open') setComposeOpen(true);
-    scrollRef.current?.scrollTo({ y: Math.max(messagingY.current - spacing.sm, 0), animated: true });
+    scrollRef.current?.scrollTo({
+      y: Math.max(messagingY.current - spacing.sm, 0),
+      animated: true,
+    });
   };
 
   return (
     <ProfileFrame
       ref={scrollRef}
       masthead={{
-        left: { icon: 'arrow-left', label: t('profiles.back'), onPress: goBack },
+        left: {
+          icon: 'arrow-left',
+          label: t('profiles.back'),
+          onPress: goBack,
+        },
       }}
     >
-        <ProfileHeading title={headerTitle} subtitle={t('opesCare.providerProfile.subtitle')} />
+      <ProfileHeading title={headerTitle} subtitle={t('opesCare.providerProfile.subtitle')} />
 
-        {/* ── Identity card ─────────────────────────────────────────────────
+      {/* ── Identity card ─────────────────────────────────────────────────
             The directory publishes no photo for a clinician, so the portrait
             is their initials. Their credentials sit in the panel slot a
             patient's Health ID takes: verified only when the API returned an
             active licence or credential, never as decoration. */}
-        <IdentityCard
-          initials={initialsFrom(provider.name)}
-          name={provider.name}
-          verified={isVerified}
-          statusLabel={isAccepting ? t('doctor.accepting') : t('doctor.notAccepting')}
-          statusTone={isAccepting ? 'normal' : 'neutral'}
-          statusIcon={isAccepting ? 'calendar-check' : 'clock'}
-          panel={{
-            label: `${t('doctor.credentialsTitle')}: ${
-              isVerified ? t('profiles.provider.verified') : t('profiles.provider.noneOnFile')
-            }`,
-            content: (
-              <CredentialPanelContent
-                title={t('profiles.provider.brand')}
-                icon={isVerified ? 'shield-check' : 'document-text'}
-                tone={isVerified ? 'normal' : 'neutral'}
-                status={
-                  isVerified ? t('profiles.provider.verified') : t('profiles.provider.noneOnFile')
-                }
-                detail={
-                  isVerified
-                    ? t('profiles.provider.counts', {
-                        licences: provider.licenses.length,
-                        credentials: provider.credentials.length,
-                      })
-                    : null
-                }
-              />
-            ),
-          }}
-        >
-          <IdentityLine icon="stethoscope" text={roleLine} />
-          {provider.department ? <IdentityLine icon="grid" text={provider.department} /> : null}
-          <IdentityLine icon="building" text={provider.facility_name} />
-          {address ? <IdentityLine icon="location" text={address} /> : null}
-        </IdentityCard>
+      <IdentityCard
+        initials={initialsFrom(provider.name)}
+        name={provider.name}
+        verified={isVerified}
+        statusLabel={isAccepting ? t('doctor.accepting') : t('doctor.notAccepting')}
+        statusTone={isAccepting ? 'normal' : 'neutral'}
+        statusIcon={isAccepting ? 'calendar-check' : 'clock'}
+        panel={{
+          label: `${t('doctor.credentialsTitle')}: ${
+            isVerified ? t('profiles.provider.verified') : t('profiles.provider.noneOnFile')
+          }`,
+          content: (
+            <CredentialPanelContent
+              title={t('profiles.provider.brand')}
+              icon={isVerified ? 'shield-check' : 'document-text'}
+              tone={isVerified ? 'normal' : 'neutral'}
+              status={isVerified ? t('profiles.provider.verified') : t('profiles.provider.noneOnFile')}
+              detail={
+                isVerified
+                  ? t('profiles.provider.counts', {
+                      licences: provider.licenses.length,
+                      credentials: provider.credentials.length,
+                    })
+                  : null
+              }
+            />
+          ),
+        }}
+      >
+        <IdentityLine icon="stethoscope" text={roleLine} />
+        {provider.department ? <IdentityLine icon="grid" text={provider.department} /> : null}
+        <IdentityLine icon="building" text={provider.facility_name} />
+        {address ? <IdentityLine icon="location" text={address} /> : null}
+      </IdentityCard>
 
-        <TrustChips
-          items={[
-            { key: 'booking', icon: 'calendar-check', label: t('profiles.trust.booking') },
-            { key: 'messaging', icon: 'chat', label: t('profiles.trust.messaging') },
-            { key: 'consent', icon: 'shield-check', label: t('profiles.trust.consent') },
-            { key: 'directory', icon: 'building', label: t('profiles.trust.directory') },
-          ]}
-        />
+      <TrustChips
+        items={[
+          {
+            key: 'booking',
+            icon: 'calendar-check',
+            label: t('profiles.trust.booking'),
+          },
+          {
+            key: 'messaging',
+            icon: 'chat',
+            label: t('profiles.trust.messaging'),
+          },
+          {
+            key: 'consent',
+            icon: 'shield-check',
+            label: t('profiles.trust.consent'),
+          },
+          {
+            key: 'directory',
+            icon: 'building',
+            label: t('profiles.trust.directory'),
+          },
+        ]}
+      />
 
-        {/* Badges and the four quick actions, unchanged. */}
-        <Card>
-          <View style={styles.badges}>
-            {/* Availability is derived from live open slots, not invented. */}
+      {/* Badges and the four quick actions, unchanged. */}
+      <Card>
+        <View style={styles.badges}>
+          {/* Availability is derived from live open slots, not invented. */}
+          <StatusBadge
+            status={isAccepting ? 'active' : 'neutral'}
+            tone={isAccepting ? 'normal' : 'neutral'}
+            icon={isAccepting ? 'calendar-check' : 'clock'}
+            label={isAccepting ? t('doctor.accepting') : t('doctor.notAccepting')}
+            size="sm"
+          />
+          {isVerified ? (
+            <StatusBadge status="verified" icon="shield-check" label={t('opesCore.common.verified')} size="sm" />
+          ) : null}
+          {facilityTypeLabel ? (
             <StatusBadge
-              status={isAccepting ? 'active' : 'neutral'}
-              tone={isAccepting ? 'normal' : 'neutral'}
-              icon={isAccepting ? 'calendar-check' : 'clock'}
-              label={isAccepting ? t('doctor.accepting') : t('doctor.notAccepting')}
+              status={facility?.facility_type ?? 'facility'}
+              tone="neutral"
+              label={facilityTypeLabel}
+              icon="building"
               size="sm"
             />
-            {isVerified ? (
-              <StatusBadge
-                status="verified"
-                icon="shield-check"
-                label={t('opesCore.common.verified')}
-                size="sm"
-              />
-            ) : null}
-            {facilityTypeLabel ? (
-              <StatusBadge
-                status={facility?.facility_type ?? 'facility'}
-                tone="neutral"
-                label={facilityTypeLabel}
-                icon="building"
-                size="sm"
-              />
-            ) : null}
-          </View>
+          ) : null}
+        </View>
 
-          {/* Call is the FACILITY's published line — a clinician has no
+        {/* Call is the FACILITY's published line — a clinician has no
               personal number in the directory. Dimmed when there is none, or
               while the facility read is still in flight. */}
-          <View style={styles.actions}>
-            <CircleAction
-              icon="phone"
-              label={t('facility.callAction')}
-              disabled={!facilityPhone}
-              hint={facilityPhone ? undefined : t('facility.phoneNotListedHint')}
-              onPress={callFacility}
-            />
-            <CircleAction
-              icon="chat"
-              label={t('opesCare.providerProfile.message')}
-              onPress={onMessagePress}
-            />
-            <CircleAction
-              icon="calendar-plus"
-              label={t('opesCare.providerProfile.book')}
-              onPress={() => goToBooking(provider)}
-            />
-            <CircleAction
-              icon="building"
-              label={t('opesCare.providerProfile.facility')}
-              onPress={() => goToFacility(provider)}
-            />
-          </View>
-        </Card>
+        <View style={styles.actions}>
+          <CircleAction
+            icon="phone"
+            label={t('facility.callAction')}
+            disabled={!facilityPhone}
+            hint={facilityPhone ? undefined : t('facility.phoneNotListedHint')}
+            onPress={callFacility}
+          />
+          <CircleAction icon="chat" label={t('opesCare.providerProfile.message')} onPress={onMessagePress} />
+          <CircleAction
+            icon="calendar-plus"
+            label={t('opesCare.providerProfile.book')}
+            onPress={() => goToBooking(provider)}
+          />
+          <CircleAction
+            icon="building"
+            label={t('opesCare.providerProfile.facility')}
+            onPress={() => goToFacility(provider)}
+          />
+        </View>
+      </Card>
 
-        {/* ── Primary action, straight under the hero ───────────────────────
+      {/* ── Primary action, straight under the hero ───────────────────────
             With nothing published the label stops promising a booking and
             offers the wizard's own date search instead. */}
-        <GradientButton
-          label={
-            isAccepting
-              ? t('doctor.bookAppointment')
-              : t('opesCare.providerProfile.viewAvailableTimes')
-          }
-          onPress={() => goToBooking(provider)}
-          accessibilityHint={t('doctor.nextSlotsHint')}
+      <GradientButton
+        label={isAccepting ? t('doctor.bookAppointment') : t('opesCare.providerProfile.viewAvailableTimes')}
+        onPress={() => goToBooking(provider)}
+        accessibilityHint={t('doctor.nextSlotsHint')}
+      />
+
+      <OverviewTiles
+        title={t('profiles.atAGlance')}
+        tiles={[
+          {
+            key: 'slots',
+            icon: 'calendar-check',
+            tint: 'green',
+            value: isAccepting ? slotCountLabel : '0',
+            label: t('profiles.provider.openSlots'),
+            hint: t('profiles.provider.openSlotsHint'),
+            onPress: () => goToBooking(provider),
+          },
+          {
+            key: 'next',
+            icon: 'clock',
+            tint: 'blue',
+            value: nextSlot ? formatTime(nextSlot.starts_at) : '—',
+            label: t('profiles.provider.nextSlot'),
+            hint: nextSlot ? slotDayLabel(tr, nextSlot.starts_at, i18n.language) : t('profiles.provider.noSlot'),
+            onPress: () => goToBooking(provider),
+          },
+          {
+            key: 'licences',
+            icon: 'shield-check',
+            tint: 'green',
+            value: String(provider.licenses.length),
+            label: t('profiles.provider.licences'),
+            hint: t('profiles.provider.licencesHint'),
+          },
+          {
+            key: 'credentials',
+            icon: 'check-circle',
+            tint: 'amber',
+            value: String(provider.credentials.length),
+            label: t('profiles.provider.credentials'),
+            hint: t('profiles.provider.credentialsHint'),
+          },
+        ]}
+      />
+
+      {/* ── Professional information ─────────────────────────────────────── */}
+      <View>
+        <PanelHeader
+          icon="stethoscope"
+          title={t('opesCare.providerProfile.professionalInformation')}
+          subtitle={t('profiles.provider.infoDesc')}
+          style={{ marginBottom: spacing.sm }}
         />
-
-        <OverviewTiles
-          title={t('profiles.atAGlance')}
-          tiles={[
-            {
-              key: 'slots',
-              icon: 'calendar-check',
-              tint: 'green',
-              value: isAccepting ? slotCountLabel : '0',
-              label: t('profiles.provider.openSlots'),
-              hint: t('profiles.provider.openSlotsHint'),
-              onPress: () => goToBooking(provider),
-            },
-            {
-              key: 'next',
-              icon: 'clock',
-              tint: 'blue',
-              value: nextSlot ? formatTime(nextSlot.starts_at) : '—',
-              label: t('profiles.provider.nextSlot'),
-              hint: nextSlot
-                ? slotDayLabel(tr, nextSlot.starts_at, i18n.language)
-                : t('profiles.provider.noSlot'),
-              onPress: () => goToBooking(provider),
-            },
-            {
-              key: 'licences',
-              icon: 'shield-check',
-              tint: 'green',
-              value: String(provider.licenses.length),
-              label: t('profiles.provider.licences'),
-              hint: t('profiles.provider.licencesHint'),
-            },
-            {
-              key: 'credentials',
-              icon: 'check-circle',
-              tint: 'amber',
-              value: String(provider.credentials.length),
-              label: t('profiles.provider.credentials'),
-              hint: t('profiles.provider.credentialsHint'),
-            },
-          ]}
-        />
-
-        {/* ── Professional information ─────────────────────────────────────── */}
-        <View>
-          <PanelHeader
-            icon="stethoscope"
-            title={t('opesCare.providerProfile.professionalInformation')}
-            subtitle={t('profiles.provider.infoDesc')}
-            style={{ marginBottom: spacing.sm }}
-          />
-          <Card variant="flush">
-            {infoLines.map((line, index) => (
-              <InfoRow
-                key={line.key}
-                icon={line.icon}
-                label={line.label}
-                value={line.value}
-                valueColor={line.valueColor}
-                divider={index < infoLines.length - 1}
-              />
-            ))}
-          </Card>
-        </View>
-
-        {/* ── Availability ─────────────────────────────────────────────────── */}
-        <View>
-          <PanelHeader
-            icon="calendar-check"
-            title={t('doctor.nextSlotsTitle')}
-            subtitle={t('profiles.provider.slotsDesc')}
-            actionLabel={isAccepting ? t('opesCare.providerProfile.viewAvailableTimes') : undefined}
-            onAction={isAccepting ? () => goToBooking(provider) : undefined}
-            style={{ marginBottom: spacing.sm }}
-          />
-          {isAccepting ? <Text style={styles.hint}>{t('doctor.nextSlotsHint')}</Text> : null}
-          <Card variant="flush">
-            {isAccepting ? (
-              <>
-                {inlineSlots.map((slot, index) => (
-                  <ListRow
-                    key={slot.id}
-                    icon="clock"
-                    tint="blue"
-                    title={`${formatTime(slot.starts_at)} – ${formatTime(slot.ends_at)}`}
-                    meta={[
-                      slotDayLabel(tr, slot.starts_at, i18n.language),
-                      // capacity − booked_count, straight off the slot row.
-                      t('appointments.book.spotsLeft', { count: slot.available_count }),
-                    ]}
-                    onPress={() => goToBooking(provider)}
-                    accessibilityHint={t('doctor.nextSlotsHint')}
-                    divider={index < inlineSlots.length - 1 || openSlots > MAX_INLINE_SLOTS}
-                  />
-                ))}
-                {openSlots > MAX_INLINE_SLOTS ? (
-                  <ListRow
-                    icon="calendar-plus"
-                    tint="green"
-                    title={t('opesCare.providerProfile.viewAvailableTimes')}
-                    // A count is only printed when it is the true total: on the
-                    // API's 10-slot cap there may well be more, so the row says
-                    // what to do instead of naming a number it cannot vouch for.
-                    subtitle={
-                      openSlots >= SLOT_QUERY_LIMIT
-                        ? t('doctor.nextSlotsHint')
-                        : t('appointments.book.slotsOpen', { count: openSlots })
-                    }
-                    onPress={() => goToBooking(provider)}
-                  />
-                ) : null}
-              </>
-            ) : (
-              // Empty, not broken: the wizard can still find this clinician
-              // other days, or another clinician at the same facility.
-              <EmptyState
-                icon="clock"
-                tint="amber"
-                title={t('doctor.noSlots')}
-                message={t('doctor.noSlotsBody')}
-                actionLabel={t('opesCare.providerProfile.viewAvailableTimes')}
-                onAction={() => goToBooking(provider)}
-              />
-            )}
-          </Card>
-        </View>
-
-        {/* ── Where they practise ──────────────────────────────────────────── */}
-        <View>
-          <PanelHeader
-            icon="building"
-            title={t('doctor.practisesAt')}
-            subtitle={t('profiles.provider.practiseDesc')}
-            style={{ marginBottom: spacing.sm }}
-          />
-          <CardStack spacing="sm">
-            <Card variant="flush">
-              <ListRow
-                icon="building"
-                tint="blue"
-                title={provider.facility_name}
-                meta={[facilityTypeLabel, address || null]}
-                onPress={() => goToFacility(provider)}
-                // The opening state lives in the trailing badge, which the row's
-                // own generated label never reads — so it is spelled out here.
-                accessibilityLabel={a11yJoin(
-                  provider.facility_name,
-                  facilityTypeLabel,
-                  address || null,
-                  openLabel,
-                )}
-                accessibilityHint={t('doctor.viewFacility')}
-                trailing={
-                  openLabel ? (
-                    <StatusBadge
-                      status={
-                        openState.kind === 'open' || openState.kind === 'open24' ? 'open' : 'closed'
-                      }
-                      tone={
-                        openState.kind === 'open' || openState.kind === 'open24'
-                          ? 'normal'
-                          : openState.kind === 'closedNow'
-                            ? 'warning'
-                            : 'neutral'
-                      }
-                      icon="clock"
-                      label={openLabel}
-                      size="sm"
-                    />
-                  ) : undefined
-                }
-              />
+        <CardStack spacing="sm">
+          {infoLines.map((line) => (
+            <Card key={line.key} variant="flush">
+              <InfoRow icon={line.icon} label={line.label} value={line.value} valueColor={line.valueColor} />
             </Card>
-            {/* Says "Not listed" rather than disappearing: a patient looking
+          ))}
+        </CardStack>
+      </View>
+
+      {/* ── Availability ─────────────────────────────────────────────────── */}
+      <View>
+        <PanelHeader
+          icon="calendar-check"
+          title={t('doctor.nextSlotsTitle')}
+          subtitle={t('profiles.provider.slotsDesc')}
+          actionLabel={isAccepting ? t('opesCare.providerProfile.viewAvailableTimes') : undefined}
+          onAction={isAccepting ? () => goToBooking(provider) : undefined}
+          style={{ marginBottom: spacing.sm }}
+        />
+        {isAccepting ? <Text style={styles.hint}>{t('doctor.nextSlotsHint')}</Text> : null}
+        {isAccepting ? (
+          <CardStack spacing="sm">
+            {inlineSlots.map((slot) => (
+              <Card key={slot.id} variant="flush">
+                <ListRow
+                  icon="clock"
+                  tint="blue"
+                  title={`${formatTime(slot.starts_at)} – ${formatTime(slot.ends_at)}`}
+                  meta={[
+                    slotDayLabel(tr, slot.starts_at, i18n.language),
+                    // capacity − booked_count, straight off the slot row.
+                    t('appointments.book.spotsLeft', {
+                      count: slot.available_count,
+                    }),
+                  ]}
+                  onPress={() => goToBooking(provider)}
+                  accessibilityHint={t('doctor.nextSlotsHint')}
+                />
+              </Card>
+            ))}
+            {openSlots > MAX_INLINE_SLOTS ? (
+              <Card variant="flush">
+                <ListRow
+                  icon="calendar-plus"
+                  tint="green"
+                  title={t('opesCare.providerProfile.viewAvailableTimes')}
+                  // A count is only printed when it is the true total: on the
+                  // API's 10-slot cap there may well be more, so the row says
+                  // what to do instead of naming a number it cannot vouch for.
+                  subtitle={
+                    openSlots >= SLOT_QUERY_LIMIT
+                      ? t('doctor.nextSlotsHint')
+                      : t('appointments.book.slotsOpen', { count: openSlots })
+                  }
+                  onPress={() => goToBooking(provider)}
+                />
+              </Card>
+            ) : null}
+          </CardStack>
+        ) : (
+          // Empty, not broken: the wizard can still find this clinician
+          // other days, or another clinician at the same facility.
+          <Card variant="flush">
+            <EmptyState
+              icon="clock"
+              tint="amber"
+              title={t('doctor.noSlots')}
+              message={t('doctor.noSlotsBody')}
+              actionLabel={t('opesCare.providerProfile.viewAvailableTimes')}
+              onAction={() => goToBooking(provider)}
+            />
+          </Card>
+        )}
+      </View>
+
+      {/* ── Where they practise ──────────────────────────────────────────── */}
+      <View>
+        <PanelHeader
+          icon="building"
+          title={t('doctor.practisesAt')}
+          subtitle={t('profiles.provider.practiseDesc')}
+          style={{ marginBottom: spacing.sm }}
+        />
+        <CardStack spacing="sm">
+          <Card variant="flush">
+            <ListRow
+              icon="building"
+              tint="blue"
+              title={provider.facility_name}
+              meta={[facilityTypeLabel, address || null]}
+              onPress={() => goToFacility(provider)}
+              // The opening state lives in the trailing badge, which the row's
+              // own generated label never reads — so it is spelled out here.
+              accessibilityLabel={a11yJoin(provider.facility_name, facilityTypeLabel, address || null, openLabel)}
+              accessibilityHint={t('doctor.viewFacility')}
+              trailing={
+                openLabel ? (
+                  <StatusBadge
+                    status={openState.kind === 'open' || openState.kind === 'open24' ? 'open' : 'closed'}
+                    tone={
+                      openState.kind === 'open' || openState.kind === 'open24'
+                        ? 'normal'
+                        : openState.kind === 'closedNow'
+                          ? 'warning'
+                          : 'neutral'
+                    }
+                    icon="clock"
+                    label={openLabel}
+                    size="sm"
+                  />
+                ) : undefined
+              }
+            />
+          </Card>
+          {/* Says "Not listed" rather than disappearing: a patient looking
                 for a number learns the register has none, instead of hunting
                 for a row that was silently dropped. No `onPress`, so there is
                 nothing to tap and no chevron. */}
-            <Card variant="flush">
-              <ListRow
-                icon="phone"
-                tint={facilityPhone ? 'green' : 'blue'}
-                title={t('facility.phone')}
-                subtitle={facilityPhone ?? t('facility.phoneNotListed')}
-                onPress={facilityPhone ? callFacility : undefined}
-                accessibilityHint={facilityPhone ? t('facility.callAction') : undefined}
-              />
-            </Card>
-          </CardStack>
-        </View>
-
-        {/* ── Credentials — the schema's stand-in for a bio ─────────────────── */}
-        <View>
-          <PanelHeader
-            icon="shield-check"
-            title={t('doctor.credentialsTitle')}
-            subtitle={t('profiles.provider.credentialsDesc')}
-            style={{ marginBottom: spacing.sm }}
-          />
-          {isVerified ? <Text style={styles.hint}>{t('doctor.credentialsHint')}</Text> : null}
           <Card variant="flush">
-            {!isVerified ? (
-              // Nothing published is NOT a failure — blue and informative, and
-              // it says what is still verified (the facility affiliation).
-              <EmptyState
-                icon="document-text"
-                tint="blue"
-                title={t('doctor.noCredentials')}
-                message={t('doctor.noCredentialsBody')}
-              />
-            ) : (
-              <>
-                {provider.licenses.map((license, index) => (
-                  <ListRow
-                    key={`lic-${index}`}
-                    icon="shield-check"
-                    tint="green"
-                    title={
-                      enumLabel(PROFESSION_KEYS, license.profession) ?? t('doctor.credentialOther')
-                    }
-                    subtitle={license.issuing_body ?? undefined}
-                    trailing={
-                      <StatusBadge status="active" label={t('doctor.credentialActive')} size="sm" />
-                    }
-                    divider={index < provider.licenses.length - 1 || provider.credentials.length > 0}
-                  />
-                ))}
-                {provider.credentials.map((credential, index) => (
-                  <ListRow
-                    key={`cred-${index}`}
-                    icon="check-circle"
-                    tint="green"
-                    title={
-                      CREDENTIAL_KEYS[credential.type]
-                        ? t(CREDENTIAL_KEYS[credential.type])
-                        : formatLabel(credential.type)
-                    }
-                    subtitle={credential.issuing_body ?? undefined}
-                    trailing={
-                      <StatusBadge status="active" label={t('doctor.credentialActive')} size="sm" />
-                    }
-                    divider={index < provider.credentials.length - 1}
-                  />
-                ))}
-              </>
-            )}
+            <ListRow
+              icon="phone"
+              tint={facilityPhone ? 'green' : 'blue'}
+              title={t('facility.phone')}
+              subtitle={facilityPhone ?? t('facility.phoneNotListed')}
+              onPress={facilityPhone ? callFacility : undefined}
+              accessibilityHint={facilityPhone ? t('facility.callAction') : undefined}
+            />
           </Card>
-        </View>
+        </CardStack>
+      </View>
 
-        {/* ── Messaging ────────────────────────────────────────────────────── */}
-        <View
-          onLayout={(event) => {
-            messagingY.current = event.nativeEvent.layout.y;
-          }}
-        >
-          <PanelHeader
-            icon="chat"
-            title={t('doctor.messagingTitle')}
-            subtitle={t('profiles.provider.messagingDesc')}
-            style={{ marginBottom: spacing.sm }}
-          />
-
-          {/* The standing warning, above every state of this section. */}
-          <View style={styles.emergencyNotice} accessibilityRole="alert">
-            <Icon name="alert-triangle" size={18} color={colors.statusWarning} />
-            <Text style={styles.emergencyNoticeText}>
-              {recipientsQuery.data?.notice ?? t('messagingRecipients.notEmergency')}
-            </Text>
-          </View>
-
-          {sent ? (
-            <Card accentColor={colors.statusNormal}>
-              <View style={styles.sentRow} accessibilityLiveRegion="polite">
-                <Icon name="check-circle" size={20} color={colors.statusNormal} />
-                <View style={styles.sentBody}>
-                  <Text style={styles.sentText}>
-                    {sentToDesk
-                      ? t('messagingRecipients.facilitySentTitle')
-                      : t('doctor.messageSent')}
-                  </Text>
-                  <CareButton
-                    label={t('doctor.openMessages')}
-                    icon="chat"
-                    variant="ghost"
-                    size="sm"
-                    onPress={() => router.push('/(tabs)/messages')}
-                  />
-                </View>
-              </View>
-            </Card>
-          ) : messageAccess === 'checking' ? (
-            <LoadingBlock label={t('messagingRecipients.doctorCheckingAccess')} />
-          ) : messageAccess === 'unknown' ? (
-            // The read failed. Say THAT — never "you are not in their care",
-            // which is a different sentence and, on a timeout, a false one.
-            <Card variant="flush">
-              <EmptyState
-                icon="alert-circle"
-                tint="amber"
-                title={t('messagingRecipients.loadError')}
-                message={t('opesCore.errors.offlineBody')}
-                actionLabel={t('messages.retry')}
-                onAction={() => recipientsQuery.refetch()}
-              />
-            </Card>
-          ) : messageAccess === 'open' ? (
-            <View style={styles.stack}>
-              <CareButton
-                label={t('doctor.message')}
-                icon="chat"
-                variant="ghost"
-                onPress={() => setComposeOpen((open) => !open)}
-              />
-              {composeOpen ? (
-                <Card style={styles.composer}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={t('doctor.messagePlaceholder')}
-                    placeholderTextColor={colors.textMuted}
-                    value={composeBody}
-                    onChangeText={setComposeBody}
-                    multiline
-                    accessibilityLabel={t('doctor.messagePlaceholder')}
-                  />
-                  {startThread.isError ? (
-                    <Text style={styles.inputError} accessibilityLiveRegion="polite">
-                      {errorMessage(startThread.error, t('doctor.messageError'))}
-                    </Text>
-                  ) : null}
-                  <GradientButton
-                    label={
-                      startThread.isPending ? t('doctor.messageSending') : t('doctor.messageSend')
-                    }
-                    icon="none"
-                    loading={startThread.isPending}
-                    disabled={!composeBody.trim()}
-                    onPress={() => submitMessage(provider.id)}
-                  />
-                </Card>
-              ) : null}
-            </View>
-          ) : (
-            // Two different truths, told apart rather than blurred into one
-            // "book first" card — and neither of them navigates on its own.
-            //
-            //   unreachable → the patient IS in this clinician's care; the
-            //     clinician simply has no inbox that can receive it yet, so the
-            //     honest route is the desk that does read its messages.
-            //   none        → no care relationship. Booking is offered as a
-            //     choice, sitting next to the desk, not taken on the patient's
-            //     behalf the moment they tap "Message".
-            <View style={styles.stack}>
-              <Card variant="flush">
-                <EmptyState
-                  icon="info"
-                  tint="blue"
-                  title={t(
-                    messageAccess === 'unreachable'
-                      ? 'messagingRecipients.doctorUnreachableTitle'
-                      : 'messagingRecipients.doctorNoRelationshipTitle',
-                  )}
-                  message={t(
-                    messageAccess === 'unreachable'
-                      ? 'messagingRecipients.doctorUnreachableBody'
-                      : 'messagingRecipients.doctorNoRelationshipBody',
-                    { name: provider.name },
-                  )}
+      {/* ── Credentials — the schema's stand-in for a bio ─────────────────── */}
+      <View>
+        <PanelHeader
+          icon="shield-check"
+          title={t('doctor.credentialsTitle')}
+          subtitle={t('profiles.provider.credentialsDesc')}
+          style={{ marginBottom: spacing.sm }}
+        />
+        {isVerified ? <Text style={styles.hint}>{t('doctor.credentialsHint')}</Text> : null}
+        {!isVerified ? (
+          // Nothing published is NOT a failure — blue and informative, and
+          // it says what is still verified (the facility affiliation).
+          <Card variant="flush">
+            <EmptyState
+              icon="document-text"
+              tint="blue"
+              title={t('doctor.noCredentials')}
+              message={t('doctor.noCredentialsBody')}
+            />
+          </Card>
+        ) : (
+          <CardStack spacing="sm">
+            {provider.licenses.map((license, index) => (
+              <Card key={`lic-${index}`} variant="flush">
+                <ListRow
+                  icon="shield-check"
+                  tint="green"
+                  title={enumLabel(PROFESSION_KEYS, license.profession) ?? t('doctor.credentialOther')}
+                  subtitle={license.issuing_body ?? undefined}
+                  trailing={<StatusBadge status="active" label={t('doctor.credentialActive')} size="sm" />}
                 />
               </Card>
-
-              {deskFacilityId ? (
-                <>
-                  <CareButton
-                    label={
-                      deskFacilityName
-                        ? t('messagingRecipients.messageFacility', { facility: deskFacilityName })
-                        : t('messagingRecipients.messageFrontDesk')
-                    }
-                    icon="building"
-                    variant="ghost"
-                    onPress={() => setComposeOpen((open) => !open)}
-                  />
-                  {composeOpen ? (
-                    <Card style={styles.composer}>
-                      <TextInput
-                        style={styles.input}
-                        placeholder={t('doctor.messagePlaceholder')}
-                        placeholderTextColor={colors.textMuted}
-                        value={composeBody}
-                        onChangeText={setComposeBody}
-                        multiline
-                        accessibilityLabel={t('doctor.messagePlaceholder')}
-                      />
-                      {startThread.isError ? (
-                        <Text style={styles.inputError} accessibilityLiveRegion="polite">
-                          {errorMessage(startThread.error, t('doctor.messageError'))}
-                        </Text>
-                      ) : null}
-                      <GradientButton
-                        label={
-                          startThread.isPending
-                            ? t('doctor.messageSending')
-                            : t('doctor.messageSend')
-                        }
-                        icon="none"
-                        loading={startThread.isPending}
-                        disabled={!composeBody.trim()}
-                        onPress={() => submitToDesk(deskFacilityId)}
-                      />
-                    </Card>
-                  ) : null}
-                </>
-              ) : null}
-
-              {messageAccess === 'none' ? (
-                <CareButton
-                  label={t('messagingRecipients.bookInstead')}
-                  icon="calendar-plus"
-                  variant="ghost"
-                  onPress={() => goToBooking(provider)}
+            ))}
+            {provider.credentials.map((credential, index) => (
+              <Card key={`cred-${index}`} variant="flush">
+                <ListRow
+                  icon="check-circle"
+                  tint="green"
+                  title={
+                    CREDENTIAL_KEYS[credential.type]
+                      ? t(CREDENTIAL_KEYS[credential.type])
+                      : formatLabel(credential.type)
+                  }
+                  subtitle={credential.issuing_body ?? undefined}
+                  trailing={<StatusBadge status="active" label={t('doctor.credentialActive')} size="sm" />}
                 />
-              ) : null}
-            </View>
-          )}
+              </Card>
+            ))}
+          </CardStack>
+        )}
+      </View>
+
+      {/* ── Messaging ────────────────────────────────────────────────────── */}
+      <View
+        onLayout={(event) => {
+          messagingY.current = event.nativeEvent.layout.y;
+        }}
+      >
+        <PanelHeader
+          icon="chat"
+          title={t('doctor.messagingTitle')}
+          subtitle={t('profiles.provider.messagingDesc')}
+          style={{ marginBottom: spacing.sm }}
+        />
+
+        {/* The standing warning, above every state of this section. */}
+        <View style={styles.emergencyNotice} accessibilityRole="alert">
+          <Icon name="alert-triangle" size={18} color={colors.statusWarning} />
+          <Text style={styles.emergencyNoticeText}>
+            {recipientsQuery.data?.notice ?? t('messagingRecipients.notEmergency')}
+          </Text>
         </View>
+
+        {sent ? (
+          <Card accentColor={colors.statusNormal}>
+            <View style={styles.sentRow} accessibilityLiveRegion="polite">
+              <Icon name="check-circle" size={20} color={colors.statusNormal} />
+              <View style={styles.sentBody}>
+                <Text style={styles.sentText}>
+                  {sentToDesk ? t('messagingRecipients.facilitySentTitle') : t('doctor.messageSent')}
+                </Text>
+                <CareButton
+                  label={t('doctor.openMessages')}
+                  icon="chat"
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => router.push('/(tabs)/messages')}
+                />
+              </View>
+            </View>
+          </Card>
+        ) : messageAccess === 'checking' ? (
+          <LoadingBlock label={t('messagingRecipients.doctorCheckingAccess')} />
+        ) : messageAccess === 'unknown' ? (
+          // The read failed. Say THAT — never "you are not in their care",
+          // which is a different sentence and, on a timeout, a false one.
+          <Card variant="flush">
+            <EmptyState
+              icon="alert-circle"
+              tint="amber"
+              title={t('messagingRecipients.loadError')}
+              message={t('opesCore.errors.offlineBody')}
+              actionLabel={t('messages.retry')}
+              onAction={() => recipientsQuery.refetch()}
+            />
+          </Card>
+        ) : messageAccess === 'open' ? (
+          <View style={styles.stack}>
+            <CareButton
+              label={t('doctor.message')}
+              icon="chat"
+              variant="ghost"
+              onPress={() => setComposeOpen((open) => !open)}
+            />
+            {composeOpen ? (
+              <Card style={styles.composer}>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('doctor.messagePlaceholder')}
+                  placeholderTextColor={colors.textMuted}
+                  value={composeBody}
+                  onChangeText={setComposeBody}
+                  multiline
+                  accessibilityLabel={t('doctor.messagePlaceholder')}
+                />
+                {startThread.isError ? (
+                  <Text style={styles.inputError} accessibilityLiveRegion="polite">
+                    {errorMessage(startThread.error, t('doctor.messageError'))}
+                  </Text>
+                ) : null}
+                <GradientButton
+                  label={startThread.isPending ? t('doctor.messageSending') : t('doctor.messageSend')}
+                  icon="none"
+                  loading={startThread.isPending}
+                  disabled={!composeBody.trim()}
+                  onPress={() => submitMessage(provider.id)}
+                />
+              </Card>
+            ) : null}
+          </View>
+        ) : (
+          // Two different truths, told apart rather than blurred into one
+          // "book first" card — and neither of them navigates on its own.
+          //
+          //   unreachable → the patient IS in this clinician's care; the
+          //     clinician simply has no inbox that can receive it yet, so the
+          //     honest route is the desk that does read its messages.
+          //   none        → no care relationship. Booking is offered as a
+          //     choice, sitting next to the desk, not taken on the patient's
+          //     behalf the moment they tap "Message".
+          <View style={styles.stack}>
+            <Card variant="flush">
+              <EmptyState
+                icon="info"
+                tint="blue"
+                title={t(
+                  messageAccess === 'unreachable'
+                    ? 'messagingRecipients.doctorUnreachableTitle'
+                    : 'messagingRecipients.doctorNoRelationshipTitle',
+                )}
+                message={t(
+                  messageAccess === 'unreachable'
+                    ? 'messagingRecipients.doctorUnreachableBody'
+                    : 'messagingRecipients.doctorNoRelationshipBody',
+                  { name: provider.name },
+                )}
+              />
+            </Card>
+
+            {deskFacilityId ? (
+              <>
+                <CareButton
+                  label={
+                    deskFacilityName
+                      ? t('messagingRecipients.messageFacility', {
+                          facility: deskFacilityName,
+                        })
+                      : t('messagingRecipients.messageFrontDesk')
+                  }
+                  icon="building"
+                  variant="ghost"
+                  onPress={() => setComposeOpen((open) => !open)}
+                />
+                {composeOpen ? (
+                  <Card style={styles.composer}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder={t('doctor.messagePlaceholder')}
+                      placeholderTextColor={colors.textMuted}
+                      value={composeBody}
+                      onChangeText={setComposeBody}
+                      multiline
+                      accessibilityLabel={t('doctor.messagePlaceholder')}
+                    />
+                    {startThread.isError ? (
+                      <Text style={styles.inputError} accessibilityLiveRegion="polite">
+                        {errorMessage(startThread.error, t('doctor.messageError'))}
+                      </Text>
+                    ) : null}
+                    <GradientButton
+                      label={startThread.isPending ? t('doctor.messageSending') : t('doctor.messageSend')}
+                      icon="none"
+                      loading={startThread.isPending}
+                      disabled={!composeBody.trim()}
+                      onPress={() => submitToDesk(deskFacilityId)}
+                    />
+                  </Card>
+                ) : null}
+              </>
+            ) : null}
+
+            {messageAccess === 'none' ? (
+              <CareButton
+                label={t('messagingRecipients.bookInstead')}
+                icon="calendar-plus"
+                variant="ghost"
+                onPress={() => goToBooking(provider)}
+              />
+            ) : null}
+          </View>
+        )}
+      </View>
     </ProfileFrame>
   );
 }
@@ -1098,10 +1066,23 @@ export default function DoctorDetailScreen() {
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     scroll: { flex: 1 },
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
-    center: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing.lg, gap: spacing.sm },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
+    center: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+      gap: spacing.sm,
+    },
 
-    identity: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md - 2 },
+    identity: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.md - 2,
+    },
     identityBody: { flex: 1, minWidth: 0, gap: 2 },
     nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     name: {
@@ -1115,7 +1096,12 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.md,
       color: colors.link,
     },
-    metaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 3 },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 6,
+      marginTop: 3,
+    },
     meta: {
       flex: 1,
       fontFamily: typography.fontFamily.regular,
@@ -1123,7 +1109,12 @@ const makeStyles = (colors: Palette) =>
       lineHeight: typography.lineHeight.sm,
       color: colors.textSecondary,
     },
-    badges: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md - 4 },
+    badges: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginTop: spacing.md - 4,
+    },
 
     actions: {
       flexDirection: 'row',
@@ -1176,7 +1167,11 @@ const makeStyles = (colors: Palette) =>
       color: colors.danger,
     },
 
-    sentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 2 },
+    sentRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm + 2,
+    },
     sentBody: { flex: 1, gap: spacing.sm },
     sentText: {
       fontFamily: typography.fontFamily.regular,

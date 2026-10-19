@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   GradientButton,
   Icon,
   ListRow,
@@ -106,9 +107,7 @@ export default function PermissionsScreen() {
   const [pushCapability] = useState(getPushCapability);
   const pushDeliverable = pushCapability.deliverable;
 
-  const [notifState, setNotifState] = useState<PermissionState>(
-    pushDeliverable ? 'checking' : 'unavailable',
-  );
+  const [notifState, setNotifState] = useState<PermissionState>(pushDeliverable ? 'checking' : 'unavailable');
   const [locState, setLocState] = useState<PermissionState>('checking');
   const [busy, setBusy] = useState(false);
   const [pushRegisterFailed, setPushRegisterFailed] = useState(false);
@@ -197,16 +196,13 @@ export default function PermissionsScreen() {
     }
   }, []);
 
-  const handleRowPress = useCallback(
-    (state: PermissionState, request: () => Promise<void>) => {
-      if (state === 'undetermined') {
-        request();
-      } else if (state === 'denied' && CAN_OPEN_OS_SETTINGS) {
-        Linking.openSettings().catch(() => {});
-      }
-    },
-    [],
-  );
+  const handleRowPress = useCallback((state: PermissionState, request: () => Promise<void>) => {
+    if (state === 'undetermined') {
+      request();
+    } else if (state === 'denied' && CAN_OPEN_OS_SETTINGS) {
+      Linking.openSettings().catch(() => {});
+    }
+  }, []);
 
   /** The single exit. Guarded so a double-tap cannot fire two navigations,
    * and wrapped so a device-storage hiccup writing the "primer seen" flag can
@@ -248,43 +244,48 @@ export default function PermissionsScreen() {
       />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <Card variant="flush">
-          {/* Two different rows, not one row with a caveat. When push cannot
+        <CardStack spacing="sm">
+          <Card variant="flush">
+            {/* Two different rows, not one row with a caveat. When push cannot
               be delivered the icon, the body and the badge all say the same
               thing, and there is nothing to press. */}
-          <PermissionRow
-            icon={pushDeliverable ? 'bell' : 'bell-off'}
-            tint="blue"
-            title={t('push.permissions.title', { defaultValue: 'Notifications' })}
-            body={
-              pushDeliverable
-                ? t('push.permissions.bodyDeliverable', {
-                    defaultValue:
-                      'Appointment reminders, new results and consent requests, sent to this phone.',
-                  })
-                : t('push.permissions.bodyUnavailable', {
-                    defaultValue:
-                      "Reminders, results and consent requests appear in the app's notification centre.",
-                  })
-            }
-            actionLabel={t('push.permissions.action', { defaultValue: 'Turn on notifications' })}
-            unavailableLabel={t('push.permissions.badgeUnavailable', {
-              defaultValue: 'In-app only',
-            })}
-            state={notifState}
-            onPress={() => handleRowPress(notifState, requestNotifications)}
-            divider
-          />
-          <PermissionRow
-            icon="location"
-            tint="green"
-            title={t('permissions.locationTitle')}
-            body={t('permissions.locationBody')}
-            actionLabel={t('permissions.locationAction')}
-            state={locState}
-            onPress={() => handleRowPress(locState, requestLocation)}
-          />
-        </Card>
+            <PermissionRow
+              icon={pushDeliverable ? 'bell' : 'bell-off'}
+              tint="blue"
+              title={t('push.permissions.title', {
+                defaultValue: 'Notifications',
+              })}
+              body={
+                pushDeliverable
+                  ? t('push.permissions.bodyDeliverable', {
+                      defaultValue: 'Appointment reminders, new results and consent requests, sent to this phone.',
+                    })
+                  : t('push.permissions.bodyUnavailable', {
+                      defaultValue: "Reminders, results and consent requests appear in the app's notification centre.",
+                    })
+              }
+              actionLabel={t('push.permissions.action', {
+                defaultValue: 'Turn on notifications',
+              })}
+              unavailableLabel={t('push.permissions.badgeUnavailable', {
+                defaultValue: 'In-app only',
+              })}
+              state={notifState}
+              onPress={() => handleRowPress(notifState, requestNotifications)}
+            />
+          </Card>
+          <Card variant="flush">
+            <PermissionRow
+              icon="location"
+              tint="green"
+              title={t('permissions.locationTitle')}
+              body={t('permissions.locationBody')}
+              actionLabel={t('permissions.locationAction')}
+              state={locState}
+              onPress={() => handleRowPress(locState, requestLocation)}
+            />
+          </Card>
+        </CardStack>
 
         {/* A denied permission is only actionable where OS settings can be
             opened; on web the row is read-only and this says what to do. */}
@@ -307,9 +308,7 @@ export default function PermissionsScreen() {
           />
         ) : null}
 
-        {pushRegisterFailed ? (
-          <Note icon="alert-triangle" text={t('permissions.pushRegisterError')} />
-        ) : null}
+        {pushRegisterFailed ? <Note icon="alert-triangle" text={t('permissions.pushRegisterError')} /> : null}
 
         <Text style={[styles.meta, styles.metaCenter]}>{t('permissions.optionalNote')}</Text>
 
@@ -319,12 +318,7 @@ export default function PermissionsScreen() {
 
         {/* Deliberately never disabled: this is the escape hatch, and a
             pending OS prompt must not be able to trap the patient here. */}
-        <TouchableOpacity
-          onPress={finish}
-          accessibilityRole="button"
-          hitSlop={8}
-          style={styles.skip}
-        >
+        <TouchableOpacity onPress={finish} accessibilityRole="button" hitSlop={8} style={styles.skip}>
           <Text style={styles.skipText}>{t('permissions.skip')}</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -341,7 +335,6 @@ function PermissionRow({
   unavailableLabel,
   state,
   onPress,
-  divider,
 }: {
   icon: IconName;
   tint: Tint;
@@ -353,7 +346,6 @@ function PermissionRow({
   unavailableLabel?: string;
   state: PermissionState;
   onPress: () => void;
-  divider?: boolean;
 }) {
   const { t } = useTranslation();
   // A denied permission is only actionable where OS settings can be opened;
@@ -367,9 +359,7 @@ function PermissionRow({
       ? { label: t('permissions.statusAllowed'), tone: 'normal', icon: 'check' }
       : state === 'denied'
         ? {
-            label: CAN_OPEN_OS_SETTINGS
-              ? t('permissions.openSettings')
-              : t('permissions.statusDenied'),
+            label: CAN_OPEN_OS_SETTINGS ? t('permissions.openSettings') : t('permissions.statusDenied'),
             tone: 'critical',
           }
         : state === 'unavailable'
@@ -378,7 +368,9 @@ function PermissionRow({
               // nothing for the patient to fix.
               label:
                 unavailableLabel ??
-                t('push.permissions.badgeUnavailable', { defaultValue: 'In-app only' }),
+                t('push.permissions.badgeUnavailable', {
+                  defaultValue: 'In-app only',
+                }),
               tone: 'neutral',
               icon: 'info',
             }
@@ -395,7 +387,6 @@ function PermissionRow({
       trailing={<StatusBadge status={state} tone={badge.tone} label={badge.label} icon={badge.icon} size="sm" />}
       onPress={actionable ? onPress : undefined}
       chevron={actionable}
-      divider={divider}
       accessibilityLabel={actionable ? actionLabel : `${title}. ${badge.label}`}
     />
   );
@@ -403,7 +394,11 @@ function PermissionRow({
 
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
-    content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.md },
+    content: {
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.xl,
+      gap: spacing.md,
+    },
 
     webHint: {
       flexDirection: 'row',

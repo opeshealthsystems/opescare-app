@@ -1,18 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   a11yJoin,
   Card,
+  CardStack,
   Chip,
   EmptyState,
   formatDate,
@@ -90,8 +83,14 @@ interface Destination {
  * this app's equivalent screens.
  */
 const PORTAL_PATH_ROUTES: Record<string, Destination> = {
-  '/portals/patient/logs': { route: '/privacy/access-logs', labelKey: 'notifications.action.accessLogs' },
-  '/portals/patient/health-id': { route: '/(tabs)/health-id', labelKey: 'notifications.action.healthId' },
+  '/portals/patient/logs': {
+    route: '/privacy/access-logs',
+    labelKey: 'notifications.action.accessLogs',
+  },
+  '/portals/patient/health-id': {
+    route: '/(tabs)/health-id',
+    labelKey: 'notifications.action.healthId',
+  },
 };
 
 /**
@@ -115,28 +114,79 @@ const PORTAL_PATH_ROUTES: Record<string, Destination> = {
 const IN_APP_ROOTS: Record<string, { labelKey: string; child: 'none' | 'id' | readonly string[] }> = {
   labs: { labelKey: 'notifications.action.labs', child: 'id' },
   appointments: { labelKey: 'notifications.action.appointments', child: 'id' },
-  prescriptions: { labelKey: 'notifications.action.prescriptions', child: 'id' },
+  prescriptions: {
+    labelKey: 'notifications.action.prescriptions',
+    child: 'id',
+  },
   messages: { labelKey: 'notifications.action.messages', child: 'id' },
   family: { labelKey: 'notifications.action.family', child: 'id' },
-  privacy: { labelKey: 'privacy.title', child: ['access', 'access-logs', 'export'] },
+  privacy: {
+    labelKey: 'privacy.title',
+    child: ['access', 'access-logs', 'export'],
+  },
   'health-id': { labelKey: 'notifications.action.healthId', child: 'none' },
 };
 
 /** Fallback by notification `type`, for the emitters that send no action at all. */
 const TYPE_ROUTES: { match: string; destination: Destination }[] = [
-  { match: 'appointment', destination: { route: '/appointments', labelKey: 'notifications.action.appointments' } },
-  { match: 'prescription', destination: { route: '/prescriptions', labelKey: 'notifications.action.prescriptions' } },
-  { match: 'health_id', destination: { route: '/(tabs)/health-id', labelKey: 'notifications.action.healthId' } },
-  { match: 'message', destination: { route: '/(tabs)/messages', labelKey: 'notifications.action.messages' } },
-  { match: 'family', destination: { route: '/family', labelKey: 'notifications.action.family' } },
-  { match: 'emergency', destination: { route: '/privacy/access-logs', labelKey: 'notifications.action.accessLogs' } },
-  { match: 'security', destination: { route: '/privacy/access-logs', labelKey: 'notifications.action.accessLogs' } },
+  {
+    match: 'appointment',
+    destination: {
+      route: '/appointments',
+      labelKey: 'notifications.action.appointments',
+    },
+  },
+  {
+    match: 'prescription',
+    destination: {
+      route: '/prescriptions',
+      labelKey: 'notifications.action.prescriptions',
+    },
+  },
+  {
+    match: 'health_id',
+    destination: {
+      route: '/(tabs)/health-id',
+      labelKey: 'notifications.action.healthId',
+    },
+  },
+  {
+    match: 'message',
+    destination: {
+      route: '/(tabs)/messages',
+      labelKey: 'notifications.action.messages',
+    },
+  },
+  {
+    match: 'family',
+    destination: { route: '/family', labelKey: 'notifications.action.family' },
+  },
+  {
+    match: 'emergency',
+    destination: {
+      route: '/privacy/access-logs',
+      labelKey: 'notifications.action.accessLogs',
+    },
+  },
+  {
+    match: 'security',
+    destination: {
+      route: '/privacy/access-logs',
+      labelKey: 'notifications.action.accessLogs',
+    },
+  },
   // Laboratory and consent notifications carry no 'appointment'/'prescription'
   // word, so before these two lines every `lab_*` and `consent_*` row on a real
   // record was a tap that did nothing at all — four of the six the demo patient
   // holds, the consent request among them.
-  { match: 'lab', destination: { route: '/labs', labelKey: 'notifications.action.labs' } },
-  { match: 'consent', destination: { route: '/privacy', labelKey: 'privacy.title' } },
+  {
+    match: 'lab',
+    destination: { route: '/labs', labelKey: 'notifications.action.labs' },
+  },
+  {
+    match: 'consent',
+    destination: { route: '/privacy', labelKey: 'privacy.title' },
+  },
 ];
 
 /**
@@ -210,7 +260,12 @@ function tintForType(type: string | null | undefined): Tint | null {
   ) {
     return 'green';
   }
-  if (value.includes('appointment') || value.includes('booking') || value.includes('health_id') || value.includes('document')) {
+  if (
+    value.includes('appointment') ||
+    value.includes('booking') ||
+    value.includes('health_id') ||
+    value.includes('document')
+  ) {
     return 'blue';
   }
   if (value.includes('message') || value.includes('consult') || value.includes('referral')) return 'purple';
@@ -244,9 +299,7 @@ function iconForCategory(category: Category): IconName {
 }
 
 function isSameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-  );
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
 type SectionKey = 'today' | 'yesterday' | 'earlier';
@@ -372,7 +425,9 @@ export default function NotificationsScreen() {
         title={t('opesMessaging.notifications.title')}
         subtitle={
           unreadCount > 0
-            ? t('opesMessaging.notifications.subtitleUnread', { count: unreadCount })
+            ? t('opesMessaging.notifications.subtitleUnread', {
+                count: unreadCount,
+              })
             : t('opesMessaging.notifications.subtitleNone')
         }
         onBack={goBack}
@@ -384,13 +439,14 @@ export default function NotificationsScreen() {
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={markAllLabel}
-            accessibilityState={{ disabled: !canMarkAll, busy: markAllRead.isPending }}
+            accessibilityState={{
+              disabled: !canMarkAll,
+              busy: markAllRead.isPending,
+            }}
             style={styles.headerAction}
           >
             <Icon name="check-double" size={16} color={canMarkAll ? colors.link : colors.textMuted} />
-            <Text style={[styles.headerActionText, !canMarkAll && styles.headerActionOff]}>
-              {markAllLabel}
-            </Text>
+            <Text style={[styles.headerActionText, !canMarkAll && styles.headerActionOff]}>{markAllLabel}</Text>
           </TouchableOpacity>
         }
       />
@@ -427,12 +483,7 @@ export default function NotificationsScreen() {
         </ScrollView>
 
         {showStale ? (
-          <StaleNotice
-            message={staleMessage}
-            loadedAt={loadedAt}
-            onRetry={() => refetch()}
-            retrying={isRefetching}
-          />
+          <StaleNotice message={staleMessage} loadedAt={loadedAt} onRetry={() => refetch()} retrying={isRefetching} />
         ) : null}
 
         {markAllRead.isError ? (
@@ -467,18 +518,14 @@ export default function NotificationsScreen() {
             icon={filter === 'all' ? 'bell-off' : iconForCategory(filter)}
             tint="blue"
             title={
-              filter === 'all'
-                ? t('opesMessaging.notifications.emptyTitle')
-                : t('notifications.emptyFilteredTitle')
+              filter === 'all' ? t('opesMessaging.notifications.emptyTitle') : t('notifications.emptyFilteredTitle')
             }
             message={
               filter === 'all'
                 ? t('opesMessaging.notifications.emptyMessage')
                 : t('notifications.emptyFilteredSubtitle')
             }
-            actionLabel={
-              filter === 'all' ? t('notifications.emptyAction') : t('notifications.emptyFilteredAction')
-            }
+            actionLabel={filter === 'all' ? t('notifications.emptyAction') : t('notifications.emptyFilteredAction')}
             onAction={() => (filter === 'all' ? router.push('/settings') : setFilter('all'))}
           />
         ) : (
@@ -486,58 +533,55 @@ export default function NotificationsScreen() {
             {groups.map((group) => (
               <View key={group.key}>
                 <SectionHeader title={t(SECTION_LABEL_KEY[group.key])} variant="overline" />
-                <Card variant="flush">
-                  {group.items.map((item, index) => {
+                <CardStack spacing="sm">
+                  {group.items.map((item) => {
                     const destination = destinationFor(item);
                     const when = whenLabel(item.created_at, group.key);
                     const important = item.severity === 'high';
                     const actionLabel = destination ? t(destination.labelKey) : undefined;
                     return (
-                      <ListRow
-                        key={item.id}
-                        icon={iconForType(item.type)}
-                        tint={tintFor(item)}
-                        title={item.title}
-                        subtitle={item.message || actionLabel}
-                        divider={index < group.items.length - 1}
-                        chevron={!!destination}
-                        onPress={() => handlePress(item, destination)}
-                        accessibilityLabel={a11yJoin(
-                          !item.read && unreadA11y,
-                          important && importantLabel,
-                          item.title,
-                          item.message,
-                          when,
-                        )}
-                        accessibilityHint={actionLabel}
-                        trailing={
-                          <View style={styles.trailing}>
-                            {important ? (
-                              <StatusBadge
-                                status="high"
-                                tone="critical"
-                                size="sm"
-                                icon="alert-triangle"
-                                label={importantLabel}
-                              />
-                            ) : null}
-                            <View style={styles.whenRow}>
-                              {when ? (
-                                <Text
-                                  style={[styles.when, !item.read && styles.whenUnread]}
-                                  numberOfLines={1}
-                                >
-                                  {when}
-                                </Text>
+                      <Card key={item.id} variant="flush">
+                        <ListRow
+                          icon={iconForType(item.type)}
+                          tint={tintFor(item)}
+                          title={item.title}
+                          subtitle={item.message || actionLabel}
+                          chevron={!!destination}
+                          onPress={() => handlePress(item, destination)}
+                          accessibilityLabel={a11yJoin(
+                            !item.read && unreadA11y,
+                            important && importantLabel,
+                            item.title,
+                            item.message,
+                            when,
+                          )}
+                          accessibilityHint={actionLabel}
+                          trailing={
+                            <View style={styles.trailing}>
+                              {important ? (
+                                <StatusBadge
+                                  status="high"
+                                  tone="critical"
+                                  size="sm"
+                                  icon="alert-triangle"
+                                  label={importantLabel}
+                                />
                               ) : null}
-                              {!item.read ? <View style={styles.dot} /> : null}
+                              <View style={styles.whenRow}>
+                                {when ? (
+                                  <Text style={[styles.when, !item.read && styles.whenUnread]} numberOfLines={1}>
+                                    {when}
+                                  </Text>
+                                ) : null}
+                                {!item.read ? <View style={styles.dot} /> : null}
+                              </View>
                             </View>
-                          </View>
-                        }
-                      />
+                          }
+                        />
+                      </Card>
                     );
                   })}
-                </Card>
+                </CardStack>
               </View>
             ))}
 

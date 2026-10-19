@@ -16,6 +16,7 @@ import { Screen } from '@/components/ui/Screen';
 import { FacilityMap } from '@/components/map/FacilityMap';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ScreenHeader,
@@ -125,12 +126,7 @@ import { useNationwideBloodSearch } from '@/lib/api/bloodQueries';
  * The components the table asks about, in the order the reference lists them.
  * Whole blood leads because it is the finder's default and the commonest ask.
  */
-const TABLE_COMPONENTS: readonly BloodComponentValue[] = [
-  'whole_blood',
-  'red_cells',
-  'platelets',
-  'plasma',
-] as const;
+const TABLE_COMPONENTS: readonly BloodComponentValue[] = ['whole_blood', 'red_cells', 'platelets', 'plasma'] as const;
 
 /**
  * The reference colour-codes each table row's glyph. Same idea here, from the
@@ -286,9 +282,7 @@ export default function BloodBankDetailScreen() {
 
   // Outside the radius is not the same as gone. Fall back to the national
   // register before the screen is allowed to say the listing was withdrawn.
-  const localMissed =
-    localSearch.isSuccess &&
-    !(localSearch.data ?? []).some((row) => row.id === facilityId);
+  const localMissed = localSearch.isSuccess && !(localSearch.data ?? []).some((row) => row.id === facilityId);
 
   const nationwideSearch = useNationwideBloodSearch({
     bloodGroup,
@@ -379,9 +373,7 @@ export default function BloodBankDetailScreen() {
               title={search.isError ? t('bloodBank.loadFailed') : t('bloodBank.goneTitle')}
               message={search.isError ? t('bloodBank.loadFailedBody') : t('bloodBank.goneBody')}
               actionLabel={search.isError ? t('bloodBank.retry') : t('bloodBank.backToFinder')}
-              onAction={
-                search.isError ? () => search.refetch() : () => router.replace('/blood-finder')
-              }
+              onAction={search.isError ? () => search.refetch() : () => router.replace('/blood-finder')}
             />
           </Card>
         </View>
@@ -397,9 +389,7 @@ export default function BloodBankDetailScreen() {
     facility.distance_km === null
       ? t('bloodBank.distanceUnknown')
       : t('bloodFinder.distanceKm', { km: facility.distance_km });
-  const updated = availability?.last_updated_at
-    ? formatDateTime(availability.last_updated_at)
-    : null;
+  const updated = availability?.last_updated_at ? formatDateTime(availability.last_updated_at) : null;
   const verified = (facility.verification_status ?? '').toLowerCase() === 'verified';
   const phone = facility.phone ?? facility.emergency_contact ?? null;
   const mappable = facility.latitude != null && facility.longitude != null;
@@ -423,7 +413,11 @@ export default function BloodBankDetailScreen() {
         // The reference's second header action is a heart (Save). Omitted:
         // there is no favourites endpoint, so it would be a dead control.
         actions={[
-          { icon: 'share', onPress: shareFacility, accessibilityLabel: t('bloodBank.shareA11y') },
+          {
+            icon: 'share',
+            onPress: shareFacility,
+            accessibilityLabel: t('bloodBank.shareA11y'),
+          },
         ]}
       />
 
@@ -466,11 +460,7 @@ export default function BloodBankDetailScreen() {
                   no opening hours are returned for a blood bank. */}
               {verified ? (
                 <View style={styles.pillRow}>
-                  <StatusPill
-                    icon="shield-check"
-                    label={t('bloodBank.verifiedPill')}
-                    tone={colors.link}
-                  />
+                  <StatusPill icon="shield-check" label={t('bloodBank.verifiedPill')} tone={colors.link} />
                 </View>
               ) : null}
             </View>
@@ -514,9 +504,7 @@ export default function BloodBankDetailScreen() {
 
                   {availability?.units_range ? (
                     <View style={styles.unitsHeadline}>
-                      <Text style={[styles.unitsBig, { color: colors.link }]}>
-                        {availability.units_range}
-                      </Text>
+                      <Text style={[styles.unitsBig, { color: colors.link }]}>{availability.units_range}</Text>
                       <Text style={styles.unitsWord}>{t('bloodBank.unitsAvailable')}</Text>
                     </View>
                   ) : (
@@ -543,9 +531,7 @@ export default function BloodBankDetailScreen() {
 
             <View style={[styles.availabilityAside, { borderLeftColor: colors.border }]}>
               <View style={styles.asideHead}>
-                <Text style={[styles.asideTitle, { color: colors.link }]}>
-                  {t('bloodBank.statusTitle')}
-                </Text>
+                <Text style={[styles.asideTitle, { color: colors.link }]}>{t('bloodBank.statusTitle')}</Text>
                 <Icon name="info" size={14} color={colors.link} />
               </View>
               <Text style={styles.asideBody}>{t('bloodBank.statusBody')}</Text>
@@ -555,100 +541,98 @@ export default function BloodBankDetailScreen() {
 
         {/* ── 3. Component availability: a real table ──────────────────────── */}
         <View style={styles.stack}>
-          <Card variant="flush">
-            <Text style={styles.cardTitle}>{t('bloodBank.componentsTitle')}</Text>
+          <CardStack spacing="sm">
+            <Card variant="flush">
+              <Text style={styles.cardTitle}>{t('bloodBank.componentsTitle')}</Text>
 
-            <View
-              style={[
-                styles.tableHead,
-                { backgroundColor: colors.surfaceMuted, borderColor: colors.border },
-              ]}
-            >
-              <Text style={styles.tableHeadCell}>{t('bloodBank.componentColumn')}</Text>
-              <Text style={[styles.tableHeadCell, styles.unitsHeadCell]}>
-                {t('bloodBank.unitsColumn')}
-              </Text>
-            </View>
-
-            {components.isPending ? (
-              <View style={styles.tablePending}>
-                <LoadingBlock label={t('bloodBank.loading')} />
+              <View
+                style={[
+                  styles.tableHead,
+                  {
+                    backgroundColor: colors.surfaceMuted,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <Text style={styles.tableHeadCell}>{t('bloodBank.componentColumn')}</Text>
+                <Text style={[styles.tableHeadCell, styles.unitsHeadCell]}>{t('bloodBank.unitsColumn')}</Text>
               </View>
-            ) : (
-              components.rows.map((row, index) => {
-                const mark = COMPONENT_MARK[row.component] ?? {
-                  icon: 'droplet' as IconName,
-                  tint: 'statusCritical' as keyof Palette,
-                };
-                return (
-                  <View
-                    key={row.component}
-                    style={[
-                      styles.tableRow,
-                      index < components.rows.length - 1 && {
-                        borderBottomWidth: StyleSheet.hairlineWidth,
-                        borderBottomColor: colors.border,
-                      },
-                    ]}
-                  >
-                    <View style={styles.componentCell}>
-                      <Icon name={mark.icon} size={17} color={colors[mark.tint]} />
-                      <Text style={styles.componentName} numberOfLines={2}>
-                        {t(`bloodFinder.components.${row.component}`, {
-                          defaultValue: formatLabel(row.component),
-                        })}
-                      </Text>
-                    </View>
 
-                    <View style={styles.unitsCol}>
-                      {row.isPending ? (
-                        <Text style={styles.unitsUnknown}>{t('bloodBank.checking')}</Text>
-                      ) : row.snapshot?.units_range ? (
-                        <Text numberOfLines={1}>
-                          <Text style={[styles.unitsValue, { color: colors.link }]}>
-                            {row.snapshot.units_range}
+              {components.isPending ? (
+                <View style={styles.tablePending}>
+                  <LoadingBlock label={t('bloodBank.loading')} />
+                </View>
+              ) : null}
+            </Card>
+            {components.isPending
+              ? null
+              : components.rows.map((row) => {
+                  const mark = COMPONENT_MARK[row.component] ?? {
+                    icon: 'droplet' as IconName,
+                    tint: 'statusCritical' as keyof Palette,
+                  };
+                  return (
+                    <Card key={row.component} variant="flush">
+                      <View style={styles.tableRow}>
+                        <View style={styles.componentCell}>
+                          <Icon name={mark.icon} size={17} color={colors[mark.tint]} />
+                          <Text style={styles.componentName} numberOfLines={2}>
+                            {t(`bloodFinder.components.${row.component}`, {
+                              defaultValue: formatLabel(row.component),
+                            })}
                           </Text>
-                          <Text style={styles.unitsSuffix}>
-                            {` ${t('bloodBank.unitsSuffix')}`}
-                          </Text>
-                        </Text>
-                      ) : (
-                        /* Not reported. Deliberately NOT "0". */
-                        <Text style={styles.unitsUnknown}>{t('bloodBank.notReported')}</Text>
-                      )}
-                    </View>
-                  </View>
-                );
-              })
-            )}
+                        </View>
+
+                        <View style={styles.unitsCol}>
+                          {row.isPending ? (
+                            <Text style={styles.unitsUnknown}>{t('bloodBank.checking')}</Text>
+                          ) : row.snapshot?.units_range ? (
+                            <Text numberOfLines={1}>
+                              <Text style={[styles.unitsValue, { color: colors.link }]}>
+                                {row.snapshot.units_range}
+                              </Text>
+                              <Text style={styles.unitsSuffix}>{` ${t('bloodBank.unitsSuffix')}`}</Text>
+                            </Text>
+                          ) : (
+                            /* Not reported. Deliberately NOT "0". */
+                            <Text style={styles.unitsUnknown}>{t('bloodBank.notReported')}</Text>
+                          )}
+                        </View>
+                      </View>
+                    </Card>
+                  );
+                })}
 
             {/* The reference closes the table with a "View All Components"
                 disclosure. Omitted: every component this platform tracks is
                 already in the table, so it would open onto nothing. */}
-          </Card>
+          </CardStack>
 
           <NoticeBanner icon="info" tone="pending" message={t('bloodBank.notReportedExplained')} />
         </View>
 
         {/* ── 4. Facility information: fact column + map thumbnail ─────────── */}
-        <Card>
+        <View style={styles.stack}>
           <Text style={styles.cardTitleInset}>{t('bloodBank.facilityTitle')}</Text>
-
-          <View style={styles.factsRow}>
-            <View style={styles.facts}>
-              {/* "Operating Hours" and "Services" are in the reference and not
-                  in the payload — see the omissions note at the top. */}
+          {/* "Operating Hours" and "Services" are in the reference and not
+              in the payload — see the omissions note at the top. */}
+          <CardStack spacing="sm">
+            <Card>
               <FactRow
                 icon="phone"
                 label={t('bloodBank.phoneLabel')}
                 value={phone ?? t('bloodBank.notRecorded')}
                 valueColor={phone ? colors.link : undefined}
               />
+            </Card>
+            <Card>
               <FactRow
                 icon="location"
                 label={t('bloodBank.addressLabel')}
                 value={facility.address ?? place ?? t('bloodBank.notRecorded')}
               />
+            </Card>
+            <Card>
               <FactRow
                 icon="building"
                 label={t('bloodBank.typeShort')}
@@ -656,6 +640,8 @@ export default function BloodBankDetailScreen() {
                   defaultValue: formatLabel(facility.facility_type),
                 })}
               />
+            </Card>
+            <Card>
               <FactRow
                 icon="shield-check"
                 label={t('bloodBank.listingLabel')}
@@ -668,41 +654,32 @@ export default function BloodBankDetailScreen() {
                 }
                 valueColor={verified ? colors.statusNormal : undefined}
               />
-            </View>
-
+            </Card>
             {mappable ? (
-              <View style={styles.mapCol}>
-                <FacilityMap facilities={[facility]} height={168} variant="thumbnail" />
-                {/* The pill the reference floats over the thumbnail. Label
-                    shortened to "Map" so it fits a 40% column at 375pt; the
-                    full sentence is the accessibility label. */}
-                <ToneButton
-                  icon="location"
-                  label={t('bloodBank.mapShort')}
-                  a11yLabel={t('bloodBank.mapA11y')}
-                  onPress={openMap}
-                  style={styles.mapPill}
-                />
-              </View>
-            ) : null}
-          </View>
-
-          {!mappable ? (
-            // Full width rather than squeezed into the 40% map column: the
-            // sentence explains an absence and has to be readable.
-            <View style={styles.noMap}>
+              <Card>
+                <View style={styles.mapWide}>
+                  <FacilityMap facilities={[facility]} height={168} variant="thumbnail" />
+                  {/* The pill the reference floats over the thumbnail. Label
+                      shortened to "Map" so it fits; the full sentence is the
+                      accessibility label. */}
+                  <ToneButton
+                    icon="location"
+                    label={t('bloodBank.mapShort')}
+                    a11yLabel={t('bloodBank.mapA11y')}
+                    onPress={openMap}
+                    style={styles.mapPill}
+                  />
+                </View>
+              </Card>
+            ) : (
+              // Full width: the sentence explains an absence and has to be readable.
               <NoticeBanner icon="location" tone="pending" message={t('bloodBank.noMap')} />
-            </View>
-          ) : null}
-        </Card>
+            )}
+          </CardStack>
+        </View>
 
         {/* ── 5. Commit ────────────────────────────────────────────────────── */}
-        <CareButton
-          label={t('bloodBank.request')}
-          icon="droplet"
-          variant="primary"
-          onPress={goToRequest}
-        />
+        <CareButton label={t('bloodBank.request')} icon="droplet" variant="primary" onPress={goToRequest} />
 
         {/* Three outlined tone buttons, not the reference's four: the fourth
             is "Save", and there is no favourites endpoint behind it. */}
@@ -746,12 +723,20 @@ export default function BloodBankDetailScreen() {
 
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
     stack: { gap: spacing.sm },
     centred: { padding: spacing.md },
 
     /* 1. Identity ------------------------------------------------------- */
-    identity: { flexDirection: 'row', gap: spacing.sm + 2, alignItems: 'flex-start' },
+    identity: {
+      flexDirection: 'row',
+      gap: spacing.sm + 2,
+      alignItems: 'flex-start',
+    },
     // The reference's mark is a 72pt logo disc on a white face. We have no
     // logo, so the disc carries the facility's initials — its own name, not a
     // graphic we would have to invent — at the weight the layout expects.
@@ -769,7 +754,7 @@ const makeStyles = (c: Palette) =>
     identityInitials: {
       fontFamily: typography.fontFamily.bold,
       fontSize: 15,
-      letterSpacing: .5,
+      letterSpacing: 0.5,
       color: c.primaryDeep,
     },
     identityBody: { flex: 1, minWidth: 0 },
@@ -781,7 +766,12 @@ const makeStyles = (c: Palette) =>
       lineHeight: typography.lineHeight.md,
       color: c.textPrimary,
     },
-    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 3,
+    },
     place: {
       flexShrink: 1,
       fontFamily: typography.fontFamily.regular,
@@ -794,7 +784,12 @@ const makeStyles = (c: Palette) =>
       fontSize: typography.size.xs,
       color: c.link,
     },
-    pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
+    pillRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xs,
+      marginTop: spacing.sm,
+    },
     // A 104pt column: the widest the reference's stacked actions can be here
     // without pushing the facility name past two lines, and the narrowest that
     // still fits "Directions" / « Itinéraire » on one line at 12pt.
@@ -830,7 +825,11 @@ const makeStyles = (c: Palette) =>
     // 1.4 : 1 — the reference's own split (≈59/41), kept at 375pt so the
     // headline figure and its freshness stamp do not wrap.
     availabilityMain: { flex: 1.4 },
-    availabilityHead: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
+    availabilityHead: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      alignItems: 'flex-start',
+    },
     statusMark: {
       width: 38,
       height: 38,
@@ -870,7 +869,12 @@ const makeStyles = (c: Palette) =>
       color: c.textSecondary,
       marginTop: 2,
     },
-    updatedRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: spacing.xs },
+    updatedRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: spacing.xs,
+    },
     updated: {
       flexShrink: 1,
       fontFamily: typography.fontFamily.regular,
@@ -917,7 +921,6 @@ const makeStyles = (c: Palette) =>
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderBottomWidth: StyleSheet.hairlineWidth,
     },
     tableHeadCell: {
       flex: 1,
@@ -932,7 +935,12 @@ const makeStyles = (c: Palette) =>
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm + 2,
     },
-    componentCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    componentCell: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
     componentName: {
       flexShrink: 1,
       fontFamily: typography.fontFamily.regular,
@@ -957,10 +965,6 @@ const makeStyles = (c: Palette) =>
     },
 
     /* 4. Facility information ------------------------------------------- */
-    factsRow: { flexDirection: 'row', gap: spacing.sm + 4 },
-    // 1.5 : 1 — the reference's ≈61/39 split, rounded to keep the value
-    // column readable once the labels are shortened.
-    facts: { flex: 1.5, gap: spacing.sm + 2 },
     fact: { flexDirection: 'row', alignItems: 'flex-start', gap: 5 },
     factLabel: {
       width: 58,
@@ -976,7 +980,7 @@ const makeStyles = (c: Palette) =>
       lineHeight: typography.lineHeight.xs,
       color: c.textPrimary,
     },
-    mapCol: { flex: 1, position: 'relative' },
+    mapWide: { position: 'relative' },
     mapPill: {
       position: 'absolute',
       left: spacing.sm,
@@ -986,7 +990,6 @@ const makeStyles = (c: Palette) =>
       minHeight: 32,
       paddingHorizontal: spacing.sm,
     },
-    noMap: { marginTop: spacing.sm + 2 },
 
     /* 5. Commit --------------------------------------------------------- */
     tone: {

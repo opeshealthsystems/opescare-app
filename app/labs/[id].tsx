@@ -30,6 +30,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Card,
+  CardStack,
   Icon,
   ScreenHeader,
   StatusBadge,
@@ -60,12 +61,7 @@ import {
   titleCase,
   type TableColumn,
 } from '@/components/diagnostics/shared';
-import {
-  isLabsUnavailable,
-  useLabResult,
-  type LabOrderDetail,
-  type PortalLabResult,
-} from '@/lib/api/labsQueries';
+import { isLabsUnavailable, useLabResult, type LabOrderDetail, type PortalLabResult } from '@/lib/api/labsQueries';
 import type { LabInterpretation, LabOrderDetailWithInterpretations } from '@/lib/api/labInterpretationTypes';
 import { LabsUnavailable, resultFlagLabel, useLabsT, type Tx } from './index';
 
@@ -74,8 +70,17 @@ function columns(tx: Tx): TableColumn[] {
     { key: 'test', label: tx('table.test', 'Test'), flex: 2.2 },
     { key: 'result', label: tx('table.result', 'Result'), flex: 1 },
     { key: 'unit', label: tx('table.unit', 'Unit'), flex: 0.9 },
-    { key: 'range', label: tx('table.referenceRange', 'Reference Range'), flex: 1.6 },
-    { key: 'status', label: tx('table.status', 'Status'), flex: 1.4, align: 'right' },
+    {
+      key: 'range',
+      label: tx('table.referenceRange', 'Reference Range'),
+      flex: 1.6,
+    },
+    {
+      key: 'status',
+      label: tx('table.status', 'Status'),
+      flex: 1.4,
+      align: 'right',
+    },
   ];
 }
 
@@ -121,7 +126,10 @@ export default function LabResultDetailScreen() {
   }, [router]);
 
   const openTrend = (analyte?: string) =>
-    router.push({ pathname: '/labs/[id]/trend', params: { id: orderId, ...(analyte ? { analyte } : {}) } });
+    router.push({
+      pathname: '/labs/[id]/trend',
+      params: { id: orderId, ...(analyte ? { analyte } : {}) },
+    });
   const openReport = () => router.push({ pathname: '/labs/[id]/report', params: { id: orderId } });
   const openMessages = () => router.push('/(tabs)/messages');
 
@@ -145,7 +153,7 @@ export default function LabResultDetailScreen() {
     const trendable = results.find((r) => r.numeric_value !== null);
     // Only notes with text are listed; the server already sends shared ones only.
     const notes: LabInterpretation[] = (order.interpretations ?? []).filter(
-      (n) => typeof n?.patient_note === 'string' && n.patient_note.trim() !== ''
+      (n) => typeof n?.patient_note === 'string' && n.patient_note.trim() !== '',
     );
 
     return (
@@ -160,7 +168,11 @@ export default function LabResultDetailScreen() {
               <Text style={styles.identityTitle}>{order.name}</Text>
               <View style={styles.identityChip}>
                 <Text style={styles.identityChipText}>
-                  {order.status === 'completed' ? tx('result.finalResult', 'Final Result') : t(`opesDoctor.vocab.orderStatus.${order.status}`, { defaultValue: titleCase(order.status) })}
+                  {order.status === 'completed'
+                    ? tx('result.finalResult', 'Final Result')
+                    : t(`opesDoctor.vocab.orderStatus.${order.status}`, {
+                        defaultValue: titleCase(order.status),
+                      })}
                 </Text>
               </View>
             </View>
@@ -195,9 +207,10 @@ export default function LabResultDetailScreen() {
             <Fact
               twoUp={factsTwoUp}
               label={tx('result.status', 'Status')}
-              value={t(`opesDoctor.vocab.orderStatus.${order.status}`, { defaultValue: titleCase(order.status) })}
+              value={t(`opesDoctor.vocab.orderStatus.${order.status}`, {
+                defaultValue: titleCase(order.status),
+              })}
               valueColor={order.status === 'completed' ? colors.statusNormal : colors.statusPending}
-              last
               styles={styles}
               colors={colors}
             />
@@ -212,7 +225,7 @@ export default function LabResultDetailScreen() {
                 critical.length === 1
                   ? '{{count}} critical result in this panel'
                   : '{{count}} critical results in this panel',
-                { count: critical.length }
+                { count: critical.length },
               )}
             </Text>
             <Text style={styles.alertBody}>
@@ -221,7 +234,7 @@ export default function LabResultDetailScreen() {
                 '{{values}} — outside the safe range. Contact your care team as soon as possible.',
                 {
                   values: critical.map((r) => `${r.analyte} ${r.value}${r.unit ? ` ${r.unit}` : ''}`).join(', '),
-                }
+                },
               )}
             </Text>
           </InfoStrip>
@@ -297,22 +310,27 @@ export default function LabResultDetailScreen() {
         </Card>
 
         {/* ── Test results table ─────────────────────────────────────── */}
-        <Card>
-          <Overline label={tx('result.testResults', 'Test Results')} style={styles.overlineGap} />
+        <CardStack spacing="sm">
           {results.length === 0 ? (
-            <InfoStrip icon="clock" tone="pending">
-              <Text style={styles.noticeTitle}>{tx('report.pendingTitle', 'Results are not back yet')}</Text>
-              <Text style={styles.noticeBody}>
-                {tx(
-                  'report.pendingBody',
-                  'The laboratory has not released a verified result for this order. It appears here as soon as it is signed off.'
-                )}
-              </Text>
-            </InfoStrip>
+            <Card>
+              <Overline label={tx('result.testResults', 'Test Results')} style={styles.overlineGap} />
+              <InfoStrip icon="clock" tone="pending">
+                <Text style={styles.noticeTitle}>{tx('report.pendingTitle', 'Results are not back yet')}</Text>
+                <Text style={styles.noticeBody}>
+                  {tx(
+                    'report.pendingBody',
+                    'The laboratory has not released a verified result for this order. It appears here as soon as it is signed off.',
+                  )}
+                </Text>
+              </InfoStrip>
+            </Card>
           ) : (
             <>
-              {!stackedResults && <TableHead columns={COLUMNS} />}
-              {results.map((r, i) => {
+              <Card>
+                <Overline label={tx('result.testResults', 'Test Results')} style={styles.overlineGap} />
+                {!stackedResults && <TableHead columns={COLUMNS} />}
+              </Card>
+              {results.map((r) => {
                 const flagNode =
                   r.flag === 'critical' ? (
                     <StatusBadge
@@ -329,60 +347,63 @@ export default function LabResultDetailScreen() {
                   );
                 const a11yLabel = resultRowSpoken({ ...r, reference: r.reference ?? NO_RANGE }, tr);
                 const a11yHint =
-                  r.numeric_value !== null ? tx('a11y.openTrend', 'Shows how this test has changed over time') : undefined;
+                  r.numeric_value !== null
+                    ? tx('a11y.openTrend', 'Shows how this test has changed over time')
+                    : undefined;
                 const onPress = r.numeric_value !== null ? () => openTrend(r.analyte) : undefined;
                 const range = referenceRange(r.ref_low, r.ref_high, r.reference ?? NO_RANGE);
                 if (stackedResults) {
                   return (
-                    <Pressable
-                      key={r.id}
-                      onPress={onPress}
-                      disabled={!onPress}
-                      accessible
-                      accessibilityRole={onPress ? 'button' : undefined}
-                      accessibilityLabel={a11yLabel}
-                      accessibilityHint={a11yHint}
-                      style={({ pressed }) => [styles.stackCard, i > 0 && styles.stackGap, pressed && styles.stackPressed]}
-                    >
-                      <View style={styles.stackHead}>
-                        <Text style={styles.stackName}>{r.analyte}</Text>
-                        {flagNode}
-                      </View>
-                      <View style={styles.stackRow}>
-                        <Text style={styles.stackLabel}>{COLUMNS[1].label}</Text>
-                        <Text style={styles.stackValue}>
-                          {r.value}
-                          {r.unit ? ` ${r.unit}` : ''}
-                        </Text>
-                      </View>
-                      <View style={styles.stackRow}>
-                        <Text style={styles.stackLabel}>{COLUMNS[3].label}</Text>
-                        <Text style={styles.stackRange}>{range}</Text>
-                      </View>
-                    </Pressable>
+                    <Card key={r.id} variant="flush">
+                      <Pressable
+                        onPress={onPress}
+                        disabled={!onPress}
+                        accessible
+                        accessibilityRole={onPress ? 'button' : undefined}
+                        accessibilityLabel={a11yLabel}
+                        accessibilityHint={a11yHint}
+                        style={({ pressed }) => [styles.stackCard, pressed && styles.stackPressed]}
+                      >
+                        <View style={styles.stackHead}>
+                          <Text style={styles.stackName}>{r.analyte}</Text>
+                          {flagNode}
+                        </View>
+                        <View style={styles.stackRow}>
+                          <Text style={styles.stackLabel}>{COLUMNS[1].label}</Text>
+                          <Text style={styles.stackValue}>
+                            {r.value}
+                            {r.unit ? ` ${r.unit}` : ''}
+                          </Text>
+                        </View>
+                        <View style={styles.stackRow}>
+                          <Text style={styles.stackLabel}>{COLUMNS[3].label}</Text>
+                          <Text style={styles.stackRange}>{range}</Text>
+                        </View>
+                      </Pressable>
+                    </Card>
                   );
                 }
                 return (
-                <TableRow
-                  key={r.id}
-                  columns={COLUMNS}
-                  last={i === results.length - 1}
-                  a11yLabel={a11yLabel}
-                  a11yHint={a11yHint}
-                  onPress={onPress}
-                  cells={[
-                    { text: r.analyte, bold: true },
-                    { text: r.value, bold: true, wrap: true },
-                    { text: r.unit ?? '—' },
-                    { text: range, wrap: true },
-                    { node: flagNode },
-                  ]}
-                />
+                  <Card key={r.id} variant="flush">
+                    <TableRow
+                      columns={COLUMNS}
+                      a11yLabel={a11yLabel}
+                      a11yHint={a11yHint}
+                      onPress={onPress}
+                      cells={[
+                        { text: r.analyte, bold: true },
+                        { text: r.value, bold: true, wrap: true },
+                        { text: r.unit ?? '—' },
+                        { text: range, wrap: true },
+                        { node: flagNode },
+                      ]}
+                    />
+                  </Card>
                 );
               })}
             </>
           )}
-        </Card>
+        </CardStack>
 
         {/* ── Your clinician's note ─────────────────────────────────── */}
         <Card>
@@ -395,8 +416,11 @@ export default function LabResultDetailScreen() {
                   <View style={styles.signRow}>
                     <Text style={styles.signText} numberOfLines={1}>
                       {n.author_name && n.author_role
-                        ? tx('result.noteAuthor', '{{name}}, {{role}}', { name: n.author_name, role: n.author_role })
-                        : n.author_name ?? n.author_role ?? tx('result.noteAuthorUnknown', 'Your clinician')}
+                        ? tx('result.noteAuthor', '{{name}}, {{role}}', {
+                            name: n.author_name,
+                            role: n.author_role,
+                          })
+                        : (n.author_name ?? n.author_role ?? tx('result.noteAuthorUnknown', 'Your clinician'))}
                     </Text>
                     {!!n.at && <Text style={styles.signText}>{fmtDateTime(n.at)}</Text>}
                   </View>
@@ -413,7 +437,7 @@ export default function LabResultDetailScreen() {
               <Text style={styles.noticeBody}>
                 {tx(
                   'result.reviewedNoNoteBody',
-                  'A clinician has seen this result. If you have questions, contact the ordering clinician.'
+                  'A clinician has seen this result. If you have questions, contact the ordering clinician.',
                 )}
               </Text>
             </InfoStrip>
@@ -487,12 +511,16 @@ export default function LabResultDetailScreen() {
           {
             icon: 'bell',
             onPress: () => router.push('/notifications'),
-            accessibilityLabel: t('opesCore.common.notifications', { defaultValue: 'Notifications' }),
+            accessibilityLabel: t('opesCore.common.notifications', {
+              defaultValue: 'Notifications',
+            }),
           },
           {
             icon: 'more-vertical',
             onPress: () => router.push('/labs'),
-            accessibilityLabel: t('opesCore.common.moreOptions', { defaultValue: 'More options' }),
+            accessibilityLabel: t('opesCore.common.moreOptions', {
+              defaultValue: 'More options',
+            }),
           },
         ]}
       />
@@ -540,7 +568,11 @@ function Fact({
   colors: Palette;
 }) {
   return (
-    <View style={[styles.fact, twoUp && styles.factHalf, !last && !endOfLine && styles.factDivided]} accessible accessibilityLabel={a11yJoin(label, value)}>
+    <View
+      style={[styles.fact, twoUp && styles.factHalf, !last && !endOfLine && styles.factDivided]}
+      accessible
+      accessibilityLabel={a11yJoin(label, value)}
+    >
       <Text style={styles.factLabel} numberOfLines={1}>
         {label}
       </Text>
@@ -557,9 +589,17 @@ function Fact({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
-    identityHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
+    identityHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+    },
     identityCircle: {
       width: 52,
       height: 52,
@@ -639,7 +679,12 @@ const makeStyles = (colors: Palette) =>
     overlineGap: { marginBottom: spacing.sm + 2 },
 
     // Wraps: beside a long "Contacter" the role broke into "Soignan / t / prescrip / teur".
-    providerRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm + 4 },
+    providerRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+    },
     avatar: {
       width: 48,
       height: 48,
@@ -660,15 +705,16 @@ const makeStyles = (colors: Palette) =>
     },
 
     stackCard: {
-      borderWidth: 1,
-      borderColor: colors.divider,
-      borderRadius: radii.md,
       padding: spacing.sm + 2,
       gap: 6,
     },
-    stackGap: { marginTop: spacing.sm },
     stackPressed: { opacity: 0.7 },
-    stackHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
+    stackHead: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
     stackName: {
       flex: 1,
       minWidth: 0,
@@ -697,7 +743,10 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.xs,
       color: colors.textPrimary,
     },
-    flagText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.xs },
+    flagText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+    },
 
     interpretation: {
       fontFamily: typography.fontFamily.regular,

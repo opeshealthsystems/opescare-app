@@ -77,11 +77,7 @@ import {
 } from '@/components/opes-ui';
 import { Avatar, ErrorBlock, LoadingBlock } from '@/components/chat';
 import { useMessageThreads, type MessageThreadSummary } from '@/lib/api/queries';
-import {
-  countUnreadThreads,
-  filterThreads,
-  sortThreadsByActivity,
-} from '@/lib/api/messagingQueries';
+import { countUnreadThreads, filterThreads, sortThreadsByActivity } from '@/lib/api/messagingQueries';
 import {
   useMessageRecipients,
   useStartThread,
@@ -146,7 +142,10 @@ export default function MessagesScreen() {
   const clinicians = recipientsQuery.data?.clinicians ?? [];
 
   const openThread = (thread: MessageThreadSummary) =>
-    router.push({ pathname: '/messages/[id]', params: { id: String(thread.id), title: thread.title } });
+    router.push({
+      pathname: '/messages/[id]',
+      params: { id: String(thread.id), title: thread.title },
+    });
 
   const openCompose = () => {
     setKind('facility');
@@ -190,7 +189,10 @@ export default function MessagesScreen() {
       setComposeBody('');
       setFacilityId(null);
       setClinicianId(null);
-      router.push({ pathname: '/messages/[id]', params: { id: String(thread.id), title: thread.title } });
+      router.push({
+        pathname: '/messages/[id]',
+        params: { id: String(thread.id), title: thread.title },
+      });
     } catch {
       // startThread.isError renders the inline message below the form
     }
@@ -271,12 +273,7 @@ export default function MessagesScreen() {
                 <ResultList>
                   {visibleThreads.map((thread) => (
                     <Card key={thread.id} variant="flush">
-                      <ThreadRow
-                        thread={thread}
-                        locale={i18n.language}
-                        divider={false}
-                        onPress={() => openThread(thread)}
-                      />
+                      <ThreadRow thread={thread} locale={i18n.language} onPress={() => openThread(thread)} />
                     </Card>
                   ))}
                 </ResultList>
@@ -341,17 +338,7 @@ export default function MessagesScreen() {
 
 /* ── Inbox row ────────────────────────────────────────────────────────── */
 
-function ThreadRow({
-  thread,
-  locale,
-  divider,
-  onPress,
-}: {
-  thread: MessageThreadSummary;
-  locale: string;
-  divider: boolean;
-  onPress: () => void;
-}) {
+function ThreadRow({ thread, locale, onPress }: { thread: MessageThreadSummary; locale: string; onPress: () => void }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -372,7 +359,6 @@ function ThreadRow({
       title={title}
       subtitle={preview}
       chevron={false}
-      divider={divider}
       onPress={onPress}
       accessibilityLabel={a11yJoin(title, preview, stamp, unread ? t('messages.unreadLabel') : null)}
       trailing={
@@ -381,7 +367,12 @@ function ThreadRow({
           <View style={styles.rowMarks}>
             {closed && <StatusBadge status="closed" tone="neutral" size="sm" label={t('messages.statusClosed')} />}
             {elevated && (
-              <StatusBadge status={thread.priority} tone="warning" size="sm" label={priorityLabel(t, thread.priority)} />
+              <StatusBadge
+                status={thread.priority}
+                tone="warning"
+                size="sm"
+                label={priorityLabel(t, thread.priority)}
+              />
             )}
             {unread && <View style={styles.unreadDot} />}
           </View>
@@ -493,9 +484,7 @@ function ComposeSheet({
                   reaches for this at 2am has to meet it before the keyboard. */}
               <View style={styles.emergencyNotice} accessibilityRole="alert">
                 <Icon name="alert-triangle" size={18} color={colors.statusWarning} />
-                <Text style={styles.emergencyNoticeText}>
-                  {notice ?? t('messagingRecipients.notEmergency')}
-                </Text>
+                <Text style={styles.emergencyNoticeText}>{notice ?? t('messagingRecipients.notEmergency')}</Text>
               </View>
 
               {/* Not `messages.composeAbout` ("What is this about?") — the
@@ -521,9 +510,7 @@ function ComposeSheet({
               </View>
 
               <Text style={styles.kindHint}>
-                {kind === 'facility'
-                  ? t('messagingRecipients.facilityHint')
-                  : t('messagingRecipients.clinicianHint')}
+                {kind === 'facility' ? t('messagingRecipients.facilityHint') : t('messagingRecipients.clinicianHint')}
               </Text>
 
               {failedToLoad ? (
@@ -640,9 +627,7 @@ function ComposeSheet({
                           accessibilityLabel={a11yJoin(
                             clinician.name,
                             clinician.facility_name,
-                            blocked
-                              ? t('messagingRecipients.clinicianUnavailable')
-                              : clinician.basis_label,
+                            blocked ? t('messagingRecipients.clinicianUnavailable') : clinician.basis_label,
                             selected ? t('messagingRecipients.selectedA11y') : null,
                           )}
                           trailing={
@@ -678,9 +663,7 @@ function ComposeSheet({
                   accessibilityRole="button"
                   accessibilityLabel={t('messagingRecipients.writeToFacilityInstead')}
                 >
-                  <Text style={styles.switchToFacility}>
-                    {t('messagingRecipients.writeToFacilityInstead')}
-                  </Text>
+                  <Text style={styles.switchToFacility}>{t('messagingRecipients.writeToFacilityInstead')}</Text>
                 </TouchableOpacity>
               )}
 
@@ -695,7 +678,12 @@ function ComposeSheet({
                 textAlignVertical="top"
                 accessibilityLabel={t('messages.composeMessagePlaceholder')}
               />
-              <Text style={styles.charCount}>{t('messages.charCount', { used: body.length, max: MESSAGE_MAX })}</Text>
+              <Text style={styles.charCount}>
+                {t('messages.charCount', {
+                  used: body.length,
+                  max: MESSAGE_MAX,
+                })}
+              </Text>
 
               {failed && (
                 <View style={styles.formError} accessibilityLiveRegion="polite" accessibilityRole="alert">
@@ -744,7 +732,10 @@ function daysAgo(iso: string): number | null {
 function formatClock(iso: string, locale: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString(localeTag(locale), { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString(localeTag(locale), {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 /** Inbox timestamp: time today, "Yesterday", weekday this week, date beyond. */
@@ -753,8 +744,14 @@ function formatStamp(iso: string, locale: string, t: Translate) {
   if (diff === null) return '';
   if (diff <= 0) return formatClock(iso, locale);
   if (diff === 1) return t('messages.yesterday');
-  if (diff < 7) return new Date(iso).toLocaleDateString(localeTag(locale), { weekday: 'short' });
-  return new Date(iso).toLocaleDateString(localeTag(locale), { day: 'numeric', month: 'short' });
+  if (diff < 7)
+    return new Date(iso).toLocaleDateString(localeTag(locale), {
+      weekday: 'short',
+    });
+  return new Date(iso).toLocaleDateString(localeTag(locale), {
+    day: 'numeric',
+    month: 'short',
+  });
 }
 
 function isElevated(priority: string | null | undefined) {
@@ -784,7 +781,11 @@ const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
     flexMin: { flex: 1, minWidth: 0 },
-    content: { paddingHorizontal: spacing.md, paddingBottom: spacing.lg, gap: spacing.md },
+    content: {
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.lg,
+      gap: spacing.md,
+    },
     chips: { flexDirection: 'row', gap: spacing.sm },
 
     // Row trailing: stamp above the marks, right-aligned.
@@ -795,12 +796,24 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.xs,
       color: colors.textMuted,
     },
-    stampUnread: { fontFamily: typography.fontFamily.semiBold, color: colors.link },
-    unreadDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.badge },
+    stampUnread: {
+      fontFamily: typography.fontFamily.semiBold,
+      color: colors.link,
+    },
+    unreadDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: colors.badge,
+    },
     rowSelected: { backgroundColor: colors.primarySoft },
 
     // Compose sheet
-    scrimWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: withAlpha(colors.navy, 0.45) },
+    scrimWrap: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: withAlpha(colors.navy, 0.45),
+    },
     scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
     sheet: {
       maxHeight: '88%',
@@ -818,7 +831,12 @@ const makeStyles = (colors: Palette) =>
       backgroundColor: colors.border,
       marginBottom: spacing.md,
     },
-    sheetHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, marginBottom: spacing.md },
+    sheetHead: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.md,
+      marginBottom: spacing.md,
+    },
     sheetTitle: {
       fontFamily: typography.fontFamily.bold,
       fontSize: typography.size.lg,

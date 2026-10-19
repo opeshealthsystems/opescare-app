@@ -1,19 +1,13 @@
 import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   a11yJoin,
   Card,
+  CardStack,
   Chip,
   EmptyState,
   formatDate,
@@ -119,11 +113,7 @@ function actorKind(item: AccessLogItem): 'facility' | 'self' | 'platform' {
 }
 
 function isSameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
 type DayGroup = { key: string; label: string; items: AccessLogItem[] };
@@ -170,7 +160,13 @@ export default function AccessLogsScreen() {
         self += 1;
       }
     }
-    return { all: entries.length, facility, self, emergency, facilities: facilities.size };
+    return {
+      all: entries.length,
+      facility,
+      self,
+      emergency,
+      facilities: facilities.size,
+    };
   }, [entries]);
 
   const visible = useMemo(() => {
@@ -228,11 +224,7 @@ export default function AccessLogsScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <ScreenHeader
-        title={t('privacy.accessLogsTitle')}
-        subtitle={t('privacy.accessLogsSubtitle')}
-        onBack={goBack}
-      />
+      <ScreenHeader title={t('privacy.accessLogsTitle')} subtitle={t('privacy.accessLogsSubtitle')} onBack={goBack} />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -296,40 +288,42 @@ export default function AccessLogsScreen() {
                 Only exact once the whole history is loaded; until then the
                 screen says what it actually holds instead of implying a total
                 it cannot see. */}
-            <Card variant="flush">
-              {complete ? (
-                <>
-                  <SummaryRow
-                    icon="history"
-                    tint="blue"
-                    label={t('privacy.summaryTotal')}
-                    value={total}
-                    divider
-                  />
+            {complete ? (
+              <CardStack spacing="sm">
+                <Card variant="flush">
+                  <SummaryRow icon="history" tint="blue" label={t('privacy.summaryTotal')} value={total} />
+                </Card>
+                <Card variant="flush">
                   <SummaryRow
                     icon="building"
                     tint="purple"
                     label={t('privacy.summaryFacilities')}
                     value={counts.facilities}
-                    divider
                   />
+                </Card>
+                <Card variant="flush">
                   <SummaryRow
                     icon="alert-triangle"
                     tint={counts.emergency > 0 ? 'amber' : 'green'}
                     label={t('privacy.summaryEmergency')}
                     value={counts.emergency}
                   />
-                </>
-              ) : (
+                </Card>
+              </CardStack>
+            ) : (
+              <Card variant="flush">
                 <ListRow
                   icon="history"
                   tint="blue"
-                  title={t('privacy.loadedOf', { loaded: entries.length, total })}
+                  title={t('privacy.loadedOf', {
+                    loaded: entries.length,
+                    total,
+                  })}
                   subtitle={t('privacy.filterScopeNote')}
                   chevron={false}
                 />
-              )}
-            </Card>
+              </Card>
+            )}
 
             {/* Counted filter row — "All 12 · Facilities 9 …" */}
             <ScrollView
@@ -365,15 +359,13 @@ export default function AccessLogsScreen() {
               groups.map((group) => (
                 <View key={group.key}>
                   <SectionHeader title={group.label} variant="overline" />
-                  <Card variant="flush">
-                    {group.items.map((item, index) => (
-                      <AccessLogEntry
-                        key={item.id}
-                        item={item}
-                        divider={index < group.items.length - 1}
-                      />
+                  <CardStack spacing="sm">
+                    {group.items.map((item) => (
+                      <Card key={item.id} variant="flush">
+                        <AccessLogEntry item={item} />
+                      </Card>
                     ))}
-                  </Card>
+                  </CardStack>
                 </View>
               ))
             )}
@@ -405,7 +397,7 @@ export default function AccessLogsScreen() {
  * access-type badge; the strip under it carries the reason the facility gave
  * and the data category, because "why" is the part a patient actually reads.
  */
-function AccessLogEntry({ item, divider }: { item: AccessLogItem; divider?: boolean }) {
+function AccessLogEntry({ item }: { item: AccessLogItem }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -504,26 +496,12 @@ function AccessLogEntry({ item, divider }: { item: AccessLogItem; divider?: bool
           <Chip label={categoryLabel} />
         </View>
       </View>
-
-      {divider ? <View style={styles.divider} /> : null}
     </View>
   );
 }
 
 /** One summary figure, as a row: tint circle, label, count. */
-function SummaryRow({
-  icon,
-  tint,
-  label,
-  value,
-  divider,
-}: {
-  icon: IconName;
-  tint: Tint;
-  label: string;
-  value: number;
-  divider?: boolean;
-}) {
+function SummaryRow({ icon, tint, label, value }: { icon: IconName; tint: Tint; label: string; value: number }) {
   const { colors, tintMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
@@ -532,7 +510,6 @@ function SummaryRow({
       tint={tint}
       title={label}
       chevron={false}
-      divider={divider}
       accessibilityLabel={`${value} ${label}`}
       trailing={<Text style={[styles.statValue, { color: tintMap[tint].fg }]}>{String(value)}</Text>}
     />
@@ -540,17 +517,7 @@ function SummaryRow({
 }
 
 /** Tinted inline notice: icon in a status circle, optional title, body. */
-function Notice({
-  tone,
-  icon,
-  title,
-  body,
-}: {
-  tone: StatusTone;
-  icon: IconName;
-  title?: string;
-  body: string;
-}) {
+function Notice({ tone, icon, title, body }: { tone: StatusTone; icon: IconName; title?: string; body: string }) {
   const { colors, statusMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const skin = statusMap[tone];
@@ -576,7 +543,12 @@ function Notice({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
     loading: {
       alignItems: 'center',
@@ -590,7 +562,10 @@ const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
     },
 
-    statValue: { fontFamily: typography.fontFamily.bold, fontSize: typography.size.lg },
+    statValue: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+    },
 
     // Bleeds to the screen edges so the chips scroll under the gutter.
     chipsScroll: { flexGrow: 0, marginHorizontal: -spacing.md },
@@ -599,7 +574,11 @@ const makeStyles = (colors: Palette) =>
     trailing: { alignItems: 'flex-end', gap: spacing.xs },
 
     // Entry detail strip
-    detail: { paddingHorizontal: spacing.md, paddingBottom: 14, marginTop: -spacing.sm },
+    detail: {
+      paddingHorizontal: spacing.md,
+      paddingBottom: 14,
+      marginTop: -spacing.sm,
+    },
     detailLabel: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: 13,
@@ -623,8 +602,12 @@ const makeStyles = (colors: Palette) =>
       lineHeight: 17,
       color: colors.textSecondary,
     },
-    chipRow: { marginTop: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-    divider: { height: 1, backgroundColor: colors.divider, marginHorizontal: spacing.md },
+    chipRow: {
+      marginTop: spacing.sm,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
 
     // Inline notice
     notice: {
@@ -642,7 +625,10 @@ const makeStyles = (colors: Palette) =>
       justifyContent: 'center',
     },
     noticeBody: { flex: 1, minWidth: 0, gap: 2 },
-    noticeTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
+    noticeTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
     noticeText: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,

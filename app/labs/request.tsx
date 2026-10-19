@@ -32,6 +32,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   GradientButton,
@@ -47,14 +48,7 @@ import {
   useTheme,
   type Palette,
 } from '@/components/opes-ui';
-import {
-  HeroBand,
-  InfoStrip,
-  LoadingBlock,
-  Overline,
-  errorMessage,
-  titleCase,
-} from '@/components/diagnostics/shared';
+import { HeroBand, InfoStrip, LoadingBlock, Overline, errorMessage, titleCase } from '@/components/diagnostics/shared';
 import {
   CATALOGUE_MIN_QUERY,
   isLabsUnavailable,
@@ -108,7 +102,7 @@ export default function RequestLabTestScreen() {
       { key: 'priority', label: tx('request.stepPriority', 'Urgency') },
       { key: 'notes', label: tx('request.stepNotes', 'Reason') },
     ],
-    [tx]
+    [tx],
   );
   const stepIndex = !test ? 0 : notes.trim().length === 0 ? 1 : 2;
 
@@ -132,7 +126,7 @@ export default function RequestLabTestScreen() {
         message: tx(
           'request.sentBody',
           'Your care team has your request for {{test}}. A clinician has to approve it before the laboratory can run it — you will see it in your results once they do.',
-          { test: test.name }
+          { test: test.name },
         ),
         tone: 'success',
         cancelLabel: closeLabel,
@@ -151,8 +145,8 @@ export default function RequestLabTestScreen() {
         tx('request.failTitle', 'The request was not sent'),
         errorMessage(
           e,
-          tx('request.failFallback', 'Your request could not be sent. Nothing was filed — please try again.')
-        )
+          tx('request.failFallback', 'Your request could not be sent. Nothing was filed — please try again.'),
+        ),
       );
     }
   }, [test, priority, notes, request, dialog, tx, closeLabel, router]);
@@ -190,7 +184,9 @@ export default function RequestLabTestScreen() {
           tint="green"
           title={
             term
-              ? tx('request.noMatchTitle', 'No test matches “{{query}}”', { query: term })
+              ? tx('request.noMatchTitle', 'No test matches “{{query}}”', {
+                  query: term,
+                })
               : tx('request.emptyCatalogueTitle', 'No tests to request yet')
           }
           message={
@@ -198,7 +194,7 @@ export default function RequestLabTestScreen() {
               ? tx('request.noMatchBody', 'Try the test’s full name, or the name your clinician used.')
               : tx(
                   'request.emptyCatalogueBody',
-                  'Your laboratory has not published an orderable test list. Your care team can still order a test for you.'
+                  'Your laboratory has not published an orderable test list. Your care team can still order a test for you.',
                 )
           }
         />
@@ -207,21 +203,23 @@ export default function RequestLabTestScreen() {
     const rows = catalogue.slice(0, MAX_ROWS);
     return (
       <View style={styles.list}>
-        {rows.map((o, i) => (
-          <ListRow
-            key={o.code}
-            icon={o.code === test?.code ? 'check-circle' : 'flask'}
-            // Labs are the green tint (DESIGN_SPEC §1); the chosen row keeps it
-            // and earns the tick, so selection never rides on colour alone.
-            tint="green"
-            title={o.name}
-            meta={[o.category ? titleCase(o.category) : null, o.specimen ? titleCase(o.specimen) : null]}
-            chevron={false}
-            onPress={() => setTest(o)}
-            accessibilityHint={tx('request.chooseTestHint', 'Choose this test for your request')}
-            divider={i < rows.length - 1}
-          />
-        ))}
+        <CardStack spacing="sm">
+          {rows.map((o) => (
+            <Card key={o.code} variant="flush">
+              <ListRow
+                icon={o.code === test?.code ? 'check-circle' : 'flask'}
+                // Labs are the green tint (DESIGN_SPEC §1); the chosen row keeps it
+                // and earns the tick, so selection never rides on colour alone.
+                tint="green"
+                title={o.name}
+                meta={[o.category ? titleCase(o.category) : null, o.specimen ? titleCase(o.specimen) : null]}
+                chevron={false}
+                onPress={() => setTest(o)}
+                accessibilityHint={tx('request.chooseTestHint', 'Choose this test for your request')}
+              />
+            </Card>
+          ))}
+        </CardStack>
         {catalogue.length > rows.length && (
           <Text style={styles.hint}>
             {tx('request.moreResults', 'Showing the first {{count}} matches — narrow your search to see others.', {
@@ -243,12 +241,16 @@ export default function RequestLabTestScreen() {
           {
             icon: 'bell',
             onPress: () => router.push('/notifications'),
-            accessibilityLabel: t('opesCore.common.notifications', { defaultValue: 'Notifications' }),
+            accessibilityLabel: t('opesCore.common.notifications', {
+              defaultValue: 'Notifications',
+            }),
           },
           {
             icon: 'more-vertical',
             onPress: () => router.push('/labs'),
-            accessibilityLabel: t('opesCore.common.moreOptions', { defaultValue: 'More options' }),
+            accessibilityLabel: t('opesCore.common.moreOptions', {
+              defaultValue: 'More options',
+            }),
           },
         ]}
       />
@@ -274,7 +276,7 @@ export default function RequestLabTestScreen() {
           <Text style={styles.noticeBody}>
             {tx(
               'request.noticeBody',
-              'A clinician has to approve it before a laboratory will run it. You can follow it in your results once it is approved.'
+              'A clinician has to approve it before a laboratory will run it. You can follow it in your results once it is approved.',
             )}
           </Text>
         </InfoStrip>
@@ -343,7 +345,7 @@ export default function RequestLabTestScreen() {
           <Text style={styles.hint}>
             {tx(
               'request.urgencyHint',
-              'Urgency is a request, not a promise — your care team decides how quickly a test is run.'
+              'Urgency is a request, not a promise — your care team decides how quickly a test is run.',
             )}
           </Text>
         </Card>
@@ -356,7 +358,7 @@ export default function RequestLabTestScreen() {
             onChangeText={(v) => setNotes(v.slice(0, NOTE_LIMIT))}
             placeholder={tx(
               'request.notesPlaceholder',
-              'Symptoms, what changed, or what your clinician asked for. Optional.'
+              'Symptoms, what changed, or what your clinician asked for. Optional.',
             )}
             placeholderTextColor={colors.textMuted}
             style={styles.textarea}
@@ -370,9 +372,7 @@ export default function RequestLabTestScreen() {
         </Card>
 
         <GradientButton
-          label={
-            request.isPending ? tx('request.sending', 'Sending…') : tx('request.submit', 'Send request')
-          }
+          label={request.isPending ? tx('request.sending', 'Sending…') : tx('request.submit', 'Send request')}
           loading={request.isPending}
           disabled={!ready}
           onPress={() => void submit()}
@@ -390,7 +390,11 @@ export default function RequestLabTestScreen() {
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
     overlineGap: { marginBottom: spacing.sm },
 
@@ -430,7 +434,12 @@ const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
     },
 
-    searching: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+    searching: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
 
     list: { marginTop: spacing.sm },
 

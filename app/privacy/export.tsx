@@ -1,18 +1,12 @@
 import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   formatDate,
@@ -82,22 +76,8 @@ import { deliverFile } from '../../lib/fileDelivery';
  * `document-text`, `PenLine` → `edit`, `CalendarClock` → `calendar`.
  */
 
-const EXPORT_TYPES: DataExportType[] = [
-  'full_record',
-  'encounters',
-  'prescriptions',
-  'lab_results',
-  'imaging',
-];
-const RECORD_TYPES = [
-  'clinical_note',
-  'diagnosis',
-  'allergy',
-  'prescription',
-  'lab_result',
-  'immunization',
-  'other',
-];
+const EXPORT_TYPES: DataExportType[] = ['full_record', 'encounters', 'prescriptions', 'lab_results', 'imaging'];
+const RECORD_TYPES = ['clinical_note', 'diagnosis', 'allergy', 'prescription', 'lab_result', 'immunization', 'other'];
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const REASON_MIN = 10;
 const REASON_MAX = 2000;
@@ -144,11 +124,7 @@ export default function PrivacyExportScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <ScreenHeader
-        title={t('privacy.exportTitle')}
-        subtitle={t('privacy.exportPageSubtitle')}
-        onBack={goBack}
-      />
+      <ScreenHeader title={t('privacy.exportTitle')} subtitle={t('privacy.exportPageSubtitle')} onBack={goBack} />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -156,12 +132,7 @@ export default function PrivacyExportScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* The law, named. Kept verbatim. */}
-        <Notice
-          tone="pending"
-          icon="book"
-          title={t('privacy.rightsTitle')}
-          body={t('privacy.exportRightsBody')}
-        />
+        <Notice tone="pending" icon="book" title={t('privacy.rightsTitle')} body={t('privacy.exportRightsBody')} />
 
         <ExportSection dialog={dialog} />
 
@@ -194,11 +165,19 @@ function ExportSection({ dialog }: { dialog: DialogController }) {
     new Promise<void>((resolve) => {
       createMutation.mutate(selectedType, {
         onSuccess: () => {
-          setNotice({ tone: 'normal', icon: 'check-circle', body: t('privacy.exportRequested') });
+          setNotice({
+            tone: 'normal',
+            icon: 'check-circle',
+            body: t('privacy.exportRequested'),
+          });
           resolve();
         },
         onError: (err) => {
-          setNotice({ tone: 'critical', icon: 'alert-circle', body: extractApiErrorMessage(err) });
+          setNotice({
+            tone: 'critical',
+            icon: 'alert-circle',
+            body: extractApiErrorMessage(err),
+          });
           resolve();
         },
       });
@@ -248,10 +227,7 @@ function ExportSection({ dialog }: { dialog: DialogController }) {
             setNotice({
               tone: 'normal',
               icon: 'check-circle',
-              body:
-                outcome === 'saved'
-                  ? t('privacy.downloadSavedOnly', { filename })
-                  : t('privacy.downloadedSuccess'),
+              body: outcome === 'saved' ? t('privacy.downloadSavedOnly', { filename }) : t('privacy.downloadedSuccess'),
             });
           } catch {
             // The payload arrived; only the save/share step failed.
@@ -272,11 +248,19 @@ function ExportSection({ dialog }: { dialog: DialogController }) {
           const status = (err as { response?: { status?: number } })?.response?.status;
           if (status === 403) {
             requestsQuery.refetch();
-            setNotice({ tone: 'warning', icon: 'clock', body: t('privacy.downloadNotReady') });
+            setNotice({
+              tone: 'warning',
+              icon: 'clock',
+              body: t('privacy.downloadNotReady'),
+            });
             resolve();
             return;
           }
-          setNotice({ tone: 'critical', icon: 'alert-circle', body: extractApiErrorMessage(err) });
+          setNotice({
+            tone: 'critical',
+            icon: 'alert-circle',
+            body: extractApiErrorMessage(err),
+          });
           resolve();
         },
       });
@@ -321,11 +305,17 @@ function ExportSection({ dialog }: { dialog: DialogController }) {
       {/* What actually happens after you tap request. */}
       <View>
         <SectionHeader title={t('privacy.howItWorks')} variant="overline" />
-        <Card variant="flush">
-          <StepRow index={1} label={t('privacy.step1')} divider />
-          <StepRow index={2} label={t('privacy.step2')} divider />
-          <StepRow index={3} label={t('privacy.step3')} />
-        </Card>
+        <CardStack spacing="sm">
+          <Card variant="flush">
+            <StepRow index={1} label={t('privacy.step1')} />
+          </Card>
+          <Card variant="flush">
+            <StepRow index={2} label={t('privacy.step2')} />
+          </Card>
+          <Card variant="flush">
+            <StepRow index={3} label={t('privacy.step3')} />
+          </Card>
+        </CardStack>
       </View>
 
       <GradientButton
@@ -385,15 +375,7 @@ function ExportSection({ dialog }: { dialog: DialogController }) {
 }
 
 /** One numbered step of the review flow. */
-function StepRow({
-  index,
-  label,
-  divider,
-}: {
-  index: number;
-  label: string;
-  divider?: boolean;
-}) {
+function StepRow({ index, label }: { index: number; label: string }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
@@ -405,7 +387,6 @@ function StepRow({
       }
       title={label}
       chevron={false}
-      divider={divider}
     />
   );
 }
@@ -447,16 +428,7 @@ function ExportRequestCard({
         })}
         meta={[createdValid ? t('privacy.requestedOn', { date: formatDate(created) }) : undefined]}
         chevron={false}
-        divider
-        trailing={
-          <StatusBadge
-            status={item.status}
-            tone={meta.tone}
-            label={statusLabel}
-            icon={meta.icon}
-            size="sm"
-          />
-        }
+        trailing={<StatusBadge status={item.status} tone={meta.tone} label={statusLabel} icon={meta.icon} size="sm" />}
       />
 
       <View style={styles.detail}>
@@ -474,7 +446,9 @@ function ExportRequestCard({
               <View style={styles.expiryRow}>
                 <Icon name="calendar" size={14} color={colors.statusWarning} />
                 <Text style={styles.expiryText}>
-                  {t('privacy.downloadExpires', { date: formatDateTime(expires) })}
+                  {t('privacy.downloadExpires', {
+                    date: formatDateTime(expires),
+                  })}
                 </Text>
               </View>
             ) : null}
@@ -530,7 +504,11 @@ function CorrectionSection({ dialog }: { dialog: DialogController }) {
           resolve();
         },
         onError: (err) => {
-          setNotice({ tone: 'critical', icon: 'alert-circle', body: extractApiErrorMessage(err) });
+          setNotice({
+            tone: 'critical',
+            icon: 'alert-circle',
+            body: extractApiErrorMessage(err),
+          });
           resolve();
         },
       });
@@ -551,9 +529,7 @@ function CorrectionSection({ dialog }: { dialog: DialogController }) {
     // recorded alongside the original, never over it.
     dialog.confirm({
       title: t('privacy.submitCorrection'),
-      message: [t('privacy.correctionImmutableNote'), t('privacy.correctionSectionSubtitle')].join(
-        '\n\n',
-      ),
+      message: [t('privacy.correctionImmutableNote'), t('privacy.correctionSectionSubtitle')].join('\n\n'),
       confirmLabel: t('privacy.submitCorrection'),
       cancelLabel: t('privacy.cancel'),
       onConfirm: () =>
@@ -651,7 +627,10 @@ function CorrectionSection({ dialog }: { dialog: DialogController }) {
         <View style={styles.counterRow}>
           <Text style={styles.error}>{errors.reason ?? ''}</Text>
           <Text style={styles.counter}>
-            {t('privacy.reasonCounter', { count: reasonLength, max: REASON_MAX })}
+            {t('privacy.reasonCounter', {
+              count: reasonLength,
+              max: REASON_MAX,
+            })}
           </Text>
         </View>
       </View>
@@ -676,17 +655,7 @@ function CorrectionSection({ dialog }: { dialog: DialogController }) {
 // ── Pieces ──────────────────────────────────────────────────────────────────
 
 /** Tinted inline notice: icon in a status circle, optional title, body. */
-function Notice({
-  tone,
-  icon,
-  title,
-  body,
-}: {
-  tone: StatusTone;
-  icon: IconName;
-  title?: string;
-  body: string;
-}) {
+function Notice({ tone, icon, title, body }: { tone: StatusTone; icon: IconName; title?: string; body: string }) {
   const { colors, statusMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const skin = statusMap[tone];
@@ -712,10 +681,19 @@ function Notice({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
     section: { gap: spacing.md },
-    sectionDivider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
+    sectionDivider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginVertical: spacing.sm,
+    },
     sectionHint: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
@@ -724,7 +702,11 @@ const makeStyles = (colors: Palette) =>
     },
     stack: { gap: spacing.sm + 4 },
 
-    loading: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md },
+    loading: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.md,
+    },
 
     // Fields
     fieldLabel: {
@@ -799,7 +781,11 @@ const makeStyles = (colors: Palette) =>
       lineHeight: typography.lineHeight.sm,
       color: colors.textSecondary,
     },
-    expiryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2 },
+    expiryRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs + 2,
+    },
     expiryText: {
       flex: 1,
       fontFamily: typography.fontFamily.semiBold,
@@ -838,7 +824,10 @@ const makeStyles = (colors: Palette) =>
       justifyContent: 'center',
     },
     noticeBody: { flex: 1, minWidth: 0, gap: 2 },
-    noticeTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
+    noticeTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
     noticeText: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,

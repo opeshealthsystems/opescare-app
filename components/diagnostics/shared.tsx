@@ -21,15 +21,7 @@
  *  - Export names are identical to the OPES file so the screens port 1:1.
  */
 import React from 'react';
-import {
-  ActivityIndicator,
-  StyleProp,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { ActivityIndicator, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import type { ResultFlag } from '@/lib/api/labsQueries';
@@ -179,9 +171,7 @@ export function fmtAxisDate(iso?: string | null): [string, string] {
 }
 
 export function titleCase(value: string): string {
-  return value
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // ── Flags ─────────────────────────────────────────────────────────────────
@@ -295,7 +285,7 @@ export function rangeSpoken(
   low: number | null | undefined,
   high: number | null | undefined,
   fallback: string | null | undefined,
-  t: Translate
+  t: Translate,
 ): string {
   const printed = referenceRange(low, high, fallback);
   const noRange = t('opesDiagnostics.report.noRange');
@@ -316,7 +306,7 @@ export function resultRowSpoken(
     ref_high?: number | null;
     reference?: string | null;
   },
-  t: Translate
+  t: Translate,
 ): string {
   return t('opesDiagnostics.a11y.resultRow', {
     analyte: r.analyte,
@@ -330,7 +320,7 @@ export function resultRowSpoken(
 export function referenceRange(
   low: number | null | undefined,
   high: number | null | undefined,
-  fallback?: string | null
+  fallback?: string | null,
 ): string {
   if (low != null && high != null) return `${trimNum(low)} – ${trimNum(high)}`;
   if (high != null) return `≤ ${trimNum(high)}`;
@@ -362,7 +352,11 @@ export type DiagButtonProps = {
 const buttonFill: Record<NonNullable<DiagButtonProps['variant']>, { bg: string; fg: string; border: string }> = {
   primary: { bg: colors.blue, fg: colors.textOnBrand, border: colors.blue },
   secondary: { bg: colors.surface, fg: colors.link, border: colors.border },
-  ghost: { bg: colors.primarySoft, fg: colors.link, border: colors.primarySoft },
+  ghost: {
+    bg: colors.primarySoft,
+    fg: colors.link,
+    border: colors.primarySoft,
+  },
 };
 
 /** Flat, 1px-bordered button matching the DIA references. */
@@ -406,15 +400,7 @@ export function DiagButton({
 // ── Hero band ─────────────────────────────────────────────────────────────
 
 /** The soft-blue title band at the top of every DIA screen. */
-export function HeroBand({
-  title,
-  subtitle,
-  icon,
-}: {
-  title: string;
-  subtitle: string;
-  icon: IconName;
-}) {
+export function HeroBand({ title, subtitle, icon }: { title: string; subtitle: string; icon: IconName }) {
   return (
     <View style={styles.hero}>
       <View style={styles.heroBody}>
@@ -442,7 +428,12 @@ export function Overline({ label, style }: { label: string; style?: StyleProp<Vi
 
 // ── Table ─────────────────────────────────────────────────────────────────
 
-export type TableColumn = { key: string; label: string; flex: number; align?: 'left' | 'right' };
+export type TableColumn = {
+  key: string;
+  label: string;
+  flex: number;
+  align?: 'left' | 'right';
+};
 
 export function TableHead({ columns }: { columns: TableColumn[] }) {
   return (
@@ -464,7 +455,6 @@ export function TableRow({
   columns,
   cells,
   onPress,
-  last,
   a11yLabel,
   a11yHint,
 }: {
@@ -493,7 +483,7 @@ export function TableRow({
 }) {
   const body = (
     <View
-      style={[styles.tableRow, !last && styles.tableRowDivider]}
+      style={styles.tableRow}
       accessible={!!a11yLabel && !onPress}
       accessibilityLabel={onPress ? undefined : a11yLabel}
     >
@@ -503,11 +493,7 @@ export function TableRow({
           <View key={c.key} style={[{ flex: c.flex }, c.align === 'right' && styles.cellRight]}>
             {cell?.node ?? (
               <Text
-                style={[
-                  styles.tableCell,
-                  cell?.bold && styles.tableCellBold,
-                  !!cell?.color && { color: cell.color },
-                ]}
+                style={[styles.tableCell, cell?.bold && styles.tableCellBold, !!cell?.color && { color: cell.color }]}
                 numberOfLines={cell?.wrap ? undefined : 1}
               >
                 {cell?.text ?? '—'}
@@ -563,11 +549,7 @@ export function StatGrid({ tiles, wrap }: { tiles: StatTile[]; wrap?: boolean })
     <View style={[styles.statGrid, wrap && styles.statGridWrap]}>
       {tiles.map((tile) => {
         const skin = tintMap[tile.tint];
-        const tileStyle = [
-          styles.statTile,
-          wrap && styles.statTileWrap,
-          tile.critical && styles.statTileCritical,
-        ];
+        const tileStyle = [styles.statTile, wrap && styles.statTileWrap, tile.critical && styles.statTileCritical];
         const inner = (
           <>
             <View style={styles.statCircle}>
@@ -674,7 +656,12 @@ export function InfoStrip({
 }
 
 const styles = StyleSheet.create({
-  centre: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
+  centre: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+    gap: spacing.sm,
+  },
   centreText: {
     fontFamily: typography.fontFamily.regular,
     fontSize: typography.size.sm,
@@ -691,9 +678,16 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: spacing.md,
   },
-  buttonSm: { paddingVertical: 9, paddingHorizontal: 12, borderRadius: radii.sm + 2 },
+  buttonSm: {
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: radii.sm + 2,
+  },
   buttonOff: { opacity: 0.5 },
-  buttonText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.md },
+  buttonText: {
+    fontFamily: typography.fontFamily.semiBold,
+    fontSize: typography.size.md,
+  },
   buttonTextSm: { fontSize: typography.size.sm },
 
   hero: {
@@ -756,7 +750,6 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 10,
   },
-  tableRowDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
   tableCell: {
     fontFamily: typography.fontFamily.regular,
     fontSize: typography.size.xs,
@@ -791,7 +784,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.statusCriticalBg,
     borderColor: colors.statusCritical,
   },
-  statCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  statCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   statLabel: {
     // Two centred lines: at 320dp a quarter-row tile cut "Lab Orders" to "Lab Ord…".
     textAlign: 'center',
@@ -799,7 +798,10 @@ const styles = StyleSheet.create({
     fontSize: typography.size.xs,
     color: colors.textSecondary,
   },
-  statValue: { fontFamily: typography.fontFamily.bold, fontSize: typography.size.lg },
+  statValue: {
+    fontFamily: typography.fontFamily.bold,
+    fontSize: typography.size.lg,
+  },
 
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   actionTile: {

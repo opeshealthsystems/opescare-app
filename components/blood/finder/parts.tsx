@@ -2,12 +2,11 @@ import { useMemo } from 'react';
 
 import { Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 
-
 import { useTranslation } from 'react-i18next';
-
 
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   Icon,
@@ -21,13 +20,7 @@ import {
   type StatusTone,
   type Tint,
 } from '@/components/opes-ui';
-import {
-  CareButton,
-  LoadingBlock,
-  NoticeBanner,
-  SummaryLine,
-} from '@/components/care/shared';
-
+import { CareButton, LoadingBlock, NoticeBanner, SummaryLine } from '@/components/care/shared';
 
 import { useBloodComponentMatrix } from '@/lib/api/bloodBankQueries';
 import {
@@ -38,16 +31,9 @@ import {
   type BloodRequest,
   type BloodStockSnapshot,
 } from '@/lib/api/queries';
-import {
-  NATIONWIDE_PREVIEW,
-  BLOOD_TINT,
-  VERIFICATION_FALLBACK,
-  isVerified,
-  dial,
-} from './helpers';
+import { NATIONWIDE_PREVIEW, BLOOD_TINT, VERIFICATION_FALLBACK, isVerified, dial } from './helpers';
 import { makeStyles } from './styles';
 /** Split verbatim out of app/blood-finder.tsx. */
-
 
 /** The numbered label above each field of the finder card (PM-BLOOD-01). */
 export function FieldLabel({ index, label }: { index: number; label: string }) {
@@ -95,10 +81,7 @@ export function FieldSelect({
       accessibilityRole="button"
       accessibilityState={{ expanded: open }}
       accessibilityLabel={`${accessibilityLabel}: ${value}`}
-      style={[
-        styles.selectField,
-        { borderColor: open ? colors.blue : colors.border },
-      ]}
+      style={[styles.selectField, { borderColor: open ? colors.blue : colors.border }]}
     >
       {icon ? <Icon name={icon} size={17} color={colors.blue} /> : null}
       <Text style={styles.selectValue} numberOfLines={2}>
@@ -117,15 +100,7 @@ export function FieldSelect({
  * below stay closed until step 1 is answered. A numbered marker on content
  * that is not a sequence would be decoration; here it is the sequence.
  */
-export function FinderField({
-  index,
-  label,
-  children,
-}: {
-  index: number;
-  label: string;
-  children: React.ReactNode;
-}) {
+export function FinderField({ index, label, children }: { index: number; label: string; children: React.ReactNode }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -185,10 +160,10 @@ export function OptionCard({ title, children }: { title: string; children: React
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.afterRail}>
-      <Card variant="flush">
+      <CardStack spacing="sm">
         <Text style={styles.optionTitle}>{title}</Text>
         {children}
-      </Card>
+      </CardStack>
     </View>
   );
 }
@@ -215,9 +190,7 @@ export function StockFacts({
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const verificationKey = (verification ?? '').toLowerCase();
-  const updated = availability?.last_updated_at
-    ? formatDateTime(availability.last_updated_at)
-    : null;
+  const updated = availability?.last_updated_at ? formatDateTime(availability.last_updated_at) : null;
 
   return (
     <View style={styles.facts}>
@@ -229,19 +202,20 @@ export function StockFacts({
       />
       {updated ? (
         <SummaryLine
-          label={t('bloodFinder.stockUpdated', { defaultValue: 'Stock updated' })}
+          label={t('bloodFinder.stockUpdated', {
+            defaultValue: 'Stock updated',
+          })}
           value={updated}
         />
       ) : null}
       {address ? (
-        <SummaryLine
-          label={t('bloodFinder.addressLabel', { defaultValue: 'Address' })}
-          value={address}
-        />
+        <SummaryLine label={t('bloodFinder.addressLabel', { defaultValue: 'Address' })} value={address} />
       ) : null}
       {verificationKey ? (
         <SummaryLine
-          label={t('bloodFinder.verificationLabel', { defaultValue: 'Listing' })}
+          label={t('bloodFinder.verificationLabel', {
+            defaultValue: 'Listing',
+          })}
           value={t(`bloodFinder.verification.${verificationKey}`, {
             defaultValue: VERIFICATION_FALLBACK[verificationKey] ?? formatLabel(verification),
           })}
@@ -298,9 +272,7 @@ export function BloodBankCard({
         onPress={onOpen}
         activeOpacity={0.7}
         accessibilityRole="button"
-        accessibilityLabel={[facility.name, place, distance, freshnessLabel]
-          .filter(Boolean)
-          .join(', ')}
+        accessibilityLabel={[facility.name, place, distance, freshnessLabel].filter(Boolean).join(', ')}
         accessibilityHint={t('bloodFinder.openBank')}
         style={styles.bankRow}
       >
@@ -338,18 +310,13 @@ export function BloodBankCard({
               components
                 .filter((row) => row.units)
                 .map((row) => (
-                  <View
-                    key={row.component}
-                    style={[styles.componentChip, { backgroundColor: colors.tintBlueBg }]}
-                  >
+                  <View key={row.component} style={[styles.componentChip, { backgroundColor: colors.tintBlueBg }]}>
                     <Text style={[styles.componentChipLabel, { color: colors.blue }]}>
                       {t(`bloodFinder.componentShort.${row.component}`, {
                         defaultValue: t(`bloodFinder.components.${row.component}`),
                       })}
                     </Text>
-                    <Text style={[styles.componentChipUnits, { color: colors.blue }]}>
-                      {row.units}
-                    </Text>
+                    <Text style={[styles.componentChipUnits, { color: colors.blue }]}>{row.units}</Text>
                   </View>
                 ))
             )}
@@ -369,14 +336,8 @@ export function BloodBankCard({
             hitSlop={8}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={
-              phone ? t('bloodFinder.callShort') : t('bloodFinder.noPhone')
-            }
-            style={[
-              styles.bankCall,
-              { borderColor: colors.border },
-              !phone && styles.bankCallOff,
-            ]}
+            accessibilityLabel={phone ? t('bloodFinder.callShort') : t('bloodFinder.noPhone')}
+            style={[styles.bankCall, { borderColor: colors.border }, !phone && styles.bankCallOff]}
           >
             <Icon name="phone" size={17} color={phone ? colors.blue : colors.textMuted} />
           </TouchableOpacity>
@@ -454,8 +415,7 @@ export function NoStockPanel({
             defaultValue: 'No result matches that filter.',
           })}
           message={t('bloodFinder.filteredToNothingHint', {
-            defaultValue:
-              'The filter only narrows the facilities already found. Clear it to see them all again.',
+            defaultValue: 'The filter only narrows the facilities already found. Clear it to see them all again.',
           })}
           actionLabel={t('bloodFinder.clear')}
           onAction={onClearFilter}
@@ -479,42 +439,37 @@ export function NoStockPanel({
         />
       </Card>
 
-      <Card variant="flush">
+      <CardStack spacing="sm">
         <Text style={styles.optionTitle}>{t('bloodFinder.empty.nextSteps')}</Text>
         {nextRadius ? (
-          <ListRow
-            icon="target"
-            tint="amber"
-            title={t('bloodFinder.empty.widen', { km: nextRadius })}
-            onPress={onWiden}
-            divider
-          />
+          <Card variant="flush">
+            <ListRow
+              icon="target"
+              tint="amber"
+              title={t('bloodFinder.empty.widen', { km: nextRadius })}
+              onPress={onWiden}
+            />
+          </Card>
         ) : null}
         {onWholeBlood ? (
-          <ListRow
-            icon="droplet"
-            tint={BLOOD_TINT}
-            title={t('bloodFinder.empty.tryWholeBlood')}
-            onPress={onWholeBlood}
-            divider
-          />
+          <Card variant="flush">
+            <ListRow
+              icon="droplet"
+              tint={BLOOD_TINT}
+              title={t('bloodFinder.empty.tryWholeBlood')}
+              onPress={onWholeBlood}
+            />
+          </Card>
         ) : null}
         {!nationwideOpen ? (
-          <ListRow
-            icon="globe"
-            tint="blue"
-            title={t('bloodFinder.empty.nationwide')}
-            onPress={onNationwide}
-            divider
-          />
+          <Card variant="flush">
+            <ListRow icon="globe" tint="blue" title={t('bloodFinder.empty.nationwide')} onPress={onNationwide} />
+          </Card>
         ) : null}
-        <ListRow
-          icon="building"
-          tint="green"
-          title={t('bloodFinder.empty.callHospital')}
-          onPress={onFindHospital}
-        />
-      </Card>
+        <Card variant="flush">
+          <ListRow icon="building" tint="green" title={t('bloodFinder.empty.callHospital')} onPress={onFindHospital} />
+        </Card>
+      </CardStack>
 
       {/* Compatible groups — clinically grounded (App\Enums\BloodGroup) and
           annotated with what the API says is actually reported. */}
@@ -532,7 +487,9 @@ export function NoStockPanel({
                 onPress={() => onPickGroup(option.value)}
                 accessibilityLabel={`${option.label} — ${
                   option.facility_count > 0
-                    ? t('bloodFinder.facilityCount', { count: option.facility_count })
+                    ? t('bloodFinder.facilityCount', {
+                        count: option.facility_count,
+                      })
                     : t('bloodFinder.noSites')
                 }`}
               />
@@ -575,18 +532,20 @@ export function NoStockPanel({
               <View>
                 <SectionHeader
                   variant="overline"
-                  title={t('bloodFinder.empty.nationwideFound', { count: nationwideRows.length })}
+                  title={t('bloodFinder.empty.nationwideFound', {
+                    count: nationwideRows.length,
+                  })}
                   actionLabel={
                     nationwideRows.length > NATIONWIDE_PREVIEW
                       ? nationwideExpanded
-                        ? t('bloodFinder.showLess', { defaultValue: 'Show fewer' })
+                        ? t('bloodFinder.showLess', {
+                            defaultValue: 'Show fewer',
+                          })
                         : t('bloodFinder.showAll', { defaultValue: 'Show all' })
                       : undefined
                   }
                   actionChevron
-                  onAction={
-                    nationwideRows.length > NATIONWIDE_PREVIEW ? onToggleNationwide : undefined
-                  }
+                  onAction={nationwideRows.length > NATIONWIDE_PREVIEW ? onToggleNationwide : undefined}
                 />
                 {/* These rows come back without a distance, so they cannot be
                     ordered by how far away they are — say what they ARE ordered
@@ -670,11 +629,7 @@ export function OpenRequestCard({
         icon="receipt"
         tint={BLOOD_TINT}
         title={`${request.blood_group}  •  ${componentLabel}`}
-        meta={[
-          request.facility?.name,
-          place || null,
-          t('bloodFinder.reference', { reference: request.reference }),
-        ]}
+        meta={[request.facility?.name, place || null, t('bloodFinder.reference', { reference: request.reference })]}
         onPress={onTrack}
         accessibilityHint={t('bloodStatus.title')}
         trailing={
@@ -694,24 +649,23 @@ export function OpenRequestCard({
             />
           </View>
         }
-        divider
       />
 
       <View style={styles.facts}>
-        <SummaryLine
-          label={t('bloodFinder.request.reviewUnits')}
-          value={String(request.quantity)}
-          strong
-        />
+        <SummaryLine label={t('bloodFinder.request.reviewUnits')} value={String(request.quantity)} strong />
         {request.needed_by ? (
           <SummaryLine
-            label={t('bloodFinder.request.neededBy', { defaultValue: 'Needed by' })}
+            label={t('bloodFinder.request.neededBy', {
+              defaultValue: 'Needed by',
+            })}
             value={formatDateTime(request.needed_by)}
           />
         ) : null}
         {request.expires_at ? (
           <SummaryLine
-            label={t('bloodFinder.request.expiresAt', { defaultValue: 'Hold expires' })}
+            label={t('bloodFinder.request.expiresAt', {
+              defaultValue: 'Hold expires',
+            })}
             value={formatDateTime(request.expires_at)}
             valueColor={colors.statusWarning}
           />
@@ -723,10 +677,7 @@ export function OpenRequestCard({
           />
         ) : null}
         {request.contact_phone ? (
-          <SummaryLine
-            label={t('bloodFinder.request.contactPhone')}
-            value={request.contact_phone}
-          />
+          <SummaryLine label={t('bloodFinder.request.contactPhone')} value={request.contact_phone} />
         ) : null}
       </View>
 
@@ -783,4 +734,3 @@ export function OpenRequestCard({
 }
 
 /* ── Styles ───────────────────────────────────────────────────────────────── */
-

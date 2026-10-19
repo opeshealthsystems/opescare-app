@@ -28,6 +28,7 @@ import {
   ResultList,
   ScreenHeader,
   SectionHeader,
+  CardStack,
   StatusBadge,
   a11yJoin,
   formatDate,
@@ -97,44 +98,49 @@ const FALLBACK_CATEGORIES: SupportTicketCategory[] = [
 ];
 
 /** Help topics — each navigates to the screen that actually does the thing. */
-const HELP_TOPICS: { icon: IconName; tint: Tint; titleKey: string; bodyKey: string; route: string }[] =
-  [
-    {
-      icon: 'qr',
-      tint: 'blue',
-      titleKey: 'help.topic.healthId',
-      bodyKey: 'help.topic.healthIdBody',
-      route: '/(tabs)/health-id',
-    },
-    {
-      icon: 'calendar',
-      tint: 'blue',
-      titleKey: 'help.topic.appointments',
-      bodyKey: 'help.topic.appointmentsBody',
-      route: '/appointments',
-    },
-    {
-      icon: 'document-text',
-      tint: 'green',
-      titleKey: 'help.topic.records',
-      bodyKey: 'help.topic.recordsBody',
-      route: '/(tabs)/records',
-    },
-    {
-      icon: 'shield-check',
-      tint: 'amber',
-      titleKey: 'help.topic.privacy',
-      bodyKey: 'help.topic.privacyBody',
-      route: '/privacy',
-    },
-    {
-      icon: 'users',
-      tint: 'purple',
-      titleKey: 'help.topic.family',
-      bodyKey: 'help.topic.familyBody',
-      route: '/family',
-    },
-  ];
+const HELP_TOPICS: {
+  icon: IconName;
+  tint: Tint;
+  titleKey: string;
+  bodyKey: string;
+  route: string;
+}[] = [
+  {
+    icon: 'qr',
+    tint: 'blue',
+    titleKey: 'help.topic.healthId',
+    bodyKey: 'help.topic.healthIdBody',
+    route: '/(tabs)/health-id',
+  },
+  {
+    icon: 'calendar',
+    tint: 'blue',
+    titleKey: 'help.topic.appointments',
+    bodyKey: 'help.topic.appointmentsBody',
+    route: '/appointments',
+  },
+  {
+    icon: 'document-text',
+    tint: 'green',
+    titleKey: 'help.topic.records',
+    bodyKey: 'help.topic.recordsBody',
+    route: '/(tabs)/records',
+  },
+  {
+    icon: 'shield-check',
+    tint: 'amber',
+    titleKey: 'help.topic.privacy',
+    bodyKey: 'help.topic.privacyBody',
+    route: '/privacy',
+  },
+  {
+    icon: 'users',
+    tint: 'purple',
+    titleKey: 'help.topic.family',
+    bodyKey: 'help.topic.familyBody',
+    route: '/family',
+  },
+];
 
 /**
  * FAQ. Every answer describes behaviour this app genuinely has, and links to
@@ -142,11 +148,27 @@ const HELP_TOPICS: { icon: IconName; tint: Tint; titleKey: string; bodyKey: stri
  * checked against the screen it points at.
  */
 const FAQS: { id: string; route: string; routeLabelKey: string }[] = [
-  { id: 'healthId', route: '/(tabs)/health-id', routeLabelKey: 'help.faq.openHealthId' },
+  {
+    id: 'healthId',
+    route: '/(tabs)/health-id',
+    routeLabelKey: 'help.faq.openHealthId',
+  },
   { id: 'whoSees', route: '/privacy', routeLabelKey: 'help.faq.openPrivacy' },
-  { id: 'copy', route: '/export-records', routeLabelKey: 'help.faq.openExport' },
-  { id: 'offline', route: '/offline-access', routeLabelKey: 'help.faq.openOffline' },
-  { id: 'booking', route: '/appointments/book', routeLabelKey: 'help.faq.openBooking' },
+  {
+    id: 'copy',
+    route: '/export-records',
+    routeLabelKey: 'help.faq.openExport',
+  },
+  {
+    id: 'offline',
+    route: '/offline-access',
+    routeLabelKey: 'help.faq.openOffline',
+  },
+  {
+    id: 'booking',
+    route: '/appointments/book',
+    routeLabelKey: 'help.faq.openBooking',
+  },
   { id: 'family', route: '/family', routeLabelKey: 'help.faq.openFamily' },
 ];
 
@@ -180,9 +202,7 @@ export default function HelpScreen() {
   const ticketsQuery = useSupportTickets();
   const createTicket = useCreateSupportTicket();
 
-  const categories = contactQuery.data?.categories?.length
-    ? contactQuery.data.categories
-    : FALLBACK_CATEGORIES;
+  const categories = contactQuery.data?.categories?.length ? contactQuery.data.categories : FALLBACK_CATEGORIES;
 
   const [category, setCategory] = useState<SupportTicketCategory>('technical_issue');
   const [subject, setSubject] = useState('');
@@ -196,8 +216,7 @@ export default function HelpScreen() {
   const tickets = ticketsQuery.data ?? [];
   const openTickets = tickets.filter((ticket) => ticket.status !== 'resolved').length;
 
-  const canSubmit =
-    subject.trim().length > 0 && description.trim().length > 0 && !createTicket.isPending;
+  const canSubmit = subject.trim().length > 0 && description.trim().length > 0 && !createTicket.isPending;
 
   const submitRequest = async () => {
     if (!canSubmit) return;
@@ -226,7 +245,9 @@ export default function HelpScreen() {
     (id: string, ticketCategory: string, updatedAt: string | null) =>
       t('help.myRequests.meta', {
         ref: shortRef(id),
-        category: t(`help.category.${ticketCategory}`, { defaultValue: ticketCategory }),
+        category: t(`help.category.${ticketCategory}`, {
+          defaultValue: ticketCategory,
+        }),
         updated: formatDate(updatedAt, t('opesCore.common.none')),
       }),
     [t],
@@ -271,96 +292,100 @@ export default function HelpScreen() {
         {contactQuery.isLoading ? (
           <LoadingCard label={t('opesCore.common.loading')} />
         ) : (
-          <Card variant="flush">
+          <CardStack spacing="sm">
             {email ? (
-              <ListRow
-                icon="mail"
-                tint="blue"
-                title={t('help.contact.email')}
-                subtitle={t('help.contact.emailBody')}
-                value={email}
-                valueColor={colors.link}
-                onPress={() => {
-                  Linking.openURL(`mailto:${email}`).catch(() => undefined);
-                }}
-                accessibilityLabel={a11yJoin(t('help.contact.email'), email)}
-                divider
-              />
+              <Card variant="flush">
+                <ListRow
+                  icon="mail"
+                  tint="blue"
+                  title={t('help.contact.email')}
+                  subtitle={t('help.contact.emailBody')}
+                  value={email}
+                  valueColor={colors.link}
+                  onPress={() => {
+                    Linking.openURL(`mailto:${email}`).catch(() => undefined);
+                  }}
+                  accessibilityLabel={a11yJoin(t('help.contact.email'), email)}
+                />
+              </Card>
             ) : null}
 
             {phone ? (
-              <ListRow
-                icon="phone"
-                tint="green"
-                title={t('help.contact.phone')}
-                subtitle={t('help.contact.phoneBody')}
-                value={phone}
-                valueColor={colors.link}
-                onPress={() => {
-                  Linking.openURL(`tel:${phone.replace(/[^+\d]/g, '')}`).catch(() => undefined);
-                }}
-                accessibilityLabel={a11yJoin(t('help.contact.phone'), phone)}
-                divider
-              />
+              <Card variant="flush">
+                <ListRow
+                  icon="phone"
+                  tint="green"
+                  title={t('help.contact.phone')}
+                  subtitle={t('help.contact.phoneBody')}
+                  value={phone}
+                  valueColor={colors.link}
+                  onPress={() => {
+                    Linking.openURL(`tel:${phone.replace(/[^+\d]/g, '')}`).catch(() => undefined);
+                  }}
+                  accessibilityLabel={a11yJoin(t('help.contact.phone'), phone)}
+                />
+              </Card>
             ) : null}
 
             {!email && !phone ? (
-              <View style={styles.flushNotice}>
-                <Notice tone="warning" icon="alert-circle" text={t('help.contact.unavailable')} />
-              </View>
+              <Card variant="flush">
+                <View style={styles.flushNotice}>
+                  <Notice tone="warning" icon="alert-circle" text={t('help.contact.unavailable')} />
+                </View>
+              </Card>
             ) : null}
 
-            <ListRow
-              icon="chat"
-              tint="purple"
-              title={t('help.contact.ticket')}
-              subtitle={t('help.contact.ticketBody')}
-              value={
-                openTickets > 0
-                  ? t('help.contact.ticketOpen', { count: openTickets })
-                  : t('help.contact.ticketNone')
-              }
-              valueColor={colors.textSecondary}
-              chevron={false}
-            />
-          </Card>
+            <Card variant="flush">
+              <ListRow
+                icon="chat"
+                tint="purple"
+                title={t('help.contact.ticket')}
+                subtitle={t('help.contact.ticketBody')}
+                value={
+                  openTickets > 0 ? t('help.contact.ticketOpen', { count: openTickets }) : t('help.contact.ticketNone')
+                }
+                valueColor={colors.textSecondary}
+                chevron={false}
+              />
+            </Card>
+          </CardStack>
         )}
 
         {/* ── Popular help topics ───────────────────────────────────────── */}
         <View>
           <SectionHeader title={t('help.topicsTitle')} variant="overline" />
-          <Card variant="flush">
-            {HELP_TOPICS.map((topic, index) => (
-              <ListRow
-                key={topic.titleKey}
-                icon={topic.icon}
-                tint={topic.tint}
-                title={t(topic.titleKey)}
-                subtitle={t(topic.bodyKey)}
-                onPress={() => router.push(topic.route)}
-                divider={index < HELP_TOPICS.length - 1}
-              />
+          <CardStack spacing="sm">
+            {HELP_TOPICS.map((topic) => (
+              <Card key={topic.titleKey} variant="flush">
+                <ListRow
+                  icon={topic.icon}
+                  tint={topic.tint}
+                  title={t(topic.titleKey)}
+                  subtitle={t(topic.bodyKey)}
+                  onPress={() => router.push(topic.route)}
+                />
+              </Card>
             ))}
-          </Card>
+          </CardStack>
         </View>
 
         {/* ── FAQ ───────────────────────────────────────────────────────── */}
         <View>
           <SectionHeader title={t('help.faqTitle')} variant="overline" />
-          <Card variant="flush">
-            {FAQS.map((faq, index) => (
-              <FaqRow
-                key={faq.id}
-                question={t(`help.faq.${faq.id}Q`)}
-                answer={t(`help.faq.${faq.id}A`)}
-                linkLabel={t(faq.routeLabelKey)}
-                open={openFaq === faq.id}
-                onToggle={() => setOpenFaq((current) => (current === faq.id ? null : faq.id))}
-                onFollowLink={() => router.push(faq.route)}
-                divider={index < FAQS.length - 1}
-              />
+          <CardStack spacing="sm">
+            {FAQS.map((faq) => (
+              <Card key={faq.id} variant="flush">
+                <FaqRow
+                  question={t(`help.faq.${faq.id}Q`)}
+                  answer={t(`help.faq.${faq.id}A`)}
+                  linkLabel={t(faq.routeLabelKey)}
+                  open={openFaq === faq.id}
+                  onToggle={() => setOpenFaq((current) => (current === faq.id ? null : faq.id))}
+                  onFollowLink={() => router.push(faq.route)}
+                />
+              </Card>
             ))}
-          </Card>
+          </CardStack>
         </View>
 
         {/* ── Submit a request ──────────────────────────────────────────── */}
@@ -377,10 +402,9 @@ export default function HelpScreen() {
                   label={t(`help.category.${value}`, { defaultValue: value })}
                   selected={category === value}
                   onPress={() => setCategory(value)}
-                  accessibilityLabel={`${t('help.requestForm.category')} ${t(
-                    `help.category.${value}`,
-                    { defaultValue: value },
-                  )}`}
+                  accessibilityLabel={`${t('help.requestForm.category')} ${t(`help.category.${value}`, {
+                    defaultValue: value,
+                  })}`}
                 />
               ))}
             </View>
@@ -412,12 +436,7 @@ export default function HelpScreen() {
             <Text style={styles.privacyHint}>{t('help.requestForm.privacyHint')}</Text>
 
             {createTicket.isError ? (
-              <Notice
-                tone="critical"
-                icon="alert-circle"
-                text={t('help.requestForm.submitError')}
-                spaced
-              />
+              <Notice tone="critical" icon="alert-circle" text={t('help.requestForm.submitError')} spaced />
             ) : null}
 
             {submittedRef ? (
@@ -425,7 +444,9 @@ export default function HelpScreen() {
                 tone="normal"
                 icon="check-circle"
                 title={t('help.requestForm.submitted')}
-                text={t('help.requestForm.submittedBody', { ref: submittedRef })}
+                text={t('help.requestForm.submittedBody', {
+                  ref: submittedRef,
+                })}
                 spaced
               />
             ) : null}
@@ -481,7 +502,9 @@ export default function HelpScreen() {
                       <StatusBadge
                         status={ticket.status}
                         tone={statusTone(ticket.status)}
-                        label={t(`help.status.${ticket.status}`, { defaultValue: ticket.status })}
+                        label={t(`help.status.${ticket.status}`, {
+                          defaultValue: ticket.status,
+                        })}
                         size="sm"
                       />
                     }
@@ -536,7 +559,6 @@ function FaqRow({
   open,
   onToggle,
   onFollowLink,
-  divider,
 }: {
   question: string;
   answer: string;
@@ -544,12 +566,11 @@ function FaqRow({
   open: boolean;
   onToggle: () => void;
   onFollowLink: () => void;
-  divider: boolean;
 }) {
   const { colors, tintMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <View style={[styles.faqWrap, divider && styles.faqDivider]}>
+    <View style={styles.faqWrap}>
       <TouchableOpacity
         onPress={onToggle}
         activeOpacity={0.7}
@@ -562,11 +583,7 @@ function FaqRow({
           <Icon name="help-circle" size={26} color={tintMap.blue.fg} />
         </View>
         <Text style={styles.faqQuestion}>{question}</Text>
-        <Icon
-          name={open ? 'chevron-up' : 'chevron-down'}
-          size={18}
-          color={open ? colors.link : colors.textMuted}
-        />
+        <Icon name={open ? 'chevron-up' : 'chevron-down'} size={18} color={open ? colors.link : colors.textMuted} />
       </TouchableOpacity>
 
       {open ? (
@@ -630,14 +647,8 @@ function TicketDetailModal({
         accessibilityRole="button"
         accessibilityLabel={t('opesCore.common.close')}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.sheetWrap}
-      >
-        <View
-          style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}
-          accessibilityViewIsModal
-        >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.sheetWrap}>
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]} accessibilityViewIsModal>
           <View style={styles.grab} />
 
           <View style={styles.sheetHead}>
@@ -689,7 +700,9 @@ function TicketDetailModal({
                 <StatusBadge
                   status={ticket.status}
                   tone={statusTone(ticket.status)}
-                  label={t(`help.status.${ticket.status}`, { defaultValue: ticket.status })}
+                  label={t(`help.status.${ticket.status}`, {
+                    defaultValue: ticket.status,
+                  })}
                   size="sm"
                 />
                 {ticket.sla_due_at && !ticket.resolved_at ? (
@@ -726,25 +739,10 @@ function TicketDetailModal({
                   ticket.messages.map((message) => (
                     <View
                       key={message.id}
-                      style={[
-                        styles.bubble,
-                        message.is_mine ? styles.bubbleMine : styles.bubbleTheirs,
-                      ]}
+                      style={[styles.bubble, message.is_mine ? styles.bubbleMine : styles.bubbleTheirs]}
                     >
-                      <Text
-                        style={[
-                          styles.bubbleText,
-                          message.is_mine && styles.bubbleTextMine,
-                        ]}
-                      >
-                        {message.body}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.bubbleStamp,
-                          message.is_mine && styles.bubbleStampMine,
-                        ]}
-                      >
+                      <Text style={[styles.bubbleText, message.is_mine && styles.bubbleTextMine]}>{message.body}</Text>
+                      <Text style={[styles.bubbleStamp, message.is_mine && styles.bubbleStampMine]}>
                         {formatDate(message.created_at)}
                       </Text>
                     </View>
@@ -772,7 +770,10 @@ function TicketDetailModal({
                   activeOpacity={0.8}
                   accessibilityRole="button"
                   accessibilityLabel={t('help.detail.send')}
-                  accessibilityState={{ disabled: !canSend, busy: sendMessage.isPending }}
+                  accessibilityState={{
+                    disabled: !canSend,
+                    busy: sendMessage.isPending,
+                  }}
                   style={[styles.sendButton, !canSend && styles.sendButtonOff]}
                 >
                   {sendMessage.isPending ? (
@@ -840,7 +841,12 @@ function LoadingCard({ label }: { label: string }) {
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
     // Intro card
     head: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
@@ -867,8 +873,12 @@ const makeStyles = (colors: Palette) =>
 
     // FAQ
     faqWrap: { paddingHorizontal: spacing.md },
-    faqDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
-    faqRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
+    faqRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 14,
+    },
     faqQuestion: {
       flex: 1,
       minWidth: 0,
@@ -884,7 +894,12 @@ const makeStyles = (colors: Palette) =>
       lineHeight: typography.lineHeight.sm,
       color: colors.textSecondary,
     },
-    faqLink: { marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 2 },
+    faqLink: {
+      marginTop: spacing.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+    },
     faqLinkText: {
       fontFamily: typography.fontFamily.medium,
       fontSize: typography.size.sm,
@@ -944,7 +959,10 @@ const makeStyles = (colors: Palette) =>
     },
     noticeSpaced: { marginBottom: spacing.md },
     noticeBody: { flex: 1, minWidth: 0, gap: 2 },
-    noticeTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
+    noticeTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
     noticeText: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
@@ -994,7 +1012,11 @@ const makeStyles = (colors: Palette) =>
       backgroundColor: colors.border,
       marginBottom: spacing.md,
     },
-    sheetHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+    sheetHead: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+    },
     sheetHeadText: { flex: 1, minWidth: 0 },
     sheetTitle: {
       fontFamily: typography.fontFamily.bold,
@@ -1088,7 +1110,12 @@ const makeStyles = (colors: Palette) =>
     },
     bubbleStampMine: { color: colors.primarySoft },
 
-    composer: { marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    composer: {
+      marginTop: spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
     // `PillInput` carries a 16px bottom margin for stacked form fields; the
     // composer is a single row, so it is cancelled here.
     composerInput: { flex: 1, minWidth: 0, marginBottom: -spacing.md },

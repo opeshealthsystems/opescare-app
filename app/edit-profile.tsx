@@ -8,6 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Avatar } from '@/components/core/shared';
 import {
   Card,
+  CardStack,
   Chip,
   GradientButton,
   Icon,
@@ -96,7 +97,10 @@ export default function EditProfileScreen() {
   const uploadPhoto = useUploadMyPhoto();
   const removePhoto = useRemoveMyPhoto();
   const dialog = useDialog();
-  const [photoMessage, setPhotoMessage] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null);
+  const [photoMessage, setPhotoMessage] = useState<{
+    text: string;
+    tone: 'ok' | 'error';
+  } | null>(null);
   const photoBusy = uploadPhoto.isPending || removePhoto.isPending;
 
   const savedEmergency = patient?.emergency_contact ?? null;
@@ -107,9 +111,7 @@ export default function EditProfileScreen() {
   const [bloodGroup, setBloodGroup] = useState<string | null>(patient?.blood_group ?? null);
   const [address, setAddress] = useState(patient?.address ?? '');
   const [emergencyName, setEmergencyName] = useState(savedEmergency?.name ?? '');
-  const [emergencyRelationship, setEmergencyRelationship] = useState(
-    savedEmergency?.relationship ?? '',
-  );
+  const [emergencyRelationship, setEmergencyRelationship] = useState(savedEmergency?.relationship ?? '');
   const [emergencyPhone, setEmergencyPhone] = useState(savedEmergency?.phone ?? '');
 
   // The auth store's `patient` can still be null at mount (e.g. a deep link,
@@ -158,17 +160,7 @@ export default function EditProfileScreen() {
       emergencyRelationship.trim() !== (patient.emergency_contact?.relationship ?? '') ||
       emergencyPhone.trim() !== (patient.emergency_contact?.phone ?? '')
     );
-  }, [
-    patient,
-    firstName,
-    lastName,
-    sex,
-    bloodGroup,
-    address,
-    emergencyName,
-    emergencyRelationship,
-    emergencyPhone,
-  ]);
+  }, [patient, firstName, lastName, sex, bloodGroup, address, emergencyName, emergencyRelationship, emergencyPhone]);
 
   // The success banner belongs to the state that was saved; the moment the
   // patient starts editing again it is stale, so it hides itself.
@@ -178,11 +170,16 @@ export default function EditProfileScreen() {
     ? { label: t('editProfile.emergencyStatusComplete'), tone: 'normal' }
     : emergencyPartial
       ? {
-          label: t('editProfile.emergencyStatusIncomplete', { filled: emergencyFilled }),
+          label: t('editProfile.emergencyStatusIncomplete', {
+            filled: emergencyFilled,
+          }),
           tone: 'warning',
         }
       : emergencyWillRemove
-        ? { label: t('editProfile.emergencyStatusWillRemove'), tone: 'critical' }
+        ? {
+            label: t('editProfile.emergencyStatusWillRemove'),
+            tone: 'critical',
+          }
         : { label: t('editProfile.emergencyStatusEmpty'), tone: 'neutral' };
 
   const handleSave = async () => {
@@ -223,9 +220,7 @@ export default function EditProfileScreen() {
             : {}),
       });
       setShowFieldErrors(false);
-      setSuccessMessage(
-        emergencyWillRemove ? t('editProfile.savedContactRemoved') : t('editProfile.saved'),
-      );
+      setSuccessMessage(emergencyWillRemove ? t('editProfile.savedContactRemoved') : t('editProfile.saved'));
     } catch (err) {
       setFormError(extractErrorMessage(err, t('editProfile.saveFailed')));
     }
@@ -254,7 +249,10 @@ export default function EditProfileScreen() {
           ? await ImagePicker.requestCameraPermissionsAsync()
           : await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        setPhotoMessage({ text: t('editProfile.photoPermission'), tone: 'error' });
+        setPhotoMessage({
+          text: t('editProfile.photoPermission'),
+          tone: 'error',
+        });
         return;
       }
       const options: ImagePicker.ImagePickerOptions = {
@@ -276,7 +274,10 @@ export default function EditProfileScreen() {
       });
       setPhotoMessage({ text: t('editProfile.photoSaved'), tone: 'ok' });
     } catch (err) {
-      setPhotoMessage({ text: extractErrorMessage(err, t('editProfile.photoFailed')), tone: 'error' });
+      setPhotoMessage({
+        text: extractErrorMessage(err, t('editProfile.photoFailed')),
+        tone: 'error',
+      });
     }
   };
 
@@ -293,27 +294,24 @@ export default function EditProfileScreen() {
           await removePhoto.mutateAsync();
           setPhotoMessage({ text: t('editProfile.photoRemoved'), tone: 'ok' });
         } catch (err) {
-          setPhotoMessage({ text: extractErrorMessage(err, t('editProfile.photoFailed')), tone: 'error' });
+          setPhotoMessage({
+            text: extractErrorMessage(err, t('editProfile.photoFailed')),
+            tone: 'error',
+          });
         }
       },
     });
   };
 
-  const initials =
-    `${patient?.first_name?.[0] ?? ''}${patient?.last_name?.[0] ?? ''}`.toUpperCase() || '?';
+  const initials = `${patient?.first_name?.[0] ?? ''}${patient?.last_name?.[0] ?? ''}`.toUpperCase() || '?';
   const displayName = [patient?.first_name, patient?.last_name].filter(Boolean).join(' ');
 
   const fieldIcon = (name: IconName) => <Icon name={name} size={18} color={colors.blue} />;
-  const requiredError = (missing: boolean) =>
-    showFieldErrors && missing ? t('editProfile.required') : undefined;
+  const requiredError = (missing: boolean) => (showFieldErrors && missing ? t('editProfile.required') : undefined);
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <ScreenHeader
-        title={t('editProfile.title')}
-        subtitle={t('editProfile.subtitle')}
-        onBack={() => router.back()}
-      />
+      <ScreenHeader title={t('editProfile.title')} subtitle={t('editProfile.subtitle')} onBack={() => router.back()} />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -369,13 +367,22 @@ export default function EditProfileScreen() {
             ) : null}
           </View>
           {photoBusy ? (
-            <View style={styles.photoStatus} accessibilityRole="progressbar" accessibilityLabel={t('editProfile.photoUploading')}>
+            <View
+              style={styles.photoStatus}
+              accessibilityRole="progressbar"
+              accessibilityLabel={t('editProfile.photoUploading')}
+            >
               <ActivityIndicator size="small" color={colors.blue} />
               <Text style={styles.photoStatusText}>{t('editProfile.photoUploading')}</Text>
             </View>
           ) : photoMessage ? (
             <Text
-              style={[styles.photoStatusText, photoMessage.tone === 'error' && { color: statusMap.critical.fg }]}
+              style={[
+                styles.photoStatusText,
+                photoMessage.tone === 'error' && {
+                  color: statusMap.critical.fg,
+                },
+              ]}
               accessibilityRole={photoMessage.tone === 'error' ? 'alert' : 'text'}
             >
               {photoMessage.text}
@@ -475,9 +482,7 @@ export default function EditProfileScreen() {
           <SectionHeader title={t('editProfile.emergencyContactTitle')} />
           <Card>
             <View style={styles.sectionDescRow}>
-              <Text style={[styles.sectionDesc, styles.sectionDescGrow]}>
-                {t('editProfile.emergencyContactDesc')}
-              </Text>
+              <Text style={[styles.sectionDesc, styles.sectionDescGrow]}>{t('editProfile.emergencyContactDesc')}</Text>
               <StatusBadge
                 status="emergency_contact"
                 tone={emergencyStatus.tone}
@@ -549,34 +554,34 @@ export default function EditProfileScreen() {
         {/* ── Locked — the API pins these to the Health ID ─────────────── */}
         <View>
           <SectionHeader title={t('editProfile.lockedTitle')} />
-          <Card variant="flush">
-            <Text style={[styles.sectionDesc, styles.sectionDescFlush]}>
-              {t('editProfile.lockedDesc')}
-            </Text>
-            <LockedRow
-              icon="mail"
-              label={t('editProfile.email')}
-              value={patient?.email ?? t('editProfile.notProvided')}
-              divider
-            />
-            <LockedRow
-              icon="phone"
-              label={t('editProfile.phone')}
-              value={patient?.phone ?? t('editProfile.notProvided')}
-              divider
-            />
-            <LockedRow
-              icon="calendar"
-              label={t('editProfile.dateOfBirth')}
-              value={formatDateLong(patient?.dob, t('editProfile.notProvided'))}
-            />
-          </Card>
+          <Text style={styles.sectionDesc}>{t('editProfile.lockedDesc')}</Text>
+          <CardStack spacing="sm">
+            <Card variant="flush">
+              <LockedRow
+                icon="mail"
+                label={t('editProfile.email')}
+                value={patient?.email ?? t('editProfile.notProvided')}
+              />
+            </Card>
+            <Card variant="flush">
+              <LockedRow
+                icon="phone"
+                label={t('editProfile.phone')}
+                value={patient?.phone ?? t('editProfile.notProvided')}
+              />
+            </Card>
+            <Card variant="flush">
+              <LockedRow
+                icon="calendar"
+                label={t('editProfile.dateOfBirth')}
+                value={formatDateLong(patient?.dob, t('editProfile.notProvided'))}
+              />
+            </Card>
+          </CardStack>
         </View>
 
         {formError ? <Notice tone="critical" icon="alert-triangle" text={formError} /> : null}
-        {showSuccess && successMessage ? (
-          <Notice tone="normal" icon="check-circle" text={successMessage} />
-        ) : null}
+        {showSuccess && successMessage ? <Notice tone="normal" icon="check-circle" text={successMessage} /> : null}
 
         <View style={styles.footer}>
           <GradientButton
@@ -595,17 +600,7 @@ export default function EditProfileScreen() {
 
 // ── Pieces ──────────────────────────────────────────────────────────────────
 
-function LockedRow({
-  icon,
-  label,
-  value,
-  divider,
-}: {
-  icon: IconName;
-  label: string;
-  value: string;
-  divider?: boolean;
-}) {
+function LockedRow({ icon, label, value }: { icon: IconName; label: string; value: string }) {
   const { colors } = useTheme();
   return (
     <ListRow
@@ -614,7 +609,6 @@ function LockedRow({
       title={label}
       subtitle={value}
       trailing={<Icon name="lock" size={16} color={colors.textMuted} />}
-      divider={divider}
     />
   );
 }
@@ -640,10 +634,19 @@ function Notice({ tone, icon, text }: { tone: StatusTone; icon: IconName; text: 
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
     // Identity anchor
-    identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
+    identity: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+    },
     avatar: {
       width: 48,
       height: 48,
@@ -669,7 +672,12 @@ const makeStyles = (colors: Palette) =>
       lineHeight: typography.lineHeight.xs,
       color: colors.textSecondary,
     },
-    photoActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm + 4 },
+    photoActions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginTop: spacing.sm + 4,
+    },
     photoAction: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -686,10 +694,18 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.xs,
       color: colors.blue,
     },
-    photoActionDestructive: { borderColor: colors.statusCriticalBg, backgroundColor: colors.statusCriticalBg },
+    photoActionDestructive: {
+      borderColor: colors.statusCriticalBg,
+      backgroundColor: colors.statusCriticalBg,
+    },
     photoActionDestructiveText: { color: colors.statusCritical },
     photoActionOff: { opacity: 0.5 },
-    photoStatus: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+    photoStatus: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
     photoStatusText: {
       marginTop: spacing.sm,
       fontFamily: typography.fontFamily.regular,
@@ -717,8 +733,11 @@ const makeStyles = (colors: Palette) =>
       lineHeight: typography.lineHeight.xs,
       color: colors.textSecondary,
     },
-    sectionDescFlush: { marginBottom: 0, paddingHorizontal: spacing.md, paddingTop: spacing.md },
-    sectionDescRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+    sectionDescRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+    },
     sectionDescGrow: { flex: 1, minWidth: 0 },
 
     // Fields
@@ -728,7 +747,12 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.sm,
       color: colors.textPrimary,
     },
-    fieldLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+    fieldLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 4,
+    },
     fieldLabelInline: {
       fontFamily: typography.fontFamily.medium,
       fontSize: typography.size.sm,
@@ -752,7 +776,10 @@ const makeStyles = (colors: Palette) =>
       paddingHorizontal: spacing.sm + 4,
       paddingVertical: spacing.sm,
     },
-    clearText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.xs },
+    clearText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+    },
 
     // Notices
     notice: {

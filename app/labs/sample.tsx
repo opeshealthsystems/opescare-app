@@ -34,6 +34,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ListRow,
@@ -59,11 +60,7 @@ import {
   fmtDateTime,
   titleCase,
 } from '@/components/diagnostics/shared';
-import {
-  isLabsUnavailable,
-  useSampleCollection,
-  type LabVisit,
-} from '@/lib/api/labsQueries';
+import { isLabsUnavailable, useSampleCollection, type LabVisit } from '@/lib/api/labsQueries';
 import { LabsUnavailable, useLabsT, type Tx } from './index';
 
 /** "45 min" / "—". The lab visit is the only place this app prints a duration. */
@@ -92,7 +89,7 @@ export default function SampleCollectionScreen() {
   const findLab = useCallback(() => router.push('/care-map'), [router]);
   const openVisit = useCallback(
     (visit: LabVisit) => router.push({ pathname: '/appointments/[id]', params: { id: visit.id } }),
-    [router]
+    [router],
   );
 
   function renderBody() {
@@ -125,9 +122,7 @@ export default function SampleCollectionScreen() {
             <Card>
               <View style={styles.headRow}>
                 <StatusBadge status={a.status} label={titleCase(a.status)} size="sm" />
-                {a.is_upcoming && (
-                  <Text style={styles.upcoming}>{tx('collection.upcoming', 'Upcoming visit')}</Text>
-                )}
+                {a.is_upcoming && <Text style={styles.upcoming}>{tx('collection.upcoming', 'Upcoming visit')}</Text>}
               </View>
 
               <View style={styles.whenRow}>
@@ -198,7 +193,9 @@ export default function SampleCollectionScreen() {
                         patient.health_id,
                         patient.sex ? titleCase(patient.sex) : null,
                         patient.age != null
-                          ? tx('collection.years', '{{count}} yrs', { count: patient.age })
+                          ? tx('collection.years', '{{count}} yrs', {
+                              count: patient.age,
+                            })
                           : null,
                       ]
                         .filter(Boolean)
@@ -282,16 +279,17 @@ export default function SampleCollectionScreen() {
                   <Text style={styles.noticeBody}>
                     {tx(
                       'collection.beforeBody',
-                      'Bring your Health ID and arrive a few minutes early. If a test needs any preparation — fasting, for instance — the laboratory or your care team will tell you; this app does not hold those instructions.'
+                      'Bring your Health ID and arrive a few minutes early. If a test needs any preparation — fasting, for instance — the laboratory or your care team will tell you; this app does not hold those instructions.',
                     )}
                   </Text>
                 </InfoStrip>
               </View>
 
-              <Text style={styles.techCaption} accessible accessibilityLabel={a11yJoin(
-                tx('collection.factAppointmentRef', 'Appointment reference'),
-                a.id
-              )}>
+              <Text
+                style={styles.techCaption}
+                accessible
+                accessibilityLabel={a11yJoin(tx('collection.factAppointmentRef', 'Appointment reference'), a.id)}
+              >
                 {tx('collection.factAppointmentRef', 'Appointment reference')}
                 {`: ${a.id}`}
               </Text>
@@ -305,7 +303,7 @@ export default function SampleCollectionScreen() {
               title={tx('collection.noAppointmentTitle', 'No lab visit booked')}
               message={tx(
                 'collection.noAppointmentBody',
-                'You have no laboratory appointment on file. Find a laboratory near you and book a time to give your sample.'
+                'You have no laboratory appointment on file. Find a laboratory near you and book a time to give your sample.',
               )}
               actionLabel={tx('collection.noAppointmentCta', 'Book at a facility')}
               onAction={findLab}
@@ -314,35 +312,37 @@ export default function SampleCollectionScreen() {
         )}
 
         {/* ── What the lab is waiting on ─────────────────────────────── */}
-        <Card variant={pending.length > 0 ? 'flush' : 'padded'}>
-          {pending.length === 0 ? (
+        {pending.length === 0 ? (
+          <Card variant="padded">
             <>
               <Overline label={tx('collection.awaitingSample', 'Awaiting a sample')} style={styles.overlineGap} />
               <Text style={styles.emptyLine}>
                 {tx('collection.awaitingEmpty', 'No test is waiting on a sample from you right now.')}
               </Text>
             </>
-          ) : (
-            <>
-              <Overline
-                label={tx('collection.awaitingSample', 'Awaiting a sample')}
-                style={styles.overlineFlush}
-              />
-              {pending.map((o, i) => (
+          </Card>
+        ) : (
+          <CardStack spacing="sm">
+            <Overline label={tx('collection.awaitingSample', 'Awaiting a sample')} style={styles.overlineFlush} />
+            {pending.map((o) => (
+              <Card key={o.id} variant="flush">
                 <ListRow
-                  key={o.id}
                   icon="flask"
                   tint="green"
                   title={o.name}
                   meta={[titleCase(o.priority), fmtDate(o.ordered_at)]}
-                  onPress={() => router.push({ pathname: '/labs/[id]', params: { id: o.id } })}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/labs/[id]',
+                      params: { id: o.id },
+                    })
+                  }
                   accessibilityHint={tx('collection.orderHint', 'Opens this laboratory order')}
-                  divider={i < pending.length - 1}
                 />
-              ))}
-            </>
-          )}
-        </Card>
+              </Card>
+            ))}
+          </CardStack>
+        )}
 
         {/* ── Other lab visits ───────────────────────────────────────── */}
         {others.length > 0 && (
@@ -355,7 +355,12 @@ export default function SampleCollectionScreen() {
                   tint="blue"
                   title={fmtDateTime(o.scheduled_at)}
                   meta={[titleCase(o.status), o.facility_name]}
-                  onPress={() => router.push({ pathname: '/labs/sample', params: { appointmentId: o.id } })}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/labs/sample',
+                      params: { appointmentId: o.id },
+                    })
+                  }
                   accessibilityHint={tx('collection.otherVisitHint', 'Shows this visit instead')}
                   divider={false}
                 />
@@ -394,12 +399,16 @@ export default function SampleCollectionScreen() {
           {
             icon: 'bell',
             onPress: () => router.push('/notifications'),
-            accessibilityLabel: t('opesCore.common.notifications', { defaultValue: 'Notifications' }),
+            accessibilityLabel: t('opesCore.common.notifications', {
+              defaultValue: 'Notifications',
+            }),
           },
           {
             icon: 'more-vertical',
             onPress: () => router.push('/labs'),
-            accessibilityLabel: t('opesCore.common.moreOptions', { defaultValue: 'More options' }),
+            accessibilityLabel: t('opesCore.common.moreOptions', {
+              defaultValue: 'More options',
+            }),
           },
         ]}
       />
@@ -415,7 +424,10 @@ export default function SampleCollectionScreen() {
       >
         <HeroBand
           title={tx('collection.heroTitle', 'Giving Your Sample')}
-          subtitle={tx('collection.heroSubtitle', 'Where and when to give your sample, and what the lab is waiting on.')}
+          subtitle={tx(
+            'collection.heroSubtitle',
+            'Where and when to give your sample, and what the lab is waiting on.',
+          )}
           icon="syringe"
         />
         {renderBody()}
@@ -427,7 +439,11 @@ export default function SampleCollectionScreen() {
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
     headRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     upcoming: {
@@ -436,7 +452,12 @@ const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
     },
 
-    whenRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
+    whenRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginTop: spacing.md,
+    },
     whenIcon: {
       width: 48,
       height: 48,
@@ -459,7 +480,11 @@ const makeStyles = (colors: Palette) =>
     gridGap: { marginTop: spacing.md },
 
     overlineGap: { marginBottom: spacing.sm },
-    overlineFlush: { marginBottom: spacing.sm, paddingTop: spacing.md, paddingHorizontal: spacing.md },
+    overlineFlush: {
+      marginBottom: spacing.sm,
+      paddingTop: spacing.md,
+      paddingHorizontal: spacing.md,
+    },
     // Outside a card now: the ResultList gap supplies the space the card
     // padding used to, so only the horizontal inset is still needed.
     overlineStandalone: { paddingHorizontal: spacing.xs },

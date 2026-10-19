@@ -24,11 +24,7 @@ import {
   type StatusTone,
   type Tint,
 } from '@/components/opes-ui';
-import {
-  extractApiErrorMessage,
-  useExportMedicalRecordsFhir,
-  useExportMedicalRecordsPdf,
-} from '../lib/api/queries';
+import { extractApiErrorMessage, useExportMedicalRecordsFhir, useExportMedicalRecordsPdf } from '../lib/api/queries';
 import { deliverFile, FileDeliveryError, type FileDeliveryOutcome } from '../lib/fileDelivery';
 import '../lib/api/importRecordsQueries';
 
@@ -107,11 +103,27 @@ const FORMATS: FormatSpec[] = [
 
 const INCLUDED: { icon: IconName; tint: Tint; labelKey: string }[] = [
   { icon: 'person', tint: 'blue', labelKey: 'exportRecords.includedProfile' },
-  { icon: 'alert-triangle', tint: 'amber', labelKey: 'exportRecords.includedAllergies' },
-  { icon: 'stethoscope', tint: 'purple', labelKey: 'exportRecords.includedDiagnoses' },
-  { icon: 'pill', tint: 'green', labelKey: 'exportRecords.includedMedications' },
+  {
+    icon: 'alert-triangle',
+    tint: 'amber',
+    labelKey: 'exportRecords.includedAllergies',
+  },
+  {
+    icon: 'stethoscope',
+    tint: 'purple',
+    labelKey: 'exportRecords.includedDiagnoses',
+  },
+  {
+    icon: 'pill',
+    tint: 'green',
+    labelKey: 'exportRecords.includedMedications',
+  },
   { icon: 'flask', tint: 'green', labelKey: 'exportRecords.includedLabs' },
-  { icon: 'syringe', tint: 'blue', labelKey: 'exportRecords.includedImmunizations' },
+  {
+    icon: 'syringe',
+    tint: 'blue',
+    labelKey: 'exportRecords.includedImmunizations',
+  },
 ];
 
 /** The last export this session produced — the summary card's whole content. */
@@ -146,9 +158,7 @@ export default function ExportRecordsScreen() {
   const exportFhir = useExportMedicalRecordsFhir();
 
   const selected = FORMATS.find((entry) => entry.key === format) ?? FORMATS[0]!;
-  const lastFormat = lastExport
-    ? (FORMATS.find((entry) => entry.key === lastExport.format) ?? FORMATS[0]!)
-    : null;
+  const lastFormat = lastExport ? (FORMATS.find((entry) => entry.key === lastExport.format) ?? FORMATS[0]!) : null;
 
   /**
    * Reports an export that actually reached the patient. `outcome` comes back
@@ -156,11 +166,7 @@ export default function ExportRecordsScreen() {
    * download, a share sheet, or a file left on the device — instead of one
    * optimistic sentence covering all three.
    */
-  const announceDelivered = (
-    kind: ExportFormat,
-    filename: string,
-    outcome: FileDeliveryOutcome,
-  ) => {
+  const announceDelivered = (kind: ExportFormat, filename: string, outcome: FileDeliveryOutcome) => {
     setLastExport({ format: kind, filename, at: new Date(), outcome });
     dialog.show({
       title: t(OUTCOME_TITLE_KEY[outcome], { filename }),
@@ -207,9 +213,7 @@ export default function ExportRecordsScreen() {
       // ever reported as a success.
       dialog.alert(
         t('exportRecords.title'),
-        err instanceof FileDeliveryError
-          ? t('exportRecords.deliveryFailed')
-          : extractApiErrorMessage(err),
+        err instanceof FileDeliveryError ? t('exportRecords.deliveryFailed') : extractApiErrorMessage(err),
         'critical',
       );
     } finally {
@@ -237,48 +241,46 @@ export default function ExportRecordsScreen() {
         {/* ── What's included — a manifest, not a filter ────────────────── */}
         <View>
           <SectionHeader title={t('exportRecords.includedTitle')} variant="overline" />
-          <Card variant="flush">
-            {INCLUDED.map((row, index) => (
-              <ListRow
-                key={row.labelKey}
-                icon={row.icon}
-                tint={row.tint}
-                title={t(row.labelKey)}
-                chevron={false}
-                divider={index < INCLUDED.length - 1}
-                trailing={<Icon name="check" size={18} color={colors.statusNormal} />}
-              />
+          <CardStack spacing="sm">
+            {INCLUDED.map((row) => (
+              <Card key={row.labelKey} variant="flush">
+                <ListRow
+                  icon={row.icon}
+                  tint={row.tint}
+                  title={t(row.labelKey)}
+                  chevron={false}
+                  trailing={<Icon name="check" size={18} color={colors.statusNormal} />}
+                />
+              </Card>
             ))}
-          </Card>
+          </CardStack>
         </View>
 
         {/* ── Choose a format ──────────────────────────────────────────── */}
         <View>
           <SectionHeader title={t('exportRecords.formatTitle')} variant="overline" />
           <Text style={styles.hint}>{t('exportRecords.formatHint')}</Text>
-          <Card variant="flush">
-            {FORMATS.map((entry, index) => (
-              <ListRow
-                key={entry.key}
-                icon={entry.icon}
-                tint={entry.tint}
-                title={t(entry.titleKey)}
-                subtitle={t(entry.bodyKey)}
-                onPress={() => setFormat(entry.key)}
-                chevron={false}
-                divider={index < FORMATS.length - 1}
-                accessibilityLabel={`${t(entry.titleKey)}. ${t(entry.bodyKey)}`}
-                accessibilityHint={t(entry.audienceKey)}
-                trailing={
-                  <View style={[styles.radio, format === entry.key && styles.radioOn]}>
-                    {format === entry.key ? (
-                      <Icon name="check" size={13} color={colors.textOnBrand} />
-                    ) : null}
-                  </View>
-                }
-              />
+          <CardStack spacing="sm">
+            {FORMATS.map((entry) => (
+              <Card key={entry.key} variant="flush">
+                <ListRow
+                  icon={entry.icon}
+                  tint={entry.tint}
+                  title={t(entry.titleKey)}
+                  subtitle={t(entry.bodyKey)}
+                  onPress={() => setFormat(entry.key)}
+                  chevron={false}
+                  accessibilityLabel={`${t(entry.titleKey)}. ${t(entry.bodyKey)}`}
+                  accessibilityHint={t(entry.audienceKey)}
+                  trailing={
+                    <View style={[styles.radio, format === entry.key && styles.radioOn]}>
+                      {format === entry.key ? <Icon name="check" size={13} color={colors.textOnBrand} /> : null}
+                    </View>
+                  }
+                />
+              </Card>
             ))}
-          </Card>
+          </CardStack>
 
           <Card style={styles.audienceCard}>
             <View style={styles.audienceRow}>
@@ -323,7 +325,9 @@ export default function ExportRecordsScreen() {
             </Card>
             {lastExport.outcome === 'shared' ? null : (
               <Text style={styles.caption}>
-                {t(OUTCOME_TITLE_KEY[lastExport.outcome], { filename: lastExport.filename })}
+                {t(OUTCOME_TITLE_KEY[lastExport.outcome], {
+                  filename: lastExport.filename,
+                })}
               </Text>
             )}
           </View>
@@ -380,17 +384,7 @@ export default function ExportRecordsScreen() {
 // ── Pieces ──────────────────────────────────────────────────────────────────
 
 /** Tinted inline notice: icon in a surface circle, title, body. */
-function Notice({
-  tone,
-  icon,
-  title,
-  text,
-}: {
-  tone: StatusTone;
-  icon: IconName;
-  title: string;
-  text: string;
-}) {
+function Notice({ tone, icon, title, text }: { tone: StatusTone; icon: IconName; title: string; text: string }) {
   const { colors, statusMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const skin = statusMap[tone];
@@ -416,7 +410,12 @@ function Notice({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, gap: spacing.md, paddingBottom: spacing.xxl },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      gap: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
 
     hint: {
       marginTop: -spacing.xs,
@@ -453,7 +452,11 @@ const makeStyles = (colors: Palette) =>
     radioOn: { borderColor: colors.blue, backgroundColor: colors.blue },
 
     audienceCard: { marginTop: spacing.sm + 4 },
-    audienceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
+    audienceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+    },
     audienceText: {
       flex: 1,
       minWidth: 0,
@@ -478,7 +481,10 @@ const makeStyles = (colors: Palette) =>
       justifyContent: 'center',
     },
     noticeBody: { flex: 1, minWidth: 0, gap: 2 },
-    noticeTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.sm },
+    noticeTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+    },
     noticeText: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,

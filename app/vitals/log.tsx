@@ -39,6 +39,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   GradientButton,
@@ -146,10 +147,7 @@ export default function LogVitalScreen() {
     if (measure && unit && !measure.units.some((u) => u.unit === unit)) setUnit(null);
   }, [measure, unit]);
 
-  const rejectionFor = useCallback(
-    (field: string) => rejections.find((r) => r.field === field) ?? null,
-    [rejections],
-  );
+  const rejectionFor = useCallback((field: string) => rejections.find((r) => r.field === field) ?? null, [rejections]);
 
   const parsed = (raw: string): number | null => {
     const n = Number(raw.replace(',', '.').trim());
@@ -190,8 +188,12 @@ export default function LogVitalScreen() {
       // flagged for a human is more important than the confirmation.
       dialog.show({
         title: saved.advisory
-          ? t('patientWrites.vitals.seekCareTitle', { defaultValue: 'Please contact a health worker' })
-          : t('patientWrites.vitals.savedTitle', { defaultValue: 'Reading saved' }),
+          ? t('patientWrites.vitals.seekCareTitle', {
+              defaultValue: 'Please contact a health worker',
+            })
+          : t('patientWrites.vitals.savedTitle', {
+              defaultValue: 'Reading saved',
+            }),
         message:
           saved.advisory?.message ??
           t('patientWrites.vitals.savedBody', {
@@ -208,8 +210,7 @@ export default function LogVitalScreen() {
       setRefusalMessage(
         refusalMessageOf(error) ??
           t('patientWrites.common.unavailableBody', {
-            defaultValue:
-              'We could not reach your record. Nothing you typed has been lost — try again in a moment.',
+            defaultValue: 'We could not reach your record. Nothing you typed has been lost — try again in a moment.',
           }),
       );
     }
@@ -218,13 +219,19 @@ export default function LogVitalScreen() {
   const confirmVoid = useCallback(
     (reading: SelfReportedVital) => {
       dialog.confirm({
-        title: t('patientWrites.vitals.voidTitle', { defaultValue: 'Remove this reading?' }),
+        title: t('patientWrites.vitals.voidTitle', {
+          defaultValue: 'Remove this reading?',
+        }),
         message: t('patientWrites.vitals.voidBody', {
           defaultValue:
             'It stays in your history as removed, so nothing quietly disappears from your record. You can log a corrected reading afterwards.',
         }),
-        confirmLabel: t('patientWrites.vitals.voidConfirm', { defaultValue: 'Remove it' }),
-        cancelLabel: t('patientWrites.common.cancel', { defaultValue: 'Cancel' }),
+        confirmLabel: t('patientWrites.vitals.voidConfirm', {
+          defaultValue: 'Remove it',
+        }),
+        cancelLabel: t('patientWrites.common.cancel', {
+          defaultValue: 'Cancel',
+        }),
         destructive: true,
         onConfirm: async () => {
           await voidVital.mutateAsync({ id: reading.id });
@@ -247,8 +254,12 @@ export default function LogVitalScreen() {
   return (
     <SafeAreaView style={s.screen} edges={['top', 'bottom']}>
       <ScreenHeader
-        title={t('patientWrites.vitals.title', { defaultValue: 'Log a reading' })}
-        subtitle={t('patientWrites.vitals.subtitle', { defaultValue: 'A measurement you took yourself' })}
+        title={t('patientWrites.vitals.title', {
+          defaultValue: 'Log a reading',
+        })}
+        subtitle={t('patientWrites.vitals.subtitle', {
+          defaultValue: 'A measurement you took yourself',
+        })}
       />
 
       <ScrollView
@@ -261,7 +272,9 @@ export default function LogVitalScreen() {
         <NoticeBanner
           icon="info"
           tone="pending"
-          title={t('patientWrites.vitals.notClinicalTitle', { defaultValue: 'This is your own reading' })}
+          title={t('patientWrites.vitals.notClinicalTitle', {
+            defaultValue: 'This is your own reading',
+          })}
           message={
             selfProvenance?.description ??
             t('patientWrites.vitals.notClinicalBody', {
@@ -283,7 +296,9 @@ export default function LogVitalScreen() {
             <EmptyState
               icon="alert-circle"
               tint="amber"
-              title={t('patientWrites.common.unavailableTitle', { defaultValue: 'This is not available right now' })}
+              title={t('patientWrites.common.unavailableTitle', {
+                defaultValue: 'This is not available right now',
+              })}
               message={t('patientWrites.common.unavailableBody', {
                 defaultValue:
                   'We could not reach your record. Nothing you typed has been lost — try again in a moment.',
@@ -293,7 +308,11 @@ export default function LogVitalScreen() {
         ) : (
           <Card>
             <View style={s.form}>
-              <FieldLabel text={t('patientWrites.vitals.measureLabel', { defaultValue: 'What did you measure?' })} />
+              <FieldLabel
+                text={t('patientWrites.vitals.measureLabel', {
+                  defaultValue: 'What did you measure?',
+                })}
+              />
               <View style={s.chipRow}>
                 {options.measures.map((m) => (
                   <Chip
@@ -308,7 +327,11 @@ export default function LogVitalScreen() {
 
               {measure.units.length > 1 ? (
                 <>
-                  <FieldLabel text={t('patientWrites.vitals.unitLabel', { defaultValue: 'Unit' })} />
+                  <FieldLabel
+                    text={t('patientWrites.vitals.unitLabel', {
+                      defaultValue: 'Unit',
+                    })}
+                  />
                   <View style={s.chipRow}>
                     {measure.units.map((u) => (
                       <Chip
@@ -344,7 +367,11 @@ export default function LogVitalScreen() {
 
               {measure.contexts.length > 0 ? (
                 <>
-                  <FieldLabel text={t('patientWrites.vitals.contextLabel', { defaultValue: 'When did you take it?' })} />
+                  <FieldLabel
+                    text={t('patientWrites.vitals.contextLabel', {
+                      defaultValue: 'When did you take it?',
+                    })}
+                  />
                   <View style={s.chipRow}>
                     {measure.contexts.map((c) => (
                       <Chip
@@ -359,14 +386,20 @@ export default function LogVitalScreen() {
               ) : null}
 
               <TextField
-                label={t('patientWrites.vitals.deviceLabel', { defaultValue: 'What did you measure with?' })}
-                placeholder={t('patientWrites.vitals.devicePlaceholder', { defaultValue: 'e.g. Omron home cuff' })}
+                label={t('patientWrites.vitals.deviceLabel', {
+                  defaultValue: 'What did you measure with?',
+                })}
+                placeholder={t('patientWrites.vitals.devicePlaceholder', {
+                  defaultValue: 'e.g. Omron home cuff',
+                })}
                 value={device}
                 onChange={setDevice}
               />
 
               <TextField
-                label={t('patientWrites.vitals.noteLabel', { defaultValue: 'Anything worth noting?' })}
+                label={t('patientWrites.vitals.noteLabel', {
+                  defaultValue: 'Anything worth noting?',
+                })}
                 placeholder={t('patientWrites.vitals.notePlaceholder', {
                   defaultValue: 'e.g. sitting, after five minutes of rest',
                 })}
@@ -381,7 +414,9 @@ export default function LogVitalScreen() {
                   <View style={s.refusalHead}>
                     <Icon name="alert-triangle" size={18} color={colors.tintRed} />
                     <Text style={s.refusalTitle}>
-                      {t('patientWrites.vitals.refusedTitle', { defaultValue: 'Not saved' })}
+                      {t('patientWrites.vitals.refusedTitle', {
+                        defaultValue: 'Not saved',
+                      })}
                     </Text>
                   </View>
                   <Text style={s.refusalText}>{refusalMessage}</Text>
@@ -396,8 +431,12 @@ export default function LogVitalScreen() {
               <GradientButton
                 label={
                   logVital.isPending
-                    ? t('patientWrites.vitals.submitting', { defaultValue: 'Saving' })
-                    : t('patientWrites.vitals.submit', { defaultValue: 'Save this reading' })
+                    ? t('patientWrites.vitals.submitting', {
+                        defaultValue: 'Saving',
+                      })
+                    : t('patientWrites.vitals.submit', {
+                        defaultValue: 'Save this reading',
+                      })
                 }
                 onPress={submit}
                 loading={logVital.isPending}
@@ -411,7 +450,9 @@ export default function LogVitalScreen() {
         {/* ── Recorded by you ──────────────────────────────────────────── */}
         <SectionHeader
           variant="overline"
-          title={t('patientWrites.vitals.yourLogTitle', { defaultValue: 'Recorded by you' })}
+          title={t('patientWrites.vitals.yourLogTitle', {
+            defaultValue: 'Recorded by you',
+          })}
         />
         {selfReported.length === 0 ? (
           <Card>
@@ -422,29 +463,26 @@ export default function LogVitalScreen() {
                 defaultValue: 'You have not logged anything yet',
               })}
               message={t('patientWrites.vitals.yourLogEmptyBody', {
-                defaultValue:
-                  'Readings you take at home appear here, kept separate from what a facility measured.',
+                defaultValue: 'Readings you take at home appear here, kept separate from what a facility measured.',
               })}
             />
           </Card>
         ) : (
-          <Card variant="flush">
-            {selfReported.map((reading, i) => (
-              <SelfReportedRow
-                key={reading.id}
-                reading={reading}
-                divider={i < selfReported.length - 1}
-                onVoid={() => confirmVoid(reading)}
-                busy={voidVital.isPending}
-              />
+          <CardStack spacing="sm">
+            {selfReported.map((reading) => (
+              <Card key={reading.id} variant="flush">
+                <SelfReportedRow reading={reading} onVoid={() => confirmVoid(reading)} busy={voidVital.isPending} />
+              </Card>
             ))}
-          </Card>
+          </CardStack>
         )}
 
         {/* ── Measured at a facility ───────────────────────────────────── */}
         <SectionHeader
           variant="overline"
-          title={t('patientWrites.vitals.facilityTitle', { defaultValue: 'Measured at a facility' })}
+          title={t('patientWrites.vitals.facilityTitle', {
+            defaultValue: 'Measured at a facility',
+          })}
         />
         {clinical.length === 0 ? (
           <Card>
@@ -455,17 +493,18 @@ export default function LogVitalScreen() {
                 defaultValue: 'No facility measurements on record',
               })}
               message={t('patientWrites.vitals.facilityEmptyBody', {
-                defaultValue:
-                  'Readings taken during a visit will appear here. Nothing is shown until one is recorded.',
+                defaultValue: 'Readings taken during a visit will appear here. Nothing is shown until one is recorded.',
               })}
             />
           </Card>
         ) : (
-          <Card variant="flush">
-            {clinical.map((m, i) => (
-              <ClinicalRow key={m.key} measure={m} divider={i < clinical.length - 1} />
+          <CardStack spacing="sm">
+            {clinical.map((m) => (
+              <Card key={m.key} variant="flush">
+                <ClinicalRow measure={m} />
+              </Card>
             ))}
-          </Card>
+          </CardStack>
         )}
       </ScrollView>
 
@@ -506,17 +545,7 @@ function ProvenanceChip({ provenance }: { provenance: Provenance }) {
   );
 }
 
-function SelfReportedRow({
-  reading,
-  divider,
-  onVoid,
-  busy,
-}: {
-  reading: SelfReportedVital;
-  divider: boolean;
-  onVoid: () => void;
-  busy: boolean;
-}) {
+function SelfReportedRow({ reading, onVoid, busy }: { reading: SelfReportedVital; onVoid: () => void; busy: boolean }) {
   const { t } = useTranslation();
   const { colors, tintMap } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -536,7 +565,7 @@ function SelfReportedRow({
     .join(' · ');
 
   return (
-    <View style={[s.row, divider && s.rowDivider]}>
+    <View style={s.row}>
       <View style={s.rowMark}>
         <Icon name={MEASURE_ICON[reading.measure]} size={26} color={tint.fg} />
       </View>
@@ -555,7 +584,9 @@ function SelfReportedRow({
             <View style={[s.provChip, s.provChipAlert]}>
               <Icon name="alert-triangle" size={12} strokeWidth={2} color={colors.tintRed} />
               <Text style={[s.provChipText, { color: colors.tintRed }]}>
-                {t('patientWrites.vitals.seekCareTitle', { defaultValue: 'Please contact a health worker' })}
+                {t('patientWrites.vitals.seekCareTitle', {
+                  defaultValue: 'Please contact a health worker',
+                })}
               </Text>
             </View>
           ) : null}
@@ -574,7 +605,9 @@ function SelfReportedRow({
           onPress={busy ? undefined : onVoid}
           accessibilityRole="button"
         >
-          {t('patientWrites.vitals.voidCta', { defaultValue: 'Remove this reading' })}
+          {t('patientWrites.vitals.voidCta', {
+            defaultValue: 'Remove this reading',
+          })}
         </Text>
       </View>
     </View>
@@ -586,7 +619,7 @@ function SelfReportedRow({
  * the SAME provenance chip component as a self-reported one, so the two can
  * never drift into looking alike.
  */
-function ClinicalRow({ measure, divider }: { measure: VitalMeasure; divider: boolean }) {
+function ClinicalRow({ measure }: { measure: VitalMeasure }) {
   const { t } = useTranslation();
   const { colors, tintMap } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -600,17 +633,23 @@ function ClinicalRow({ measure, divider }: { measure: VitalMeasure; divider: boo
   const provenance = provenanceOfClinicalSource(
     measure.source,
     measure.source === 'lab'
-      ? t('patientWrites.vitals.provenanceLab', { defaultValue: 'Laboratory result' })
-      : t('patientWrites.vitals.provenanceFacility', { defaultValue: 'Measured at a facility' }),
+      ? t('patientWrites.vitals.provenanceLab', {
+          defaultValue: 'Laboratory result',
+        })
+      : t('patientWrites.vitals.provenanceFacility', {
+          defaultValue: 'Measured at a facility',
+        }),
     measure.source === 'lab'
-      ? t('patientWrites.vitals.provenanceLabBody', { defaultValue: 'Produced by a laboratory from a sample.' })
+      ? t('patientWrites.vitals.provenanceLabBody', {
+          defaultValue: 'Produced by a laboratory from a sample.',
+        })
       : t('patientWrites.vitals.provenanceFacilityBody', {
           defaultValue: 'Taken by health staff during a visit.',
         }),
   );
 
   return (
-    <View style={[s.row, divider && s.rowDivider]}>
+    <View style={s.row}>
       <View style={s.rowMark}>
         <Icon name="shield-check" size={26} color={tint.fg} />
       </View>
@@ -734,9 +773,17 @@ function TextField({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xl,
+    },
 
-    loading: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
+    loading: {
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.lg,
+    },
     loadingText: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.sm,
@@ -793,7 +840,11 @@ const makeStyles = (colors: Palette) =>
       backgroundColor: colors.tintRedBg,
       padding: spacing.md,
     },
-    refusalHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2 },
+    refusalHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs + 2,
+    },
     refusalTitle: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.sm,
@@ -819,10 +870,20 @@ const makeStyles = (colors: Palette) =>
       paddingHorizontal: spacing.md,
       paddingVertical: 14,
     },
-    rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
-    rowMark: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+    rowMark: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     rowBody: { flex: 1, minWidth: 0, gap: 4 },
-    rowTop: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.sm },
+    rowTop: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
     rowTitle: {
       flex: 1,
       fontFamily: typography.fontFamily.semiBold,
@@ -839,7 +900,12 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.xs,
       color: colors.textSecondary,
     },
-    rowChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs + 2, marginTop: 2 },
+    rowChips: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xs + 2,
+      marginTop: 2,
+    },
     rowMeta: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
@@ -864,8 +930,15 @@ const makeStyles = (colors: Palette) =>
       paddingVertical: 3,
       borderRadius: radii.pill,
     },
-    provChipSelf: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.tintAmber },
+    provChipSelf: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: colors.tintAmber,
+    },
     provChipVerified: { backgroundColor: colors.tintGreenBg },
     provChipAlert: { backgroundColor: colors.tintRedBg },
-    provChipText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.xs },
+    provChipText: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.xs,
+    },
   });

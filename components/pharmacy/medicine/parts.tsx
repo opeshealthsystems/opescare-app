@@ -1,34 +1,13 @@
 import { useMemo } from 'react';
-import {
-  ActivityIndicator,
-  StyleProp,
-  Text,
-  TouchableOpacity,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { ActivityIndicator, StyleProp, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 
 import { useTranslation } from 'react-i18next';
-import {
-  Card,
-  Icon,
-  StatusBadge,
-  useTheme,
-  type IconName,
-} from '@/components/opes-ui';
+import { Card, Icon, StatusBadge, useTheme, type IconName } from '@/components/opes-ui';
 import { MedButton } from '@/components/meds/shared';
 
 import { type Medicine, type NearbyPharmacy, type StockStatusValue } from '@/lib/api/queries';
 import { formatXafBare } from '@/lib/api/pharmacyQueries';
-import {
-  CATEGORY_ICONS,
-  stockTone,
-  money,
-  verificationLine,
-  hoursLine,
-  freshness,
-  callablePhone,
-} from './helpers';
+import { CATEGORY_ICONS, stockTone, money, verificationLine, hoursLine, freshness, callablePhone } from './helpers';
 import { CatalogImage } from '@/components/ui/CatalogImage';
 import { radii } from '@/components/opes-ui/theme';
 import { makeStyles } from './styles';
@@ -71,8 +50,7 @@ export function IdentityCard({ medicine }: { medicine: Medicine }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const { price_min: min, price_max: max, currency, pharmacy_count: count, is_available } =
-    medicine.availability;
+  const { price_min: min, price_max: max, currency, pharmacy_count: count, is_available } = medicine.availability;
 
   // See the header note: with no reporting pharmacy behind it, this range is
   // the catalogue's own reference price, not a quote — so it is labelled as
@@ -82,12 +60,18 @@ export function IdentityCard({ medicine }: { medicine: Medicine }) {
     min === null && max === null
       ? null
       : min !== null && max !== null && min !== max
-        ? t('pharmacy.priceRangeValue', { min: formatXafBare(min), max: money(max, currency) })
+        ? t('pharmacy.priceRangeValue', {
+            min: formatXafBare(min),
+            max: money(max, currency),
+          })
         : money(min ?? max, currency);
 
   const strengthForm =
     medicine.strength && medicine.form
-      ? t('pharmacy.strengthForm', { strength: medicine.strength, form: medicine.form })
+      ? t('pharmacy.strengthForm', {
+          strength: medicine.strength,
+          form: medicine.form,
+        })
       : (medicine.strength ?? medicine.form ?? null);
 
   const sameAsName = (value: string | null) =>
@@ -123,13 +107,14 @@ export function IdentityCard({ medicine }: { medicine: Medicine }) {
             {medicine.name}
           </Text>
           {medicine.generic_name && !sameAsName(medicine.generic_name) ? (
-            <Text style={styles.drugForm}>
-              {t('pharmacy.generic', { name: medicine.generic_name })}
-            </Text>
+            <Text style={styles.drugForm}>{t('pharmacy.generic', { name: medicine.generic_name })}</Text>
           ) : null}
           {medicine.brand_name && !sameAsName(medicine.brand_name) ? (
             <Text style={styles.drugForm}>
-              {t('pharmacy.brand', { name: medicine.brand_name, defaultValue: 'Brand: {{name}}' })}
+              {t('pharmacy.brand', {
+                name: medicine.brand_name,
+                defaultValue: 'Brand: {{name}}',
+              })}
             </Text>
           ) : null}
           {strengthForm ? <Text style={styles.drugForm}>{strengthForm}</Text> : null}
@@ -153,18 +138,11 @@ export function IdentityCard({ medicine }: { medicine: Medicine }) {
               size={16}
               color={rx ? colors.statusWarning : colors.statusNormal}
             />
-            <Text
-              style={[styles.rxLineText, { color: rx ? colors.statusWarning : colors.statusNormal }]}
-            >
+            <Text style={[styles.rxLineText, { color: rx ? colors.statusWarning : colors.statusNormal }]}>
               {rx ? t('pharmacy.prescriptionRequired') : t('pharmacy.prescriptionNotRequired')}
             </Text>
             {medicine.is_controlled ? (
-              <StatusBadge
-                status="controlled"
-                tone="warning"
-                label={t('pharmacy.controlled')}
-                size="sm"
-              />
+              <StatusBadge status="controlled" tone="warning" label={t('pharmacy.controlled')} size="sm" />
             ) : null}
           </View>
         </View>
@@ -184,10 +162,7 @@ export function IdentityCard({ medicine }: { medicine: Medicine }) {
             </Text>
           </View>
           <Text
-            style={[
-              styles.identityFootValue,
-              { color: is_available ? colors.statusNormal : colors.textMuted },
-            ]}
+            style={[styles.identityFootValue, { color: is_available ? colors.statusNormal : colors.textMuted }]}
             numberOfLines={3}
           >
             {is_available
@@ -203,7 +178,9 @@ export function IdentityCard({ medicine }: { medicine: Medicine }) {
             <Text style={styles.identityFootLabel} numberOfLines={1}>
               {reportedPrice
                 ? t('pharmacy.priceRange')
-                : t('pharmacy.priceIndicative', { defaultValue: 'Catalogue price' })}
+                : t('pharmacy.priceIndicative', {
+                    defaultValue: 'Catalogue price',
+                  })}
             </Text>
             <Text style={styles.identityFootPrice} numberOfLines={2}>
               {priceLabel}
@@ -258,13 +235,13 @@ export function IdentityCard({ medicine }: { medicine: Medicine }) {
 export function PharmacyOptionRow({
   pharmacy,
   selected,
-  divider,
   onSelect,
   onCall,
 }: {
   pharmacy: NearbyPharmacy;
   selected: boolean;
-  divider: boolean;
+  /** Ignored: each option sits in its own card; none draws a hairline. */
+  divider?: boolean;
   onSelect: () => void;
   onCall: (phone: string) => void;
 }) {
@@ -287,10 +264,7 @@ export function PharmacyOptionRow({
       ? t('pharmacy.packsLeft', { count: stock.packs_available })
       : null;
 
-  const distanceHours = [
-    t('pharmacy.distanceKm', { km: pharmacy.distance_km }),
-    hoursLine(pharmacy, t),
-  ]
+  const distanceHours = [t('pharmacy.distanceKm', { km: pharmacy.distance_km }), hoursLine(pharmacy, t)]
     .filter(Boolean)
     .join('  •  ');
 
@@ -306,7 +280,7 @@ export function PharmacyOptionRow({
         .filter(Boolean)
         .join(', ')}
       accessibilityHint={selected ? t('pharmacy.selectedPharmacy') : t('pharmacy.reserveHere')}
-      style={[styles.stockRow, selected && styles.selectedRow, divider && styles.stockRowDivider]}
+      style={[styles.stockRow, selected && styles.selectedRow]}
     >
       <View style={styles.stockHead}>
         {/* Pharmacy logo when it has one (the tick wins once selected). */}
@@ -335,11 +309,7 @@ export function PharmacyOptionRow({
                 status={pharmacy.verification_status ?? 'unknown'}
                 tone={verified === t('pharmacy.verified') ? 'normal' : 'neutral'}
                 icon={verified === t('pharmacy.verified') ? 'shield-check' : undefined}
-                label={
-                  verified === t('pharmacy.verified')
-                    ? t('pharmacy.verifiedShort')
-                    : t('pharmacy.notVerified')
-                }
+                label={verified === t('pharmacy.verified') ? t('pharmacy.verifiedShort') : t('pharmacy.notVerified')}
                 size="sm"
               />
             ) : null}
@@ -369,13 +339,8 @@ export function PharmacyOptionRow({
             </Text>
           ) : null}
 
-          <Text
-            style={[styles.stockMeta, fresh.stale && { color: colors.statusWarning }]}
-            numberOfLines={1}
-          >
-            {fresh.stale
-              ? `${fresh.line} · ${t('pharmacy.stockOld', { defaultValue: 'Old report' })}`
-              : fresh.line}
+          <Text style={[styles.stockMeta, fresh.stale && { color: colors.statusWarning }]} numberOfLines={1}>
+            {fresh.stale ? `${fresh.line} · ${t('pharmacy.stockOld', { defaultValue: 'Old report' })}` : fresh.line}
           </Text>
         </View>
       </View>
@@ -463,7 +428,10 @@ export function AccentButton({
       style={[
         styles.accentButton,
         variant === 'solid'
-          ? { backgroundColor: colors.statusNormal, borderColor: colors.statusNormal }
+          ? {
+              backgroundColor: colors.statusNormal,
+              borderColor: colors.statusNormal,
+            }
           : { backgroundColor: colors.surface, borderColor: colors.border },
         off && styles.accentButtonOff,
         style,
@@ -473,13 +441,7 @@ export function AccentButton({
         <ActivityIndicator color={fg} size="small" />
       ) : (
         <>
-          {icon ? (
-            <Icon
-              name={icon}
-              size={16}
-              color={variant === 'solid' ? fg : colors.statusNormal}
-            />
-          ) : null}
+          {icon ? <Icon name={icon} size={16} color={variant === 'solid' ? fg : colors.statusNormal} /> : null}
           <Text style={[styles.accentButtonText, { color: fg }]} numberOfLines={1}>
             {label}
           </Text>
@@ -505,10 +467,7 @@ export function StockMeter({ status }: { status: StockStatusValue }) {
   return (
     <View style={styles.meter} importantForAccessibility="no-hide-descendants">
       {[0, 1, 2].map((i) => (
-        <View
-          key={i}
-          style={[styles.meterSegment, { backgroundColor: i < filled ? fg : colors.divider }]}
-        />
+        <View key={i} style={[styles.meterSegment, { backgroundColor: i < filled ? fg : colors.divider }]} />
       ))}
     </View>
   );
@@ -535,15 +494,7 @@ export function TableCell({ label, value, divided }: { label: string; value: str
 }
 
 /** Tinted one-liner used for cautions that are not errors. */
-export function NoticeStrip({
-  icon,
-  tone,
-  text,
-}: {
-  icon: IconName;
-  tone: 'warning' | 'info';
-  text: string;
-}) {
+export function NoticeStrip({ icon, tone, text }: { icon: IconName; tone: 'warning' | 'info'; text: string }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const bg = tone === 'warning' ? colors.statusWarningBg : colors.primarySoft;
@@ -601,4 +552,3 @@ export function SummaryLine({ label, value }: { label: string; value: string }) 
 }
 
 /* ── Styles ───────────────────────────────────────────────────────────────── */
-

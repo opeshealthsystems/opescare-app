@@ -27,15 +27,7 @@
  */
 import { PaperWave } from '@/components/ui/PaperWave';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Linking,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Linking, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -43,6 +35,7 @@ import type { TFunction } from 'i18next';
 import { Screen } from '@/components/ui/Screen';
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   GradientButton,
@@ -72,13 +65,7 @@ import {
   ResultsHeader,
   type FinderAction,
 } from '@/components/finder/FinderChrome';
-import {
-  CareButton,
-  ErrorBlock,
-  LoadingBlock,
-  NoticeBanner,
-  SearchField,
-} from '@/components/care/shared';
+import { CareButton, ErrorBlock, LoadingBlock, NoticeBanner, SearchField } from '@/components/care/shared';
 import {
   facilityTypeCounts,
   flattenFacilityPages,
@@ -106,12 +93,7 @@ import {
 
 type LocationState =
   /** Reading the already-granted permission on mount; render nothing yet. */
-  | 'checking'
-  | 'idle'
-  | 'requesting'
-  | 'granted'
-  | 'denied'
-  | 'unavailable';
+  'checking' | 'idle' | 'requesting' | 'granted' | 'denied' | 'unavailable';
 
 interface FacilityRow {
   facility: FacilityDirectoryRow;
@@ -160,8 +142,7 @@ const FACILITY_TYPE_TINT: Record<string, Tint> = {
 
 const facilityIcon = (type: string): IconName => FACILITY_TYPE_ICON[type] ?? 'location';
 const facilityTint = (type: string): Tint => FACILITY_TYPE_TINT[type] ?? 'blue';
-const typeLabelTr = (t: TFunction, type: string): string =>
-  String(t(`careMap.types.${type}`, { defaultValue: type }));
+const typeLabelTr = (t: TFunction, type: string): string => String(t(`careMap.types.${type}`, { defaultValue: type }));
 
 /** Matches a reverse-geocoded place name against the offered city scopes. */
 function matchCityScope(...candidates: (string | null | undefined)[]): string | null {
@@ -252,15 +233,7 @@ function LocationPrompt({
 
 /* ── Result rows ────────────────────────────────────────────────────────── */
 
-function FacilityListRow({
-  row,
-  onOpen,
-  t,
-}: {
-  row: FacilityRow;
-  onOpen: () => void;
-  t: TFunction;
-}) {
+function FacilityListRow({ row, onOpen, t }: { row: FacilityRow; onOpen: () => void; t: TFunction }) {
   const { facility } = row;
   const distance = row.distanceKm != null ? formatDistance(row.distanceKm) : undefined;
   const typeLabel = typeLabelTr(t, facility.facility_type);
@@ -301,10 +274,12 @@ function FacilityListRow({
       : providers > 0
         ? String(t('opesCare.findFacility.doctors', { count: providers }))
         : openSlots > 0
-          ? String(t('careMap.openSlots', {
-              count: openSlots,
-              defaultValue: '{{count}} open slots',
-            }))
+          ? String(
+              t('careMap.openSlots', {
+                count: openSlots,
+                defaultValue: '{{count}} open slots',
+              }),
+            )
           : null;
 
   const trailing = (
@@ -314,7 +289,11 @@ function FacilityListRow({
           label={
             connected
               ? String(t('facilityRegistry.connectedOnly'))
-              : String(t('careMap.directoryOnlyShort', { defaultValue: 'Directory only' }))
+              : String(
+                  t('careMap.directoryOnlyShort', {
+                    defaultValue: 'Directory only',
+                  }),
+                )
           }
           tone={connected ? 'normal' : 'muted'}
         />
@@ -374,24 +353,11 @@ function FacilityListRow({
   );
 }
 
-function FacilityRows({
-  rows,
-  onOpen,
-  t,
-}: {
-  rows: FacilityRow[];
-  onOpen: (id: string) => void;
-  t: TFunction;
-}) {
+function FacilityRows({ rows, onOpen, t }: { rows: FacilityRow[]; onOpen: (id: string) => void; t: TFunction }) {
   return (
     <View style={styles.cardStack}>
       {rows.map((row) => (
-        <FacilityListRow
-          key={row.facility.id}
-          row={row}
-          onOpen={() => onOpen(row.facility.id)}
-          t={t}
-        />
+        <FacilityListRow key={row.facility.id} row={row} onOpen={() => onOpen(row.facility.id)} t={t} />
       ))}
     </View>
   );
@@ -406,14 +372,12 @@ function ToggleRow({
   body,
   on,
   onPress,
-  divider,
 }: {
   icon: IconName;
   title: string;
   body: string;
   on: boolean;
   onPress: () => void;
-  divider: boolean;
 }) {
   return (
     <ListRow
@@ -422,14 +386,9 @@ function ToggleRow({
       title={title}
       subtitle={body}
       chevron={false}
-      divider={divider}
       onPress={onPress}
       trailing={
-        <Icon
-          name={on ? 'check-circle' : 'circle'}
-          size={20}
-          color={on ? tintMap.green.fg : colors.textMuted}
-        />
+        <Icon name={on ? 'check-circle' : 'circle'} size={20} color={on ? tintMap.green.fg : colors.textMuted} />
       }
       accessibilityLabel={a11yJoin(title, body)}
     />
@@ -481,9 +440,10 @@ function FilterPanel({
   onClose: () => void;
   t: TFunction;
 }) {
-  const areas = detectedCity && !CITY_SCOPES.some((city) => city === detectedCity)
-    ? [detectedCity, ...CITY_SCOPES]
-    : [...CITY_SCOPES];
+  const areas =
+    detectedCity && !CITY_SCOPES.some((city) => city === detectedCity)
+      ? [detectedCity, ...CITY_SCOPES]
+      : [...CITY_SCOPES];
 
   return (
     <Card style={styles.panel}>
@@ -496,9 +456,7 @@ function FilterPanel({
               icon={filter.value ? facilityIcon(filter.value) : 'grid'}
               label={t(`careMap.filters.${filter.key}`)}
               selected={typeFilter === filter.value}
-              onPress={() =>
-                onTypeChange(filter.value && typeFilter === filter.value ? '' : filter.value)
-              }
+              onPress={() => onTypeChange(filter.value && typeFilter === filter.value ? '' : filter.value)}
             />
           ))}
         </View>
@@ -507,11 +465,7 @@ function FilterPanel({
       <View style={styles.panelSection}>
         <Text style={styles.panelLabel}>{t('careMap.filterPanel.areaLabel')}</Text>
         <View style={styles.panelChips}>
-          <Chip
-            label={t('careMap.areaAll')}
-            selected={cityScope === ''}
-            onPress={() => onCityChange('')}
-          />
+          <Chip label={t('careMap.areaAll')} selected={cityScope === ''} onPress={() => onCityChange('')} />
           {areas.map((city) => (
             <Chip
               key={city}
@@ -526,24 +480,26 @@ function FilterPanel({
 
       <View style={styles.panelSection}>
         <Text style={styles.panelLabel}>{t('careMap.filterPanel.refineLabel')}</Text>
-        <View style={styles.panelRows}>
-          <ToggleRow
-            icon="phone"
-            title={t('careMap.filterPanel.phoneOnly')}
-            body={t('careMap.filterPanel.phoneOnlyBody')}
-            on={phoneOnly}
-            onPress={() => onPhoneOnlyChange(!phoneOnly)}
-            divider
-          />
-          <ToggleRow
-            icon="location"
-            title={t('careMap.filterPanel.mappableOnly')}
-            body={t('careMap.filterPanel.mappableOnlyBody')}
-            on={mappableOnly}
-            onPress={() => onMappableOnlyChange(!mappableOnly)}
-            divider={false}
-          />
-        </View>
+        <CardStack spacing="sm">
+          <Card variant="flush">
+            <ToggleRow
+              icon="phone"
+              title={t('careMap.filterPanel.phoneOnly')}
+              body={t('careMap.filterPanel.phoneOnlyBody')}
+              on={phoneOnly}
+              onPress={() => onPhoneOnlyChange(!phoneOnly)}
+            />
+          </Card>
+          <Card variant="flush">
+            <ToggleRow
+              icon="location"
+              title={t('careMap.filterPanel.mappableOnly')}
+              body={t('careMap.filterPanel.mappableOnlyBody')}
+              on={mappableOnly}
+              onPress={() => onMappableOnlyChange(!mappableOnly)}
+            />
+          </Card>
+        </CardStack>
       </View>
 
       <View style={styles.panelActions}>
@@ -709,10 +665,7 @@ export default function CareMapScreen() {
     }
   }, [resolvePosition]);
 
-  const facilities = useMemo(
-    () => flattenFacilityPages(directory.data?.pages),
-    [directory.data?.pages],
-  );
+  const facilities = useMemo(() => flattenFacilityPages(directory.data?.pages), [directory.data?.pages]);
 
   const sortedRows = useMemo<FacilityRow[]>(() => {
     const effectiveSort: FacilitySort = sort === 'distance' && !coords ? 'relevance' : sort;
@@ -763,14 +716,12 @@ export default function CareMapScreen() {
   const total = directory.data?.pages[0]?.pagination.total ?? 0;
   const cityLabel = cityScope || String(t('careMap.areaAll'));
   const isInitialLoading = directory.isLoading;
-  const hasFilters =
-    !!appliedSearch || !!typeFilter || !!cityScope || phoneOnly || mappableOnly;
+  const hasFilters = !!appliedSearch || !!typeFilter || !!cityScope || phoneOnly || mappableOnly;
   const activeTypeKey = TYPE_FILTERS.find((filter) => filter.value === typeFilter)?.key ?? 'all';
   const loadedAt = directory.dataUpdatedAt ? new Date(directory.dataUpdatedAt) : null;
 
   /** Drives the count on the Filters button, so it visibly holds something. */
-  const activeFilterCount =
-    (typeFilter ? 1 : 0) + (cityScope ? 1 : 0) + (phoneOnly ? 1 : 0) + (mappableOnly ? 1 : 0);
+  const activeFilterCount = (typeFilter ? 1 : 0) + (cityScope ? 1 : 0) + (phoneOnly ? 1 : 0) + (mappableOnly ? 1 : 0);
 
   const resetToArea = (city: string) => {
     setCityScope(city);
@@ -809,14 +760,14 @@ export default function CareMapScreen() {
     <Screen className="px-0">
       <PaperWave />
       <View style={styles.screen}>
-        <FinderTopBar
-          onBack={() => router.back()}
-          backLabel={String(t('common.back'))}
-          actions={topActions}
-        />
+        <FinderTopBar onBack={() => router.back()} backLabel={String(t('common.back'))} actions={topActions} />
         <FinderHeading
           title={String(t('careMap.findTitle', { defaultValue: 'Find Facility' }))}
-          subtitle={String(t('careMap.findSubtitle', { defaultValue: 'Search and find healthcare facilities' }))}
+          subtitle={String(
+            t('careMap.findSubtitle', {
+              defaultValue: 'Search and find healthcare facilities',
+            }),
+          )}
         />
 
         <ScrollView
@@ -870,32 +821,17 @@ export default function CareMapScreen() {
             />
           ) : null}
 
-          <LocationPrompt
-            state={locationState}
-            cityLabel={cityLabel}
-            onRequest={requestLocation}
-            t={t}
-          />
+          <LocationPrompt state={locationState} cityLabel={cityLabel} onRequest={requestLocation} t={t} />
 
           {areaAutoMatched ? (
-            <NoticeBanner
-              icon="location"
-              tone="normal"
-              message={t('careMap.areaMatched', { city: cityScope })}
-            />
+            <NoticeBanner icon="location" tone="normal" message={t('careMap.areaMatched', { city: cityScope })} />
           ) : null}
 
           {areaUnmatched ? (
-            <NoticeBanner
-              icon="location"
-              tone="warning"
-              message={t('careMap.areaUnmatched', { city: cityLabel })}
-            />
+            <NoticeBanner icon="location" tone="warning" message={t('careMap.areaUnmatched', { city: cityLabel })} />
           ) : null}
 
-          {!cityScope ? (
-            <NoticeBanner icon="info" tone="pending" message={t('careMap.areaAllHint')} />
-          ) : null}
+          {!cityScope ? <NoticeBanner icon="info" tone="pending" message={t('careMap.areaAllHint')} /> : null}
 
           {/* ── Facility types (the CARE-007 type strip) ────────────────── */}
           <View>
@@ -907,7 +843,9 @@ export default function CareMapScreen() {
                 (the strip below shows them too, but the panel is where the
                 other refinements live). */}
             <SectionHeader
-              title={t('careMap.typesTitle', { defaultValue: 'Facility types' })}
+              title={t('careMap.typesTitle', {
+                defaultValue: 'Facility types',
+              })}
               actionLabel={
                 typeFilter
                   ? t('careMap.filterPanel.clearType', {
@@ -920,11 +858,7 @@ export default function CareMapScreen() {
                 else setFiltersOpen(true);
               }}
             />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.typeRow}
-            >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
               {TYPE_FILTERS.map((filter) => (
                 <CategoryTile
                   key={filter.key}
@@ -935,25 +869,15 @@ export default function CareMapScreen() {
                      then shows no figure at all rather than a zero. */
                   count={typeCounts[filter.value]}
                   selected={typeFilter === filter.value}
-                  onPress={() =>
-                    setTypeFilter(filter.value && typeFilter === filter.value ? '' : filter.value)
-                  }
+                  onPress={() => setTypeFilter(filter.value && typeFilter === filter.value ? '' : filter.value)}
                 />
               ))}
             </ScrollView>
           </View>
 
           {/* ── Area scope ──────────────────────────────────────────────── */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chipRow}
-          >
-            <Chip
-              label={t('careMap.areaAll')}
-              selected={cityScope === ''}
-              onPress={() => resetToArea('')}
-            />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            <Chip label={t('careMap.areaAll')} selected={cityScope === ''} onPress={() => resetToArea('')} />
             {/* A geocoded city that is not one of the presets still gets a chip,
                 so the scope the app picked from the patient's position is
                 visible and reversible rather than silently applied. */}
@@ -1021,10 +945,12 @@ export default function CareMapScreen() {
               {rows.length > 0 ? (
                 <View style={styles.resultsBlock}>
                   <ResultsHeader
-                    title={String(t('careMap.facilitiesFound', {
-                      count: total || rows.length,
-                      defaultValue: '{{count}} Facilities Found',
-                    }))}
+                    title={String(
+                      t('careMap.facilitiesFound', {
+                        count: total || rows.length,
+                        defaultValue: '{{count}} Facilities Found',
+                      }),
+                    )}
                     sortLabel={String(
                       t('careMap.sortBy', {
                         label: t(`careMap.sort.${sort}`),
@@ -1033,7 +959,11 @@ export default function CareMapScreen() {
                     )}
                     sortOpen={sortOpen}
                     onSortPress={() => setSortOpen((open) => !open)}
-                    sortAccessibilityLabel={String(t('careMap.sortChoose', { defaultValue: 'Change sort order' }))}
+                    sortAccessibilityLabel={String(
+                      t('careMap.sortChoose', {
+                        defaultValue: 'Change sort order',
+                      }),
+                    )}
                   />
                   {/* The dropdown the button opens. Every sort the screen has
                       ever offered is here; distance stays dimmed and inert
@@ -1064,21 +994,19 @@ export default function CareMapScreen() {
                   {/* "Showing N of M" — the list is paged and ordering only
                       applies to what has been fetched, which is said rather
                       than hidden. */}
-                  <Text style={styles.sortNote}>
-                    {t('careMap.resultCount', { loaded: rows.length, total })}
-                  </Text>
+                  <Text style={styles.sortNote}>{t('careMap.resultCount', { loaded: rows.length, total })}</Text>
                   {/* The two client-side refinements narrow the pages already
                       fetched, not the 2 728-row query behind them. Saying how
                       many loaded rows they hide keeps "showing N of M" from
                       quietly meaning something else. */}
                   {refinedAway > 0 ? (
                     <Text style={styles.sortNote}>
-                      {t('careMap.filterPanel.refinedAway', { count: refinedAway })}
+                      {t('careMap.filterPanel.refinedAway', {
+                        count: refinedAway,
+                      })}
                     </Text>
                   ) : null}
-                  {directory.hasNextPage ? (
-                    <Text style={styles.sortNote}>{t('careMap.sortNote')}</Text>
-                  ) : null}
+                  {directory.hasNextPage ? <Text style={styles.sortNote}>{t('careMap.sortNote')}</Text> : null}
                 </View>
               ) : null}
 
@@ -1096,11 +1024,7 @@ export default function CareMapScreen() {
               ) : grouped ? (
                 <View style={styles.stack}>
                   <FacilityRows rows={located} onOpen={openFacility} t={t} />
-                  <SectionHeader
-                    variant="overline"
-                    title={t('careMap.noDistanceGroup')}
-                    style={styles.groupHeader}
-                  />
+                  <SectionHeader variant="overline" title={t('careMap.noDistanceGroup')} style={styles.groupHeader} />
                   <FacilityRows rows={unlocated} onOpen={openFacility} t={t} />
                 </View>
               ) : (
@@ -1119,9 +1043,7 @@ export default function CareMapScreen() {
                 />
               ) : null}
 
-              {rows.length > 0 ? (
-                <Text style={styles.disclaimer}>{t('careMap.disclaimer')}</Text>
-              ) : null}
+              {rows.length > 0 ? <Text style={styles.disclaimer}>{t('careMap.disclaimer')}</Text> : null}
             </>
           )}
 
@@ -1151,10 +1073,16 @@ export default function CareMapScreen() {
 
           {/* ── Closing help panel ──────────────────────────────────────── */}
           <HelpPanel
-            title={String(t('careMap.helpTitle', { defaultValue: "Can't find the facility you need?" }))}
-            body={String(t('careMap.helpBody', {
-              defaultValue: 'Let us help you locate the right facility for your care.',
-            }))}
+            title={String(
+              t('careMap.helpTitle', {
+                defaultValue: "Can't find the facility you need?",
+              }),
+            )}
+            body={String(
+              t('careMap.helpBody', {
+                defaultValue: 'Let us help you locate the right facility for your care.',
+              }),
+            )}
             actionLabel={String(t('opesCare.findFacility.requestHelp'))}
             actionIcon="headset"
             onAction={() => router.push('/help')}
@@ -1170,7 +1098,11 @@ const styles = StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
   stack: { gap: spacing.sm + 2 },
 
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2 },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm + 2,
+  },
   searchField: { flex: 1, minWidth: 0 },
 
   panel: { gap: spacing.md, padding: spacing.md },
@@ -1183,12 +1115,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   panelChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  panelRows: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    overflow: 'hidden',
-  },
   panelActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
 
   typeRow: { gap: spacing.sm + 2, paddingRight: spacing.md },
@@ -1255,7 +1181,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     backgroundColor: colors.primarySoft,
   },
-  assistTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2 },
+  assistTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm + 2,
+  },
   assistIcon: {
     width: 38,
     height: 38,

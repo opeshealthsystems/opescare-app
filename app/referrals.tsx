@@ -49,17 +49,8 @@ import {
 import { AsyncBoundary, InfoRow, NoticeBanner } from '@/components/care/shared';
 import { asyncStateOf } from '@/components/docs/shared';
 import { useIsOnline } from '@/lib/offline';
-import {
-  useReferrals,
-  type Referral,
-  type ReferralStatus,
-  type ReferralUrgency,
-} from '@/lib/api/queries';
-import {
-  useReferralRequests,
-  type ReferralRequest,
-  type ReferralRequestStatus,
-} from '@/lib/api/patientWriteQueries';
+import { useReferrals, type Referral, type ReferralStatus, type ReferralUrgency } from '@/lib/api/queries';
+import { useReferralRequests, type ReferralRequest, type ReferralRequestStatus } from '@/lib/api/patientWriteQueries';
 
 /**
  * Patient-facing tone for the referral lifecycle. `sent` is a live case the
@@ -175,7 +166,9 @@ function ReferralRequestsSection({ requests }: { requests: ReferralRequest[] }) 
   return (
     <>
       <SectionHeader
-        title={t('patientWrites.referralRequest.listTitle', { defaultValue: 'Your referral requests' })}
+        title={t('patientWrites.referralRequest.listTitle', {
+          defaultValue: 'Your referral requests',
+        })}
         style={s.sectionAfterCard}
       />
       <NoticeBanner
@@ -186,33 +179,37 @@ function ReferralRequestsSection({ requests }: { requests: ReferralRequest[] }) 
         })}
       />
       {requests.map((request) => (
-        <Card key={request.id} variant="flush">
-          <View style={s.cardTop}>
-            <View style={s.requestChip}>
-              <Icon name="send" size={12} strokeWidth={2} color={colors.tintAmber} />
-              <Text style={[s.requestChipText, { color: colors.tintAmber }]}>
-                {t('patientWrites.referralRequest.notAReferralTitle', {
-                  defaultValue: 'This is a request, not a referral',
-                })}
-              </Text>
+        <CardStack key={request.id} spacing="sm">
+          <Card variant="flush">
+            <View style={s.cardTop}>
+              <View style={s.requestChip}>
+                <Icon name="send" size={12} strokeWidth={2} color={colors.tintAmber} />
+                <Text style={[s.requestChipText, { color: colors.tintAmber }]}>
+                  {t('patientWrites.referralRequest.notAReferralTitle', {
+                    defaultValue: 'This is a request, not a referral',
+                  })}
+                </Text>
+              </View>
+              <StatusBadge
+                status={request.status}
+                tone={REQUEST_TONE[request.status] ?? 'neutral'}
+                label={request.status_label}
+              />
             </View>
-            <StatusBadge
-              status={request.status}
-              tone={REQUEST_TONE[request.status] ?? 'neutral'}
-              label={request.status_label}
-            />
-          </View>
-
-          <View style={s.rows}>
-            {request.requested_specialty_label ? (
+          </Card>
+          {request.requested_specialty_label ? (
+            <Card variant="flush" style={s.rows}>
               <InfoRow
                 icon="person-search"
                 tint="blue"
-                label={t('patientWrites.referralRequest.requestedLabel', { defaultValue: 'You asked for' })}
+                label={t('patientWrites.referralRequest.requestedLabel', {
+                  defaultValue: 'You asked for',
+                })}
                 value={request.requested_specialty_label}
-                divider
               />
-            ) : null}
+            </Card>
+          ) : null}
+          <Card variant="flush" style={s.rows}>
             <InfoRow
               icon="alert-circle"
               tint="amber"
@@ -220,34 +217,45 @@ function ReferralRequestsSection({ requests }: { requests: ReferralRequest[] }) 
                 defaultValue: 'How urgent it feels to you',
               })}
               value={request.reported_urgency_label}
-              divider
             />
+          </Card>
+          <Card variant="flush" style={s.rows}>
             <InfoRow
               icon="document-text"
               tint="blue"
-              label={t('patientWrites.referralRequest.yourWordsLabel', { defaultValue: 'In your words' })}
+              label={t('patientWrites.referralRequest.yourWordsLabel', {
+                defaultValue: 'In your words',
+              })}
               value={request.reason}
-              divider
             />
+          </Card>
+          <Card variant="flush" style={s.rows}>
             <InfoRow
               icon="id-card"
               tint="purple"
-              label={t('patientWrites.referralRequest.referenceLabel', { defaultValue: 'Reference' })}
+              label={t('patientWrites.referralRequest.referenceLabel', {
+                defaultValue: 'Reference',
+              })}
               value={request.reference}
-              divider
             />
+          </Card>
+          <Card variant="flush" style={s.rows}>
             <InfoRow
               icon="calendar"
               tint="green"
-              label={t('patientWrites.referralRequest.sentAtLabel', { defaultValue: 'Sent' })}
+              label={t('patientWrites.referralRequest.sentAtLabel', {
+                defaultValue: 'Sent',
+              })}
               value={formatDate(request.submitted_at, '')}
             />
-          </View>
+          </Card>
 
-          <View style={s.inset}>
-            <NoticeBanner icon="info" tone="pending" message={request.status_detail} />
-          </View>
-        </Card>
+          <Card variant="flush">
+            <View style={s.inset}>
+              <NoticeBanner icon="info" tone="pending" message={request.status_detail} />
+            </View>
+          </Card>
+        </CardStack>
       ))}
     </>
   );
@@ -272,7 +280,9 @@ function WhatYouCanDo() {
   return (
     <>
       <SectionHeader
-        title={t('patientWrites.common.whatYouCanDo', { defaultValue: 'What you can do' })}
+        title={t('patientWrites.common.whatYouCanDo', {
+          defaultValue: 'What you can do',
+        })}
         style={s.sectionAfterCard}
       />
       <CardStack spacing="sm">
@@ -280,7 +290,9 @@ function WhatYouCanDo() {
           <ListRow
             icon="send"
             tint="purple"
-            title={t('patientWrites.referralRequest.openCta', { defaultValue: 'Ask for a referral' })}
+            title={t('patientWrites.referralRequest.openCta', {
+              defaultValue: 'Ask for a referral',
+            })}
             subtitle={t('patientWrites.referralRequest.openCtaSubtitle', {
               defaultValue: 'Tell a clinician why you think you need to see a specialist',
             })}
@@ -291,8 +303,12 @@ function WhatYouCanDo() {
           <ListRow
             icon="heart-pulse"
             tint="blue"
-            title={t('patientWrites.vitals.title', { defaultValue: 'Log a reading' })}
-            subtitle={t('patientWrites.vitals.subtitle', { defaultValue: 'A measurement you took yourself' })}
+            title={t('patientWrites.vitals.title', {
+              defaultValue: 'Log a reading',
+            })}
+            subtitle={t('patientWrites.vitals.subtitle', {
+              defaultValue: 'A measurement you took yourself',
+            })}
             onPress={() => router.push('/vitals/log')}
           />
         </Card>
@@ -311,30 +327,45 @@ function ReferralCard({ referral }: { referral: Referral }) {
 
   const isUrgent = referral.urgency === 'urgent' || referral.urgency === 'emergency';
   const isOpen = OPEN_STATUSES.includes(referral.status);
-  const statusLabel = t(`referrals.status.${referral.status}`, { defaultValue: formatLabel(referral.status) });
-  const urgencyLabel = t(`referrals.urgency.${referral.urgency}`, { defaultValue: formatLabel(referral.urgency) });
+  const statusLabel = t(`referrals.status.${referral.status}`, {
+    defaultValue: formatLabel(referral.status),
+  });
+  const urgencyLabel = t(`referrals.urgency.${referral.urgency}`, {
+    defaultValue: formatLabel(referral.urgency),
+  });
 
   // Show every milestone the record actually carries, oldest first — a single
   // "latest date" line throws away the rest of the case history.
   const milestones = [
-    { key: 'referredOn', icon: 'calendar' as IconName, date: formatDate(referral.referred_at, '') },
-    { key: 'acceptedOn', icon: 'calendar-check' as IconName, date: formatDate(referral.accepted_at, '') },
-    { key: 'completedOn', icon: 'check-circle' as IconName, date: formatDate(referral.completed_at, '') },
+    {
+      key: 'referredOn',
+      icon: 'calendar' as IconName,
+      date: formatDate(referral.referred_at, ''),
+    },
+    {
+      key: 'acceptedOn',
+      icon: 'calendar-check' as IconName,
+      date: formatDate(referral.accepted_at, ''),
+    },
+    {
+      key: 'completedOn',
+      icon: 'check-circle' as IconName,
+      date: formatDate(referral.completed_at, ''),
+    },
   ].filter((m) => m.date !== '');
 
   const rows: ReactNode[] = [
-    <InfoRow key="from" icon="building" tint="blue" label={t('referrals.from')} value={referral.referring_facility} divider />,
-    <InfoRow key="to" icon="building" tint="purple" label={t('referrals.to')} value={referral.receiving_facility} divider />,
+    <InfoRow key="from" icon="building" tint="blue" label={t('referrals.from')} value={referral.referring_facility} />,
+    <InfoRow key="to" icon="building" tint="purple" label={t('referrals.to')} value={referral.receiving_facility} />,
     <InfoRow
       key="urgency"
       icon="alert-circle"
       tint={URGENCY_TINT[referral.urgency] ?? 'blue'}
       label={t('opesCare.referral.urgency', { defaultValue: 'Urgency' })}
       value={urgencyLabel}
-      divider
     />,
-    <InfoRow key="reason" icon="document-text" tint="blue" label={t('referrals.reason')} value={referral.reason} divider={milestones.length > 0} />,
-    ...milestones.map((m, i) => (
+    <InfoRow key="reason" icon="document-text" tint="blue" label={t('referrals.reason')} value={referral.reason} />,
+    ...milestones.map((m) => (
       <InfoRow
         key={m.key}
         icon={m.icon}
@@ -343,34 +374,45 @@ function ReferralCard({ referral }: { referral: Referral }) {
           defaultValue: m.key === 'referredOn' ? 'Referred' : m.key === 'acceptedOn' ? 'Accepted' : 'Completed',
         })}
         value={m.date}
-        divider={i < milestones.length - 1}
       />
     )),
   ];
 
   return (
     <>
-      <Card variant="flush">
-        <View style={s.cardTop}>
-          <StatusBadge status={referral.status} tone={STATUS_TONE[referral.status] ?? 'neutral'} label={statusLabel} />
-          {isUrgent ? (
+      <CardStack spacing="sm">
+        <Card variant="flush">
+          <View style={s.cardTop}>
             <StatusBadge
-              status={referral.urgency}
-              tone={URGENCY_TONE[referral.urgency] ?? 'warning'}
-              icon="alert-triangle"
-              label={urgencyLabel}
+              status={referral.status}
+              tone={STATUS_TONE[referral.status] ?? 'neutral'}
+              label={statusLabel}
             />
-          ) : null}
-        </View>
+            {isUrgent ? (
+              <StatusBadge
+                status={referral.urgency}
+                tone={URGENCY_TONE[referral.urgency] ?? 'warning'}
+                icon="alert-triangle"
+                label={urgencyLabel}
+              />
+            ) : null}
+          </View>
+        </Card>
 
-        <View style={s.rows}>{rows}</View>
+        {rows.map((row, i) => (
+          <Card key={i} variant="flush" style={s.rows}>
+            {row}
+          </Card>
+        ))}
 
         {referral.notes ? (
-          <View style={s.inset}>
-            <NoticeBanner icon="edit" tone="pending" title={t('referrals.notes')} message={referral.notes} />
-          </View>
+          <Card variant="flush">
+            <View style={s.inset}>
+              <NoticeBanner icon="edit" tone="pending" title={t('referrals.notes')} message={referral.notes} />
+            </View>
+          </Card>
         ) : null}
-      </Card>
+      </CardStack>
 
       {isOpen ? (
         <CardStack spacing="sm">
@@ -382,8 +424,12 @@ function ReferralCard({ referral }: { referral: Referral }) {
             <ListRow
               icon="calendar-plus"
               tint="blue"
-              title={t('opesCare.referral.scheduleTitle', { defaultValue: 'Book an appointment' })}
-              subtitle={t('opesCare.referral.scheduleText', { defaultValue: 'Arrange your visit at the receiving facility.' })}
+              title={t('opesCare.referral.scheduleTitle', {
+                defaultValue: 'Book an appointment',
+              })}
+              subtitle={t('opesCare.referral.scheduleText', {
+                defaultValue: 'Arrange your visit at the receiving facility.',
+              })}
               onPress={() => router.push('/appointments/book')}
             />
           </Card>
@@ -391,8 +437,12 @@ function ReferralCard({ referral }: { referral: Referral }) {
             <ListRow
               icon="clipboard"
               tint="green"
-              title={t('opesCare.referral.bringTitle', { defaultValue: 'Bring your documents' })}
-              subtitle={t('opesCare.referral.bringText', { defaultValue: 'Carry this referral and any relevant results.' })}
+              title={t('opesCare.referral.bringTitle', {
+                defaultValue: 'Bring your documents',
+              })}
+              subtitle={t('opesCare.referral.bringText', {
+                defaultValue: 'Carry this referral and any relevant results.',
+              })}
               onPress={() => router.push('/documents')}
             />
           </Card>
@@ -400,8 +450,12 @@ function ReferralCard({ referral }: { referral: Referral }) {
             <ListRow
               icon="phone"
               tint="purple"
-              title={t('opesCare.referral.helpTitle', { defaultValue: 'Need help?' })}
-              subtitle={t('opesCare.referral.helpText', { defaultValue: 'Contact us if you need assistance.' })}
+              title={t('opesCare.referral.helpTitle', {
+                defaultValue: 'Need help?',
+              })}
+              subtitle={t('opesCare.referral.helpText', {
+                defaultValue: 'Contact us if you need assistance.',
+              })}
               onPress={() => router.push('/help')}
             />
           </Card>
@@ -419,9 +473,21 @@ function EmptyReferrals() {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const steps: { icon: IconName; title: string; body: string }[] = [
-    { icon: 'stethoscope', title: t('referrals.step1Title'), body: t('referrals.step1Body') },
-    { icon: 'building', title: t('referrals.step2Title'), body: t('referrals.step2Body') },
-    { icon: 'calendar-check', title: t('referrals.step3Title'), body: t('referrals.step3Body') },
+    {
+      icon: 'stethoscope',
+      title: t('referrals.step1Title'),
+      body: t('referrals.step1Body'),
+    },
+    {
+      icon: 'building',
+      title: t('referrals.step2Title'),
+      body: t('referrals.step2Body'),
+    },
+    {
+      icon: 'calendar-check',
+      title: t('referrals.step3Title'),
+      body: t('referrals.step3Body'),
+    },
   ];
   return (
     <>
@@ -429,11 +495,13 @@ function EmptyReferrals() {
         <EmptyState icon="send" tint="purple" title={t('referrals.emptyTitle')} message={t('referrals.emptyBody')} />
       </Card>
       <SectionHeader title={t('referrals.howItWorksTitle')} style={s.sectionAfterCard} />
-      <Card variant="flush">
-        {steps.map((step, i) => (
-          <StepRow key={step.title} icon={step.icon} title={step.title} body={step.body} divider={i < steps.length - 1} />
+      <CardStack spacing="sm">
+        {steps.map((step) => (
+          <Card key={step.title} variant="flush">
+            <StepRow icon={step.icon} title={step.title} body={step.body} />
+          </Card>
         ))}
-      </Card>
+      </CardStack>
       {/*
         The shipped copy for `referrals.emptyCallout*` reads "You cannot raise
         a referral yourself. Discuss it at your next appointment." That was true
@@ -450,8 +518,7 @@ function EmptyReferrals() {
           defaultValue: 'Referrals are written for you',
         })}
         message={t('patientWrites.referralRequest.emptyCalloutBody', {
-          defaultValue:
-            'You cannot write a referral yourself — but you can ask for one, and a clinician will decide.',
+          defaultValue: 'You cannot write a referral yourself — but you can ask for one, and a clinician will decide.',
         })}
       />
     </>
@@ -459,12 +526,12 @@ function EmptyReferrals() {
 }
 
 /** A §8 row whose body is allowed to wrap — explanatory prose, not a record. */
-function StepRow({ icon, title, body, divider }: { icon: IconName; title: string; body: string; divider: boolean }) {
+function StepRow({ icon, title, body }: { icon: IconName; title: string; body: string }) {
   const { colors, tintMap } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const tint = tintMap.blue;
   return (
-    <View style={[s.stepRow, divider && s.rowDivider]} accessible accessibilityLabel={`${title}. ${body}`}>
+    <View style={s.stepRow} accessible accessibilityLabel={`${title}. ${body}`}>
       <View style={s.stepMark}>
         <Icon name={icon} size={24} color={tint.fg} />
       </View>
@@ -481,7 +548,11 @@ function StepRow({ icon, title, body, divider }: { icon: IconName; title: string
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
+    content: {
+      padding: spacing.md,
+      gap: spacing.md,
+      paddingBottom: spacing.xl,
+    },
     sectionAfterCard: { marginTop: spacing.sm },
 
     cardTop: {
@@ -531,7 +602,6 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.xs,
     },
 
-    rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
     stepRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',

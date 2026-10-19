@@ -192,9 +192,15 @@ export function describeFailure(e: unknown, fallbackMessage?: string): Failure {
     if (status === 429) return failure('busy', 'busyTitle', 'busyBody');
     if (status >= 500) return failure('server', 'serverTitle', 'serverBody');
 
-    const detail = (e.response?.data as { message?: string; detail?: string } | undefined)?.detail
-      ?? (e.response?.data as { message?: string } | undefined)?.message;
-    if (detail) return { kind: 'conflict', title: tr('opesCore.errors.conflictTitle'), message: detail };
+    const detail =
+      (e.response?.data as { message?: string; detail?: string } | undefined)?.detail ??
+      (e.response?.data as { message?: string } | undefined)?.message;
+    if (detail)
+      return {
+        kind: 'conflict',
+        title: tr('opesCore.errors.conflictTitle'),
+        message: detail,
+      };
   }
 
   return {
@@ -511,11 +517,27 @@ export type CareButtonProps = {
 
 const buttonFill: Record<NonNullable<CareButtonProps['variant']>, { bg: string; fg: string; border: string }> = {
   primary: { bg: colors.blue, fg: colors.textOnBrand, border: colors.blue },
-  deep: { bg: colors.primaryDeep, fg: colors.textOnBrand, border: colors.primaryDeep },
+  deep: {
+    bg: colors.primaryDeep,
+    fg: colors.textOnBrand,
+    border: colors.primaryDeep,
+  },
   secondary: { bg: colors.surface, fg: colors.link, border: colors.border },
-  ghost: { bg: colors.primarySoft, fg: colors.link, border: colors.primarySoft },
-  danger: { bg: colors.surface, fg: colors.statusCritical, border: colors.statusCriticalBg },
-  dangerSolid: { bg: colors.statusCritical, fg: colors.textOnBrand, border: colors.statusCritical },
+  ghost: {
+    bg: colors.primarySoft,
+    fg: colors.link,
+    border: colors.primarySoft,
+  },
+  danger: {
+    bg: colors.surface,
+    fg: colors.statusCritical,
+    border: colors.statusCriticalBg,
+  },
+  dangerSolid: {
+    bg: colors.statusCritical,
+    fg: colors.textOnBrand,
+    border: colors.statusCritical,
+  },
 };
 
 /** The flat, 1px-bordered button used across the CARE references. */
@@ -712,14 +734,18 @@ const weekdayTag = (locale: CareLocale) => (locale === 'fr' ? 'fr-FR' : 'en-GB')
 
 function weekdayFormatter(locale: CareLocale): Intl.DateTimeFormat {
   if (!weekdayCache[locale]) {
-    weekdayCache[locale] = new Intl.DateTimeFormat(weekdayTag(locale), { weekday: 'short' });
+    weekdayCache[locale] = new Intl.DateTimeFormat(weekdayTag(locale), {
+      weekday: 'short',
+    });
   }
   return weekdayCache[locale]!;
 }
 
 function monthFormatter(locale: CareLocale): Intl.DateTimeFormat {
   if (!monthCache[locale]) {
-    monthCache[locale] = new Intl.DateTimeFormat(monthTag(locale), { month: 'short' });
+    monthCache[locale] = new Intl.DateTimeFormat(monthTag(locale), {
+      month: 'short',
+    });
   }
   return monthCache[locale]!;
 }
@@ -893,7 +919,9 @@ export const STATUS = { LABEL: STATUS_LABEL } as const;
 
 /** `consultation` → "Consultation"; unknown → "Appointment" / « Rendez-vous ». */
 export function typeLabelOf(t: Translate, type: AppointmentTypeLike): string {
-  return t(`opesCare.type.${type}`, { defaultValue: t('opesCare.type.fallback') });
+  return t(`opesCare.type.${type}`, {
+    defaultValue: t('opesCare.type.fallback'),
+  });
 }
 
 /**
@@ -1055,7 +1083,7 @@ export function AppointmentRow({
           a.provider_name ?? fallbackTitle,
           a.provider_specialty ?? fallbackTitle,
           where,
-          statusLabelOf(t, a.status)
+          statusLabelOf(t, a.status),
         )}
         accessibilityHint={t('opesCare.appt.apptRowHint')}
       >
@@ -1135,13 +1163,13 @@ export function InfoRow({
   label,
   value,
   valueColor,
-  divider,
 }: {
   icon: IconName;
   tint?: Tint;
   label: string;
   value: string;
   valueColor?: string;
+  /** @deprecated No-op. Rows are never joined by a hairline: give each its own Card in a CardStack. */
   divider?: boolean;
 }) {
   const skin = tintMap[tint];
@@ -1149,7 +1177,7 @@ export function InfoRow({
     // "Date" and "16 May 2026" are one fact, not two. Grouped, it is one swipe
     // that says "Date, 16 May 2026"; ungrouped it is two, and the second one
     // is a bare date with nothing saying what it is the date of.
-    <View style={[styles.infoRow, divider && styles.infoDivider]} accessible accessibilityLabel={a11yJoin(label, value)}>
+    <View style={styles.infoRow} accessible accessibilityLabel={a11yJoin(label, value)}>
       <View style={styles.infoCircle}>
         <Icon name={icon} size={26} color={skin.fg} />
       </View>
@@ -1270,7 +1298,11 @@ export function RatingLine({
 // ── Styles ────────────────────────────────────────────────────────────────
 
 export const styles = StyleSheet.create({
-  centre: { paddingVertical: spacing.xxl, alignItems: 'center', gap: spacing.sm },
+  centre: {
+    paddingVertical: spacing.xxl,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   centreText: {
     fontFamily: typography.fontFamily.regular,
     fontSize: typography.size.sm,
@@ -1296,7 +1328,11 @@ export const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
   },
-  buttonSm: { minHeight: 40, borderRadius: radii.sm + 2, paddingHorizontal: spacing.md - 4 },
+  buttonSm: {
+    minHeight: 40,
+    borderRadius: radii.sm + 2,
+    paddingHorizontal: spacing.md - 4,
+  },
   buttonOff: { opacity: 0.5 },
   buttonLabel: {
     fontFamily: typography.fontFamily.semiBold,
@@ -1394,25 +1430,48 @@ export const styles = StyleSheet.create({
     fontSize: typography.size.sm,
     color: colors.textSecondary,
   },
-  apptMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  apptMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
   apptMeta: {
     flex: 1,
     fontFamily: typography.fontFamily.regular,
     fontSize: typography.size.xs,
     color: colors.textMuted,
   },
-  apptTrailing: { alignItems: 'flex-end', justifyContent: 'space-between', alignSelf: 'stretch', gap: spacing.md },
+  apptTrailing: {
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    alignSelf: 'stretch',
+    gap: spacing.md,
+  },
   apptTrailingTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 
   pill: { borderRadius: radii.pill, alignSelf: 'flex-start' },
   pillMd: { paddingHorizontal: 10, paddingVertical: 5 },
   pillSm: { paddingHorizontal: 8, paddingVertical: 3 },
-  pillText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.xs },
+  pillText: {
+    fontFamily: typography.fontFamily.semiBold,
+    fontSize: typography.size.xs,
+  },
   pillTextSm: { fontSize: 11 },
 
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
-  infoDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
-  infoCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+  },
+  infoCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   infoText: { flex: 1, minWidth: 0 },
   infoLabel: {
     fontFamily: typography.fontFamily.regular,
@@ -1480,6 +1539,12 @@ export const styles = StyleSheet.create({
   },
 
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  ratingText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.xs },
-  ratingCount: { fontFamily: typography.fontFamily.regular, color: colors.textMuted },
+  ratingText: {
+    fontFamily: typography.fontFamily.semiBold,
+    fontSize: typography.size.xs,
+  },
+  ratingCount: {
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textMuted,
+  },
 });

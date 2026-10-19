@@ -57,6 +57,22 @@ describe('apiClient 401 interceptor', () => {
     expect(authOf(adapter.mock.calls[0][0])).toBe('Bearer old-token');
   });
 
+  it('sends Accept-Language from the current i18next language', async () => {
+    const i18n = require('i18next').default ?? require('i18next');
+    const adapter = useAdapter(() => ({ status: 200, data: { ok: true } }));
+    const original = i18n.language;
+    try {
+      i18n.language = 'fr-CM';
+      await apiClient.get('/mobile/me');
+      i18n.language = 'en';
+      await apiClient.get('/mobile/me');
+    } finally {
+      i18n.language = original;
+    }
+    expect(adapter.mock.calls[0][0].headers?.['Accept-Language']).toBe('fr');
+    expect(adapter.mock.calls[1][0].headers?.['Accept-Language']).toBe('en');
+  });
+
   it('refreshes on 401 and retries the request once with the new token', async () => {
     post.mockResolvedValue({ data: { token: 'new-token' } });
     const adapter = useAdapter((c) =>

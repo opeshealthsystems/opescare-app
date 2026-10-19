@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import i18n from 'i18next';
 import { API_BASE_URL, endpoints } from './endpoints';
 import { tokenStorage } from './tokenStorage';
 
@@ -24,6 +25,10 @@ apiClient.interceptors.request.use(async (config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Tell the server which language to answer in (labels, notifications,
+  // validation errors). Only the two locales the backend ships.
+  const lang = String(i18n.language ?? '').toLowerCase().startsWith('fr') ? 'fr' : 'en';
+  config.headers['Accept-Language'] = lang;
   return config;
 });
 

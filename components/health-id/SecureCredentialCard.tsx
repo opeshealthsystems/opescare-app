@@ -20,8 +20,8 @@
  * The credential data is untouched: what the QR encodes is whatever the
  * backend handed us in `qrPayload`.
  */
-import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent, Platform } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent, Platform, type StyleProp, type TextStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '@/components/core/shared';
@@ -90,11 +90,11 @@ export function SecureCredentialCard({
   const healthId = presentOrNull(model.healthId);
   const dobLabel = formatDate(model.dob, '') || null;
   const age = ageFrom(model.dob);
-  const dobValue = dobLabel
-    ? age !== null
-      ? `${dobLabel} · ${t('healthId.ageSuffix', { years: age })}`
-      : dobLabel
-    : t('healthId.notSet');
+  // Non-breaking spaces keep "15 juin 1990" and "36 ans" whole; the only
+  // permitted break is between the date and the age.
+  const nb = (v: string) => v.replace(/ /g, ' ');
+  const dobValue = dobLabel ? nb(dobLabel) : t('healthId.notSet');
+  const ageValue = dobLabel && age !== null ? nb(t('healthId.ageSuffix', { years: age })) : null;
   const sexKey = (model.sex ?? '').toLowerCase();
   const sexLabel = sexKey ? t(`healthId.sexValues.${sexKey}`, { defaultValue: titleCase(sexKey) }) : t('healthId.notSet');
   const statusKey = model.statusKey ?? '';
@@ -168,12 +168,12 @@ export function SecureCredentialCard({
               <PulseLogo size={22} />
             </View>
             <View style={styles.brandText}>
-              <Text style={styles.brandWord} numberOfLines={1}>
+              <FitText style={styles.brandWord}>
                 Opes<Text style={styles.brandWordAccent}>Care</Text>
-              </Text>
-              <Text style={styles.brandSub} numberOfLines={1}>
+              </FitText>
+              <FitText style={styles.brandSub}>
                 {t('healthId.secure.brandSub')}
-              </Text>
+              </FitText>
             </View>
           </View>
           <View style={styles.tagline}>
@@ -197,12 +197,16 @@ export function SecureCredentialCard({
           <View style={styles.holderRow}>
             <Avatar name={name} size={40} uri={model.photoUrl} />
             <View style={styles.holderText}>
-              <Text style={styles.holderName} numberOfLines={narrow ? 2 : 1}>
-                {name}
-              </Text>
-              <Text style={styles.holderSub} numberOfLines={1}>
+              {narrow ? (
+                <Text style={styles.holderName} numberOfLines={2}>
+                  {name}
+                </Text>
+              ) : (
+                <FitText style={styles.holderName}>{name}</FitText>
+              )}
+              <FitText style={styles.holderSub}>
                 {t('healthId.cardLabel')}
-              </Text>
+              </FitText>
               {narrow ? <View style={styles.badgeBelow}>{badge}</View> : null}
             </View>
             {narrow ? null : badge}
@@ -210,7 +214,7 @@ export function SecureCredentialCard({
 
           {/* Health ID spans the face so the number never wraps. */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>{t('opesCore.healthId.fieldHealthId')}</Text>
+            <FitText style={styles.fieldLabel}>{t('opesCore.healthId.fieldHealthId')}</FitText>
             <View style={styles.idRow}>
               <Text style={[styles.idValue, narrow && styles.idValueNarrow]} numberOfLines={1}>
                 {healthId ?? t('healthId.notAvailable')}
@@ -231,7 +235,7 @@ export function SecureCredentialCard({
 
           <View style={[styles.body, narrow && styles.bodyNarrow]}>
             <View style={[styles.fields, narrow && styles.fieldsNarrow]}>
-              <Field styles={styles} label={t('healthId.dob')} value={dobValue} />
+              <Field styles={styles} label={t('healthId.dob')} value={dobValue} extra={ageValue} />
               <View style={[styles.fieldRow, narrow && styles.fieldRowNarrow]}>
                 <Field styles={styles} label={t('healthId.sex')} value={sexLabel} half />
                 <Field styles={styles} label={t('healthId.bloodType')} value={model.bloodType ?? t('healthId.notSet')} half />
@@ -266,9 +270,9 @@ export function SecureCredentialCard({
         <View style={[styles.foot, narrow && styles.footNarrow]}>
           <Art source={HEALTH_ID_ART.chip} style={styles.chip} />
           <View style={styles.footCopy}>
-            <Text style={styles.footLine1} numberOfLines={1}>
+            <FitText style={styles.footLine1}>
               {t('healthId.secure.footLine1')}
-            </Text>
+            </FitText>
             <Text style={styles.footLine2} numberOfLines={2}>
               {t('healthId.secure.footLine2')}
             </Text>
@@ -299,21 +303,101 @@ function Field({
   label,
   value,
   half = false,
+  extra = null,
 }: {
   styles: ReturnType<typeof makeStyles>;
   label: string;
   value: string;
   half?: boolean;
+  extra?: string | null;
 }) {
   return (
     <View style={[styles.field, half && styles.fieldHalf]}>
-      <Text style={styles.fieldLabel} numberOfLines={2}>
+      <FitText style={styles.fieldLabel}>
         {label}
-      </Text>
-      <Text style={styles.fieldValue} numberOfLines={2}>
-        {value}
-      </Text>
+      </FitText>
+      {extra ? (
+        <View style={styles.valueWrap}>
+          <FitText style={[styles.fieldValue, styles.valuePart]}>
+            {`${value} ·`}
+          </FitText>
+          <FitText style={[styles.fieldValue, styles.valuePart]}>
+            {extra}
+          </FitText>
+        </View>
+      ) : (
+        <FitText style={styles.fieldValue}>
+          {value}
+        </FitText>
+      )}
     </View>
+  );
+}
+
+/** One line that shrinks (native) instead of breaking a word. */
+const MIN_FONT_SCALE = 0.8;
+type HTMLElementLike = { clientWidth: number };
+type RangeLike = { selectNodeContents: (n: unknown) => void; getBoundingClientRect: () => { width: number } };
+
+/**
+ * One line of text that shrinks (down to 80%) rather than wrapping or breaking
+ * a word. Native uses adjustsFontSizeToFit; react-native-web ignores that prop,
+ * so on web the rendered node is measured and the font scaled to fit.
+ */
+function FitText({ style, children }: { style: StyleProp<TextStyle>; children: React.ReactNode }) {
+  const ref = useRef<unknown>(null);
+  const [scale, setScale] = useState(1);
+  const [tight, setTight] = useState(false);
+  const flat = StyleSheet.flatten(style) ?? {};
+  const base = flat.fontSize ?? 14;
+  const measure = useCallback(() => {
+    if (Platform.OS !== 'web') return;
+    const node = ref.current as (HTMLElementLike & { clientWidth: number }) | null;
+    const doc = (globalThis as { document?: { createRange?: () => RangeLike } }).document;
+    if (!node?.clientWidth || !doc?.createRange) return;
+    const range = doc.createRange();
+    range.selectNodeContents(node);
+    const natural = range.getBoundingClientRect().width;
+    if (natural <= node.clientWidth + 0.5) return;
+    // First give up tracking (letter-spacing), then shrink the type, never below 80%.
+    if (!tight && flat.letterSpacing) {
+      setTight(true);
+      return;
+    }
+    setScale((s) => Math.max(MIN_FONT_SCALE, (s * node.clientWidth) / natural - 0.005));
+  }, [tight, flat.letterSpacing]);
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const fonts = (globalThis as { document?: { fonts?: { ready?: Promise<unknown> } } }).document?.fonts;
+    let live = true;
+    fonts?.ready?.then(() => {
+      if (live) measure();
+    });
+    const timer = setTimeout(measure, 1500);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [measure, children, scale]);
+  const scaled: TextStyle | null =
+    scale < 1 || tight
+      ? {
+          fontSize: base * scale,
+          ...(flat.lineHeight ? { lineHeight: flat.lineHeight * scale } : null),
+          ...(tight ? { letterSpacing: 0 } : null),
+        }
+      : null;
+  return (
+    <Text
+      ref={ref as never}
+      style={[style, scaled]}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+      minimumFontScale={MIN_FONT_SCALE}
+      onLayout={measure}
+    >
+      {children}
+    </Text>
   );
 }
 
@@ -371,12 +455,12 @@ const makeStyles = (colors: Palette) =>
     brandSub: {
       fontFamily: typography.fontFamily.medium,
       fontSize: 8.5,
-      letterSpacing: 1.6,
+      letterSpacing: 0.9,
       textTransform: 'uppercase',
       color: colors.primarySoft,
       opacity: 0.85,
     },
-    tagline: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '52%' },
+    tagline: { flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '44%' },
     taglineText: {
       flexShrink: 1,
       minWidth: 0,
@@ -413,7 +497,7 @@ const makeStyles = (colors: Palette) =>
     holderSub: {
       fontFamily: typography.fontFamily.medium,
       fontSize: 9.5,
-      letterSpacing: 0.8,
+      letterSpacing: 0.4,
       textTransform: 'uppercase',
       color: colors.textSecondary,
     },
@@ -424,21 +508,23 @@ const makeStyles = (colors: Palette) =>
     qrColNarrow: { alignSelf: 'center' },
     footNarrow: { paddingRight: 72 },
     fields: { flex: 1, minWidth: 0, gap: 8 },
-    field: { minWidth: 0 },
-    fieldHalf: { flex: 1 },
-    fieldRow: { flexDirection: 'row', gap: 14 },
+    field: { minWidth: 0, flexShrink: 1 },
+    fieldHalf: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', minWidth: 0 },
+    fieldRow: { flexDirection: 'row', gap: 4 },
+    valueWrap: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 4 },
+    valuePart: { flexShrink: 0, maxWidth: '100%' },
     fieldLabel: {
       fontFamily: typography.fontFamily.medium,
       fontSize: 8.5,
-      letterSpacing: 1.2,
+      letterSpacing: 0.6,
       textTransform: 'uppercase',
       color: colors.textMuted,
     },
     fieldValue: {
       marginTop: 1,
       fontFamily: typography.fontFamily.semiBold,
-      fontSize: 13,
-      lineHeight: 17,
+      fontSize: 12.5,
+      lineHeight: 16,
       color: colors.textPrimary,
     },
     idRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -466,7 +552,6 @@ const makeStyles = (colors: Palette) =>
       borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.primarySoft,
     },
     pressed: { opacity: 0.6 },
     qrCol: { width: QR_EXTENT, alignItems: 'center', gap: 0 },

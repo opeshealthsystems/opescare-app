@@ -176,11 +176,17 @@ export function SecureCredentialCard({
               </FitText>
             </View>
           </View>
-          <View style={styles.tagline}>
-            <Text style={styles.taglineText} numberOfLines={2}>
-              {t('healthId.secure.frameTagline')}
-            </Text>
-            <Art source={HEALTH_ID_ART.africa} style={styles.africa} />
+          <View style={[styles.tagline, narrow && styles.taglineNarrow]}>
+            {/* Two phrases, two lines — never one squeezed line ending in "…". */}
+            <View style={styles.taglineStack}>
+              {splitAtDots(String(t('healthId.secure.frameTagline'))).map((part) => (
+                <FitText key={part} style={styles.taglineText}>
+                  {part}
+                </FitText>
+              ))}
+            </View>
+            {/* On narrow cards the motif yields its width to the words. */}
+            {narrow ? null : <Art source={HEALTH_ID_ART.africa} style={styles.africa} />}
           </View>
         </View>
 
@@ -270,11 +276,11 @@ export function SecureCredentialCard({
         <View style={[styles.foot, narrow && styles.footNarrow]}>
           <Art source={HEALTH_ID_ART.chip} style={styles.chip} />
           <View style={styles.footCopy}>
-            <FitText style={styles.footLine1}>
+            <Text style={styles.footLine1} numberOfLines={2}>
               {t('healthId.secure.footLine1')}
-            </FitText>
+            </Text>
             <Text style={styles.footLine2} numberOfLines={2}>
-              {t('healthId.secure.footLine2')}
+              {glueDots(String(t('healthId.secure.footLine2')))}
             </Text>
           </View>
         </View>
@@ -407,6 +413,16 @@ const GUTTER = 26;
 /** The vertical-text rail on the right of the frame. */
 const EDGE = 22;
 
+/** "A · B" → ["A", "B"]; a phrase list rendered one phrase per line. */
+function splitAtDots(text: string): string[] {
+  return text.split('·').map((part) => part.trim()).filter(Boolean);
+}
+
+/** Keep each "·" on the line of the word before it, so no line starts with a dot. */
+function glueDots(text: string): string {
+  return text.replace(/\s+·/g, '\u00A0·');
+}
+
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     shell: {
@@ -460,7 +476,9 @@ const makeStyles = (colors: Palette) =>
       color: colors.primarySoft,
       opacity: 0.85,
     },
-    tagline: { flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '44%' },
+    tagline: { flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '48%' },
+    taglineNarrow: { maxWidth: '58%' },
+    taglineStack: { flexShrink: 1, minWidth: 0, alignItems: 'flex-end' },
     taglineText: {
       flexShrink: 1,
       minWidth: 0,
@@ -582,7 +600,8 @@ const makeStyles = (colors: Palette) =>
     footLine1: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: 8.5,
-      letterSpacing: 1.1,
+      lineHeight: 11,
+      letterSpacing: 0.6,
       textTransform: 'uppercase',
       color: colors.primarySoft,
     },

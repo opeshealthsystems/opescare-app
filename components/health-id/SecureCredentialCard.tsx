@@ -20,8 +20,8 @@
  * The credential data is untouched: what the QR encodes is whatever the
  * backend handed us in `qrPayload`.
  */
-import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '@/components/core/shared';
@@ -44,6 +44,9 @@ import { ageFrom, presentOrNull, titleCase, type CredentialModel } from './model
 
 /** Edge of the permanent QR inside the card. */
 export const CARD_QR_SIZE = 86;
+
+/** Below this card width the face restacks: QR under the fields, name may wrap, smaller ID type. */
+const NARROW_CARD = 330;
 
 export type CopyState = 'idle' | 'copied' | 'failed';
 
@@ -75,6 +78,12 @@ export function SecureCredentialCard({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [cardWidth, setCardWidth] = useState(0);
+  const narrow = cardWidth > 0 && cardWidth < NARROW_CARD;
+  const onLayout = (e: LayoutChangeEvent) => {
+    const w = Math.round(e.nativeEvent.layout.width);
+    if (w !== cardWidth) setCardWidth(w);
+  };
 
   const name = presentOrNull(model.name) ?? t('healthId.notAvailable');
   const healthId = presentOrNull(model.healthId);
@@ -118,7 +127,7 @@ export function SecureCredentialCard({
   const copyColor = copyState === 'copied' ? colors.statusNormal : copyState === 'failed' ? colors.statusCritical : colors.blue;
 
   return (
-    <View style={styles.shell}>
+    <View style={styles.shell} onLayout={onLayout}>
       <LinearGradient
         colors={[colors.navy, colors.primaryDeep, colors.blue]}
         start={{ x: 0, y: 0 }}
@@ -187,21 +196,22 @@ export function SecureCredentialCard({
           <View style={styles.holderRow}>
             <Avatar name={name} size={40} uri={model.photoUrl} />
             <View style={styles.holderText}>
-              <Text style={styles.holderName} numberOfLines={1}>
+              <Text style={styles.holderName} numberOfLines={narrow ? 2 : 1}>
                 {name}
               </Text>
               <Text style={styles.holderSub} numberOfLines={1}>
                 {t('healthId.cardLabel')}
               </Text>
+              {narrow ? <View style={styles.badgeBelow}>{badge}</View> : null}
             </View>
-            {badge}
+            {narrow ? null : badge}
           </View>
 
           {/* Health ID spans the face so the number never wraps. */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>{t('opesCore.healthId.fieldHealthId')}</Text>
             <View style={styles.idRow}>
-              <Text style={styles.idValue} numberOfLines={1}>
+              <Text style={[styles.idValue, narrow && styles.idValueNarrow]} numberOfLines={1}>
                 {healthId ?? t('healthId.notAvailable')}
               </Text>
               {healthId && onCopyId ? (
@@ -218,17 +228,17 @@ export function SecureCredentialCard({
             </View>
           </View>
 
-          <View style={styles.body}>
-            <View style={styles.fields}>
+          <View style={[styles.body, narrow && styles.bodyNarrow]}>
+            <View style={[styles.fields, narrow && styles.fieldsNarrow]}>
               <Field styles={styles} label={t('healthId.dob')} value={dobValue} />
-              <View style={styles.fieldRow}>
+              <View style={[styles.fieldRow, narrow && styles.fieldRowNarrow]}>
                 <Field styles={styles} label={t('healthId.sex')} value={sexLabel} half />
                 <Field styles={styles} label={t('healthId.bloodType')} value={model.bloodType ?? t('healthId.notSet')} half />
               </View>
               <LiveEcg source={HEALTH_ID_ART.ecgLine} style={styles.ecg} opacity={0.9} />
             </View>
 
-            <View style={styles.qrCol}>
+            <View style={[styles.qrCol, narrow && styles.qrColNarrow]}>
               {model.qrPayload ? (
                 <QrPanel
                   value={model.qrPayload}
@@ -252,7 +262,7 @@ export function SecureCredentialCard({
         </View>
 
         {/* ── Frame: chip · security copy · (seal overlaps the face corner) ─ */}
-        <View style={styles.foot}>
+        <View style={[styles.foot, narrow && styles.footNarrow]}>
           <Art source={HEALTH_ID_ART.chip} style={styles.chip} />
           <View style={styles.footCopy}>
             <Text style={styles.footLine1} numberOfLines={1}>
@@ -398,6 +408,7 @@ const makeStyles = (colors: Palette) =>
       lineHeight: 20,
       color: colors.textPrimary,
     },
+    badgeBelow: { alignSelf: 'flex-start', marginTop: 4 },
     holderSub: {
       fontFamily: typography.fontFamily.medium,
       fontSize: 9.5,
@@ -406,6 +417,11 @@ const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
     },
     body: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+    bodyNarrow: { flexDirection: 'column', alignItems: 'stretch' },
+    fieldsNarrow: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%' },
+    fieldRowNarrow: { gap: 8 },
+    qrColNarrow: { alignSelf: 'center' },
+    footNarrow: { paddingRight: 72 },
     fields: { flex: 1, minWidth: 0, gap: 8 },
     field: { minWidth: 0 },
     fieldHalf: { flex: 1 },
@@ -434,6 +450,14 @@ const makeStyles = (colors: Palette) =>
       lineHeight: 20,
       letterSpacing: 0.8,
       color: colors.textPrimary,
+    },
+    // Narrow cards: a monospace face keeps every character the same width so the
+    // whole ID fits at a slightly smaller size instead of truncating.
+    idValueNarrow: {
+      fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'ui-monospace, Menlo, Consolas, monospace' }),
+      fontSize: 13,
+      lineHeight: 18,
+      letterSpacing: 0.2,
     },
     copyButton: {
       width: 24,

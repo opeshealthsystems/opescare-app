@@ -25,7 +25,7 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
  * the kit `EmptyState` (`LabsUnavailable`), never a crash or an endless spinner.
  */
 import React, { useCallback, useMemo } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -99,7 +99,10 @@ export default function LabResultDetailScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   // Four facts in one row overlapped their dates below 400dp ("05 Sep 202605 Sep"); go 2×2 there.
-  const factsTwoUp = useWindowDimensions().width < 400;
+  const winWidth = useWindowDimensions().width;
+  const factsTwoUp = winWidth < 400;
+  // Five columns truncate below 360dp ("Re…", "m…"): each analyte becomes a stacked row card there.
+  const stackedResults = winWidth < 360;
   const params = useLocalSearchParams<{ id: string }>();
   const orderId = Array.isArray(params.id) ? params.id[0] : params.id;
 
@@ -308,43 +311,75 @@ export default function LabResultDetailScreen() {
             </InfoStrip>
           ) : (
             <>
-              <TableHead columns={COLUMNS} />
-              {results.map((r, i) => (
+              {!stackedResults && <TableHead columns={COLUMNS} />}
+              {results.map((r, i) => {
+                const flagNode =
+                  r.flag === 'critical' ? (
+                    <StatusBadge
+                      status="critical"
+                      label={tx('flag.critical', 'Critical')}
+                      tone="critical"
+                      size="sm"
+                      icon="alert-circle"
+                    />
+                  ) : (
+                    <Text style={[styles.flagText, { color: colorForFlag(r.flag) }]} numberOfLines={1}>
+                      {resultFlagLabel(r.flag, tx, tr)}
+                    </Text>
+                  );
+                const a11yLabel = resultRowSpoken({ ...r, reference: r.reference ?? NO_RANGE }, tr);
+                const a11yHint =
+                  r.numeric_value !== null ? tx('a11y.openTrend', 'Shows how this test has changed over time') : undefined;
+                const onPress = r.numeric_value !== null ? () => openTrend(r.analyte) : undefined;
+                const range = referenceRange(r.ref_low, r.ref_high, r.reference ?? NO_RANGE);
+                if (stackedResults) {
+                  return (
+                    <Pressable
+                      key={r.id}
+                      onPress={onPress}
+                      disabled={!onPress}
+                      accessible
+                      accessibilityRole={onPress ? 'button' : undefined}
+                      accessibilityLabel={a11yLabel}
+                      accessibilityHint={a11yHint}
+                      style={({ pressed }) => [styles.stackCard, i > 0 && styles.stackGap, pressed && styles.stackPressed]}
+                    >
+                      <View style={styles.stackHead}>
+                        <Text style={styles.stackName}>{r.analyte}</Text>
+                        {flagNode}
+                      </View>
+                      <View style={styles.stackRow}>
+                        <Text style={styles.stackLabel}>{COLUMNS[1].label}</Text>
+                        <Text style={styles.stackValue}>
+                          {r.value}
+                          {r.unit ? ` ${r.unit}` : ''}
+                        </Text>
+                      </View>
+                      <View style={styles.stackRow}>
+                        <Text style={styles.stackLabel}>{COLUMNS[3].label}</Text>
+                        <Text style={styles.stackRange}>{range}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                }
+                return (
                 <TableRow
                   key={r.id}
                   columns={COLUMNS}
                   last={i === results.length - 1}
-                  a11yLabel={resultRowSpoken({ ...r, reference: r.reference ?? NO_RANGE }, tr)}
-                  a11yHint={
-                    r.numeric_value !== null
-                      ? tx('a11y.openTrend', 'Shows how this test has changed over time')
-                      : undefined
-                  }
-                  onPress={r.numeric_value !== null ? () => openTrend(r.analyte) : undefined}
+                  a11yLabel={a11yLabel}
+                  a11yHint={a11yHint}
+                  onPress={onPress}
                   cells={[
                     { text: r.analyte, bold: true },
                     { text: r.value, bold: true, wrap: true },
                     { text: r.unit ?? '—' },
-                    { text: referenceRange(r.ref_low, r.ref_high, r.reference ?? NO_RANGE), wrap: true },
-                    {
-                      node:
-                        r.flag === 'critical' ? (
-                          <StatusBadge
-                            status="critical"
-                            label={tx('flag.critical', 'Critical')}
-                            tone="critical"
-                            size="sm"
-                            icon="alert-circle"
-                          />
-                        ) : (
-                          <Text style={[styles.flagText, { color: colorForFlag(r.flag) }]} numberOfLines={1}>
-                            {resultFlagLabel(r.flag, tx, tr)}
-                          </Text>
-                        ),
-                    },
+                    { text: range, wrap: true },
+                    { node: flagNode },
                   ]}
                 />
-              ))}
+                );
+              })}
             </>
           )}
         </Card>
@@ -628,6 +663,44 @@ const makeStyles = (colors: Palette) =>
       color: colors.link,
     },
 
+    stackCard: {
+      borderWidth: 1,
+      borderColor: colors.divider,
+      borderRadius: radii.md,
+      padding: spacing.sm + 2,
+      gap: 6,
+    },
+    stackGap: { marginTop: spacing.sm },
+    stackPressed: { opacity: 0.7 },
+    stackHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
+    stackName: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    stackRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
+    stackLabel: {
+      width: 96,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textSecondary,
+    },
+    stackValue: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    stackRange: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      color: colors.textPrimary,
+    },
     flagText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.xs },
 
     interpretation: {

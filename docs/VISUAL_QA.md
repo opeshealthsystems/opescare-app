@@ -38,6 +38,8 @@ Before/after crops are in `docs/visual-qa/<name>-before.webp` / `-after.webp`.
 | 14 | Clinician Today | Section headings sat 8px under the card above and 18px over their own card, so each one read as a caption of the previous block | `sectionGap` (16px) above every heading | `clinician-home-sections` |
 | 15 | Clinician tab bar (320) | "Messag…" | Tab labels drop to 10pt below 360dp | — |
 | 16 | Access-request sheet | Requester role read "Specialist" in FR | Added `consentPrompt.roles.specialist` (EN/FR) | — |
+| 17 | Health ID credential card (320, and 360) | Holder name, Health ID and blood-group label truncated | `SecureCredentialCard` measures itself (onLayout); under 330dp the QR panel moves below the fields, the name may wrap to two lines, the status badge sits under the name and the Health ID uses a 13pt monospace face. Wide layout unchanged | `health-id-card-320` |
+| 18 | Lab result detail table (320) | Columns truncated ("Re…", "m…") | Below 360dp each analyte is a stacked row card: name + flag, value + unit, reference range (still taps through to the trend); the table stays at 360dp and up | `lab-result-table-320` |
 
 ## Checked, not a defect
 
@@ -55,11 +57,6 @@ Before/after crops are in `docs/visual-qa/<name>-before.webp` / `-after.webp`.
   ("Treating this patient", "Ongoing problems", "24 hours") arrive as English
   `*_label` fields from the server. `/api/*` ignores `Accept-Language`
   (`SetLocale` only runs on the web group). This is a backend fix.
-- **Health ID credential card at 320dp:** the holder name, Health ID and the
-  blood-group label still truncate. The card is a fixed-proportion design, so
-  this needs a design pass, not a layout tweak.
-- **Lab result table at 320dp:** columns truncate ("Re…", "m…"). It needs a
-  stacked mobile variant.
 - Small items: the receptionist desk's two action buttons wrap tightly, and the
   "Scan code" button wraps on the clinician Find a Patient screen.
 

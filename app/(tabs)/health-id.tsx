@@ -516,10 +516,23 @@ function RailAction({
       accessibilityState={{ disabled }}
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [styles.railAction, (pressed || disabled) && styles.railActionDim]}
+      style={({ pressed }) => [
+        styles.railAction,
+        pressed && styles.railActionPressed,
+        disabled && styles.railActionDim,
+      ]}
     >
-      <Icon name={icon} size={18} color={colors.textOnBrand} />
-      <Text style={styles.railActionLabel} numberOfLines={1}>
+      {/* Plain glyph above a single-line label: stacking keeps all three
+          columns the same width in French and at 320dp, where an inline
+          icon + label clipped "Copier l'ID". */}
+      <Icon name={icon} size={22} color={colors.textOnBrand} />
+      <Text
+        style={styles.railActionLabel}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.85}
+        allowFontScaling={false}
+      >
         {label}
       </Text>
     </Pressable>
@@ -657,34 +670,38 @@ const makeStyles = (colors: Palette) =>
     // Action rail under the credential
     rail: {
       flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: -6,
-      borderRadius: radii.md,
+      alignItems: 'stretch',
+      borderRadius: radii.lg,
       backgroundColor: colors.navyLight,
       overflow: 'hidden',
     },
     railAction: {
       flex: 1,
+      flexBasis: 0,
       minWidth: 0,
-      flexDirection: 'row',
+      minHeight: 60,
+      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 6,
-      paddingVertical: 13,
-      paddingHorizontal: 4,
+      gap: 4,
+      paddingVertical: 10,
+      paddingHorizontal: 6,
     },
-    railActionDim: { opacity: 0.55 },
+    railActionPressed: { backgroundColor: 'rgba(255,255,255,0.10)' },
+    railActionDim: { opacity: 0.5 },
     railActionLabel: {
-      flexShrink: 1,
+      alignSelf: 'stretch',
+      textAlign: 'center',
       fontFamily: typography.fontFamily.semiBold,
-      fontSize: 13,
+      fontSize: 12.5,
+      lineHeight: 16,
       color: colors.textOnBrand,
     },
     railDivider: {
-      width: 1,
+      width: StyleSheet.hairlineWidth,
       alignSelf: 'stretch',
-      marginVertical: 8,
-      backgroundColor: colors.navy,
+      marginVertical: 12,
+      backgroundColor: 'rgba(255,255,255,0.22)',
     },
 
     // Temporary-access panel

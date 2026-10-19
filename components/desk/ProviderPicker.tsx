@@ -15,7 +15,7 @@
 import React, { useMemo } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Card, Chip, Icon, spacing, typography, useTheme, type Palette } from '@/components/opes-ui';
+import { Card, CardStack, Chip, Icon, spacing, typography, useTheme, type Palette } from '@/components/opes-ui';
 import { describeFailure } from '@/components/care/shared';
 import { isNotServed, isRoleForbidden, type DeskProvider, type DeskProviderFilter } from '@/lib/api/deskQueries';
 import { providerLabel, providerRoleLabel } from './shared';
@@ -94,10 +94,12 @@ export function ProviderPicker({
   let body: React.ReactNode;
   if (loading && rows.length === 0) {
     body = (
-      <View style={styles.state} accessibilityRole="progressbar" accessibilityLabel={t('desk.providers.loading')}>
-        <ActivityIndicator color={colors.blue} />
-        <Text style={styles.stateText}>{t('desk.providers.loading')}</Text>
-      </View>
+      <Card variant="flush">
+        <View style={styles.state} accessibilityRole="progressbar" accessibilityLabel={t('desk.providers.loading')}>
+          <ActivityIndicator color={colors.blue} />
+          <Text style={styles.stateText}>{t('desk.providers.loading')}</Text>
+        </View>
+      </Card>
     );
   } else if (error && rows.length === 0) {
     const message = isRoleForbidden(error)
@@ -106,53 +108,58 @@ export function ProviderPicker({
         ? t('desk.providers.notServed')
         : describeFailure(error).message;
     body = (
-      <View style={styles.state}>
-        <Icon name="alert-circle" size={20} color={colors.statusWarning} />
-        <Text style={styles.stateText}>{message}</Text>
-        {!!onRetry && !isRoleForbidden(error) && (
-          <TouchableOpacity onPress={onRetry} accessibilityRole="button" hitSlop={8}>
-            <Text style={styles.retry}>{t('opesCore.common.retry')}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <Card variant="flush">
+        <View style={styles.state}>
+          <Icon name="alert-circle" size={20} color={colors.statusWarning} />
+          <Text style={styles.stateText}>{message}</Text>
+          {!!onRetry && !isRoleForbidden(error) && (
+            <TouchableOpacity onPress={onRetry} accessibilityRole="button" hitSlop={8}>
+              <Text style={styles.retry}>{t('opesCore.common.retry')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </Card>
     );
   } else if (rows.length === 0) {
     body = (
-      <View style={styles.state}>
-        <Icon name="users" size={20} color={colors.textMuted} />
-        <Text style={styles.stateText}>{t('desk.providers.empty')}</Text>
-      </View>
+      <Card variant="flush">
+        <View style={styles.state}>
+          <Icon name="users" size={20} color={colors.textMuted} />
+          <Text style={styles.stateText}>{t('desk.providers.empty')}</Text>
+        </View>
+      </Card>
     );
   } else {
-    body = rows.map((p, i) => (
-      <Option
-        key={p.id}
-        title={providerLabel(t, p)}
-        subtitle={providerRoleLabel(t, p)}
-        icon="stethoscope"
-        selected={value === p.id}
-        divider={i < rows.length - 1}
-        disabled={disabled}
-        onPress={() => onChange(p.id)}
-      />
+    body = rows.map((p) => (
+      <Card key={p.id} variant="flush">
+        <Option
+          title={providerLabel(t, p)}
+          subtitle={providerRoleLabel(t, p)}
+          icon="stethoscope"
+          selected={value === p.id}
+          disabled={disabled}
+          onPress={() => onChange(p.id)}
+        />
+      </Card>
     ));
   }
 
   return (
-    <Card variant="flush">
+    <CardStack spacing="sm">
       {allowUnassigned && (
-        <Option
-          title={t('desk.unassigned')}
-          subtitle={t('desk.providers.unassignedHint')}
-          icon="person"
-          selected={value === null}
-          divider
-          disabled={disabled}
-          onPress={() => onChange(null)}
-        />
+        <Card variant="flush">
+          <Option
+            title={t('desk.unassigned')}
+            subtitle={t('desk.providers.unassignedHint')}
+            icon="person"
+            selected={value === null}
+            disabled={disabled}
+            onPress={() => onChange(null)}
+          />
+        </Card>
       )}
       {body}
-    </Card>
+    </CardStack>
   );
 }
 
@@ -161,7 +168,6 @@ function Option({
   subtitle,
   icon,
   selected,
-  divider,
   disabled,
   onPress,
 }: {
@@ -169,7 +175,6 @@ function Option({
   subtitle?: string;
   icon: 'stethoscope' | 'person';
   selected: boolean;
-  divider?: boolean;
   disabled?: boolean;
   onPress: () => void;
 }) {
@@ -183,7 +188,7 @@ function Option({
       accessibilityRole="radio"
       accessibilityState={{ checked: selected, disabled: !!disabled }}
       accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title}
-      style={[styles.option, divider && styles.optionDivider, disabled && styles.optionOff]}
+      style={[styles.option, disabled && styles.optionOff]}
     >
       <View style={[styles.circle, selected && styles.circleOn]}>
         <Icon name={icon} size={18} color={selected ? colors.textOnBrand : colors.blue} />
@@ -212,7 +217,6 @@ const makeStyles = (colors: Palette) =>
       paddingVertical: 12,
       paddingHorizontal: spacing.md,
     },
-    optionDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
     optionOff: { opacity: 0.5 },
     circle: {
       width: 38,

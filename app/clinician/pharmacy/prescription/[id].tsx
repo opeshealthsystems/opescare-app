@@ -33,6 +33,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ListRow,
@@ -97,7 +98,11 @@ function DeskPrescriptionBody() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const dialog = useDialog();
-  const params = useLocalSearchParams<{ id: string; status?: string; health_id?: string }>();
+  const params = useLocalSearchParams<{
+    id: string;
+    status?: string;
+    health_id?: string;
+  }>();
   const id = typeof params.id === 'string' ? params.id : '';
   const statusHint =
     typeof params.status === 'string' && (PRESCRIPTION_QUEUES as readonly string[]).includes(params.status)
@@ -131,21 +136,18 @@ function DeskPrescriptionBody() {
   const [notes, setNotes] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
 
-  const openDispense = useCallback(
-    (p: DeskPrescription) => {
-      const next: Record<string, string> = {};
-      for (const it of p.items) {
-        if (itemIsDone(it)) continue;
-        const q = toNum(it.quantity);
-        next[it.id] = q === null ? '' : String(q);
-      }
-      setQuantities(next);
-      setNotes('');
-      setProblem(null);
-      setDispensing(true);
-    },
-    [],
-  );
+  const openDispense = useCallback((p: DeskPrescription) => {
+    const next: Record<string, string> = {};
+    for (const it of p.items) {
+      if (itemIsDone(it)) continue;
+      const q = toNum(it.quantity);
+      next[it.id] = q === null ? '' : String(q);
+    }
+    setQuantities(next);
+    setNotes('');
+    setProblem(null);
+    setDispensing(true);
+  }, []);
 
   /** Failure → a sheet that says what happened and what to check. */
   const reportFailure = useCallback(
@@ -182,7 +184,9 @@ function DeskPrescriptionBody() {
     (p: DeskPrescription) => {
       dialog.confirm({
         title: t('pharmacyDesk.prescription.readyTitle'),
-        message: t('pharmacyDesk.prescription.readyBody', { patient: patientLine(p.patient) }),
+        message: t('pharmacyDesk.prescription.readyBody', {
+          patient: patientLine(p.patient),
+        }),
         confirmLabel: t('pharmacyDesk.prescription.markReady'),
         onConfirm: async () => {
           try {
@@ -226,7 +230,9 @@ function DeskPrescriptionBody() {
       const body = buildDispenseBody(p);
       if (!body) return;
       dialog.confirm({
-        title: t('pharmacyDesk.dispense.confirmTitle', { patient: patientLine(p.patient) }),
+        title: t('pharmacyDesk.dispense.confirmTitle', {
+          patient: patientLine(p.patient),
+        }),
         message: t('pharmacyDesk.dispense.confirmBody', {
           count: body.items.length,
           patient: patientLine(p.patient),
@@ -242,7 +248,9 @@ function DeskPrescriptionBody() {
             setDispensing(false);
             dialog.alert(
               t('pharmacyDesk.dispense.doneTitle'),
-              t('pharmacyDesk.dispense.doneBody', { patient: patientLine(p.patient) }),
+              t('pharmacyDesk.dispense.doneBody', {
+                patient: patientLine(p.patient),
+              }),
               'success',
             );
           } catch (e) {
@@ -347,7 +355,9 @@ function DeskPrescriptionBody() {
 
         {/* ── Items ────────────────────────────────────────────────────── */}
         <SectionHeader
-          title={t('pharmacyDesk.prescription.items', { count: p.items.length })}
+          title={t('pharmacyDesk.prescription.items', {
+            count: p.items.length,
+          })}
           actionLabel={dispensing ? t('pharmacyDesk.dispense.back') : undefined}
           onAction={dispensing ? () => setDispensing(false) : undefined}
         />
@@ -358,7 +368,7 @@ function DeskPrescriptionBody() {
               const done = itemIsDone(it);
               const prescribed = toNum(it.quantity);
               return (
-                <View key={it.id} style={styles.editItem}>
+                <Card key={it.id} style={styles.editItem}>
                   <View style={styles.editHead}>
                     <Text style={styles.editDrug}>{it.drug_name}</Text>
                     {done && (
@@ -382,14 +392,18 @@ function DeskPrescriptionBody() {
                       placeholder={
                         prescribed === null
                           ? t('pharmacyDesk.dispense.qtyPlaceholder')
-                          : t('pharmacyDesk.dispense.qtyPrescribed', { count: formatNumber(prescribed) })
+                          : t('pharmacyDesk.dispense.qtyPrescribed', {
+                              count: formatNumber(prescribed),
+                            })
                       }
                       keyboardType="number-pad"
                       maxLength={5}
-                      accessibilityLabel={t('pharmacyDesk.dispense.qtyLabel', { drug: it.drug_name })}
+                      accessibilityLabel={t('pharmacyDesk.dispense.qtyLabel', {
+                        drug: it.drug_name,
+                      })}
                     />
                   )}
-                </View>
+                </Card>
               );
             })}
             <Text style={styles.fieldLabel}>{t('pharmacyDesk.dispense.notesLabel')}</Text>
@@ -429,34 +443,36 @@ function DeskPrescriptionBody() {
             </View>
           </Card>
         ) : (
-          <Card variant="flush">
+          <CardStack spacing="sm">
             {p.items.length === 0 ? (
-              <Text style={[styles.note, styles.padded]}>{t('pharmacyDesk.prescription.noItems')}</Text>
+              <Card variant="flush">
+                <Text style={[styles.note, styles.padded]}>{t('pharmacyDesk.prescription.noItems')}</Text>
+              </Card>
             ) : (
-              p.items.map((it, i, arr) => (
-                <ListRow
-                  key={it.id}
-                  icon="pill"
-                  tint={itemIsDone(it) ? 'green' : 'blue'}
-                  title={it.drug_name}
-                  meta={[itemMeta(it, t)]}
-                  subtitleLines={3}
-                  trailing={
-                    it.status ? (
-                      <StatusBadge
-                        status={it.status}
-                        label={itemStatusLabel(it, t)}
-                        tone={itemIsDone(it) ? 'normal' : 'pending'}
-                        size="sm"
-                      />
-                    ) : undefined
-                  }
-                  divider={i < arr.length - 1}
-                  chevron={false}
-                />
+              p.items.map((it) => (
+                <Card key={it.id} variant="flush">
+                  <ListRow
+                    icon="pill"
+                    tint={itemIsDone(it) ? 'green' : 'blue'}
+                    title={it.drug_name}
+                    meta={[itemMeta(it, t)]}
+                    subtitleLines={3}
+                    trailing={
+                      it.status ? (
+                        <StatusBadge
+                          status={it.status}
+                          label={itemStatusLabel(it, t)}
+                          tone={itemIsDone(it) ? 'normal' : 'pending'}
+                          size="sm"
+                        />
+                      ) : undefined
+                    }
+                    chevron={false}
+                  />
+                </Card>
               ))
             )}
-          </Card>
+          </CardStack>
         )}
 
         {/* ── Actions by stage ─────────────────────────────────────────── */}
@@ -471,11 +487,7 @@ function DeskPrescriptionBody() {
               />
             )}
             {stage === null && (
-              <NoticeBanner
-                icon="info"
-                tone="pending"
-                message={t('pharmacyDesk.prescription.stageUnknownBody')}
-              />
+              <NoticeBanner icon="info" tone="pending" message={t('pharmacyDesk.prescription.stageUnknownBody')} />
             )}
             {(canAccept || canReady || canDispense) && (
               <View style={styles.actionsStack}>
@@ -561,8 +573,17 @@ function itemStatusLabel(it: DeskPrescriptionItem, t: (key: string) => string): 
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, paddingBottom: spacing.xxl, gap: spacing.md },
-    titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      paddingBottom: spacing.xxl,
+      gap: spacing.md,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+    },
     titleText: { flex: 1, minWidth: 0 },
     title: {
       fontFamily: typography.fontFamily.bold,
@@ -576,7 +597,11 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.sm,
       color: colors.textSecondary,
     },
-    divider: { height: 1, backgroundColor: colors.divider, marginVertical: spacing.sm },
+    divider: {
+      height: 1,
+      backgroundColor: colors.divider,
+      marginVertical: spacing.sm,
+    },
     note: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
@@ -594,12 +619,14 @@ const makeStyles = (colors: Palette) =>
     },
     multiline: { minHeight: 64, textAlignVertical: 'top' },
     editItem: {
-      paddingTop: spacing.sm + 4,
       marginTop: spacing.sm,
-      borderTopWidth: 1,
-      borderTopColor: colors.divider,
     },
-    editHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+    editHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
     editDrug: {
       flex: 1,
       minWidth: 0,

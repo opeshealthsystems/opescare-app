@@ -93,10 +93,7 @@ const EMPTY: Record<Folder, { title: [string, string]; message: [string, string]
   },
   all: {
     title: ['messages.emptyAllTitle', 'No conversations yet'],
-    message: [
-      'messages.emptyAllBody',
-      'When a patient or a colleague writes to you, the conversation appears here.',
-    ],
+    message: ['messages.emptyAllBody', 'When a patient or a colleague writes to you, the conversation appears here.'],
   },
   archived: {
     title: ['messages.emptyArchivedTitle', 'No archived conversations'],
@@ -138,12 +135,9 @@ function DoctorMessagesScreenBody() {
   const tx = useCallback(
     (key: string, defaultValue: string, params?: Record<string, unknown>) =>
       String(t(`opesDoctor.${key}`, { defaultValue, ...params })),
-    [t]
+    [t],
   );
-  const tr = useCallback<Translate>(
-    (key, params) => String(t(key, params as Record<string, unknown>)),
-    [t]
-  );
+  const tr = useCallback<Translate>((key, params) => String(t(key, params as Record<string, unknown>)), [t]);
 
   const [folder, setFolder] = useState<Folder>('waiting');
 
@@ -173,13 +167,10 @@ function DoctorMessagesScreenBody() {
       // `counts.refetch` is stable for the life of the query observer; listing
       // it would re-arm the effect on every render of a polled query.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [refetch])
+    }, [refetch]),
   );
 
-  const folderOptions = useMemo(
-    () => FOLDERS.map((key) => ({ key, label: tx(...FOLDER_LABEL[key]) })),
-    [tx]
-  );
+  const folderOptions = useMemo(() => FOLDERS.map((key) => ({ key, label: tx(...FOLDER_LABEL[key]) })), [tx]);
 
   // `useDoctorThreads` answers the contract's paginated envelope
   // (`DoctorPage<T>` = { data, meta.pagination }) — the rows are one level in.
@@ -229,7 +220,7 @@ function DoctorMessagesScreenBody() {
           notServed
             ? tx(
                 'shared.notServedMessages',
-                'Your patient and colleague conversations will appear here once the clinician service is enabled for this app.'
+                'Your patient and colleague conversations will appear here once the clinician service is enabled for this app.',
               )
             : describeFailure(threads.error).message
         }
@@ -239,12 +230,7 @@ function DoctorMessagesScreenBody() {
     );
   } else if (rows.length === 0) {
     body = (
-      <EmptyState
-        icon="chat"
-        tint="blue"
-        title={tx(...EMPTY[folder].title)}
-        message={tx(...EMPTY[folder].message)}
-      />
+      <EmptyState icon="chat" tint="blue" title={tx(...EMPTY[folder].title)} message={tx(...EMPTY[folder].message)} />
     );
   } else {
     body = (
@@ -253,7 +239,6 @@ function DoctorMessagesScreenBody() {
           <Card key={thread.id} variant="flush">
             <ThreadRow
               thread={thread}
-              divider={false}
               styles={styles}
               tx={tx}
               onPress={() => router.push(doctorRoutes.thread(thread.id))}
@@ -301,13 +286,11 @@ function DoctorMessagesScreenBody() {
  */
 function ThreadRow({
   thread,
-  divider,
   styles,
   tx,
   onPress,
 }: {
   thread: DoctorThread;
-  divider: boolean;
   styles: ReturnType<typeof makeStyles>;
   tx: (key: string, defaultValue: string, params?: Record<string, unknown>) => string;
   onPress: () => void;
@@ -320,7 +303,7 @@ function ThreadRow({
   // a colleague thread by the plain word. Neither is invented when absent.
   const who =
     thread.kind === 'patient'
-      ? thread.patient_health_id ?? tx('messages.metaPatient', 'Patient')
+      ? (thread.patient_health_id ?? tx('messages.metaPatient', 'Patient'))
       : tx('messages.metaColleague', 'Colleague');
 
   return (
@@ -339,22 +322,15 @@ function ThreadRow({
         </View>
       }
       onPress={onPress}
-      divider={divider}
       style={unread ? styles.rowUnread : undefined}
     />
   );
 }
 
 /** Who this conversation is with, from the clinician's seat. */
-function counterpart(
-  thread: DoctorThread,
-  tx: (key: string, defaultValue: string) => string
-): string {
+function counterpart(thread: DoctorThread, tx: (key: string, defaultValue: string) => string): string {
   return (
-    thread.counterpart_name ??
-    thread.patient_name ??
-    thread.subject ??
-    tx('messages.conversation', 'Conversation')
+    thread.counterpart_name ?? thread.patient_name ?? thread.subject ?? tx('messages.conversation', 'Conversation')
   );
 }
 
@@ -362,7 +338,11 @@ const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
     tabs: { marginHorizontal: spacing.md },
-    content: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.md },
+    content: {
+      padding: spacing.md,
+      paddingBottom: spacing.xxl,
+      gap: spacing.md,
+    },
 
     rowUnread: { backgroundColor: colors.tintBlueBg },
     trailing: { alignItems: 'flex-end', gap: spacing.xs },

@@ -175,13 +175,7 @@ export function DeskStatusBadge({ status, size = 'md' }: { status: string; size?
  * them. `Unassigned` is a badge, not a blank — an unrouted row is something to
  * act on, and it must be visible as such.
  */
-export function DeskAppointmentRow({
-  appointment: a,
-  onPress,
-}: {
-  appointment: DeskAppointment;
-  onPress: () => void;
-}) {
+export function DeskAppointmentRow({ appointment: a, onPress }: { appointment: DeskAppointment; onPress: () => void }) {
   const { t } = useTranslation();
   const { colors, tintMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -274,8 +268,20 @@ export function DeskTiles({
   const { colors, tintMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const tiles: { key: DeskStatusFamily | 'all'; label: string; value: number; tint: Tint; icon: IconName }[] = [
-    { key: 'all', label: t('desk.tiles.today'), value: counts.today_total, tint: 'blue', icon: 'calendar' },
+  const tiles: {
+    key: DeskStatusFamily | 'all';
+    label: string;
+    value: number;
+    tint: Tint;
+    icon: IconName;
+  }[] = [
+    {
+      key: 'all',
+      label: t('desk.tiles.today'),
+      value: counts.today_total,
+      tint: 'blue',
+      icon: 'calendar',
+    },
     {
       key: 'awaiting',
       label: t('desk.tiles.awaiting'),
@@ -283,9 +289,27 @@ export function DeskTiles({
       tint: 'amber',
       icon: 'clock',
     },
-    { key: 'checked_in', label: t('desk.tiles.checkedIn'), value: counts.checked_in, tint: 'purple', icon: 'location' },
-    { key: 'no_show', label: t('desk.tiles.noShow'), value: counts.no_show, tint: 'amber', icon: 'alert-circle' },
-    { key: 'cancelled', label: t('desk.tiles.cancelled'), value: counts.cancelled, tint: 'red', icon: 'x-circle' },
+    {
+      key: 'checked_in',
+      label: t('desk.tiles.checkedIn'),
+      value: counts.checked_in,
+      tint: 'purple',
+      icon: 'location',
+    },
+    {
+      key: 'no_show',
+      label: t('desk.tiles.noShow'),
+      value: counts.no_show,
+      tint: 'amber',
+      icon: 'alert-circle',
+    },
+    {
+      key: 'cancelled',
+      label: t('desk.tiles.cancelled'),
+      value: counts.cancelled,
+      tint: 'red',
+      icon: 'x-circle',
+    },
   ];
 
   return (
@@ -391,25 +415,19 @@ export function FactRow({
   tint = 'blue',
   label,
   value,
-  divider,
   trailing,
 }: {
   icon: IconName;
   tint?: Tint;
   label: string;
   value: string;
-  divider?: boolean;
   trailing?: React.ReactNode;
 }) {
   const { colors, tintMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const skin = tintMap[tint];
   return (
-    <View
-      style={[styles.fact, divider && styles.factDivider]}
-      accessible
-      accessibilityLabel={`${label}, ${value}`}
-    >
+    <View style={styles.fact} accessible accessibilityLabel={`${label}, ${value}`}>
       <View style={styles.factCircle}>
         <Icon name={icon} size={26} color={skin.fg} />
       </View>
@@ -437,7 +455,10 @@ const makeStyles = (colors: Palette) =>
       paddingHorizontal: 4,
       alignItems: 'center',
     },
-    timeText: { fontFamily: typography.fontFamily.bold, fontSize: typography.size.sm },
+    timeText: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.sm,
+    },
     body: { flex: 1, minWidth: 0, gap: 2 },
     name: {
       fontFamily: typography.fontFamily.semiBold,
@@ -450,14 +471,25 @@ const makeStyles = (colors: Palette) =>
       letterSpacing: 0.4,
       color: colors.textMuted,
     },
-    typeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+    typeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 2,
+    },
     type: {
       flex: 1,
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.sm,
       color: colors.textSecondary,
     },
-    whoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, minHeight: 20 },
+    whoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 4,
+      minHeight: 20,
+    },
     who: {
       flex: 1,
       fontFamily: typography.fontFamily.medium,
@@ -490,7 +522,11 @@ const makeStyles = (colors: Palette) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    tileValue: { fontFamily: typography.fontFamily.bold, fontSize: typography.size.xl, marginTop: 2 },
+    tileValue: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xl,
+      marginTop: 2,
+    },
     tileLabel: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
@@ -517,9 +553,19 @@ const makeStyles = (colors: Palette) =>
       color: colors.textMuted,
     },
 
-    fact: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4, paddingVertical: spacing.sm + 2 },
-    factDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
-    factCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+    fact: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+      paddingVertical: spacing.sm + 2,
+    },
+    factCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     factText: { flex: 1, minWidth: 0, gap: 1 },
     factLabel: {
       fontFamily: typography.fontFamily.regular,

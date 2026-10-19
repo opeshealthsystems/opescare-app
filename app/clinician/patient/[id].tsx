@@ -81,6 +81,7 @@ import { useStaffCapability } from '@/lib/staffCapabilities';
 import type { UseQueryResult } from '@tanstack/react-query';
 import {
   Card,
+  CardStack,
   EmptyState,
   LastUpdatedLine,
   ListRow,
@@ -176,7 +177,11 @@ function PatientChartScreenBody() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const { id, followUp, orderLab } = useLocalSearchParams<{ id: string; followUp?: string; orderLab?: string }>();
+  const { id, followUp, orderLab } = useLocalSearchParams<{
+    id: string;
+    followUp?: string;
+    orderLab?: string;
+  }>();
   const patientId = typeof id === 'string' && id.length > 0 ? id : undefined;
 
   // ── Book follow-up ──────────────────────────────────────────────────────
@@ -201,12 +206,9 @@ function PatientChartScreenBody() {
 
   const tx = useCallback<Tx>(
     (key, defaultValue, params) => String(t(`opesDoctor.${key}`, { defaultValue, ...params })),
-    [t]
+    [t],
   );
-  const tr = useCallback<Translate>(
-    (key, params) => String(t(key, params as Record<string, unknown>)),
-    [t]
-  );
+  const tr = useCallback<Translate>((key, params) => String(t(key, params as Record<string, unknown>)), [t]);
 
   const identity = useChartPatient(patientId);
   const allergies = useChartAllergies(patientId);
@@ -258,9 +260,7 @@ function PatientChartScreenBody() {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={reloadAll} tintColor={colors.blue} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reloadAll} tintColor={colors.blue} />}
       >
         {identityDead ? (
           <DeadChart
@@ -284,11 +284,7 @@ function PatientChartScreenBody() {
             </ChartBoundary>
 
             {/* ---- Allergies. First after identity, and unmissable. ---- */}
-            <AllergyBlock
-              state={chartState(allergies)}
-              limit={PREVIEW}
-              onViewAll={() => openSection('allergies')}
-            />
+            <AllergyBlock state={chartState(allergies)} limit={PREVIEW} onViewAll={() => openSection('allergies')} />
 
             {/* ---- Everything else ------------------------------------ */}
             <ChartBoundary<ChartSummary>
@@ -298,17 +294,9 @@ function PatientChartScreenBody() {
               {(s) => (
                 <>
                   <ProblemsSection summary={s} onViewAll={() => openSection('diagnoses')} tx={tx} />
-                  <MedicationsSection
-                    summary={s}
-                    onViewAll={() => openSection('medications')}
-                    tx={tx}
-                  />
+                  <MedicationsSection summary={s} onViewAll={() => openSection('medications')} tx={tx} />
                   <VitalsSection summary={s} onViewAll={() => openSection('vitals')} tx={tx} />
-                  <EncountersSection
-                    summary={s}
-                    onViewAll={() => openSection('encounters')}
-                    tx={tx}
-                  />
+                  <EncountersSection summary={s} onViewAll={() => openSection('encounters')} tx={tx} />
                   <OrdersSection summary={s} onViewAll={() => openSection('labs')} tx={tx} />
                 </>
               )}
@@ -318,9 +306,7 @@ function PatientChartScreenBody() {
                 reach on their own (allergies in full, and imaging). */}
             <SectionIndex onOpen={openSection} tx={tx} />
 
-            <LastUpdatedLine
-              loadedAt={summary.dataUpdatedAt ? new Date(summary.dataUpdatedAt) : null}
-            />
+            <LastUpdatedLine loadedAt={summary.dataUpdatedAt ? new Date(summary.dataUpdatedAt) : null} />
           </>
         )}
 
@@ -396,7 +382,7 @@ function DeadChart({
         title={tx('chart.noIdTitle', 'No Health ID in this link')}
         message={tx(
           'chart.noIdBody',
-          'A chart is opened with a patient’s Health ID. Look the patient up again from the Patients tab.'
+          'A chart is opened with a patient’s Health ID. Look the patient up again from the Patients tab.',
         )}
       />
     );
@@ -415,7 +401,7 @@ function DeadChart({
         notServed
           ? tx(
               'shared.notServedChart',
-              'Patient charts will appear here once the clinician service is enabled for this app. Nothing on this screen is a statement about the patient’s record.'
+              'Patient charts will appear here once the clinician service is enabled for this app. Nothing on this screen is a statement about the patient’s record.',
             )
           : (message ?? tx('chart.loadFailed', 'The chart could not be read.'))
       }
@@ -466,7 +452,7 @@ function IdentityCard({ patient: p, tx }: { patient: ChartPatient; tx: Tx }) {
             title={tx('chart.careBasisTitle', 'Open on your care relationship')}
             message={tx(
               'chart.careBasisBody',
-              'You can see this record because you are treating this patient, not because they granted your facility standing access. Ask for a consent grant if you need it beyond this episode.'
+              'You can see this record because you are treating this patient, not because they granted your facility standing access. Ask for a consent grant if you need it beyond this episode.',
             )}
           />
           {canRequestAccess && (
@@ -485,7 +471,9 @@ function IdentityCard({ patient: p, tx }: { patient: ChartPatient; tx: Tx }) {
         <Text style={styles.healthId}>{p.health_id}</Text>
         {!!p.medical_id && (
           <Text style={styles.mrn}>
-            {tx('chart.facilityRecord', 'Facility record {{mrn}}', { mrn: p.medical_id })}
+            {tx('chart.facilityRecord', 'Facility record {{mrn}}', {
+              mrn: p.medical_id,
+            })}
           </Text>
         )}
 
@@ -542,7 +530,14 @@ function SectionShell({
   return (
     <View style={styles.section}>
       <SectionHeader
-        title={count > 0 ? tx('section.groupCount', '{{label}} ({{count}})', { label: title, count }) : title}
+        title={
+          count > 0
+            ? tx('section.groupCount', '{{label}} ({{count}})', {
+                label: title,
+                count,
+              })
+            : title
+        }
         onAction={onViewAll}
         actionLabel={tx('chart.viewAll', 'View All')}
         actionChevron
@@ -558,15 +553,7 @@ function SectionShell({
   );
 }
 
-function ProblemsSection({
-  summary,
-  onViewAll,
-  tx,
-}: {
-  summary: ChartSummary;
-  onViewAll: () => void;
-  tx: Tx;
-}) {
+function ProblemsSection({ summary, onViewAll, tx }: { summary: ChartSummary; onViewAll: () => void; tx: Tx }) {
   // "Active problems" means active. Resolved and inactive entries are history
   // and belong on the full section screen, not in the doctor's first glance.
   const active = summary.problems.filter((p) => p.status === 'active');
@@ -582,7 +569,7 @@ function ProblemsSection({
         summary.problems.length > 0
           ? tx(
               'chart.problemsEmptyOthers',
-              'No active problems. There are inactive or resolved entries on the problem list.'
+              'No active problems. There are inactive or resolved entries on the problem list.',
             )
           : tx('chart.problemsEmpty', 'The problem list is empty.')
       }
@@ -597,19 +584,13 @@ function ProblemsSection({
               meta={[
                 p.icd10_code,
                 fmtChartDate(p.onset_date)
-                  ? tx('chart.onset', 'Onset {{date}}', { date: fmtChartDate(p.onset_date) as string })
+                  ? tx('chart.onset', 'Onset {{date}}', {
+                      date: fmtChartDate(p.onset_date) as string,
+                    })
                   : null,
               ]}
-              trailing={
-                <StatusBadge
-                  status={p.status}
-                  label={problemStatusLabel(p.status)}
-                  tone="warning"
-                  size="sm"
-                />
-              }
+              trailing={<StatusBadge status={p.status} label={problemStatusLabel(p.status)} tone="warning" size="sm" />}
               chevron={false}
-              divider={false}
             />
           </Card>
         ))}
@@ -618,15 +599,7 @@ function ProblemsSection({
   );
 }
 
-function MedicationsSection({
-  summary,
-  onViewAll,
-  tx,
-}: {
-  summary: ChartSummary;
-  onViewAll: () => void;
-  tx: Tx;
-}) {
+function MedicationsSection({ summary, onViewAll, tx }: { summary: ChartSummary; onViewAll: () => void; tx: Tx }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const active = summary.prescriptions.items.filter((m) => m.status === 'active');
@@ -658,7 +631,7 @@ function MedicationsSection({
             {tx(
               'chart.medsEmpty',
               'No active prescriptions in the {{scan}} most recent encounters. Older or non-active prescriptions may exist — open the full list.',
-              { scan: OVERVIEW_ENCOUNTER_SCAN }
+              { scan: OVERVIEW_ENCOUNTER_SCAN },
             )}
           </Text>
         </Card>
@@ -672,15 +645,9 @@ function MedicationsSection({
                 title={m.drug_name}
                 meta={[m.dosage, m.frequency, routeLabel(m.route) || null]}
                 trailing={
-                  <StatusBadge
-                    status={m.status}
-                    label={prescriptionStatusLabel(m.status)}
-                    tone="normal"
-                    size="sm"
-                  />
+                  <StatusBadge status={m.status} label={prescriptionStatusLabel(m.status)} tone="normal" size="sm" />
                 }
                 chevron={false}
-                divider={false}
               />
             </Card>
           ))}
@@ -690,15 +657,7 @@ function MedicationsSection({
   );
 }
 
-function VitalsSection({
-  summary,
-  onViewAll,
-  tx,
-}: {
-  summary: ChartSummary;
-  onViewAll: () => void;
-  tx: Tx;
-}) {
+function VitalsSection({ summary, onViewAll, tx }: { summary: ChartSummary; onViewAll: () => void; tx: Tx }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
@@ -715,7 +674,7 @@ function VitalsSection({
           <Text style={styles.failed}>
             {tx(
               'chart.vitalsFailed',
-              'Vitals could not be read for any recent encounter. This is a failure to load, not a record with no vitals — pull down to retry.'
+              'Vitals could not be read for any recent encounter. This is a failure to load, not a record with no vitals — pull down to retry.',
             )}
           </Text>
         </Card>
@@ -734,15 +693,7 @@ function VitalsSection({
   );
 }
 
-function EncountersSection({
-  summary,
-  onViewAll,
-  tx,
-}: {
-  summary: ChartSummary;
-  onViewAll: () => void;
-  tx: Tx;
-}) {
+function EncountersSection({ summary, onViewAll, tx }: { summary: ChartSummary; onViewAll: () => void; tx: Tx }) {
   const shown = summary.encounters.slice(0, PREVIEW);
 
   return (
@@ -761,11 +712,8 @@ function EncountersSection({
               tint={encounterTint(e.encounter_type)}
               title={e.chief_complaint || encounterTypeLabel(e.encounter_type)}
               meta={[fmtChartDate(e.encounter_date), encounterTypeLabel(e.encounter_type), e.doctor_name]}
-              trailing={
-                <StatusBadge status={e.status} label={encounterStatusLabel(e.status)} size="sm" />
-              }
+              trailing={<StatusBadge status={e.status} label={encounterStatusLabel(e.status)} size="sm" />}
               chevron={false}
-              divider={false}
             />
           </Card>
         ))}
@@ -774,15 +722,7 @@ function EncountersSection({
   );
 }
 
-function OrdersSection({
-  summary,
-  onViewAll,
-  tx,
-}: {
-  summary: ChartSummary;
-  onViewAll: () => void;
-  tx: Tx;
-}) {
+function OrdersSection({ summary, onViewAll, tx }: { summary: ChartSummary; onViewAll: () => void; tx: Tx }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const orders = summary.orders.items;
@@ -803,11 +743,7 @@ function OrdersSection({
         actionLabel={tx('chart.viewAll', 'View All')}
         actionChevron
       />
-      <IncompleteNotice
-        scan={summary.orders}
-        noun="opesDoctor.chart.nounResults"
-        scanLimit={OVERVIEW_ENCOUNTER_SCAN}
-      />
+      <IncompleteNotice scan={summary.orders} noun="opesDoctor.chart.nounResults" scanLimit={OVERVIEW_ENCOUNTER_SCAN} />
       {orders.length === 0 ? (
         <Card>
           <Text style={styles.empty}>
@@ -825,14 +761,10 @@ function OrdersSection({
                 tint={o.status === 'completed' ? 'green' : 'blue'}
                 title={o.name}
                 subtitle={
-                  o.result_summary ??
-                  metaLine(orderTypeLabel(o.order_type), fmtAgo(o.ordered_at ?? o.created_at))
+                  o.result_summary ?? metaLine(orderTypeLabel(o.order_type), fmtAgo(o.ordered_at ?? o.created_at))
                 }
-                trailing={
-                  <StatusBadge status={o.status} label={orderStatusLabel(o.status)} size="sm" />
-                }
+                trailing={<StatusBadge status={o.status} label={orderStatusLabel(o.status)} size="sm" />}
                 chevron={false}
-                divider={false}
               />
             </Card>
           ))}
@@ -845,46 +777,44 @@ function OrdersSection({
 // ── Section index ─────────────────────────────────────────────────────────
 
 /** Glyph + tint per section. Kit icons only; nothing hand-rolled. */
-const SECTION_MARK: Record<
-  (typeof LINKED_SECTIONS)[number],
-  { icon: IconName; tint: Tint; blurb: [string, string] }
-> = {
-  allergies: {
-    icon: 'alert-triangle',
-    tint: 'red',
-    blurb: ['section.indexAllergies', 'Every recorded allergy, in full'],
-  },
-  diagnoses: {
-    icon: 'clipboard',
-    tint: 'amber',
-    blurb: ['section.indexDiagnoses', 'The problem list and diagnoses coded at recent visits'],
-  },
-  medications: {
-    icon: 'pill',
-    tint: 'green',
-    blurb: ['section.indexMedications', 'Active and past prescriptions, with dose and route'],
-  },
-  vitals: {
-    icon: 'heart-rate',
-    tint: 'blue',
-    blurb: ['section.indexVitals', 'Every recording, against the record’s usual ranges'],
-  },
-  encounters: {
-    icon: 'stethoscope',
-    tint: 'blue',
-    blurb: ['section.indexEncounters', 'Each visit with its subjective, objective, assessment and plan'],
-  },
-  labs: {
-    icon: 'flask',
-    tint: 'green',
-    blurb: ['section.indexLabs', 'Laboratory orders and the values the bench released'],
-  },
-  imaging: {
-    icon: 'image',
-    tint: 'purple',
-    blurb: ['section.indexImaging', 'Imaging orders and their reported findings'],
-  },
-};
+const SECTION_MARK: Record<(typeof LINKED_SECTIONS)[number], { icon: IconName; tint: Tint; blurb: [string, string] }> =
+  {
+    allergies: {
+      icon: 'alert-triangle',
+      tint: 'red',
+      blurb: ['section.indexAllergies', 'Every recorded allergy, in full'],
+    },
+    diagnoses: {
+      icon: 'clipboard',
+      tint: 'amber',
+      blurb: ['section.indexDiagnoses', 'The problem list and diagnoses coded at recent visits'],
+    },
+    medications: {
+      icon: 'pill',
+      tint: 'green',
+      blurb: ['section.indexMedications', 'Active and past prescriptions, with dose and route'],
+    },
+    vitals: {
+      icon: 'heart-rate',
+      tint: 'blue',
+      blurb: ['section.indexVitals', 'Every recording, against the record’s usual ranges'],
+    },
+    encounters: {
+      icon: 'stethoscope',
+      tint: 'blue',
+      blurb: ['section.indexEncounters', 'Each visit with its subjective, objective, assessment and plan'],
+    },
+    labs: {
+      icon: 'flask',
+      tint: 'green',
+      blurb: ['section.indexLabs', 'Laboratory orders and the values the bench released'],
+    },
+    imaging: {
+      icon: 'image',
+      tint: 'purple',
+      blurb: ['section.indexImaging', 'Imaging orders and their reported findings'],
+    },
+  };
 
 /**
  * Every section of the chart, as one list.
@@ -893,31 +823,25 @@ const SECTION_MARK: Record<
  * have no preview header of their own. A section reachable only by typing a
  * URL is a section that does not exist, so all seven are listed here.
  */
-function SectionIndex({
-  onOpen,
-  tx,
-}: {
-  onOpen: (section: PatientChartSectionName) => void;
-  tx: Tx;
-}) {
+function SectionIndex({ onOpen, tx }: { onOpen: (section: PatientChartSectionName) => void; tx: Tx }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.section}>
       <SectionHeader title={tx('section.indexTitle', 'Open a section')} variant="overline" />
-      <Card variant="flush">
-        {LINKED_SECTIONS.map((s, i) => (
-          <ListRow
-            key={s}
-            icon={SECTION_MARK[s].icon}
-            tint={SECTION_MARK[s].tint}
-            title={chartSectionTitle(s)}
-            subtitle={tx(...SECTION_MARK[s].blurb)}
-            onPress={() => onOpen(s)}
-            divider={i < LINKED_SECTIONS.length - 1}
-          />
+      <CardStack spacing="sm">
+        {LINKED_SECTIONS.map((s) => (
+          <Card key={s} variant="flush">
+            <ListRow
+              icon={SECTION_MARK[s].icon}
+              tint={SECTION_MARK[s].tint}
+              title={chartSectionTitle(s)}
+              subtitle={tx(...SECTION_MARK[s].blurb)}
+              onPress={() => onOpen(s)}
+            />
+          </Card>
         ))}
-      </Card>
+      </CardStack>
     </View>
   );
 }
@@ -925,7 +849,12 @@ function SectionIndex({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, paddingBottom: spacing.xxl, gap: spacing.md },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      paddingBottom: spacing.xxl,
+      gap: spacing.md,
+    },
 
     name: {
       fontFamily: typography.fontFamily.bold,
@@ -944,7 +873,12 @@ const makeStyles = (colors: Palette) =>
       color: colors.textMuted,
       marginTop: 2,
     },
-    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md - 4 },
+    chips: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginTop: spacing.md - 4,
+    },
     fact: {
       backgroundColor: colors.surfaceMuted,
       borderRadius: radii.sm,
@@ -952,7 +886,11 @@ const makeStyles = (colors: Palette) =>
       paddingVertical: 6,
       minWidth: 78,
     },
-    factLabel: { fontFamily: typography.fontFamily.regular, fontSize: 10, color: colors.textMuted },
+    factLabel: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: 10,
+      color: colors.textMuted,
+    },
     factValue: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.sm,

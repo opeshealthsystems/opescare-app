@@ -41,18 +41,13 @@
  * Locale files are not edited here.
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  RefreshControl,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import { RefreshControl, StyleSheet, Switch, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SignOutSheet } from '@/components/auth/SignOutSheet';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   EmptyState,
   GradientButton,
   Icon,
@@ -69,13 +64,7 @@ import {
   type Palette,
   type StatusTone,
 } from '@/components/opes-ui';
-import {
-  CareButton,
-  LoadingBlock,
-  describeFailure,
-  fmtMoney,
-  type Translate,
-} from '@/components/care/shared';
+import { CareButton, LoadingBlock, describeFailure, fmtMoney, type Translate } from '@/components/care/shared';
 // ── Doctor foundation (owned by the foundation agent) ─────────────────────
 import {
   useDoctorMe,
@@ -113,9 +102,7 @@ import {
 function writeFailureMessage(t: Translate, e: unknown, checkHint: string): string {
   const f = describeFailure(e);
   const outcomeUnknown = f.kind === 'timeout' || f.kind === 'server' || f.kind === 'unknown';
-  return outcomeUnknown
-    ? t('opesCore.errors.unknownOutcome', { message: f.message, checkHint })
-    : f.message;
+  return outcomeUnknown ? t('opesCore.errors.unknownOutcome', { message: f.message, checkHint }) : f.message;
 }
 
 /**
@@ -208,12 +195,9 @@ export default function DoctorProfileScreen() {
   const tx = useCallback(
     (key: string, defaultValue: string, p?: Record<string, unknown>) =>
       String(t(`opesDoctor.${key}`, { defaultValue, ...p })),
-    [t]
+    [t],
   );
-  const tr = useCallback<Translate>(
-    (key, p) => String(t(key, p as Record<string, unknown>)),
-    [t]
-  );
+  const tr = useCallback<Translate>((key, p) => String(t(key, p as Record<string, unknown>)), [t]);
 
   /**
    * `users.role` → a word. A role the catalogue does not name is "Staff",
@@ -225,7 +209,7 @@ export default function DoctorProfileScreen() {
       const hit = String(t(`opesDoctor.profile.role.${role}`, { defaultValue: '' }));
       return hit || tx('profile.roleFallback', 'Staff');
     },
-    [t, tx]
+    [t, tx],
   );
 
   const licenseLabel = useCallback(
@@ -234,18 +218,20 @@ export default function DoctorProfileScreen() {
       const hit = String(t(`opesDoctor.profile.license.${status}`, { defaultValue: '' }));
       return hit || tx('profile.licenseFallback', 'On record');
     },
-    [t, tx]
+    [t, tx],
   );
 
   /** A known code is named; an unknown one is shown as the server sent it. */
   const languageLabel = useCallback(
     (code: string): string => {
       const hit = String(
-        t(`opesDoctor.profile.langName.${code.toLowerCase()}`, { defaultValue: '' })
+        t(`opesDoctor.profile.langName.${code.toLowerCase()}`, {
+          defaultValue: '',
+        }),
       );
       return hit || code;
     },
-    [t]
+    [t],
   );
 
   const me = useDoctorMe();
@@ -279,7 +265,7 @@ export default function DoctorProfileScreen() {
       if (!editing) void profileQuery.refetch();
       // The two `refetch`s are stable for the life of their query observers.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [editing])
+    }, [editing]),
   );
 
   // ── Edit ────────────────────────────────────────────────────────────────
@@ -291,7 +277,7 @@ export default function DoctorProfileScreen() {
 
   const setField = useCallback(
     (key: keyof EditForm) => (value: string) => setForm((f) => ({ ...f, [key]: value })),
-    []
+    [],
   );
 
   const save = useCallback(async () => {
@@ -306,12 +292,9 @@ export default function DoctorProfileScreen() {
         writeFailureMessage(
           tr,
           e,
-          tx(
-            'profile.saveCheckHint',
-            'Open your profile again to see whether your changes were saved.'
-          )
+          tx('profile.saveCheckHint', 'Open your profile again to see whether your changes were saved.'),
         ),
-        'critical'
+        'critical',
       );
       // Stay in edit mode: nothing typed is lost and one more tap retries.
     }
@@ -349,29 +332,27 @@ export default function DoctorProfileScreen() {
         // language whatever the phone asked for — the code is what lets it be
         // said in the clinician's.
         const code = facilitySwitchErrorCode(e);
-        const namedByCode = code
-          ? String(t(`opesDoctor.serverErrors.${code}`, { defaultValue: '' }))
-          : '';
+        const namedByCode = code ? String(t(`opesDoctor.serverErrors.${code}`, { defaultValue: '' })) : '';
 
         const message = isFacilityNotAssigned(e)
           ? tx(
               'facility.refusedNotAssigned',
               'You no longer have an active posting at {{name}}. Your session has not changed.',
-              { name: facility.name }
+              { name: facility.name },
             )
           : isFacilitySuspended(e)
             ? tx(
                 'facility.refusedSuspended',
                 '{{name}} is suspended and cannot be used. Your session has not changed.',
-                { name: facility.name }
+                { name: facility.name },
               )
             : namedByCode ||
               facilitySwitchErrorMessage(
                 e,
                 tx(
                   'facility.refusedUnknown',
-                  'Your facility could not be changed. Check your connection and open this screen again to see which facility you are acting as.'
-                )
+                  'Your facility could not be changed. Check your connection and open this screen again to see which facility you are acting as.',
+                ),
               );
 
         dialog.alert(tx('facility.refusedTitle', 'Facility not changed'), message, 'critical');
@@ -380,7 +361,7 @@ export default function DoctorProfileScreen() {
         setSwitchingTo(null);
       }
     },
-    [switchFacility, me, profileQuery, facilitiesQuery, dialog, tx, t]
+    [switchFacility, me, profileQuery, facilitiesQuery, dialog, tx, t],
   );
 
   const confirmSwitch = useCallback(
@@ -388,18 +369,20 @@ export default function DoctorProfileScreen() {
       if (facility.is_current || facility.status === 'suspended') return;
 
       dialog.confirm({
-        title: tx('facility.confirmTitle', 'Act as {{name}}?', { name: facility.name }),
+        title: tx('facility.confirmTitle', 'Act as {{name}}?', {
+          name: facility.name,
+        }),
         message: tx(
           'facility.confirmMessage',
           'This ends your current session and starts a new one at {{name}}. Everything on this device — patients, diary, results — will reload for that facility.',
-          { name: facility.name }
+          { name: facility.name },
         ),
         confirmLabel: tx('facility.confirmCta', 'Switch facility'),
         cancelLabel: tx('facility.confirmCancel', 'Stay here'),
         onConfirm: () => runSwitch(facility),
       });
     },
-    [dialog, tx, runSwitch]
+    [dialog, tx, runSwitch],
   );
 
   // ── Sign out ────────────────────────────────────────────────────────────
@@ -457,7 +440,7 @@ export default function DoctorProfileScreen() {
             notServed
               ? tx(
                   'shared.notServedProfile',
-                  'Your clinician account and professional profile will appear here once the clinician service is enabled for this app.'
+                  'Your clinician account and professional profile will appear here once the clinician service is enabled for this app.',
                 )
               : describeFailure(me.error).message
           }
@@ -475,9 +458,7 @@ export default function DoctorProfileScreen() {
         name={displayName}
         verified={licenceStatus === 'active'}
         statusLabel={
-          me.data?.is_active === false
-            ? tx('profile.statusInactive', 'Inactive')
-            : tx('profile.statusActive', 'Active')
+          me.data?.is_active === false ? tx('profile.statusInactive', 'Inactive') : tx('profile.statusActive', 'Active')
         }
         statusTone={me.data?.is_active === false ? 'critical' : 'normal'}
         panel={{
@@ -491,9 +472,7 @@ export default function DoctorProfileScreen() {
               title={tr('profiles.clinician.brand')}
               icon="shield-check"
               tone={profile ? licenseTone(licenceStatus) : 'neutral'}
-              status={
-                profile ? licenseLabel(licenceStatus) : tr('profiles.clinician.licenceNotOnFile')
-              }
+              status={profile ? licenseLabel(licenceStatus) : tr('profiles.clinician.licenceNotOnFile')}
               detail={tr('profiles.clinician.licenceTitle')}
             />
           ),
@@ -517,7 +496,7 @@ export default function DoctorProfileScreen() {
         <Text style={styles.editHint}>
           {tx(
             'profile.editHint',
-            'Update the details colleagues and patients see. The consultation fee and licence are set by the hospital.'
+            'Update the details colleagues and patients see. The consultation fee and licence are set by the hospital.',
           )}
         </Text>
 
@@ -614,7 +593,7 @@ export default function DoctorProfileScreen() {
             notServed
               ? tx(
                   'shared.notServedProfileDetail',
-                  'Your title, specialty, languages and qualifications will appear here once the clinician service is enabled for this app.'
+                  'Your title, specialty, languages and qualifications will appear here once the clinician service is enabled for this app.',
                 )
               : describeFailure(profileQuery.error).message
           }
@@ -627,13 +606,11 @@ export default function DoctorProfileScreen() {
     // `null` is a real answer — no profile created yet — and is NOT a failure.
     professional = (
       <Card>
-        <Text style={styles.emptyTitle}>
-          {tx('profile.noProfileTitle', 'No professional profile yet')}
-        </Text>
+        <Text style={styles.emptyTitle}>{tx('profile.noProfileTitle', 'No professional profile yet')}</Text>
         <Text style={styles.hint}>
           {tx(
             'profile.noProfileBody',
-            'Your professional details have not been set up yet. Add your title, specialty and more so colleagues and patients can see who you are.'
+            'Your professional details have not been set up yet. Add your title, specialty and more so colleagues and patients can see who you are.',
           )}
         </Text>
         <CareButton
@@ -647,12 +624,12 @@ export default function DoctorProfileScreen() {
   } else {
     const years =
       profile.years_experience != null
-        ? tx('profile.experienceYears', '{{count}} years', { count: profile.years_experience })
+        ? tx('profile.experienceYears', '{{count}} years', {
+            count: profile.years_experience,
+          })
         : dash;
-    const languages =
-      profile.languages.length > 0 ? profile.languages.map(languageLabel).join(', ') : dash;
-    const qualifications =
-      profile.qualifications.length > 0 ? profile.qualifications.join(', ') : dash;
+    const languages = profile.languages.length > 0 ? profile.languages.map(languageLabel).join(', ') : dash;
+    const qualifications = profile.qualifications.length > 0 ? profile.qualifications.join(', ') : dash;
     const fee =
       profile.consultation_fee != null && profile.currency
         ? fmtMoney(profile.consultation_fee, profile.currency)
@@ -676,68 +653,76 @@ export default function DoctorProfileScreen() {
           </View>
         </Card>
 
-        <Card variant="flush">
-          <ListRow
-            icon="stethoscope"
-            tint="blue"
-            title={tx('profile.rowSpecialty', 'Specialty')}
-            subtitle={profile.specialty || dash}
-            chevron={false}
-            divider
-          />
-          {!!profile.subspecialty && (
+        <CardStack spacing="sm">
+          <Card variant="flush">
             <ListRow
               icon="stethoscope"
               tint="blue"
-              title={tx('profile.rowSubspecialty', 'Subspecialty')}
-              subtitle={profile.subspecialty}
+              title={tx('profile.rowSpecialty', 'Specialty')}
+              subtitle={profile.specialty || dash}
               chevron={false}
-              divider
             />
+          </Card>
+          {!!profile.subspecialty && (
+            <Card variant="flush">
+              <ListRow
+                icon="stethoscope"
+                tint="blue"
+                title={tx('profile.rowSubspecialty', 'Subspecialty')}
+                subtitle={profile.subspecialty}
+                chevron={false}
+              />
+            </Card>
           )}
-          <ListRow
-            icon="star"
-            tint="amber"
-            title={tx('profile.rowExperience', 'Experience')}
-            subtitle={years}
-            chevron={false}
-            divider
-          />
-          <ListRow
-            icon="globe"
-            tint="green"
-            title={tx('profile.rowLanguages', 'Languages')}
-            subtitle={languages}
-            chevron={false}
-            divider
-          />
-          <ListRow
-            icon="book"
-            tint="purple"
-            title={tx('profile.rowQualifications', 'Qualifications')}
-            subtitle={qualifications}
-            chevron={false}
-            divider
-          />
-          <ListRow
-            icon="location"
-            tint="blue"
-            title={tx('profile.rowRoom', 'Consulting room')}
-            subtitle={profile.room || dash}
-            chevron={false}
-            divider={fee !== null}
-          />
-          {fee !== null && (
+          <Card variant="flush">
             <ListRow
-              icon="credit-card"
-              tint="blue"
-              title={tx('profile.rowFee', 'Consultation fee')}
-              subtitle={fee}
-              value={tx('profile.feeReadOnly', 'Set by the hospital — not editable here.')}
+              icon="star"
+              tint="amber"
+              title={tx('profile.rowExperience', 'Experience')}
+              subtitle={years}
               chevron={false}
             />
+          </Card>
+          <Card variant="flush">
+            <ListRow
+              icon="globe"
+              tint="green"
+              title={tx('profile.rowLanguages', 'Languages')}
+              subtitle={languages}
+              chevron={false}
+            />
+          </Card>
+          <Card variant="flush">
+            <ListRow
+              icon="book"
+              tint="purple"
+              title={tx('profile.rowQualifications', 'Qualifications')}
+              subtitle={qualifications}
+              chevron={false}
+            />
+          </Card>
+          <Card variant="flush">
+            <ListRow
+              icon="location"
+              tint="blue"
+              title={tx('profile.rowRoom', 'Consulting room')}
+              subtitle={profile.room || dash}
+              chevron={false}
+            />
+          </Card>
+          {fee !== null && (
+            <Card variant="flush">
+              <ListRow
+                icon="credit-card"
+                tint="blue"
+                title={tx('profile.rowFee', 'Consultation fee')}
+                subtitle={fee}
+                value={tx('profile.feeReadOnly', 'Set by the hospital — not editable here.')}
+                chevron={false}
+              />
+            </Card>
           )}
-        </Card>
+        </CardStack>
 
         <Card style={styles.aboutCard}>
           <Text style={styles.aboutLabel}>{tx('profile.aboutTitle', 'About')}</Text>
@@ -767,9 +752,7 @@ export default function DoctorProfileScreen() {
 
   const facilityRows = facilitiesQuery.data?.facilities ?? [];
   const facilitySwitchUnavailable =
-    facilitiesQuery.isError &&
-    facilitiesQuery.data === undefined &&
-    isFacilitySwitchUnavailable(facilitiesQuery.error);
+    facilitiesQuery.isError && facilitiesQuery.data === undefined && isFacilitySwitchUnavailable(facilitiesQuery.error);
 
   let facilitySection: React.ReactNode = null;
   if (provider && !facilitySwitchUnavailable) {
@@ -781,67 +764,63 @@ export default function DoctorProfileScreen() {
       );
     } else if (facilityRows.length > 0) {
       facilitySection = (
-        <Card variant="flush">
-          {facilityRows.map((facility, index) => {
+        <CardStack spacing="sm">
+          {facilityRows.map((facility) => {
             const suspended = facility.status === 'suspended';
             // Nothing is tappable while a switch is in flight: the token is
             // being replaced, and a second switch started on top of the first
             // would race two sessions against one token slot.
-            const tappable =
-              facilityRows.length > 1 &&
-              !facility.is_current &&
-              !suspended &&
-              switchingTo === null;
+            const tappable = facilityRows.length > 1 && !facility.is_current && !suspended && switchingTo === null;
 
             return (
-              <ListRow
-                key={facility.id}
-                icon="building"
-                tint={facility.is_current ? 'blue' : suspended ? 'red' : 'green'}
-                title={facility.name}
-                meta={[
-                  facility.role_label || facility.role || undefined,
-                  // Through careMap.types: the raw code read "pharmacy" / "hospital" in lowercase.
-                  facility.type
-                    ? t(`careMap.types.${facility.type}`, { defaultValue: facility.type })
-                    : undefined,
-                ]}
-                chevron={tappable}
-                onPress={tappable ? () => confirmSwitch(facility) : undefined}
-                divider={index < facilityRows.length - 1}
-                trailing={
-                  facility.is_current ? (
-                    <StatusBadge
-                      status="active"
-                      tone="normal"
-                      label={tx('facility.current', 'Acting as')}
-                      size="sm"
-                    />
-                  ) : suspended ? (
-                    <StatusBadge
-                      status="suspended"
-                      tone="critical"
-                      label={tx('facility.suspended', 'Suspended')}
-                      size="sm"
-                    />
-                  ) : switchingTo === facility.id ? (
-                    <StatusBadge
-                      status="switching"
-                      tone="neutral"
-                      label={tx('facility.switching', 'Switching…')}
-                      size="sm"
-                    />
-                  ) : undefined
-                }
-                accessibilityHint={
-                  tappable
-                    ? tx('facility.rowHint', 'Ends this session and starts one at this facility.')
-                    : undefined
-                }
-              />
+              <Card key={facility.id} variant="flush">
+                <ListRow
+                  icon="building"
+                  tint={facility.is_current ? 'blue' : suspended ? 'red' : 'green'}
+                  title={facility.name}
+                  meta={[
+                    facility.role_label || facility.role || undefined,
+                    // Through careMap.types: the raw code read "pharmacy" / "hospital" in lowercase.
+                    facility.type
+                      ? t(`careMap.types.${facility.type}`, {
+                          defaultValue: facility.type,
+                        })
+                      : undefined,
+                  ]}
+                  chevron={tappable}
+                  onPress={tappable ? () => confirmSwitch(facility) : undefined}
+                  trailing={
+                    facility.is_current ? (
+                      <StatusBadge
+                        status="active"
+                        tone="normal"
+                        label={tx('facility.current', 'Acting as')}
+                        size="sm"
+                      />
+                    ) : suspended ? (
+                      <StatusBadge
+                        status="suspended"
+                        tone="critical"
+                        label={tx('facility.suspended', 'Suspended')}
+                        size="sm"
+                      />
+                    ) : switchingTo === facility.id ? (
+                      <StatusBadge
+                        status="switching"
+                        tone="neutral"
+                        label={tx('facility.switching', 'Switching…')}
+                        size="sm"
+                      />
+                    ) : undefined
+                  }
+                  accessibilityHint={
+                    tappable ? tx('facility.rowHint', 'Ends this session and starts one at this facility.') : undefined
+                  }
+                />
+              </Card>
             );
           })}
-        </Card>
+        </CardStack>
       );
     }
   }
@@ -854,7 +833,11 @@ export default function DoctorProfileScreen() {
     <ProfileFrame
       masthead={{
         left: router.canGoBack()
-          ? { icon: 'arrow-left', label: tr('profiles.back'), onPress: () => router.back() }
+          ? {
+              icon: 'arrow-left',
+              label: tr('profiles.back'),
+              onPress: () => router.back(),
+            }
           : undefined,
         avatar: {
           photoUrl: profile?.photo_url,
@@ -871,92 +854,109 @@ export default function DoctorProfileScreen() {
       }
       keyboardShouldPersistTaps="handled"
       refreshControl={
-          <RefreshControl
-            refreshing={(me.isFetching || profileQuery.isFetching) && !me.isPending}
-            onRefresh={() => {
-              void me.refetch();
-              if (!editing) void profileQuery.refetch();
-            }}
-            tintColor={colors.blue}
-          />
+        <RefreshControl
+          refreshing={(me.isFetching || profileQuery.isFetching) && !me.isPending}
+          onRefresh={() => {
+            void me.refetch();
+            if (!editing) void profileQuery.refetch();
+          }}
+          tintColor={colors.blue}
+        />
       }
     >
-        <ProfileHeading
-          title={tx('profile.title', 'Profile')}
-          subtitle={tx('profile.subtitle', 'Your account on this device')}
-        />
+      <ProfileHeading
+        title={tx('profile.title', 'Profile')}
+        subtitle={tx('profile.subtitle', 'Your account on this device')}
+      />
 
-        {meStale}
-        {profileStale}
+      {meStale}
+      {profileStale}
 
-        {identity}
+      {identity}
 
-        <TrustChips
-          items={[
-            { key: 'consent', icon: 'shield-check', label: tr('profiles.trust.consent') },
-            { key: 'encrypted', icon: 'lock', label: tr('profiles.trust.encrypted') },
-            { key: 'audited', icon: 'history', label: tr('profiles.trust.audited') },
-            { key: 'interoperable', icon: 'share', label: tr('profiles.trust.interoperable') },
-          ]}
-        />
+      <TrustChips
+        items={[
+          {
+            key: 'consent',
+            icon: 'shield-check',
+            label: tr('profiles.trust.consent'),
+          },
+          {
+            key: 'encrypted',
+            icon: 'lock',
+            label: tr('profiles.trust.encrypted'),
+          },
+          {
+            key: 'audited',
+            icon: 'history',
+            label: tr('profiles.trust.audited'),
+          },
+          {
+            key: 'interoperable',
+            icon: 'share',
+            label: tr('profiles.trust.interoperable'),
+          },
+        ]}
+      />
 
-        {/* Counts read straight off the profile and the postings list. A dash,
+      {/* Counts read straight off the profile and the postings list. A dash,
             never a 0, while either is unknown. */}
-        <OverviewTiles
-          title={tr('profiles.atAGlance')}
-          tiles={[
-            {
-              key: 'experience',
-              icon: 'star',
-              tint: 'amber',
-              value: profile?.years_experience != null ? String(profile.years_experience) : '—',
-              label: tr('profiles.clinician.experience'),
-              hint: tr('profiles.clinician.experienceHint'),
-            },
-            {
-              key: 'languages',
-              icon: 'globe',
-              tint: 'green',
-              value: profile ? String(profile.languages.length) : '—',
-              label: tr('profiles.clinician.languages'),
-              hint: tr('profiles.clinician.languagesHint'),
-            },
-            {
-              key: 'qualifications',
-              icon: 'book',
-              tint: 'blue',
-              value: profile ? String(profile.qualifications.length) : '—',
-              label: tr('profiles.clinician.qualifications'),
-              hint: tr('profiles.clinician.qualificationsHint'),
-            },
-            {
-              key: 'facilities',
-              icon: 'building',
-              tint: 'blue',
-              value: facilitiesQuery.data ? String(facilityRows.length) : '—',
-              label: tr('profiles.clinician.facilities'),
-              hint: tr('profiles.clinician.facilitiesHint'),
-            },
-          ]}
-        />
+      <OverviewTiles
+        title={tr('profiles.atAGlance')}
+        tiles={[
+          {
+            key: 'experience',
+            icon: 'star',
+            tint: 'amber',
+            value: profile?.years_experience != null ? String(profile.years_experience) : '—',
+            label: tr('profiles.clinician.experience'),
+            hint: tr('profiles.clinician.experienceHint'),
+          },
+          {
+            key: 'languages',
+            icon: 'globe',
+            tint: 'green',
+            value: profile ? String(profile.languages.length) : '—',
+            label: tr('profiles.clinician.languages'),
+            hint: tr('profiles.clinician.languagesHint'),
+          },
+          {
+            key: 'qualifications',
+            icon: 'book',
+            tint: 'blue',
+            value: profile ? String(profile.qualifications.length) : '—',
+            label: tr('profiles.clinician.qualifications'),
+            hint: tr('profiles.clinician.qualificationsHint'),
+          },
+          {
+            key: 'facilities',
+            icon: 'building',
+            tint: 'blue',
+            value: facilitiesQuery.data ? String(facilityRows.length) : '—',
+            label: tr('profiles.clinician.facilities'),
+            hint: tr('profiles.clinician.facilitiesHint'),
+          },
+        ]}
+      />
 
+      <ProfileSection
+        icon="stethoscope"
+        title={tx('profile.sectionProfile', 'Professional profile')}
+        subtitle={tr('profiles.clinician.professionalDesc')}
+        actionLabel={!editing && profile ? tr('profiles.edit') : undefined}
+        actionIcon="edit"
+        onAction={!editing && profile ? startEdit : undefined}
+      >
+        {professional}
+      </ProfileSection>
+
+      {!!me.data && (
         <ProfileSection
-          icon="stethoscope"
-          title={tx('profile.sectionProfile', 'Professional profile')}
-          subtitle={tr('profiles.clinician.professionalDesc')}
-          actionLabel={!editing && profile ? tr('profiles.edit') : undefined}
-          actionIcon="edit"
-          onAction={!editing && profile ? startEdit : undefined}
+          icon="person"
+          title={tx('profile.sectionAccount', 'Account')}
+          subtitle={tr('profiles.clinician.accountSectionDesc')}
         >
-          {professional}
-        </ProfileSection>
-
-        {!!me.data && (
-          <ProfileSection
-            icon="person"
-            title={tx('profile.sectionAccount', 'Account')}
-            subtitle={tr('profiles.clinician.accountSectionDesc')}
-          >
+          <CardStack spacing="sm">
             <Card variant="flush">
               <ListRow
                 icon="person"
@@ -964,24 +964,27 @@ export default function DoctorProfileScreen() {
                 title={tx('profile.rowName', 'Name')}
                 subtitle={me.data.name}
                 chevron={false}
-                divider
               />
+            </Card>
+            <Card variant="flush">
               <ListRow
                 icon="id-card"
                 tint="blue"
                 title={tx('profile.rowRole', 'Role')}
                 subtitle={roleLabel(me.data.role)}
                 chevron={false}
-                divider
               />
+            </Card>
+            <Card variant="flush">
               <ListRow
                 icon="mail"
                 tint="blue"
                 title={tx('profile.rowEmail', 'Email')}
                 subtitle={me.data.email ?? dash}
                 chevron={false}
-                divider
               />
+            </Card>
+            <Card variant="flush">
               <ListRow
                 icon="shield-check"
                 tint={me.data.is_active ? 'green' : 'red'}
@@ -1001,89 +1004,95 @@ export default function DoctorProfileScreen() {
                 }
               />
             </Card>
-          </ProfileSection>
-        )}
-
-        {/* ── Facility — which building this session speaks for ─────────── */}
-        {!!facilitySection && (
-          <ProfileSection
-            icon="building"
-            title={tx('facility.section', 'Facility')}
-            subtitle={tr('profiles.clinician.facilityDesc')}
-          >
-            {facilitySection}
-          </ProfileSection>
-        )}
-
-        {/* ── Appearance — device-local, persisted by the root layout ───── */}
-        <ProfileSection
-          icon="contrast"
-          title={tr('opesCore.profile.preferences')}
-          subtitle={tr('profiles.clinician.preferencesDesc')}
-        >
-          <Card variant="flush">
-            <ListRow
-              icon="contrast"
-              tint="purple"
-              title={tr('opesCore.profile.theme')}
-              subtitle={tr('settings.appearance.body', {
-                defaultValue: 'Switch between the OpesCare brand and the OPES template palette.',
-              })}
-              // A switch plus its state word leaves this row's text column
-              // ~136px wide on a 375px phone, where the sentence needs five
-              // lines. Clamped at two it read "Switch between the OpesCare …".
-              subtitleLines={0}
-              chevron={false}
-              trailing={
-                <View style={styles.switchWithValue}>
-                  <Text style={styles.switchValue} numberOfLines={1}>
-                    {paletteIsOpes
-                      ? tr('settings.appearance.opes', { defaultValue: 'OPES' })
-                      : tr('settings.appearance.opescare', { defaultValue: 'OpesCare' })}
-                  </Text>
-                  <Switch
-                    value={paletteIsOpes}
-                    // `togglePalette()` is the whole act: the root layout's
-                    // `onPaletteChange` writes `opescare.palette`. Persisting
-                    // here as well would be two writers for one key.
-                    onValueChange={togglePalette}
-                    trackColor={{ false: colors.divider, true: colors.primarySoft }}
-                    thumbColor={paletteIsOpes ? colors.blue : colors.surface}
-                    ios_backgroundColor={colors.divider}
-                    accessibilityLabel={tr('opesCore.profile.theme')}
-                    accessibilityRole="switch"
-                    accessibilityState={{ checked: paletteIsOpes }}
-                  />
-                </View>
-              }
-            />
-          </Card>
+          </CardStack>
         </ProfileSection>
+      )}
 
-        {/* ── Sign out ──────────────────────────────────────────────────── */}
+      {/* ── Facility — which building this session speaks for ─────────── */}
+      {!!facilitySection && (
         <ProfileSection
-          icon="phone"
-          title={tx('profile.sectionSession', 'This device')}
-          subtitle={tr('profiles.clinician.sessionDesc')}
+          icon="building"
+          title={tx('facility.section', 'Facility')}
+          subtitle={tr('profiles.clinician.facilityDesc')}
         >
-          <Card>
-            <Text style={styles.hint}>
-              {tx(
-                'profile.signOutHint',
-                'Sign out before you hand this phone to anyone else. Everything cached on this device — patient names, results, conversations — is removed when you do.'
-              )}
-            </Text>
-            <CareButton
-              label={tx('profile.signOut', 'Sign Out')}
-              variant="danger"
-              icon="logout"
-              loading={signOutOpen}
-              disabled={signOutOpen}
-              onPress={confirmSignOut}
-              style={styles.signOutButton}
-            />
-          </Card>
+          {facilitySection}
         </ProfileSection>
+      )}
+
+      {/* ── Appearance — device-local, persisted by the root layout ───── */}
+      <ProfileSection
+        icon="contrast"
+        title={tr('opesCore.profile.preferences')}
+        subtitle={tr('profiles.clinician.preferencesDesc')}
+      >
+        <Card variant="flush">
+          <ListRow
+            icon="contrast"
+            tint="purple"
+            title={tr('opesCore.profile.theme')}
+            subtitle={tr('settings.appearance.body', {
+              defaultValue: 'Switch between the OpesCare brand and the OPES template palette.',
+            })}
+            // A switch plus its state word leaves this row's text column
+            // ~136px wide on a 375px phone, where the sentence needs five
+            // lines. Clamped at two it read "Switch between the OpesCare …".
+            subtitleLines={0}
+            chevron={false}
+            trailing={
+              <View style={styles.switchWithValue}>
+                <Text style={styles.switchValue} numberOfLines={1}>
+                  {paletteIsOpes
+                    ? tr('settings.appearance.opes', { defaultValue: 'OPES' })
+                    : tr('settings.appearance.opescare', {
+                        defaultValue: 'OpesCare',
+                      })}
+                </Text>
+                <Switch
+                  value={paletteIsOpes}
+                  // `togglePalette()` is the whole act: the root layout's
+                  // `onPaletteChange` writes `opescare.palette`. Persisting
+                  // here as well would be two writers for one key.
+                  onValueChange={togglePalette}
+                  trackColor={{
+                    false: colors.divider,
+                    true: colors.primarySoft,
+                  }}
+                  thumbColor={paletteIsOpes ? colors.blue : colors.surface}
+                  ios_backgroundColor={colors.divider}
+                  accessibilityLabel={tr('opesCore.profile.theme')}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: paletteIsOpes }}
+                />
+              </View>
+            }
+          />
+        </Card>
+      </ProfileSection>
+
+      {/* ── Sign out ──────────────────────────────────────────────────── */}
+      <ProfileSection
+        icon="phone"
+        title={tx('profile.sectionSession', 'This device')}
+        subtitle={tr('profiles.clinician.sessionDesc')}
+      >
+        <Card>
+          <Text style={styles.hint}>
+            {tx(
+              'profile.signOutHint',
+              'Sign out before you hand this phone to anyone else. Everything cached on this device — patient names, results, conversations — is removed when you do.',
+            )}
+          </Text>
+          <CareButton
+            label={tx('profile.signOut', 'Sign Out')}
+            variant="danger"
+            icon="logout"
+            loading={signOutOpen}
+            disabled={signOutOpen}
+            onPress={confirmSignOut}
+            style={styles.signOutButton}
+          />
+        </Card>
+      </ProfileSection>
     </ProfileFrame>
   );
 }
@@ -1130,7 +1139,11 @@ const AVATAR = 74;
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.md },
+    content: {
+      padding: spacing.md,
+      paddingBottom: spacing.xxl,
+      gap: spacing.md,
+    },
 
     hero: {
       flexDirection: 'row',
@@ -1207,7 +1220,11 @@ const makeStyles = (colors: Palette) =>
       justifyContent: 'space-between',
       gap: spacing.md,
     },
-    licenseLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    licenseLabelWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
     licenseLabel: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.sm,

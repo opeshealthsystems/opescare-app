@@ -50,18 +50,19 @@ import { useStaffCapability } from '@/lib/staffCapabilities';
 import { isAxiosError } from 'axios';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ScreenHeader,
   SectionHeader,
   StaleNotice,
   StatusBadge,
-  spacing,
   typography,
   useDialog,
   useTheme,
   type Palette,
   type StatusTone,
+  spacing,
 } from '@/components/opes-ui';
 import {
   CareButton,
@@ -120,9 +121,7 @@ function serverMessage(e: unknown): string | null {
 function writeFailureMessage(t: Translate, e: unknown, checkHint: string): string {
   const f = describeFailure(e);
   const outcomeUnknown = f.kind === 'timeout' || f.kind === 'server' || f.kind === 'unknown';
-  return outcomeUnknown
-    ? t('opesCore.errors.unknownOutcome', { message: f.message, checkHint })
-    : f.message;
+  return outcomeUnknown ? t('opesCore.errors.unknownOutcome', { message: f.message, checkHint }) : f.message;
 }
 
 /**
@@ -176,12 +175,9 @@ function ResultDetailScreenBody() {
   const tx = useCallback(
     (key: string, defaultValue: string, params?: Record<string, unknown>) =>
       String(t(`opesDoctor.${key}`, { defaultValue, ...params })),
-    [t]
+    [t],
   );
-  const tr = useCallback<Translate>(
-    (key, params) => String(t(key, params as Record<string, unknown>)),
-    [t]
-  );
+  const tr = useCallback<Translate>((key, params) => String(t(key, params as Record<string, unknown>)), [t]);
 
   const detail = useResultDetail(resultId);
   const acknowledge = useAcknowledgeResultWithAction();
@@ -245,9 +241,9 @@ function ResultDetailScreenBody() {
           tx('result.notAckedTitle', 'Not acknowledged'),
           tx(
             'result.notAckedBody',
-            'The hospital record did not come back with an acknowledgement. Please try again, or acknowledge it on a workstation.'
+            'The hospital record did not come back with an acknowledgement. Please try again, or acknowledge it on a workstation.',
           ),
-          'critical'
+          'critical',
         );
         void refetch();
         return;
@@ -267,7 +263,7 @@ function ResultDetailScreenBody() {
           when: fmtReported(updated.acknowledged_at),
           name: updated.acknowledged_by_name ?? tx('result.doneNameYou', 'you'),
         }),
-        'success'
+        'success',
       );
     } catch (e) {
       setAckOpen(false);
@@ -278,10 +274,10 @@ function ResultDetailScreenBody() {
           e,
           tx(
             'result.failedHint',
-            'Open this result again — if it shows as acknowledged, it was recorded. If it does not, acknowledge it again or use a workstation.'
-          )
+            'Open this result again — if it shows as acknowledged, it was recorded. If it does not, acknowledge it again or use a workstation.',
+          ),
         ),
-        'critical'
+        'critical',
       );
       void refetch();
     }
@@ -298,9 +294,9 @@ function ResultDetailScreenBody() {
         tx('result.stepUnservedTitle', 'Not available on this server yet'),
         tx(
           'result.stepUnservedBody',
-          'This server does not offer this step from the app yet. Your acknowledgement was recorded; complete this step on a workstation.'
+          'This server does not offer this step from the app yet. Your acknowledgement was recorded; complete this step on a workstation.',
         ),
-        'warning'
+        'warning',
       );
       return;
     }
@@ -308,7 +304,7 @@ function ResultDetailScreenBody() {
       dialog.alert(
         tx('result.stepInvalidTitle', 'Check the form'),
         resultStepFailureMessage(e) ?? describeFailure(e).message,
-        'warning'
+        'warning',
       );
       return;
     }
@@ -323,17 +319,15 @@ function ResultDetailScreenBody() {
         tx('result.nextStepNoPatientTitle', 'Patient record not linked'),
         tx(
           'result.nextStepNoPatient',
-          'This step needs the patient’s record, which this notification does not carry. Use a workstation.'
+          'This step needs the patient’s record, which this notification does not carry. Use a workstation.',
         ),
-        'warning'
+        'warning',
       );
     switch (step) {
       case 'prescribe': {
         const healthId = healthIdFromPrescribeLink(links.prescribe) ?? result.patient_health_id ?? null;
         router.push(
-          healthId
-            ? `${doctorRoutes.prescribe}?health_id=${encodeURIComponent(healthId)}`
-            : doctorRoutes.prescribe
+          healthId ? `${doctorRoutes.prescribe}?health_id=${encodeURIComponent(healthId)}` : doctorRoutes.prescribe,
         );
         return;
       }
@@ -370,7 +364,10 @@ function ResultDetailScreenBody() {
     const patientId = links.message?.patient_id ?? result.patient_id;
     if (!patientId) return;
     try {
-      const thread = await startThread.mutateAsync({ patient_id: patientId, ...values });
+      const thread = await startThread.mutateAsync({
+        patient_id: patientId,
+        ...values,
+      });
       const threadId = startedThreadId(thread);
       setThreadOpen(false);
       if (!threadId) {
@@ -379,9 +376,9 @@ function ResultDetailScreenBody() {
           tx('result.threadNoIdTitle', 'Conversation started'),
           tx(
             'result.threadNoIdBody',
-            'The server created the conversation but did not return its reference. Find it under Messages.'
+            'The server created the conversation but did not return its reference. Find it under Messages.',
           ),
-          'warning'
+          'warning',
         );
         return;
       }
@@ -412,9 +409,9 @@ function ResultDetailScreenBody() {
           tx('result.orderNoRowTitle', 'Order not confirmed'),
           tx(
             'result.orderNoRowBody',
-            'The server did not return the order it created. Check the patient’s chart before ordering again.'
+            'The server did not return the order it created. Check the patient’s chart before ordering again.',
           ),
-          'warning'
+          'warning',
         );
       }
     } catch (e) {
@@ -457,16 +454,12 @@ function ResultDetailScreenBody() {
       <EmptyState
         icon={notServed ? 'flask' : 'alert-circle'}
         tint={notServed ? 'green' : 'red'}
-        title={
-          notServed
-            ? tx('shared.notServedTitle', 'Not available on this server yet')
-            : failure.title
-        }
+        title={notServed ? tx('shared.notServedTitle', 'Not available on this server yet') : failure.title}
         message={
           notServed
             ? tx(
                 'shared.notServedResult',
-                'This result cannot be opened until the clinician service is enabled for this app.'
+                'This result cannot be opened until the clinician service is enabled for this app.',
               )
             : (serverMessage(detail.error) ?? failure.message)
         }
@@ -477,7 +470,7 @@ function ResultDetailScreenBody() {
   } else if (detail.data) {
     const r = detail.data as InterpretedResultDetail;
     const acked = !!r.acknowledged_at;
-    const analytes = r.result?.kind === 'lab' ? r.result.analytes ?? [] : [];
+    const analytes = r.result?.kind === 'lab' ? (r.result.analytes ?? []) : [];
     // `show()` carries the interpretation once one exists; the acknowledge
     // response (already written into this cache entry) carries it too.
     const interpretation = r.interpretation ?? null;
@@ -485,11 +478,7 @@ function ResultDetailScreenBody() {
     // the sheet this session. A step that needs a patient this row does not
     // carry is still offered — `takeStep` says why it cannot proceed.
     const recorded = interpretation?.next_action ?? null;
-    const nextStep: ResultNextAction | null = acked
-      ? recorded && recorded !== 'none'
-        ? recorded
-        : chosenStep
-      : null;
+    const nextStep: ResultNextAction | null = acked ? (recorded && recorded !== 'none' ? recorded : chosenStep) : null;
     const nextStepCta = (step: ResultNextAction): string => {
       switch (step) {
         case 'prescribe':
@@ -516,7 +505,7 @@ function ResultDetailScreenBody() {
             title={tx('result.criticalTitle', 'CRITICAL RESULT — NOT ACKNOWLEDGED')}
             message={tx(
               'result.criticalBody',
-              'This result was flagged critical when it was released. It stays unacknowledged until you confirm below.'
+              'This result was flagged critical when it was released. It stays unacknowledged until you confirm below.',
             )}
           />
         )}
@@ -538,39 +527,44 @@ function ResultDetailScreenBody() {
             />
           </View>
           {!!r.body && <Text style={styles.body}>{r.body}</Text>}
-
-          <View style={styles.divider} />
-
-          <InfoRow
-            icon="person"
-            tint="blue"
-            label={tx('result.patient', 'Patient')}
-            value={r.patient_name ?? tx('result.patientNotOnRecord', 'Not on record')}
-            divider
-          />
-          {!!r.patient_health_id && (
-            <InfoRow
-              icon="id-card"
-              tint="purple"
-              label={tx('result.healthId', 'Health ID')}
-              value={r.patient_health_id}
-              divider
-            />
-          )}
-          <InfoRow
-            icon="flask"
-            tint="green"
-            label={tx('result.test', 'Test')}
-            value={r.result?.test_name ?? categoryLabel(r.category)}
-            divider
-          />
-          <InfoRow
-            icon="clock"
-            tint="amber"
-            label={tx('result.reported', 'Reported')}
-            value={fmtReported(r.reported_at)}
-          />
         </Card>
+
+        <CardStack spacing="sm">
+          <Card>
+            <InfoRow
+              icon="person"
+              tint="blue"
+              label={tx('result.patient', 'Patient')}
+              value={r.patient_name ?? tx('result.patientNotOnRecord', 'Not on record')}
+            />
+          </Card>
+          {!!r.patient_health_id && (
+            <Card>
+              <InfoRow
+                icon="id-card"
+                tint="purple"
+                label={tx('result.healthId', 'Health ID')}
+                value={r.patient_health_id}
+              />
+            </Card>
+          )}
+          <Card>
+            <InfoRow
+              icon="flask"
+              tint="green"
+              label={tx('result.test', 'Test')}
+              value={r.result?.test_name ?? categoryLabel(r.category)}
+            />
+          </Card>
+          <Card>
+            <InfoRow
+              icon="clock"
+              tint="amber"
+              label={tx('result.reported', 'Reported')}
+              value={fmtReported(r.reported_at)}
+            />
+          </Card>
+        </CardStack>
 
         {canChart && !!r.patient_id && (
           <CareButton
@@ -585,31 +579,25 @@ function ResultDetailScreenBody() {
         {r.result?.kind === 'lab' && (
           <>
             <SectionHeader title={tx('result.values', 'Values')} />
-            <Card variant="flush">
-              {analytes.length === 0 ? (
+            {analytes.length === 0 ? (
+              <Card variant="flush">
                 <Text style={styles.none}>
-                  {tx(
-                    'result.noValues',
-                    'The laboratory has not released individual values for this order.'
-                  )}
+                  {tx('result.noValues', 'The laboratory has not released individual values for this order.')}
                 </Text>
-              ) : (
-                analytes.map((a, i) => (
-                  <AnalyteRow
-                    key={a.id ?? `${a.analyte}-${i}`}
-                    analyte={a}
-                    divider={i < analytes.length - 1}
-                    styles={styles}
-                    valueColor={statusMap[toneForFlag(a.flag)].fg}
-                    tx={tx}
-                  />
-                ))
-              )}
-            </Card>
+              </Card>
+            ) : (
+              <CardStack spacing="sm">
+                {analytes.map((a, i) => (
+                  <Card key={a.id ?? `${a.analyte}-${i}`} variant="flush">
+                    <AnalyteRow analyte={a} styles={styles} valueColor={statusMap[toneForFlag(a.flag)].fg} tx={tx} />
+                  </Card>
+                ))}
+              </CardStack>
+            )}
             <Text style={styles.caption}>
               {tx(
                 'result.valuesCaption',
-                'Values, flags and reference intervals are shown exactly as the laboratory released them. Where no interval was recorded, none is shown.'
+                'Values, flags and reference intervals are shown exactly as the laboratory released them. Where no interval was recorded, none is shown.',
               )}
             </Text>
           </>
@@ -618,19 +606,16 @@ function ResultDetailScreenBody() {
         {r.result?.kind === 'radiology' && (
           <>
             <SectionHeader title={tx('result.report', 'Report')} />
-            <Card>
-              <SummaryLine
-                label={tx('result.reportNumber', 'Report')}
-                value={r.result.report_number ?? '—'}
-              />
-              <SummaryLine
-                label={tx('result.reportStatus', 'Status')}
-                value={r.result.report_status ?? '—'}
-              />
-              <SummaryLine
-                label={tx('result.radiologist', 'Radiologist')}
-                value={r.result.reported_by_name ?? '—'}
-              />
+            <CardStack spacing="sm">
+              <Card>
+                <SummaryLine label={tx('result.reportNumber', 'Report')} value={r.result.report_number ?? '—'} />
+              </Card>
+              <Card>
+                <SummaryLine label={tx('result.reportStatus', 'Status')} value={r.result.report_status ?? '—'} />
+              </Card>
+              <Card>
+                <SummaryLine label={tx('result.radiologist', 'Radiologist')} value={r.result.reported_by_name ?? '—'} />
+              </Card>
               {(
                 [
                   ['technique', 'Technique', r.result.technique],
@@ -640,14 +625,13 @@ function ResultDetailScreenBody() {
                 ] as const
               ).map(([key, fallback, text]) =>
                 text ? (
-                  <View key={key}>
-                    <View style={styles.divider} />
+                  <Card key={key}>
                     <Text style={styles.blockLabel}>{tx(`result.${key}`, fallback)}</Text>
                     <Text style={styles.blockText}>{text}</Text>
-                  </View>
-                ) : null
+                  </Card>
+                ) : null,
               )}
-            </Card>
+            </CardStack>
           </>
         )}
 
@@ -658,7 +642,7 @@ function ResultDetailScreenBody() {
             title={tx('result.noDetailTitle', 'Detail not available on this device')}
             message={tx(
               'result.noDetailBody',
-              'The underlying record could not be loaded for this notification. What is shown above is the notification as it was raised — open the patient’s chart on a workstation for the full report.'
+              'The underlying record could not be loaded for this notification. What is shown above is the notification as it was raised — open the patient’s chart on a workstation for the full report.',
             )}
           />
         )}
@@ -676,10 +660,7 @@ function ResultDetailScreenBody() {
                 </Text>
               </View>
               <Text style={styles.caption}>
-                {tx(
-                  'result.ackedCaption',
-                  'This is the same acknowledgement the desktop results inbox shows.'
-                )}
+                {tx('result.ackedCaption', 'This is the same acknowledgement the desktop results inbox shows.')}
               </Text>
             </Card>
 
@@ -701,7 +682,7 @@ function ResultDetailScreenBody() {
                   {tx(
                     'result.nextStepCaption',
                     'Recorded with your acknowledgement as “{{step}}”. Nothing happens until you take it.',
-                    { step: nextActionLabel(nextStep, tx) }
+                    { step: nextActionLabel(nextStep, tx) },
                   )}
                 </Text>
               </>
@@ -738,7 +719,7 @@ function ResultDetailScreenBody() {
             <Text style={styles.caption}>
               {tx(
                 'result.ackCaptionAct',
-                'Acknowledging records your name and the time against this result on the hospital record. You will be asked to confirm, and may add a note for the patient and a next step.'
+                'Acknowledging records your name and the time against this result on the hospital record. You will be asked to confirm, and may add a note for the patient and a next step.',
               )}
             </Text>
           </>
@@ -874,20 +855,18 @@ function ResultActionSheets({
  */
 function AnalyteRow({
   analyte,
-  divider,
   styles,
   valueColor,
   tx,
 }: {
   analyte: InboxAnalyte;
-  divider: boolean;
   styles: ReturnType<typeof makeStyles>;
   valueColor: string;
   tx: (key: string, defaultValue: string, params?: Record<string, unknown>) => string;
 }) {
   const tone = toneForFlag(analyte.flag);
   return (
-    <View style={[styles.analyte, divider && styles.analyteDivider]}>
+    <View style={styles.analyte}>
       <View style={styles.analyteHead}>
         <Text style={styles.analyteName}>{analyte.analyte}</Text>
         {analyte.flag ? (
@@ -902,7 +881,9 @@ function AnalyteRow({
       </Text>
       <Text style={styles.analyteRef}>
         {analyte.reference
-          ? tx('result.reference', 'Reference {{range}}', { range: analyte.reference })
+          ? tx('result.reference', 'Reference {{range}}', {
+              range: analyte.reference,
+            })
           : tx('result.noReference', 'No reference interval recorded by the laboratory')}
       </Text>
     </View>
@@ -912,7 +893,11 @@ function AnalyteRow({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
+    content: {
+      padding: spacing.md,
+      paddingBottom: spacing.xxl,
+      gap: spacing.sm,
+    },
 
     titleRow: {
       flexDirection: 'row',
@@ -934,7 +919,6 @@ const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
       marginTop: spacing.xs,
     },
-    divider: { height: 1, backgroundColor: colors.divider, marginVertical: spacing.sm },
 
     blockLabel: {
       fontFamily: typography.fontFamily.semiBold,
@@ -950,7 +934,6 @@ const makeStyles = (colors: Palette) =>
     },
 
     analyte: { padding: spacing.md - 2, gap: 2 },
-    analyteDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
     analyteHead: {
       flexDirection: 'row',
       alignItems: 'center',

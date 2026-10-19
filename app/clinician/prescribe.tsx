@@ -62,6 +62,7 @@ import { isRoleForbidden } from '@/lib/api/roleErrors';
 import * as Clipboard from 'expo-clipboard';
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   Icon,
@@ -79,13 +80,7 @@ import {
   useTheme,
   type Palette,
 } from '@/components/opes-ui';
-import {
-  CareButton,
-  LoadingBlock,
-  NoticeBanner,
-  describeFailure,
-  type Translate,
-} from '@/components/care/shared';
+import { CareButton, LoadingBlock, NoticeBanner, describeFailure, type Translate } from '@/components/care/shared';
 import { sexLabel } from '@/components/doctor/chartShared';
 import {
   HEALTH_ID_MIN_LENGTH,
@@ -166,14 +161,8 @@ function PrescribeScreenBody() {
   const dialog = useDialog();
   const params = useLocalSearchParams<{ health_id?: string }>();
 
-  const tx = useCallback<Tx>(
-    (key, defaultValue, p) => String(t(`opesDoctor.${key}`, { defaultValue, ...p })),
-    [t]
-  );
-  const tr = useCallback<Translate>(
-    (key, p) => String(t(key, p as Record<string, unknown>)),
-    [t]
-  );
+  const tx = useCallback<Tx>((key, defaultValue, p) => String(t(`opesDoctor.${key}`, { defaultValue, ...p })), [t]);
+  const tr = useCallback<Translate>((key, p) => String(t(key, p as Record<string, unknown>)), [t]);
 
   // ── Patient ─────────────────────────────────────────────────────────────
   // `entry` is what is typed; `request` is what was submitted; `patient` is
@@ -198,7 +187,9 @@ function PrescribeScreenBody() {
   const [issued, setIssued] = useState<IssuedPrescription | null>(null);
 
   const issue = useIssuePrescription();
-  const written = usePrescriptionsIWrote({ enabled: stage === 'patient' || stage === 'written' });
+  const written = usePrescriptionsIWrote({
+    enabled: stage === 'patient' || stage === 'written',
+  });
 
   const problems = useMemo(() => validateDraft(draft), [draft]);
   const linesToIssue = useMemo(() => issuableLines(draft), [draft]);
@@ -216,7 +207,7 @@ function PrescribeScreenBody() {
       }));
       touch();
     },
-    [touch]
+    [touch],
   );
 
   const addLine = useCallback(() => {
@@ -227,13 +218,11 @@ function PrescribeScreenBody() {
   const removeLine = useCallback(
     (index: number) => {
       setDraft((d) =>
-        d.lines.length <= 1
-          ? { ...d, lines: [blankLine()] }
-          : { ...d, lines: d.lines.filter((_, i) => i !== index) }
+        d.lines.length <= 1 ? { ...d, lines: [blankLine()] } : { ...d, lines: d.lines.filter((_, i) => i !== index) },
       );
       touch();
     },
-    [touch]
+    [touch],
   );
 
   // ── Lookup ──────────────────────────────────────────────────────────────
@@ -245,8 +234,8 @@ function PrescribeScreenBody() {
         tx(
           'search.idInvalid',
           'Enter the full Health ID — at least {{min}} characters, letters, digits and dashes only. This app cannot search by name.',
-          { min: HEALTH_ID_MIN_LENGTH }
-        )
+          { min: HEALTH_ID_MIN_LENGTH },
+        ),
       );
       setRequest(null);
       return;
@@ -333,7 +322,7 @@ function PrescribeScreenBody() {
           count: linesToIssue.length,
           name,
           healthId: patient.health_id ?? tx('prescribe.healthIdMissing', 'Health ID not on record'),
-        }
+        },
       ),
       confirmLabel: tx('prescribe.confirmAction', 'Issue prescription'),
       cancelLabel: tr('opesCore.common.cancel'),
@@ -363,7 +352,7 @@ function PrescribeScreenBody() {
     () => () => {
       if (copyTimer.current) clearTimeout(copyTimer.current);
     },
-    []
+    [],
   );
   const copyReference = useCallback(async () => {
     const reference = issued?.reference;
@@ -387,7 +376,7 @@ function PrescribeScreenBody() {
       { key: 'compose', label: tx('prescribe.stepMedicines', 'Medicines') },
       { key: 'review', label: tx('prescribe.stepReview', 'Review') },
     ],
-    [tx]
+    [tx],
   );
   const stepIndex = stage === 'patient' ? 0 : stage === 'compose' ? 1 : 2;
   const showSteps = stage !== 'issued' && stage !== 'written';
@@ -593,7 +582,7 @@ function PatientStage({
         title={tx('prescribe.promptTitle', 'Start with the patient’s Health ID')}
         message={tx(
           'prescribe.promptBody',
-          'Type the full Health ID from the patient’s card, then press Look up. A prescription can only be written against a patient you have confirmed on screen.'
+          'Type the full Health ID from the patient’s card, then press Look up. A prescription can only be written against a patient you have confirmed on screen.',
         )}
       />
     );
@@ -619,7 +608,7 @@ function PatientStage({
             ? tx(
                 'search.idNoAnswerBody',
                 'Either no record carries {{healthId}}, or this server does not serve the clinician service yet — both answer the same way, so this screen will not tell you which. Check the ID against the patient’s card, and try again once clinician access is switched on.',
-                { healthId: request }
+                { healthId: request },
               )
             : describeFailure(lookup.error).message
         }
@@ -635,7 +624,7 @@ function PatientStage({
         <Text style={styles.note}>
           {tx(
             'prescribe.confirmPatientNote',
-            'Check the name, date of birth and Health ID against the person in front of you before you continue. Everything you write next is issued to this record.'
+            'Check the name, date of birth and Health ID against the person in front of you before you continue. Everything you write next is issued to this record.',
           )}
         </Text>
         <CareButton
@@ -694,7 +683,7 @@ function PatientStage({
         <Text style={[styles.note, styles.noteSpaced]}>
           {tx(
             'search.noNameSearch',
-            'No name search: OpesCare does not allow a patient list or a partial-name lookup on any surface.'
+            'No name search: OpesCare does not allow a patient list or a partial-name lookup on any surface.',
           )}
         </Text>
       </Card>
@@ -711,7 +700,7 @@ function PatientStage({
             draftLineCount === 1
               ? '1 medicine line is waiting. It will be issued to whichever patient you confirm next — check every line before issuing.'
               : '{{count}} medicine lines are waiting. They will be issued to whichever patient you confirm next — check every line before issuing.',
-            { count: draftLineCount }
+            { count: draftLineCount },
           )}
         />
       )}
@@ -738,9 +727,7 @@ function PatientCard({ patient, tx }: { patient: PrescribingPatient; tx: Tx }) {
           <Icon name="person" size={24} color={colors.blue} />
         </View>
         <View style={styles.patientHeadText}>
-          <Text style={styles.patientName}>
-            {name ?? tx('prescribe.nameNotOnRecord', 'Name not on record')}
-          </Text>
+          <Text style={styles.patientName}>{name ?? tx('prescribe.nameNotOnRecord', 'Name not on record')}</Text>
           <Text style={styles.patientId}>{patient.health_id ?? notRecorded}</Text>
         </View>
       </View>
@@ -757,10 +744,7 @@ function PatientCard({ patient, tx }: { patient: PrescribingPatient; tx: Tx }) {
           }
         />
         <Fact label={tx('prescribe.sex', 'Sex')} value={patient.sex ? sexLabel(patient.sex) : notRecorded} />
-        <Fact
-          label={tx('prescribe.bloodGroup', 'Blood group')}
-          value={patient.blood_group ?? notRecorded}
-        />
+        <Fact label={tx('prescribe.bloodGroup', 'Blood group')} value={patient.blood_group ?? notRecorded} />
       </View>
     </Card>
   );
@@ -778,15 +762,7 @@ function Fact({ label, value }: { label: string; value: string }) {
 }
 
 /** The confirmed patient, pinned above the form and the review. */
-function ConfirmedPatientBar({
-  patient,
-  onChange,
-  tx,
-}: {
-  patient: PrescribingPatient;
-  onChange: () => void;
-  tx: Tx;
-}) {
+function ConfirmedPatientBar({ patient, onChange, tx }: { patient: PrescribingPatient; onChange: () => void; tx: Tx }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const name = patientDisplayName(patient);
@@ -861,16 +837,14 @@ function ComposeBlock({
           title={tx('prescribe.patientChangedTitle', 'These lines were written for a different patient')}
           message={tx(
             'prescribe.patientChangedBody',
-            'You changed the patient after drafting. Read every medicine line against the patient above before you issue anything.'
+            'You changed the patient after drafting. Read every medicine line against the patient above before you issue anything.',
           )}
         />
       )}
 
       <SectionHeader
         title={tx('prescribe.medicinesTitle', 'Medicines')}
-        actionLabel={
-          draft.lines.length < MAX_DRAFT_LINES ? tx('prescribe.addMedicine', 'Add medicine') : undefined
-        }
+        actionLabel={draft.lines.length < MAX_DRAFT_LINES ? tx('prescribe.addMedicine', 'Add medicine') : undefined}
         onAction={draft.lines.length < MAX_DRAFT_LINES ? onAddLine : undefined}
       />
 
@@ -889,9 +863,13 @@ function ComposeBlock({
 
       {draft.lines.length >= MAX_DRAFT_LINES && (
         <Text style={styles.note}>
-          {tx('prescribe.lineCap', 'This form holds up to {{max}} medicines. Issue these, then write another prescription.', {
-            max: MAX_DRAFT_LINES,
-          })}
+          {tx(
+            'prescribe.lineCap',
+            'This form holds up to {{max}} medicines. Issue these, then write another prescription.',
+            {
+              max: MAX_DRAFT_LINES,
+            },
+          )}
         </Text>
       )}
 
@@ -923,7 +901,7 @@ function ComposeBlock({
           {tx(
             'prescribe.validityHelp',
             'Between {{min}} and {{max}} days. Left blank, the facility’s own expiry rule applies.',
-            { min: LIMITS.validityDaysMin, max: LIMITS.validityDaysMax }
+            { min: LIMITS.validityDaysMin, max: LIMITS.validityDaysMax },
           )}
         </Text>
       </Card>
@@ -974,9 +952,7 @@ function MedicineLine({
   return (
     <Card>
       <View style={styles.lineHead}>
-        <Text style={styles.lineTitle}>
-          {tx('prescribe.medicineN', 'Medicine {{n}}', { n: index + 1 })}
-        </Text>
+        <Text style={styles.lineTitle}>{tx('prescribe.medicineN', 'Medicine {{n}}', { n: index + 1 })}</Text>
         <Text
           style={[styles.removeLink, count === 1 && line.drug_name.trim() === '' && styles.removeLinkOff]}
           onPress={onRemove}
@@ -1139,17 +1115,15 @@ function ReviewBlock({
           title={tx('prescribe.patientChangedTitle', 'These lines were written for a different patient')}
           message={tx(
             'prescribe.patientChangedBody',
-            'You changed the patient after drafting. Read every medicine line against the patient above before you issue anything.'
+            'You changed the patient after drafting. Read every medicine line against the patient above before you issue anything.',
           )}
         />
       )}
 
       <SectionHeader
-        title={tx(
-          'prescribe.reviewMedicinesTitle',
-          lines.length === 1 ? '1 medicine' : '{{count}} medicines',
-          { count: lines.length }
-        )}
+        title={tx('prescribe.reviewMedicinesTitle', lines.length === 1 ? '1 medicine' : '{{count}} medicines', {
+          count: lines.length,
+        })}
       />
       {/*
         NOT a `ListRow`: that clamps its title to one line and its meta to two.
@@ -1157,9 +1131,9 @@ function ReviewBlock({
         nothing may be hidden behind an ellipsis — a truncated drug name is a
         drug the reviewer did not actually read.
       */}
-      <Card>
-        {lines.map((line, index) => (
-          <View key={line.key} style={index > 0 ? styles.reviewLine : undefined}>
+      <CardStack spacing="sm">
+        {lines.map((line) => (
+          <Card key={line.key}>
             <View style={styles.reviewLineHead}>
               <View style={styles.reviewLineMark}>
                 <Icon name="pill" size={26} color={colors.blue} />
@@ -1167,15 +1141,13 @@ function ReviewBlock({
               <Text style={styles.reviewDrug}>{line.drug_name.trim()}</Text>
             </View>
             <Text style={styles.reviewDetail}>{lineDetail(line, tx)}</Text>
-          </View>
+          </Card>
         ))}
-      </Card>
+      </CardStack>
 
       <Card>
         <Text style={styles.fieldLabel}>{tx('prescribe.notesLabel', 'Notes to the pharmacy')}</Text>
-        <Text style={styles.reviewValue}>
-          {draft.notes.trim() || tx('prescribe.noNotes', 'No notes')}
-        </Text>
+        <Text style={styles.reviewValue}>{draft.notes.trim() || tx('prescribe.noNotes', 'No notes')}</Text>
         <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>
           {tx('prescribe.validityLabel', 'Valid for (days)')}
         </Text>
@@ -1189,7 +1161,7 @@ function ReviewBlock({
         tone="pending"
         message={tx(
           'prescribe.immutableNote',
-          'A prescription is a clinical record. Once issued it can be voided with a documented reason, but it is never edited or deleted.'
+          'A prescription is a clinical record. Once issued it can be voided with a documented reason, but it is never edited or deleted.',
         )}
       />
 
@@ -1271,7 +1243,7 @@ function IssuedBlock({
             <Text style={styles.note}>
               {tx(
                 'prescribe.referenceHelp',
-                'The patient quotes this at any OpesCare pharmacy. It is already on their record — nothing needs to be printed.'
+                'The patient quotes this at any OpesCare pharmacy. It is already on their record — nothing needs to be printed.',
               )}
             </Text>
             <CareButton
@@ -1298,44 +1270,45 @@ function IssuedBlock({
             title={tx('prescribe.noReferenceTitle', 'Issued, but no reference came back')}
             message={tx(
               'prescribe.noReferenceBody',
-              'The prescription was created. The server did not return the reference the patient quotes at a pharmacy — open the list below to find it.'
+              'The prescription was created. The server did not return the reference the patient quotes at a pharmacy — open the list below to find it.',
             )}
           />
         )}
       </Card>
 
-      <Card variant="flush">
-        <ListRow
-          icon="person"
-          tint="blue"
-          title={prescription.patient_name ?? tx('prescribe.nameNotOnRecord', 'Name not on record')}
-          meta={[prescription.patient_health_id, prescription.status]}
-          chevron={false}
-        />
-        <ListRow
-          icon="pill"
-          tint="green"
-          title={
-            prescription.item_count === null
-              ? tx('prescribe.itemsUnknown', 'Medicines not listed in the reply')
-              : tx(
-                  'prescribe.itemsN',
-                  prescription.item_count === 1 ? '1 medicine' : '{{count}} medicines',
-                  { count: prescription.item_count }
-                )
-          }
-          meta={[
-            prescription.prescribed_at ? formatDate(prescription.prescribed_at) : null,
-            prescription.expires_at
-              ? tx('prescribe.expiresOn', 'expires {{date}}', {
-                  date: formatDate(prescription.expires_at),
-                })
-              : null,
-          ]}
-          chevron={false}
-          divider={false}
-        />
-      </Card>
+      <CardStack spacing="sm">
+        <Card variant="flush">
+          <ListRow
+            icon="person"
+            tint="blue"
+            title={prescription.patient_name ?? tx('prescribe.nameNotOnRecord', 'Name not on record')}
+            meta={[prescription.patient_health_id, prescription.status]}
+            chevron={false}
+          />
+        </Card>
+        <Card variant="flush">
+          <ListRow
+            icon="pill"
+            tint="green"
+            title={
+              prescription.item_count === null
+                ? tx('prescribe.itemsUnknown', 'Medicines not listed in the reply')
+                : tx('prescribe.itemsN', prescription.item_count === 1 ? '1 medicine' : '{{count}} medicines', {
+                    count: prescription.item_count,
+                  })
+            }
+            meta={[
+              prescription.prescribed_at ? formatDate(prescription.prescribed_at) : null,
+              prescription.expires_at
+                ? tx('prescribe.expiresOn', 'expires {{date}}', {
+                    date: formatDate(prescription.expires_at),
+                  })
+                : null,
+            ]}
+            chevron={false}
+          />
+        </Card>
+      </CardStack>
 
       <CareButton
         label={tx('prescribe.writeAnother', 'Write another prescription')}
@@ -1375,11 +1348,9 @@ function WrittenSummaryRow({
       ? tx('prescribe.writtenUnknown', 'Open to see what you have written')
       : rows.length === 0
         ? tx('prescribe.writtenNone', 'You have not written any yet')
-        : tx(
-            'prescribe.writtenCount',
-            rows.length === 1 ? '1 prescription' : '{{count}} prescriptions',
-            { count: rows.length }
-          );
+        : tx('prescribe.writtenCount', rows.length === 1 ? '1 prescription' : '{{count}} prescriptions', {
+            count: rows.length,
+          });
 
   return (
     <Card variant="flush">
@@ -1435,7 +1406,7 @@ function WrittenList({
           notServed
             ? tx(
                 'prescribe.notServedList',
-                'Prescriptions you write will be listed here once the clinician prescribing service is enabled for this app. This is not a statement that you have written none.'
+                'Prescriptions you write will be listed here once the clinician prescribing service is enabled for this app. This is not a statement that you have written none.',
               )
             : describeFailure(error).message
         }
@@ -1451,7 +1422,7 @@ function WrittenList({
         title={tx('prescribe.writtenEmptyTitle', 'Nothing written yet')}
         message={tx(
           'prescribe.writtenEmptyBody',
-          'Prescriptions you issue from this app or from a workstation will be listed here, newest first.'
+          'Prescriptions you issue from this app or from a workstation will be listed here, newest first.',
         )}
       />
     );
@@ -1476,7 +1447,6 @@ function WrittenList({
               ]}
               trailing={row.status ? <StatusBadge status={row.status} size="sm" /> : undefined}
               chevron={false}
-              divider={false}
             />
           </Card>
         ))}
@@ -1489,10 +1459,7 @@ function WrittenList({
       <SectionHeader title={tx('prescribe.writtenTitle', 'Prescriptions you have written')} />
       {body}
       <Text style={styles.note}>
-        {tx(
-          'prescribe.writtenNote',
-          'This list is read from the record each time it loads. It is not a local copy.'
-        )}
+        {tx('prescribe.writtenNote', 'This list is read from the record each time it loads. It is not a local copy.')}
       </Text>
       <CareButton
         label={tx('prescribe.back', 'Back')}
@@ -1527,10 +1494,14 @@ function lineDetail(line: DraftLine, tx: Tx): string {
     line.frequency.trim(),
     line.route ? routeLabel(line.route, tx) : '',
     line.duration_days.trim()
-      ? tx('prescribe.forNDays', 'for {{count}} days', { count: Number(line.duration_days.trim()) })
+      ? tx('prescribe.forNDays', 'for {{count}} days', {
+          count: Number(line.duration_days.trim()),
+        })
       : '',
     line.quantity.trim()
-      ? tx('prescribe.qtyN', 'quantity {{count}}', { count: Number(line.quantity.trim()) })
+      ? tx('prescribe.qtyN', 'quantity {{count}}', {
+          count: Number(line.quantity.trim()),
+        })
       : '',
   ].filter((part) => part !== '');
 
@@ -1596,7 +1567,7 @@ function problemText(problem: DraftProblem, tx: Tx): string {
 function issueFailureNotice(
   error: unknown,
   tx: Tx,
-  tr: Translate
+  tr: Translate,
 ): { title: string; message: string; tone: 'warning' | 'critical' } {
   if (issueOutcomeIsUncertain(error)) {
     return {
@@ -1604,7 +1575,7 @@ function issueFailureNotice(
       title: tx('prescribe.uncertainTitle', 'No answer from the server'),
       message: tx(
         'prescribe.uncertainBody',
-        'The prescription was sent but nothing came back, so it is not known whether it was issued. Open “Prescriptions you have written” and check before writing it again — issuing it twice would put two live scripts on this patient’s record.'
+        'The prescription was sent but nothing came back, so it is not known whether it was issued. Open “Prescriptions you have written” and check before writing it again — issuing it twice would put two live scripts on this patient’s record.',
       ),
     };
   }
@@ -1622,7 +1593,7 @@ function issueFailureNotice(
       title: tx('shared.notServedTitle', 'Not available on this server yet'),
       message: tx(
         'prescribe.notServedIssue',
-        'This server cannot issue prescriptions yet. Nothing was written. Your medicine lines are still on screen — use a workstation, or try again once the clinician prescribing service is enabled.'
+        'This server cannot issue prescriptions yet. Nothing was written. Your medicine lines are still on screen — use a workstation, or try again once the clinician prescribing service is enabled.',
       ),
     };
   }
@@ -1640,7 +1611,12 @@ const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
     steps: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-    content: { padding: spacing.md, paddingTop: 0, paddingBottom: spacing.xxl, gap: spacing.sm },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      paddingBottom: spacing.xxl,
+      gap: spacing.sm,
+    },
     /** The step strip is hidden on the last two stages; keep the top breathing room. */
     contentNoSteps: { paddingTop: spacing.sm },
 
@@ -1666,7 +1642,11 @@ const makeStyles = (colors: Palette) =>
     multiline: { minHeight: 64, textAlignVertical: 'top' },
 
     // ── Patient card ──────────────────────────────────────────────────────
-    patientHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
+    patientHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+    },
     patientMark: {
       width: 46,
       height: 46,
@@ -1739,17 +1719,25 @@ const makeStyles = (colors: Palette) =>
     // ~310px wide and they sit side by side; at 320px it is ~255px and they
     // stack, which beats two fields too narrow to read what you typed.
     pair: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-    pairCell: { flexGrow: 1, flexShrink: 1, flexBasis: PAIR_COLUMN_BASIS, minWidth: 0 },
-    routes: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+    pairCell: {
+      flexGrow: 1,
+      flexShrink: 1,
+      flexBasis: PAIR_COLUMN_BASIS,
+      minWidth: 0,
+    },
+    routes: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
 
     // ── Review ────────────────────────────────────────────────────────────
-    reviewLine: {
-      marginTop: spacing.md,
-      paddingTop: spacing.md,
-      borderTopWidth: 1,
-      borderTopColor: colors.divider,
+    reviewLineHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
     },
-    reviewLineHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     reviewLineMark: {
       width: 30,
       height: 30,
@@ -1779,7 +1767,11 @@ const makeStyles = (colors: Palette) =>
     },
 
     // ── Issued ────────────────────────────────────────────────────────────
-    issuedHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
+    issuedHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+    },
     issuedMark: {
       width: 46,
       height: 46,

@@ -38,6 +38,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ScreenHeader,
@@ -127,7 +128,10 @@ function LabOrderScreenBody() {
   function askToCollect(order: LabOrderDetail) {
     dialog.confirm({
       title: tx('order.collectTitle'),
-      message: tx('order.collectBody', { test: order.test_name, patient: patientOf(order) }),
+      message: tx('order.collectBody', {
+        test: order.test_name,
+        patient: patientOf(order),
+      }),
       confirmLabel: tx('order.collectCta'),
       tone: 'info',
       onConfirm: async () => {
@@ -159,7 +163,11 @@ function LabOrderScreenBody() {
     const count = order.results?.length ?? 0;
     dialog.confirm({
       title: tx('order.releaseTitle'),
-      message: tx('order.releaseBody', { count, patient: patientOf(order), test: order.test_name }),
+      message: tx('order.releaseBody', {
+        count,
+        patient: patientOf(order),
+        test: order.test_name,
+      }),
       confirmLabel: tx('order.releaseCta'),
       tone: 'warning',
       destructive: true,
@@ -211,11 +219,7 @@ function LabOrderScreenBody() {
     body = <LoadingBlock label={tx('order.loading')} />;
   } else if (detail.isError && detail.data === undefined) {
     body = (
-      <LabFailureState
-        error={detail.error}
-        onRetry={() => void refetch()}
-        notServedBody={tx('order.notServedBody')}
-      />
+      <LabFailureState error={detail.error} onRetry={() => void refetch()} notServedBody={tx('order.notServedBody')} />
     );
   } else if (detail.data) {
     const o = detail.data;
@@ -250,42 +254,51 @@ function LabOrderScreenBody() {
 
           <Text style={styles.blockLabel}>{tx('order.indication')}</Text>
           <Text style={styles.blockText}>{o.clinical_indication?.trim() || tx('order.noIndication')}</Text>
-
-          <View style={styles.divider} />
-
-          <InfoRow icon="person" tint="blue" label={tx('order.patient')} value={patientOf(o)} divider />
-          {!!o.patient?.health_id && (
-            <InfoRow icon="id-card" tint="purple" label={tx('order.healthId')} value={o.patient.health_id} divider />
-          )}
-          {!!ageSex && <InfoRow icon="info" tint="blue" label={tx('order.ageSex')} value={ageSex} divider />}
-          <InfoRow
-            icon="stethoscope"
-            tint="green"
-            label={tx('order.orderedBy')}
-            value={o.ordered_by_name?.trim() || tx('order.orderedByUnknown')}
-            divider
-          />
-          <InfoRow
-            icon="clock"
-            tint="amber"
-            label={tx('order.orderedAt')}
-            value={formatDateTime(o.ordered_at, tx('order.notYet'))}
-            divider
-          />
-          <InfoRow
-            icon="syringe"
-            tint="amber"
-            label={tx('order.collectedAt')}
-            value={formatDateTime(o.collected_at, tx('order.notYet'))}
-            divider
-          />
-          <InfoRow
-            icon="check-circle"
-            tint="green"
-            label={tx('order.resultedAt')}
-            value={formatDateTime(o.resulted_at, tx('order.notYet'))}
-          />
         </Card>
+
+        <CardStack spacing="sm">
+          <Card>
+            <InfoRow icon="person" tint="blue" label={tx('order.patient')} value={patientOf(o)} />
+          </Card>
+          {!!o.patient?.health_id && (
+            <Card>
+              <InfoRow icon="id-card" tint="purple" label={tx('order.healthId')} value={o.patient.health_id} />
+            </Card>
+          )}
+          <Card>{!!ageSex && <InfoRow icon="info" tint="blue" label={tx('order.ageSex')} value={ageSex} />}</Card>
+          <Card>
+            <InfoRow
+              icon="stethoscope"
+              tint="green"
+              label={tx('order.orderedBy')}
+              value={o.ordered_by_name?.trim() || tx('order.orderedByUnknown')}
+            />
+          </Card>
+          <Card>
+            <InfoRow
+              icon="clock"
+              tint="amber"
+              label={tx('order.orderedAt')}
+              value={formatDateTime(o.ordered_at, tx('order.notYet'))}
+            />
+          </Card>
+          <Card>
+            <InfoRow
+              icon="syringe"
+              tint="amber"
+              label={tx('order.collectedAt')}
+              value={formatDateTime(o.collected_at, tx('order.notYet'))}
+            />
+          </Card>
+          <Card>
+            <InfoRow
+              icon="check-circle"
+              tint="green"
+              label={tx('order.resultedAt')}
+              value={formatDateTime(o.resulted_at, tx('order.notYet'))}
+            />
+          </Card>
+        </CardStack>
 
         {!!o.patient?.health_id && (
           <CareButton
@@ -302,7 +315,9 @@ function LabOrderScreenBody() {
           <NoticeBanner
             icon="info"
             tone="warning"
-            title={tx('order.offTrackTitle', { status: statusLabel(tx, o.status) })}
+            title={tx('order.offTrackTitle', {
+              status: statusLabel(tx, o.status),
+            })}
             message={tx('order.offTrackBody')}
           />
         ) : (
@@ -319,15 +334,19 @@ function LabOrderScreenBody() {
               : tx('order.resultsTitle')
           }
         />
-        <Card variant="flush">
-          {results.length === 0 ? (
+        {results.length === 0 ? (
+          <Card variant="flush">
             <Text style={styles.none}>{tx('order.noResults')}</Text>
-          ) : (
-            results.map((r, i) => (
-              <ResultRowView key={r.id ?? `${r.parameter_name}-${i}`} row={r} divider={i < results.length - 1} styles={styles} />
-            ))
-          )}
-        </Card>
+          </Card>
+        ) : (
+          <CardStack spacing="sm">
+            {results.map((r, i) => (
+              <Card key={r.id ?? `${r.parameter_name}-${i}`} variant="flush">
+                <ResultRowView row={r} styles={styles} />
+              </Card>
+            ))}
+          </CardStack>
+        )}
         {results.length > 0 && <LabCaption>{tx('order.resultsCaption')}</LabCaption>}
 
         {/* ── Actions by state ─────────────────────────────────────────── */}
@@ -393,7 +412,9 @@ function LabOrderScreenBody() {
               <Icon name="check-circle" size={20} color={colors.statusNormal} />
               <Text style={styles.releasedText}>
                 {o.resulted_at
-                  ? tx('order.releasedCard', { when: formatDateTime(o.resulted_at, '—') })
+                  ? tx('order.releasedCard', {
+                      when: formatDateTime(o.resulted_at, '—'),
+                    })
                   : tx('order.releasedUnknownWhen')}
               </Text>
             </View>
@@ -437,23 +458,19 @@ function writeFailure(tr: Translate, e: unknown, checkHint: string): string {
   if (isRoleForbidden(e)) return tr('opesDoctor.roleGate.serverRefusedBody');
   const f = describeFailure(e);
   const outcomeUnknown = f.kind === 'timeout' || f.kind === 'server' || f.kind === 'unknown';
-  if (outcomeUnknown) return tr('opesCore.errors.unknownOutcome', { message: f.message, checkHint });
+  if (outcomeUnknown)
+    return tr('opesCore.errors.unknownOutcome', {
+      message: f.message,
+      checkHint,
+    });
   return labServerMessage(e) ?? f.message;
 }
 
 /** One entered analyte: parameter, value + unit, reference range, flag, notes — as recorded. */
-function ResultRowView({
-  row,
-  divider,
-  styles,
-}: {
-  row: LabResultRow;
-  divider: boolean;
-  styles: ReturnType<typeof makeStyles>;
-}) {
+function ResultRowView({ row, styles }: { row: LabResultRow; styles: ReturnType<typeof makeStyles> }) {
   const tx = useLabT();
   return (
-    <View style={[styles.result, divider && styles.resultDivider]}>
+    <View style={styles.result}>
       <View style={styles.resultHead}>
         <Text style={styles.resultName}>{row.parameter_name}</Text>
         <FlagBadge flag={row.flag} />
@@ -467,7 +484,11 @@ function ResultRowView({
       </Text>
       {!!row.notes && <Text style={styles.resultNotes}>{row.notes}</Text>}
       {!!row.resulted_at && (
-        <Text style={styles.resultRef}>{tx('order.resultedAtRow', { when: formatDateTime(row.resulted_at, '—') })}</Text>
+        <Text style={styles.resultRef}>
+          {tx('order.resultedAtRow', {
+            when: formatDateTime(row.resulted_at, '—'),
+          })}
+        </Text>
       )}
     </View>
   );
@@ -476,7 +497,11 @@ function ResultRowView({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
+    content: {
+      padding: spacing.md,
+      paddingBottom: spacing.xxl,
+      gap: spacing.sm,
+    },
 
     titleRow: {
       flexDirection: 'row',
@@ -510,7 +535,6 @@ const makeStyles = (colors: Palette) =>
       lineHeight: typography.lineHeight.sm,
       color: colors.textPrimary,
     },
-    divider: { height: 1, backgroundColor: colors.divider, marginVertical: spacing.sm },
 
     none: {
       padding: spacing.md,
@@ -519,7 +543,6 @@ const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
     },
     result: { padding: spacing.md - 2, gap: 2 },
-    resultDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
     resultHead: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -556,7 +579,11 @@ const makeStyles = (colors: Palette) =>
     },
 
     releasedCard: { gap: spacing.sm },
-    releasedRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    releasedRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
     releasedText: {
       flex: 1,
       fontFamily: typography.fontFamily.semiBold,

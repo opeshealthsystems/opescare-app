@@ -71,6 +71,7 @@ import { RoleGate } from '@/components/doctor/RoleGate';
 import type { UseQueryResult } from '@tanstack/react-query';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   LastUpdatedLine,
@@ -209,14 +210,8 @@ function PatientChartSectionScreenBody() {
   const patientId = typeof params.id === 'string' && params.id.length > 0 ? params.id : undefined;
   const section = asSection(params.section);
 
-  const tx = useCallback<Tx>(
-    (key, defaultValue, p) => String(t(`opesDoctor.${key}`, { defaultValue, ...p })),
-    [t]
-  );
-  const tr = useCallback<Translate>(
-    (key, p) => String(t(key, p as Record<string, unknown>)),
-    [t]
-  );
+  const tx = useCallback<Tx>((key, defaultValue, p) => String(t(`opesDoctor.${key}`, { defaultValue, ...p })), [t]);
+  const tr = useCallback<Translate>((key, p) => String(t(key, p as Record<string, unknown>)), [t]);
 
   // The header names the patient, so a clinician can never be reading the
   // right section of the wrong chart. It comes from the server, not a param.
@@ -239,7 +234,9 @@ function PatientChartSectionScreenBody() {
   const diagnoses = useChartDiagnoses(at('diagnoses'), SECTION_ENCOUNTER_SCAN);
   const prescriptions = useChartPrescriptions(at('medications'), SECTION_ENCOUNTER_SCAN);
   const vitals = useChartVitals(at('vitals'), VITALS_LIMIT);
-  const encounters = useChartEncounters(at('encounters'), { per_page: ENCOUNTER_PAGE });
+  const encounters = useChartEncounters(at('encounters'), {
+    per_page: ENCOUNTER_PAGE,
+  });
   // Deliberately UNFILTERED: `labs` and `imaging` are the same endpoint, and
   // holding both lets the empty state say "nothing of this kind, though N
   // other orders were placed" instead of the flatly different claim
@@ -284,7 +281,7 @@ function PatientChartSectionScreenBody() {
         title={tx('chart.noIdTitle', 'No Health ID in this link')}
         message={tx(
           'chart.noIdBody',
-          'A chart is opened with a patient’s Health ID. Look the patient up again from the Patients tab.'
+          'A chart is opened with a patient’s Health ID. Look the patient up again from the Patients tab.',
         )}
         actionLabel={tx('section.openLookup', 'Find a patient')}
         onAction={() => router.push(doctorRoutes.patients)}
@@ -298,7 +295,7 @@ function PatientChartSectionScreenBody() {
         title={tx('section.unknownTitle', 'That is not a chart section')}
         message={tx(
           'section.unknownBody',
-          'This link names a section the chart does not have. Open the chart and pick one from there.'
+          'This link names a section the chart does not have. Open the chart and pick one from there.',
         )}
         actionLabel={tx('section.openChart', 'Open the chart')}
         onAction={openChart}
@@ -312,7 +309,7 @@ function PatientChartSectionScreenBody() {
         title={tx('section.summaryTitle', 'The chart is the summary')}
         message={tx(
           'section.summaryBody',
-          'There is no separate summary section — the patient chart itself is the overview.'
+          'There is no separate summary section — the patient chart itself is the overview.',
         )}
         actionLabel={tx('section.openChart', 'Open the chart')}
         onAction={openChart}
@@ -328,7 +325,7 @@ function PatientChartSectionScreenBody() {
         })}
         message={tx(
           'section.notHereBody',
-          'This section is part of the desktop record. The mobile chart carries allergies, problems, medications, vitals, encounters and results.'
+          'This section is part of the desktop record. The mobile chart carries allergies, problems, medications, vitals, encounters and results.',
         )}
         actionLabel={tx('section.openChart', 'Open the chart')}
         onAction={openChart}
@@ -360,17 +357,11 @@ function PatientChartSectionScreenBody() {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={colors.blue} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={colors.blue} />}
       >
         {body}
 
-        {!!active && (
-          <LastUpdatedLine
-            loadedAt={active.dataUpdatedAt ? new Date(active.dataUpdatedAt) : null}
-          />
-        )}
+        {!!active && <LastUpdatedLine loadedAt={active.dataUpdatedAt ? new Date(active.dataUpdatedAt) : null} />}
         <ReadOnlyFooter />
       </ScrollView>
     </SafeAreaView>
@@ -425,12 +416,7 @@ function SectionData<T>({
     );
   }
   return (
-    <ChartBoundary<T>
-      state={chartState(query)}
-      loadingLabel={loadingLabel}
-      isEmpty={isEmpty}
-      empty={empty}
-    >
+    <ChartBoundary<T> state={chartState(query)} loadingLabel={loadingLabel} isEmpty={isEmpty} empty={empty}>
       {children}
     </ChartBoundary>
   );
@@ -441,7 +427,7 @@ function notServedFor(tx: Tx, section: PatientChartSectionName): string {
   return tx(
     'shared.notServedSection',
     '{{section}} will appear here once the clinician service is enabled for this app. Nothing on this screen is a statement about the patient’s record.',
-    { section: chartSectionTitle(section) }
+    { section: chartSectionTitle(section) },
   );
 }
 
@@ -511,12 +497,7 @@ function DiagnosesFull({
                     <ResultList>
                       {group.map((p) => (
                         <Card key={p.id} variant="flush">
-                          <ProblemRow
-                            problem={p}
-                            tone={problemTone(key)}
-                            divider={false}
-                            tx={tx}
-                          />
+                          <ProblemRow problem={p} tone={problemTone(key)} tx={tx} />
                         </Card>
                       ))}
                     </ResultList>
@@ -535,7 +516,7 @@ function DiagnosesFull({
                   <ResultList>
                     {other.map((p) => (
                       <Card key={p.id} variant="flush">
-                        <ProblemRow problem={p} tone="neutral" divider={false} tx={tx} />
+                        <ProblemRow problem={p} tone="neutral" tx={tx} />
                       </Card>
                     ))}
                   </ResultList>
@@ -561,22 +542,16 @@ function DiagnosesFull({
         empty={
           <Card>
             <Text style={styles.note}>
-              {tx(
-                'section.diagnosesEmpty',
-                'No diagnoses were coded in the {{scan}} most recent encounters.',
-                { scan: SECTION_ENCOUNTER_SCAN }
-              )}
+              {tx('section.diagnosesEmpty', 'No diagnoses were coded in the {{scan}} most recent encounters.', {
+                scan: SECTION_ENCOUNTER_SCAN,
+              })}
             </Text>
           </Card>
         }
       >
         {(d) => (
           <>
-            <IncompleteNotice
-              scan={d}
-              noun="opesDoctor.chart.nounDiagnoses"
-              scanLimit={SECTION_ENCOUNTER_SCAN}
-            />
+            <IncompleteNotice scan={d} noun="opesDoctor.chart.nounDiagnoses" scanLimit={SECTION_ENCOUNTER_SCAN} />
             <ResultList>
               {d.items.map((dx) => (
                 <Card key={dx.id} variant="flush">
@@ -591,7 +566,6 @@ function DiagnosesFull({
                       fmtChartDate(dx.created_at),
                     ]}
                     chevron={false}
-                    divider={false}
                   />
                 </Card>
               ))}
@@ -603,33 +577,16 @@ function DiagnosesFull({
   );
 }
 
-function ProblemRow({
-  problem: p,
-  tone,
-  divider,
-  tx,
-}: {
-  problem: ChartProblem;
-  tone: StatusTone;
-  divider: boolean;
-  tx: Tx;
-}) {
+function ProblemRow({ problem: p, tone, tx }: { problem: ChartProblem; tone: StatusTone; tx: Tx }) {
   const onset = fmtChartDate(p.onset_date);
   return (
     <ListRow
       icon="clipboard"
       tint={tone === 'warning' ? 'amber' : 'blue'}
       title={p.icd10_description}
-      meta={[
-        p.icd10_code,
-        onset ? tx('chart.onset', 'Onset {{date}}', { date: onset }) : null,
-        p.notes,
-      ]}
-      trailing={
-        <StatusBadge status={p.status} label={problemStatusLabel(p.status)} tone={tone} size="sm" />
-      }
+      meta={[p.icd10_code, onset ? tx('chart.onset', 'Onset {{date}}', { date: onset }) : null, p.notes]}
+      trailing={<StatusBadge status={p.status} label={problemStatusLabel(p.status)} tone={tone} size="sm" />}
       chevron={false}
-      divider={divider}
     />
   );
 }
@@ -663,21 +620,15 @@ function MedicationsFull({
         const past = all.filter((m) => m.status !== 'active');
         return (
           <>
-            <IncompleteNotice
-              scan={scan}
-              noun="opesDoctor.chart.nounMedications"
-              scanLimit={SECTION_ENCOUNTER_SCAN}
-            />
+            <IncompleteNotice scan={scan} noun="opesDoctor.chart.nounMedications" scanLimit={SECTION_ENCOUNTER_SCAN} />
             {all.length === 0 ? (
               <EmptyState
                 icon="pill"
                 tint="blue"
                 title={tx('section.medsEmptyTitle', 'No prescriptions found')}
-                message={tx(
-                  'section.medsEmptyBody',
-                  'Nothing was prescribed in the {{scan}} most recent encounters.',
-                  { scan: SECTION_ENCOUNTER_SCAN }
-                )}
+                message={tx('section.medsEmptyBody', 'Nothing was prescribed in the {{scan}} most recent encounters.', {
+                  scan: SECTION_ENCOUNTER_SCAN,
+                })}
               />
             ) : (
               <>
@@ -726,7 +677,10 @@ function MedGroup({
   return (
     <View style={styles.group}>
       <SectionHeader
-        title={tx('section.groupCount', '{{label}} ({{count}})', { label: title, count: rows.length })}
+        title={tx('section.groupCount', '{{label}} ({{count}})', {
+          label: title,
+          count: rows.length,
+        })}
         variant="overline"
       />
       {rows.map((m) => (
@@ -734,12 +688,7 @@ function MedGroup({
           <View style={styles.cardHead}>
             <Icon name="pill" size={20} color={tintMap[tint].fg} />
             <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{m.drug_name}</Text>
-            <StatusBadge
-              status={m.status}
-              label={prescriptionStatusLabel(m.status)}
-              tone={tone}
-              size="sm"
-            />
+            <StatusBadge status={m.status} label={prescriptionStatusLabel(m.status)} tone={tone} size="sm" />
           </View>
           <ChartLine label={tx('section.dose', 'Dose')} value={m.dosage} />
           <ChartLine label={tx('section.frequency', 'Frequency')} value={m.frequency} />
@@ -747,10 +696,7 @@ function MedGroup({
           <ChartLine label={tx('section.duration', 'Duration')} value={m.duration} />
           <ChartLine label={tx('section.instructions', 'Instructions')} value={m.instructions} />
           <ChartLine label={tx('section.prescribed', 'Prescribed')} value={fmtChartDate(m.created_at)} />
-          <ChartLine
-            label={tx('section.prescriber', 'Prescriber')}
-            value={m.prescribed_by_name}
-          />
+          <ChartLine label={tx('section.prescriber', 'Prescriber')} value={m.prescribed_by_name} />
         </Card>
       ))}
     </View>
@@ -760,12 +706,7 @@ function MedGroup({
 // ── Vitals ────────────────────────────────────────────────────────────────
 
 /** Every recording the record holds for this patient, newest first. */
-function VitalsFull({
-  query,
-  tx,
-  tr,
-  styles,
-}: SharedProps & { query: ChartQuery<ChartVitals[]> }) {
+function VitalsFull({ query, tx, tr, styles }: SharedProps & { query: ChartQuery<ChartVitals[]> }) {
   return (
     <SectionData<ChartVitals[]>
       query={query}
@@ -781,7 +722,7 @@ function VitalsFull({
           title={tx('section.vitalsEmptyTitle', 'No vitals recorded')}
           message={tx(
             'section.vitalsEmptyMobile',
-            'No vital signs are on this patient’s record. This is what the server returned, not a failure to read it.'
+            'No vital signs are on this patient’s record. This is what the server returned, not a failure to read it.',
           )}
         />
       }
@@ -795,7 +736,7 @@ function VitalsFull({
               {tx(
                 'section.vitalsCapped',
                 'Showing the {{limit}} most recent recordings. Older ones are on the record but not on this screen.',
-                { limit: VITALS_LIMIT }
+                { limit: VITALS_LIMIT },
               )}
             </Text>
           )}
@@ -818,12 +759,7 @@ const vitalTime = (v: ChartVitals) => {
 // ── Encounters ────────────────────────────────────────────────────────────
 
 /** The SOAP body of each visit, which is what a clinician is reading for. */
-function EncountersFull({
-  query,
-  tx,
-  tr,
-  styles,
-}: SharedProps & { query: ChartQuery<DoctorPage<ChartEncounter>> }) {
+function EncountersFull({ query, tx, tr, styles }: SharedProps & { query: ChartQuery<DoctorPage<ChartEncounter>> }) {
   const { colors, tintMap } = useTheme();
   return (
     <SectionData<DoctorPage<ChartEncounter>>
@@ -851,57 +787,34 @@ function EncountersFull({
           <>
             {total > rows.length && (
               <Text style={styles.note}>
-                {tx(
-                  'section.showingRecent',
-                  'Showing the {{shown}} most recent of {{total}} encounters.',
-                  { shown: rows.length, total }
-                )}
+                {tx('section.showingRecent', 'Showing the {{shown}} most recent of {{total}} encounters.', {
+                  shown: rows.length,
+                  total,
+                })}
               </Text>
             )}
             {rows.map((e) => (
               <Card key={e.id} style={styles.blockCard}>
                 <View style={styles.cardHead}>
-                  <Icon
-                    name="stethoscope"
-                    size={20}
-                    color={tintMap[encounterTint(e.encounter_type)].fg}
-                  />
+                  <Icon name="stethoscope" size={20} color={tintMap[encounterTint(e.encounter_type)].fg} />
                   <View style={styles.cardHeadText}>
                     <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
                       {encounterTypeLabel(e.encounter_type)}
                     </Text>
                     <Text style={styles.cardMeta}>
-                      {metaLine(
-                        fmtChartDate(e.encounter_date),
-                        e.encounter_time,
-                        e.doctor_name,
-                        e.facility_name
-                      )}
+                      {metaLine(fmtChartDate(e.encounter_date), e.encounter_time, e.doctor_name, e.facility_name)}
                     </Text>
                   </View>
-                  <StatusBadge
-                    status={e.status}
-                    label={encounterStatusLabel(e.status)}
-                    size="sm"
-                  />
+                  <StatusBadge status={e.status} label={encounterStatusLabel(e.status)} size="sm" />
                 </View>
 
-                <ChartLine
-                  label={tx('section.chiefComplaint', 'Chief complaint')}
-                  value={e.chief_complaint}
-                />
+                <ChartLine label={tx('section.chiefComplaint', 'Chief complaint')} value={e.chief_complaint} />
                 <ChartLine label={tx('section.subjective', 'Subjective')} value={e.subjective} />
                 <ChartLine label={tx('section.objective', 'Objective')} value={e.objective} />
                 <ChartLine label={tx('section.assessment', 'Assessment')} value={e.assessment} />
                 <ChartLine label={tx('section.plan', 'Plan')} value={e.plan} />
-                <ChartLine
-                  label={tx('section.dischargeNote', 'Discharge note')}
-                  value={e.discharge_note}
-                />
-                <ChartLine
-                  label={tx('section.followUp', 'Follow-up')}
-                  value={fmtChartDate(e.follow_up_date)}
-                />
+                <ChartLine label={tx('section.dischargeNote', 'Discharge note')} value={e.discharge_note} />
+                <ChartLine label={tx('section.followUp', 'Follow-up')} value={fmtChartDate(e.follow_up_date)} />
               </Card>
             ))}
           </>
@@ -943,17 +856,10 @@ function OrdersFull({
         const all = scan.items;
         const rows = [...all]
           .filter((o) => !wanted || o.order_type === wanted)
-          .sort(
-            (a, b) =>
-              orderTime(b.ordered_at ?? b.created_at) - orderTime(a.ordered_at ?? a.created_at)
-          );
+          .sort((a, b) => orderTime(b.ordered_at ?? b.created_at) - orderTime(a.ordered_at ?? a.created_at));
         return (
           <>
-            <IncompleteNotice
-              scan={scan}
-              noun="opesDoctor.chart.nounResults"
-              scanLimit={SECTION_ENCOUNTER_SCAN}
-            />
+            <IncompleteNotice scan={scan} noun="opesDoctor.chart.nounResults" scanLimit={SECTION_ENCOUNTER_SCAN} />
             {rows.length === 0 ? (
               <EmptyState
                 icon={section === 'imaging' ? 'image' : 'flask'}
@@ -968,13 +874,11 @@ function OrdersFull({
                     ? tx(
                         'section.noOrdersOthers',
                         'Nothing of this kind was ordered in the {{scan}} most recent encounters, though {{count}} other orders were placed.',
-                        { scan: SECTION_ENCOUNTER_SCAN, count: all.length }
+                        { scan: SECTION_ENCOUNTER_SCAN, count: all.length },
                       )
-                    : tx(
-                        'section.noOrdersAtAll',
-                        'Nothing was ordered in the {{scan}} most recent encounters.',
-                        { scan: SECTION_ENCOUNTER_SCAN }
-                      )
+                    : tx('section.noOrdersAtAll', 'Nothing was ordered in the {{scan}} most recent encounters.', {
+                        scan: SECTION_ENCOUNTER_SCAN,
+                      })
                 }
               />
             ) : (
@@ -1000,15 +904,7 @@ const orderTime = (value: string | null) => {
  * list is never rendered as "no result": the summary is shown, and the absence
  * of rows is described as an absence of ITEMISED VALUES, which is what it is.
  */
-function OrderCard({
-  order: o,
-  tx,
-  styles,
-}: {
-  order: ChartOrder;
-  tx: Tx;
-  styles: ReturnType<typeof makeStyles>;
-}) {
+function OrderCard({ order: o, tx, styles }: { order: ChartOrder; tx: Tx; styles: ReturnType<typeof makeStyles> }) {
   const { colors, tintMap } = useTheme();
   const results = useOrderResults(o.id);
   const rows = results.data ?? [];
@@ -1024,17 +920,14 @@ function OrderCard({
               orderTypeLabel(o.order_type),
               o.code,
               priorityLabel(o.priority) || null,
-              fmtAgo(o.ordered_at ?? o.created_at)
+              fmtAgo(o.ordered_at ?? o.created_at),
             )}
           </Text>
         </View>
         <StatusBadge status={o.status} label={orderStatusLabel(o.status)} size="sm" />
       </View>
 
-      <ChartLine
-        label={tx('section.ordered', 'Ordered')}
-        value={fmtChartDateTime(o.ordered_at ?? o.created_at)}
-      />
+      <ChartLine label={tx('section.ordered', 'Ordered')} value={fmtChartDateTime(o.ordered_at ?? o.created_at)} />
       <ChartLine label={tx('section.clinicalNotes', 'Clinical notes')} value={o.clinical_notes} />
 
       {!!o.result_summary && (
@@ -1060,31 +953,31 @@ function OrderCard({
           {isDoctorFeatureUnserved(results.error)
             ? tx(
                 'section.itemisedNotServed',
-                'Itemised analyte values are not available on this server yet. The order, and any reported result above, are complete — only the value-by-value breakdown is missing.'
+                'Itemised analyte values are not available on this server yet. The order, and any reported result above, are complete — only the value-by-value breakdown is missing.',
               )
             : tx('section.itemisedFailed', 'Itemised results could not be loaded. {{error}}', {
                 error: describeFailure(results.error).message,
               })}
         </Text>
       ) : results.isPending ? (
-        <Text style={styles.note}>
-          {tx('section.loadingItemised', 'Loading itemised results…')}
-        </Text>
+        <Text style={styles.note}>{tx('section.loadingItemised', 'Loading itemised results…')}</Text>
       ) : rows.length === 0 ? (
         <Text style={styles.note}>
           {o.result_summary
             ? tx(
                 'section.noItemisedWithSummary',
-                'No itemised analyte values were entered for this order — the reported result above is what the laboratory released.'
+                'No itemised analyte values were entered for this order — the reported result above is what the laboratory released.',
               )
             : tx('section.noItemised', 'No values have been entered for this order yet.')}
         </Text>
       ) : (
-        <View style={styles.resultTable}>
+        <CardStack spacing="sm" style={styles.resultTable}>
           {rows.map((r) => (
-            <AnalyteRow key={r.id} result={r} tx={tx} styles={styles} />
+            <Card key={r.id}>
+              <AnalyteRow result={r} tx={tx} styles={styles} />
+            </Card>
           ))}
-        </View>
+        </CardStack>
       )}
     </Card>
   );
@@ -1115,7 +1008,9 @@ function AnalyteRow({
         <Text style={styles.resultAnalyte}>{r.analyte}</Text>
         <Text style={styles.resultRef}>
           {r.reference
-            ? tx('section.labReference', 'Lab reference: {{range}}', { range: r.reference })
+            ? tx('section.labReference', 'Lab reference: {{range}}', {
+                range: r.reference,
+              })
             : tx('section.noLabReference', 'No reference range supplied by the laboratory')}
         </Text>
       </View>
@@ -1124,9 +1019,7 @@ function AnalyteRow({
           {r.value ?? '—'}
           {r.unit ? <Text style={styles.resultUnit}> {r.unit}</Text> : null}
         </Text>
-        {!!r.flag && (
-          <StatusBadge status={r.flag} tone={r.is_abnormal ? 'critical' : 'normal'} size="sm" />
-        )}
+        {!!r.flag && <StatusBadge status={r.flag} tone={r.is_abnormal ? 'critical' : 'normal'} size="sm" />}
       </View>
     </View>
   );
@@ -1135,7 +1028,12 @@ function AnalyteRow({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, paddingBottom: spacing.xxl, gap: spacing.md },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      paddingBottom: spacing.xxl,
+      gap: spacing.md,
+    },
 
     group: { gap: 0 },
     blockGap: { marginTop: spacing.md },
@@ -1202,17 +1100,12 @@ const makeStyles = (colors: Palette) =>
 
     resultTable: {
       marginTop: spacing.sm,
-      borderTopWidth: 1,
-      borderTopColor: colors.divider,
     },
     resultRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: spacing.sm,
-      paddingVertical: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.divider,
     },
     resultMain: { flex: 1, minWidth: 0 },
     resultAnalyte: {

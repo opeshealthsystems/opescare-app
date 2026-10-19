@@ -78,12 +78,7 @@ import {
   type StaffAppointmentStatus,
   isDoctorFeatureUnserved,
 } from '@/lib/api/doctorQueries';
-import {
-  isDeskHomeUnserved,
-  useDeskHome,
-  useLabHome,
-  usePharmacyHome,
-} from '@/lib/api/deskHomeQueries';
+import { isDeskHomeUnserved, useDeskHome, useLabHome, usePharmacyHome } from '@/lib/api/deskHomeQueries';
 import { CountTile, ResultRow, styles as tileStyles } from '@/components/doctor/shared';
 import { ScheduleRow } from '@/components/doctor/scheduleShared';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
@@ -143,12 +138,9 @@ export default function DoctorHomeScreen() {
   /** `opesDoctor.<key>` with a readable default until the catalogue lands. */
   const tx = useCallback<Tx>(
     (key, defaultValue, params) => String(t(`opesDoctor.${key}`, { defaultValue, ...params })),
-    [t]
+    [t],
   );
-  const tr = useCallback<Translate>(
-    (key, params) => String(t(key, params as Record<string, unknown>)),
-    [t]
-  );
+  const tr = useCallback<Translate>((key, params) => String(t(key, params as Record<string, unknown>)), [t]);
 
   // ── What this ROLE gets (`lib/staffCapabilities.ts`) ────────────────────
   const realSession = useHasProviderSession();
@@ -200,8 +192,18 @@ export default function DoctorHomeScreen() {
     // The query objects are stable per hook; their refetch identity is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    isClinician, canSchedule, canDispense, canLabResults, canFrontDesk, canMessage,
-    home.refetch, requests.refetch, pharmacyHome.refetch, labHome.refetch, deskHome.refetch, unread.refetch,
+    isClinician,
+    canSchedule,
+    canDispense,
+    canLabResults,
+    canFrontDesk,
+    canMessage,
+    home.refetch,
+    requests.refetch,
+    pharmacyHome.refetch,
+    labHome.refetch,
+    deskHome.refetch,
+    unread.refetch,
   ]);
 
   // Coming back from a desk, a thread or an appointment must not leave a
@@ -214,7 +216,7 @@ export default function DoctorHomeScreen() {
         return;
       }
       reload();
-    }, [reload])
+    }, [reload]),
   );
 
   const data = home.data;
@@ -224,8 +226,7 @@ export default function DoctorHomeScreen() {
   // of whatever page happened to load. Unknown stays null, never 0.
   const requestTotal: number | null = requests.data?.meta?.pagination?.total ?? null;
 
-  const fetching =
-    home.isFetching || pharmacyHome.isFetching || labHome.isFetching || deskHome.isFetching;
+  const fetching = home.isFetching || pharmacyHome.isFetching || labHome.isFetching || deskHome.isFetching;
   const pending =
     (isClinician && home.isPending) ||
     (canDispense && pharmacyHome.isPending) ||
@@ -235,9 +236,7 @@ export default function DoctorHomeScreen() {
   // A refresh that failed while figures are on screen must never pass as
   // fresh — the figures are the whole point of this screen. One notice, for
   // whichever read it was.
-  const staleOf = [home, pharmacyHome, labHome, deskHome].find(
-    (q) => q.isError && q.data !== undefined
-  );
+  const staleOf = [home, pharmacyHome, labHome, deskHome].find((q) => q.isError && q.data !== undefined);
   const stale = staleOf ? (
     <StaleNotice
       message={describeFailure(staleOf.error).message}
@@ -307,42 +306,52 @@ export default function DoctorHomeScreen() {
       tx={tx}
     >
       {(d) => (
-        <Card variant="flush">
-          <CountTile
-            icon="pill"
-            tint="blue"
-            count={d.counts.incoming}
-            label={tx('home.tileIncoming', 'Incoming prescriptions')}
-            onPress={() => router.push(doctorRoutes.pharmacy())}
-          />
-          <CountTile
-            icon="clock"
-            tint="amber"
-            count={d.counts.preparing}
-            label={tx('home.tilePreparing', 'Being prepared')}
-            onPress={() => router.push(doctorRoutes.pharmacy())}
-          />
-          <CountTile
-            icon="check-circle"
-            tint="green"
-            count={d.counts.ready}
-            label={tx('home.tileReady', 'Ready to collect')}
-            onPress={() => router.push(doctorRoutes.pharmacy())}
-          />
-          <CountTile
-            icon="cart"
-            tint="purple"
-            count={d.counts.reservations_pending}
-            label={tx('home.tileReservations', 'Reservations to accept')}
-            onPress={() => router.push(doctorRoutes.pharmacy())}
-          />
-          <CountTile
-            icon="truck"
-            tint="blue"
-            count={d.counts.deliveries_open}
-            label={tx('home.tileDeliveries', 'Deliveries open')}
-            onPress={() => router.push(doctorRoutes.pharmacy())}
-          />
+        <CardStack spacing="sm">
+          <Card variant="flush">
+            <CountTile
+              icon="pill"
+              tint="blue"
+              count={d.counts.incoming}
+              label={tx('home.tileIncoming', 'Incoming prescriptions')}
+              onPress={() => router.push(doctorRoutes.pharmacy())}
+            />
+          </Card>
+          <Card variant="flush">
+            <CountTile
+              icon="clock"
+              tint="amber"
+              count={d.counts.preparing}
+              label={tx('home.tilePreparing', 'Being prepared')}
+              onPress={() => router.push(doctorRoutes.pharmacy())}
+            />
+          </Card>
+          <Card variant="flush">
+            <CountTile
+              icon="check-circle"
+              tint="green"
+              count={d.counts.ready}
+              label={tx('home.tileReady', 'Ready to collect')}
+              onPress={() => router.push(doctorRoutes.pharmacy())}
+            />
+          </Card>
+          <Card variant="flush">
+            <CountTile
+              icon="cart"
+              tint="purple"
+              count={d.counts.reservations_pending}
+              label={tx('home.tileReservations', 'Reservations to accept')}
+              onPress={() => router.push(doctorRoutes.pharmacy())}
+            />
+          </Card>
+          <Card variant="flush">
+            <CountTile
+              icon="truck"
+              tint="blue"
+              count={d.counts.deliveries_open}
+              label={tx('home.tileDeliveries', 'Deliveries open')}
+              onPress={() => router.push(doctorRoutes.pharmacy())}
+            />
+          </Card>
           {holdsStock && (
             <FigureRow
               icon="archive"
@@ -353,7 +362,7 @@ export default function DoctorHomeScreen() {
               onPress={() => router.push(doctorRoutes.pharmacyStock)}
             />
           )}
-        </Card>
+        </CardStack>
       )}
     </DeskSection>
   );
@@ -388,45 +397,55 @@ export default function DoctorHomeScreen() {
       tx={tx}
     >
       {(d) => (
-        <Card variant="flush">
+        <CardStack spacing="sm">
           {d.counts.urgent > 0 && (
+            <Card variant="flush">
+              <CountTile
+                icon="alert-triangle"
+                tint="red"
+                count={d.counts.urgent}
+                label={tx('home.tileUrgentOrders', 'Urgent orders')}
+                emphasise
+                onPress={() => router.push(doctorRoutes.lab())}
+              />
+            </Card>
+          )}
+          <Card variant="flush">
             <CountTile
-              icon="alert-triangle"
-              tint="red"
-              count={d.counts.urgent}
-              label={tx('home.tileUrgentOrders', 'Urgent orders')}
-              emphasise
+              icon="syringe"
+              tint="amber"
+              count={d.counts.awaiting_collection}
+              label={tx('home.tileAwaitingCollection', 'Awaiting collection')}
               onPress={() => router.push(doctorRoutes.lab())}
             />
-          )}
-          <CountTile
-            icon="syringe"
-            tint="amber"
-            count={d.counts.awaiting_collection}
-            label={tx('home.tileAwaitingCollection', 'Awaiting collection')}
-            onPress={() => router.push(doctorRoutes.lab())}
-          />
-          <CountTile
-            icon="flask"
-            tint="blue"
-            count={d.counts.awaiting_results}
-            label={tx('home.tileAwaitingResults', 'Awaiting results')}
-            onPress={() => router.push(doctorRoutes.lab())}
-          />
-          <CountTile
-            icon="activity"
-            tint="purple"
-            count={d.counts.in_progress}
-            label={tx('home.tileInProgress', 'In progress')}
-            onPress={() => router.push(doctorRoutes.lab())}
-          />
-          <CountTile
-            icon="clipboard"
-            tint="amber"
-            count={d.counts.requests_pending}
-            label={tx('home.tileTestRequests', 'Test requests to review')}
-            onPress={() => router.push(doctorRoutes.lab())}
-          />
+          </Card>
+          <Card variant="flush">
+            <CountTile
+              icon="flask"
+              tint="blue"
+              count={d.counts.awaiting_results}
+              label={tx('home.tileAwaitingResults', 'Awaiting results')}
+              onPress={() => router.push(doctorRoutes.lab())}
+            />
+          </Card>
+          <Card variant="flush">
+            <CountTile
+              icon="activity"
+              tint="purple"
+              count={d.counts.in_progress}
+              label={tx('home.tileInProgress', 'In progress')}
+              onPress={() => router.push(doctorRoutes.lab())}
+            />
+          </Card>
+          <Card variant="flush">
+            <CountTile
+              icon="clipboard"
+              tint="amber"
+              count={d.counts.requests_pending}
+              label={tx('home.tileTestRequests', 'Test requests to review')}
+              onPress={() => router.push(doctorRoutes.lab())}
+            />
+          </Card>
           <FigureRow
             icon="check-double"
             tint="green"
@@ -435,7 +454,7 @@ export default function DoctorHomeScreen() {
             subtitle={tx('home.tileResultedTodaySub', 'Released to patients and clinicians')}
             onPress={() => router.push(doctorRoutes.lab())}
           />
-        </Card>
+        </CardStack>
       )}
     </DeskSection>
   ) : (
@@ -469,45 +488,55 @@ export default function DoctorHomeScreen() {
         tx={tx}
       >
         {(d) => (
-          <Card variant="flush">
-            <FigureRow
-              icon="calendar"
-              tint="blue"
-              count={d.counts.today_total}
-              title={tx('home.tileAppointments', 'Appointments today')}
-              subtitle={tx('home.tileBookSub', 'Every provider at your facility')}
-              onPress={() => router.push(doctorRoutes.desk)}
-            />
-            <CountTile
-              icon="clock"
-              tint="amber"
-              count={d.counts.awaiting_confirmation}
-              label={tx('home.tileAwaitingConfirmation', 'Awaiting confirmation')}
-              onPress={() => router.push(doctorRoutes.desk)}
-            />
-            <FigureRow
-              icon="check-circle"
-              tint="green"
-              count={d.counts.checked_in}
-              title={tx('home.tileCheckedIn', 'Checked in')}
-              subtitle={tx('home.tileCheckedInSub', 'Arrived and waiting to be seen')}
-              onPress={() => router.push(doctorRoutes.desk)}
-            />
-            <FigureRow
-              icon="alert-circle"
-              tint={d.counts.no_show > 0 ? 'red' : 'green'}
-              count={d.counts.no_show}
-              title={tx('home.tileNoShow', 'No-shows')}
-              onPress={() => router.push(doctorRoutes.desk)}
-            />
-            <FigureRow
-              icon="close"
-              tint="amber"
-              count={d.counts.cancelled}
-              title={tx('home.tileCancelled', 'Cancelled today')}
-              onPress={() => router.push(doctorRoutes.desk)}
-            />
-          </Card>
+          <CardStack spacing="sm">
+            <Card variant="flush">
+              <FigureRow
+                icon="calendar"
+                tint="blue"
+                count={d.counts.today_total}
+                title={tx('home.tileAppointments', 'Appointments today')}
+                subtitle={tx('home.tileBookSub', 'Every provider at your facility')}
+                onPress={() => router.push(doctorRoutes.desk)}
+              />
+            </Card>
+            <Card variant="flush">
+              <CountTile
+                icon="clock"
+                tint="amber"
+                count={d.counts.awaiting_confirmation}
+                label={tx('home.tileAwaitingConfirmation', 'Awaiting confirmation')}
+                onPress={() => router.push(doctorRoutes.desk)}
+              />
+            </Card>
+            <Card variant="flush">
+              <FigureRow
+                icon="check-circle"
+                tint="green"
+                count={d.counts.checked_in}
+                title={tx('home.tileCheckedIn', 'Checked in')}
+                subtitle={tx('home.tileCheckedInSub', 'Arrived and waiting to be seen')}
+                onPress={() => router.push(doctorRoutes.desk)}
+              />
+            </Card>
+            <Card variant="flush">
+              <FigureRow
+                icon="alert-circle"
+                tint={d.counts.no_show > 0 ? 'red' : 'green'}
+                count={d.counts.no_show}
+                title={tx('home.tileNoShow', 'No-shows')}
+                onPress={() => router.push(doctorRoutes.desk)}
+              />
+            </Card>
+            <Card variant="flush">
+              <FigureRow
+                icon="close"
+                tint="amber"
+                count={d.counts.cancelled}
+                title={tx('home.tileCancelled', 'Cancelled today')}
+                onPress={() => router.push(doctorRoutes.desk)}
+              />
+            </Card>
+          </CardStack>
         )}
       </DeskSection>
       <SectionHeader style={styles.sectionGap} title={tx('home.deskActions', 'At the desk')} />
@@ -537,30 +566,35 @@ export default function DoctorHomeScreen() {
   // Messages, for a non-clinician role that holds messaging (the clinician's
   // figure is inside the doctor home payload below). A count we do not have
   // is a link without a number — never a zero.
-  const messagesSection = isClinician || !canMessage ? null : (
-    <>
-      <SectionHeader style={styles.sectionGap} title={tx('home.messagesSection', 'Messages')} />
-      <Card variant="flush">
-        {unread.data ? (
-          <CountTile
-            icon="chat"
-            tint="blue"
-            count={unread.data.unread_threads}
-            label={tx('home.tileUnreadThreads', 'Unread conversations')}
-            onPress={() => router.push(doctorRoutes.messages)}
-          />
-        ) : (
-          <ListRow
-            icon="chat"
-            tint="blue"
-            title={tx('home.tileUnreadThreads', 'Unread conversations')}
-            subtitle={tx('home.tileMessagesUnknown', 'Open to see what is waiting for you')}
-            onPress={() => router.push(doctorRoutes.messages)}
-          />
-        )}
-      </Card>
-    </>
-  );
+  const messagesSection =
+    isClinician || !canMessage ? null : (
+      <>
+        <SectionHeader style={styles.sectionGap} title={tx('home.messagesSection', 'Messages')} />
+        <CardStack spacing="sm">
+          {unread.data ? (
+            <Card variant="flush">
+              <CountTile
+                icon="chat"
+                tint="blue"
+                count={unread.data.unread_threads}
+                label={tx('home.tileUnreadThreads', 'Unread conversations')}
+                onPress={() => router.push(doctorRoutes.messages)}
+              />
+            </Card>
+          ) : (
+            <Card variant="flush">
+              <ListRow
+                icon="chat"
+                tint="blue"
+                title={tx('home.tileUnreadThreads', 'Unread conversations')}
+                subtitle={tx('home.tileMessagesUnknown', 'Open to see what is waiting for you')}
+                onPress={() => router.push(doctorRoutes.messages)}
+              />
+            </Card>
+          )}
+        </CardStack>
+      </>
+    );
 
   // ── The clinician's day ─────────────────────────────────────────────────
   // The "waiting on you" card only when at least one of its tiles is this
@@ -587,7 +621,7 @@ export default function DoctorHomeScreen() {
           notServed
             ? tx(
                 'shared.notServedHome',
-                "Clinician data isn't connected yet. Your day, your counts and your results will appear here once the clinician service is enabled for this app."
+                "Clinician data isn't connected yet. Your day, your counts and your results will appear here once the clinician service is enabled for this app.",
               )
             : describeFailure(home.error).message
         }
@@ -607,11 +641,11 @@ export default function DoctorHomeScreen() {
               data.counts.critical_unacknowledged === 1
                 ? '1 critical result is not acknowledged'
                 : '{{count}} critical results are not acknowledged',
-              { count: data.counts.critical_unacknowledged }
+              { count: data.counts.critical_unacknowledged },
             )}
             message={tx(
               'home.criticalBannerBody',
-              'A critical result stays unacknowledged until you open it and confirm. Open the inbox to review.'
+              'A critical result stays unacknowledged until you open it and confirm. Open the inbox to review.',
             )}
           />
         )}
@@ -619,58 +653,68 @@ export default function DoctorHomeScreen() {
         {waitingTiles && (
           <>
             <SectionHeader style={styles.sectionGap} title={tx('home.waitingOnYou', 'Waiting on you')} />
-            <Card variant="flush">
+            <CardStack spacing="sm">
               {canResults && (
-                <CountTile
-                  icon="alert-circle"
-                  tint="red"
-                  count={data.counts.unacknowledged_results}
-                  label={tx('home.tileResults', 'Results to acknowledge')}
-                  emphasise={data.counts.critical_unacknowledged > 0}
-                  onPress={() => router.push(doctorRoutes.results)}
-                />
+                <Card variant="flush">
+                  <CountTile
+                    icon="alert-circle"
+                    tint="red"
+                    count={data.counts.unacknowledged_results}
+                    label={tx('home.tileResults', 'Results to acknowledge')}
+                    emphasise={data.counts.critical_unacknowledged > 0}
+                    onPress={() => router.push(doctorRoutes.results)}
+                  />
+                </Card>
               )}
               {canMessage && (
-                <CountTile
-                  icon="chat"
-                  tint="blue"
-                  count={data.counts.unread_messages}
-                  label={tx('home.tileMessages', 'Unread patient messages')}
-                  onPress={() => router.push(doctorRoutes.messages)}
-                />
+                <Card variant="flush">
+                  <CountTile
+                    icon="chat"
+                    tint="blue"
+                    count={data.counts.unread_messages}
+                    label={tx('home.tileMessages', 'Unread patient messages')}
+                    onPress={() => router.push(doctorRoutes.messages)}
+                  />
+                </Card>
               )}
               {canSchedule && (
-                <CountTile
-                  icon="calendar"
-                  tint="purple"
-                  count={data.counts.appointments_today}
-                  label={tx('home.tileAppointments', 'Appointments today')}
-                  onPress={() => router.push(doctorRoutes.schedule)}
-                />
-              )}
-              {canSchedule &&
-                (requestTotal === null ? (
-                  // The count could not be read. A link, not a number we don't have.
-                  <ListRow
-                    icon="clipboard"
-                    tint="amber"
-                    title={tx('schedule.requestsAction', 'Appointment requests')}
-                    subtitle={tx(
-                      'home.tileRequestsUnknown',
-                      'Open to see what is awaiting your decision'
-                    )}
-                    onPress={() => router.push(doctorRoutes.requests)}
-                  />
-                ) : (
+                <Card variant="flush">
                   <CountTile
-                    icon="clipboard"
-                    tint="amber"
-                    count={requestTotal}
-                    label={tx('schedule.requestsAction', 'Appointment requests')}
-                    onPress={() => router.push(doctorRoutes.requests)}
+                    icon="calendar"
+                    tint="purple"
+                    count={data.counts.appointments_today}
+                    label={tx('home.tileAppointments', 'Appointments today')}
+                    onPress={() => router.push(doctorRoutes.schedule)}
                   />
-                ))}
-            </Card>
+                </Card>
+              )}
+              {canSchedule && (
+                <CardStack spacing="sm">
+                  {requestTotal === null ? (
+                    // The count could not be read. A link, not a number we don't have.
+                    <Card variant="flush">
+                      <ListRow
+                        icon="clipboard"
+                        tint="amber"
+                        title={tx('schedule.requestsAction', 'Appointment requests')}
+                        subtitle={tx('home.tileRequestsUnknown', 'Open to see what is awaiting your decision')}
+                        onPress={() => router.push(doctorRoutes.requests)}
+                      />
+                    </Card>
+                  ) : (
+                    <Card variant="flush">
+                      <CountTile
+                        icon="clipboard"
+                        tint="amber"
+                        count={requestTotal}
+                        label={tx('schedule.requestsAction', 'Appointment requests')}
+                        onPress={() => router.push(doctorRoutes.requests)}
+                      />
+                    </Card>
+                  )}
+                </CardStack>
+              )}
+            </CardStack>
           </>
         )}
 
@@ -697,12 +741,8 @@ export default function DoctorHomeScreen() {
             <SectionHeader
               style={styles.sectionGap}
               title={tx('home.nextToday', 'Next today')}
-              actionLabel={
-                data.counts.appointments_today > 0 ? tx('home.fullSchedule', 'Full schedule') : undefined
-              }
-              onAction={
-                data.counts.appointments_today > 0 ? () => router.push(doctorRoutes.schedule) : undefined
-              }
+              actionLabel={data.counts.appointments_today > 0 ? tx('home.fullSchedule', 'Full schedule') : undefined}
+              onAction={data.counts.appointments_today > 0 ? () => router.push(doctorRoutes.schedule) : undefined}
             />
             {data.next_appointments.length === 0 ? (
               <EmptyState
@@ -713,16 +753,18 @@ export default function DoctorHomeScreen() {
               />
             ) : (
               <ResultList>
-                {data.next_appointments.map((a) => (
-                  <Card key={a.id} variant="flush">
-                    {a.scheduled_at ? (
+                {data.next_appointments.map((a) =>
+                  a.scheduled_at ? (
+                    <Card key={a.id} variant="flush">
                       <ScheduleRow
                         appointment={asScheduleRow(a, a.scheduled_at)}
                         onPress={() => router.push(doctorRoutes.appointment(a.id))}
                       />
-                    ) : (
-                      // A time-first row with no time would print a clock it does
-                      // not have. This one says so instead.
+                    </Card>
+                  ) : (
+                    <Card key={a.id} variant="flush">
+                      {/* A time-first row with no time would print a clock it does
+                          not have. This one says so instead. */}
                       <ListRow
                         icon={a.visit_mode === 'telemedicine' ? 'video' : 'stethoscope'}
                         tint={a.visit_mode === 'telemedicine' ? 'purple' : 'blue'}
@@ -734,9 +776,9 @@ export default function DoctorHomeScreen() {
                         ]}
                         onPress={() => router.push(doctorRoutes.appointment(a.id))}
                       />
-                    )}
-                  </Card>
-                ))}
+                    </Card>
+                  ),
+                )}
               </ResultList>
             )}
           </>
@@ -792,9 +834,7 @@ export default function DoctorHomeScreen() {
       />
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={fetching && !pending} onRefresh={reload} tintColor={colors.blue} />
-        }
+        refreshControl={<RefreshControl refreshing={fetching && !pending} onRefresh={reload} tintColor={colors.blue} />}
       >
         {stale}
         {identifySection}
@@ -812,7 +852,7 @@ export default function DoctorHomeScreen() {
             <Text style={styles.footerText}>
               {tx(
                 'home.countedLive',
-                'These figures are counted live on the hospital record each time this screen loads.'
+                'These figures are counted live on the hospital record each time this screen loads.',
               )}
             </Text>
           </View>
@@ -857,9 +897,7 @@ function DeskSection<T>({
       <SectionHeader
         style={{ marginTop: spacing.md }}
         title={title}
-        actionLabel={
-          failed && !unserved ? tx('home.retry', 'Retry') : tx('home.openDeskAction', 'Open')
-        }
+        actionLabel={failed && !unserved ? tx('home.retry', 'Retry') : tx('home.openDeskAction', 'Open')}
         onAction={failed && !unserved ? () => void query.refetch() : () => router.push(open.route)}
         actionChevron={!(failed && !unserved)}
       />
@@ -928,11 +966,14 @@ function FigureRow({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
+    content: {
+      padding: spacing.md,
+      paddingBottom: spacing.xxl,
+      gap: spacing.sm,
+    },
     // Headings sat 8px under the card above but 18px over their own card, so
     // each read as a caption of the previous block; this restores the grouping.
     sectionGap: { marginTop: spacing.md },
-
 
     footer: {
       flexDirection: 'row',

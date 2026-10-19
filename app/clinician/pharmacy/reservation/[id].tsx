@@ -26,6 +26,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   PillInput,
@@ -93,7 +94,9 @@ function DeskReservationBody() {
       ? (params.status as ReservationStatus)
       : null;
 
-  const { reservation, query, settling } = useReservationFromCache(id, { status: statusHint });
+  const { reservation, query, settling } = useReservationFromCache(id, {
+    status: statusHint,
+  });
 
   const [pinned, setPinned] = useState<DeskReservation | null>(null);
   const lastSeen = useRef<DeskReservation | null>(null);
@@ -125,12 +128,19 @@ function DeskReservationBody() {
       const medicine = medicineLabel(r.medicine);
       dialog.confirm({
         title: t(`pharmacyDesk.reservationConfirm.${action}Title`),
-        message: t(`pharmacyDesk.reservationConfirm.${action}Body`, { patient, medicine }),
+        message: t(`pharmacyDesk.reservationConfirm.${action}Body`, {
+          patient,
+          medicine,
+        }),
         confirmLabel: reservationActionLabel(action),
         destructive: action === 'cancel',
         onConfirm: async () => {
           try {
-            const updated = await transition.mutateAsync({ id: r.id, action, reason: cancelReason });
+            const updated = await transition.mutateAsync({
+              id: r.id,
+              action,
+              reason: cancelReason,
+            });
             setPinned(updated);
             setCancelling(false);
             setReason('');
@@ -251,55 +261,63 @@ function DeskReservationBody() {
         </Card>
 
         {/* ── Who, and how they get it ─────────────────────────────────── */}
-        <Card variant="flush">
-          <InfoRow
-            icon="person"
-            tint="blue"
-            label={t('pharmacyDesk.reservation.patient')}
-            value={`${patientLine(r.patient)} · ${r.patient.health_id}`}
-            divider
-          />
-          <InfoRow
-            icon={fulfilmentIcon(r.fulfilment_mode)}
-            tint={delivery ? 'purple' : 'green'}
-            label={t('pharmacyDesk.reservation.fulfilment')}
-            value={fulfilmentLabel(r.fulfilment_mode)}
-            divider={delivery}
-          />
+        <CardStack spacing="sm">
+          <Card variant="flush">
+            <InfoRow
+              icon="person"
+              tint="blue"
+              label={t('pharmacyDesk.reservation.patient')}
+              value={`${patientLine(r.patient)} · ${r.patient.health_id}`}
+            />
+          </Card>
+          <Card variant="flush">
+            <InfoRow
+              icon={fulfilmentIcon(r.fulfilment_mode)}
+              tint={delivery ? 'purple' : 'green'}
+              label={t('pharmacyDesk.reservation.fulfilment')}
+              value={fulfilmentLabel(r.fulfilment_mode)}
+            />
+          </Card>
           {delivery && (
-            <>
+            <Card variant="flush">
               <InfoRow
                 icon="location"
                 tint="purple"
                 label={t('pharmacyDesk.reservation.deliveryAddress')}
                 value={r.delivery_address?.trim() || t('pharmacyDesk.reservation.addressMissing')}
-                divider
               />
+            </Card>
+          )}
+          {delivery && (
+            <Card variant="flush">
               <InfoRow
                 icon="phone"
                 tint="purple"
                 label={t('pharmacyDesk.reservation.deliveryPhone')}
                 value={r.delivery_phone?.trim() || t('pharmacyDesk.reservation.phoneMissing')}
-                divider={!!r.delivery_status}
               />
-              {!!r.delivery_status && (
-                <InfoRow
-                  icon="truck"
-                  tint="purple"
-                  label={t('pharmacyDesk.reservation.deliveryStatus')}
-                  value={r.delivery_status}
-                />
-              )}
-            </>
+            </Card>
           )}
-        </Card>
+          {delivery && !!r.delivery_status && (
+            <Card variant="flush">
+              <InfoRow
+                icon="truck"
+                tint="purple"
+                label={t('pharmacyDesk.reservation.deliveryStatus')}
+                value={r.delivery_status}
+              />
+            </Card>
+          )}
+        </CardStack>
 
         {/* ── Actions by state ─────────────────────────────────────────── */}
         {closed ? (
           <NoticeBanner
             icon={String(r.status).toLowerCase() === 'cancelled' ? 'x-circle' : 'check-circle'}
             tone={String(r.status).toLowerCase() === 'cancelled' ? 'critical' : 'normal'}
-            title={t('pharmacyDesk.reservation.closedTitle', { status: reservationStatusLabel(r.status) })}
+            title={t('pharmacyDesk.reservation.closedTitle', {
+              status: reservationStatusLabel(r.status),
+            })}
             message={t('pharmacyDesk.reservation.closedBody')}
           />
         ) : cancelling ? (
@@ -400,8 +418,17 @@ function DeskReservationBody() {
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, paddingBottom: spacing.xxl, gap: spacing.md },
-    titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      paddingBottom: spacing.xxl,
+      gap: spacing.md,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+    },
     titleText: { flex: 1, minWidth: 0 },
     title: {
       fontFamily: typography.fontFamily.bold,
@@ -415,7 +442,11 @@ const makeStyles = (colors: Palette) =>
       fontSize: typography.size.sm,
       color: colors.textSecondary,
     },
-    divider: { height: 1, backgroundColor: colors.divider, marginVertical: spacing.sm },
+    divider: {
+      height: 1,
+      backgroundColor: colors.divider,
+      marginVertical: spacing.sm,
+    },
     note: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,

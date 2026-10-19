@@ -37,6 +37,7 @@ import { useTranslation } from 'react-i18next';
 import { RoleGate } from '@/components/doctor/RoleGate';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   PillInput,
@@ -91,13 +92,7 @@ import {
   patientShortName,
   providerLabel,
 } from '@/components/desk/shared';
-import {
-  DateField,
-  SlotGrid,
-  TimeField,
-  composeLocal,
-  timeOfIso,
-} from '@/components/desk/DateTimeFields';
+import { DateField, SlotGrid, TimeField, composeLocal, timeOfIso } from '@/components/desk/DateTimeFields';
 import { ProviderPicker } from '@/components/desk/ProviderPicker';
 import { deskRoutes } from '@/components/desk/routes';
 
@@ -161,7 +156,11 @@ function DeskAppointmentScreenBody() {
         if (isStateConflict(e)) {
           dialog.alert(t('desk.errors.conflictTitle'), deskErrorMessage(e, t('desk.errors.conflictBody')), 'warning');
         } else if (isRoleForbidden(e)) {
-          dialog.alert(t('opesDoctor.roleGate.serverRefusedTitle'), t('opesDoctor.roleGate.serverRefusedBody'), 'warning');
+          dialog.alert(
+            t('opesDoctor.roleGate.serverRefusedTitle'),
+            t('opesDoctor.roleGate.serverRefusedBody'),
+            'warning',
+          );
         } else if (isNotServed(e)) {
           dialog.alert(t('desk.notServedTitle'), t('desk.notServedActions'), 'info');
         } else if (isDeskRecordNotFound(e)) {
@@ -175,7 +174,10 @@ function DeskAppointmentScreenBody() {
           dialog.alert(
             t('desk.errors.writeFailedTitle'),
             outcomeUnknown
-              ? tr('opesCore.errors.unknownOutcome', { message: f.message, checkHint: t('desk.errors.checkHint') })
+              ? tr('opesCore.errors.unknownOutcome', {
+                  message: f.message,
+                  checkHint: t('desk.errors.checkHint'),
+                })
               : f.message,
             'critical',
           );
@@ -222,7 +224,9 @@ function DeskAppointmentScreenBody() {
         if (ok) {
           dialog.alert(
             t('desk.appointment.checkedInTitle'),
-            t('desk.appointment.checkedInBody', { patient: patientShortName(t, row.patient) }),
+            t('desk.appointment.checkedInBody', {
+              patient: patientShortName(t, row.patient),
+            }),
             'success',
           );
         }
@@ -245,7 +249,10 @@ function DeskAppointmentScreenBody() {
   function askToCancel(row: DeskAppointment, reason: string) {
     dialog.confirm({
       title: t('desk.appointment.cancelTitle'),
-      message: t('desk.appointment.cancelMessage', { ...describe(row), reason }),
+      message: t('desk.appointment.cancelMessage', {
+        ...describe(row),
+        reason,
+      }),
       confirmLabel: t('desk.appointment.cancelConfirm'),
       cancelLabel: t('desk.appointment.cancelKeep'),
       destructive: true,
@@ -330,7 +337,9 @@ function DeskAppointmentScreenBody() {
         icon="calendar"
         tint="blue"
         title={t('desk.appointment.notInDayTitle')}
-        message={t('desk.appointment.notInDayBody', { date: fmtDateLong(`${detail.day}T00:00:00`) })}
+        message={t('desk.appointment.notInDayBody', {
+          date: fmtDateLong(`${detail.day}T00:00:00`),
+        })}
         actionLabel={t('desk.book.title')}
         onAction={() => router.replace(deskRoutes.index)}
       />
@@ -355,41 +364,46 @@ function DeskAppointmentScreenBody() {
           </View>
         </Card>
 
-        <Card>
-          <FactRow icon="calendar" label={t('desk.appointment.date')} value={fmtDateLong(a.scheduled_at)} divider />
-          <FactRow icon="clock" label={t('desk.appointment.time')} value={fmtTime(a.scheduled_at)} divider />
-          <FactRow
-            icon="clipboard"
-            tint="purple"
-            label={t('desk.appointment.type')}
-            value={typeLabelOf(t, a.appointment_type)}
-            divider
-          />
-          <FactRow
-            icon="stethoscope"
-            tint={a.provider ? 'green' : 'amber'}
-            label={t('desk.appointment.provider')}
-            value={providerLabel(t, a.provider)}
-            divider={!!a.reason || !!a.checked_in_at}
-            trailing={a.provider ? undefined : <UnassignedBadge />}
-          />
-          {!!a.reason && (
+        <CardStack spacing="sm">
+          <Card>
+            <FactRow icon="calendar" label={t('desk.appointment.date')} value={fmtDateLong(a.scheduled_at)} />
+          </Card>
+          <Card>
+            <FactRow icon="clock" label={t('desk.appointment.time')} value={fmtTime(a.scheduled_at)} />
+          </Card>
+          <Card>
             <FactRow
-              icon="document-text"
-              label={t('desk.appointment.reason')}
-              value={a.reason}
-              divider={!!a.checked_in_at}
+              icon="clipboard"
+              tint="purple"
+              label={t('desk.appointment.type')}
+              value={typeLabelOf(t, a.appointment_type)}
             />
+          </Card>
+          <Card>
+            <FactRow
+              icon="stethoscope"
+              tint={a.provider ? 'green' : 'amber'}
+              label={t('desk.appointment.provider')}
+              value={providerLabel(t, a.provider)}
+              trailing={a.provider ? undefined : <UnassignedBadge />}
+            />
+          </Card>
+          {!!a.reason && (
+            <Card>
+              <FactRow icon="document-text" label={t('desk.appointment.reason')} value={a.reason} />
+            </Card>
           )}
           {!!a.checked_in_at && (
-            <FactRow
-              icon="location"
-              tint="purple"
-              label={t('desk.appointment.checkedInAt')}
-              value={fmtTime(a.checked_in_at)}
-            />
+            <Card>
+              <FactRow
+                icon="location"
+                tint="purple"
+                label={t('desk.appointment.checkedInAt')}
+                value={fmtTime(a.checked_in_at)}
+              />
+            </Card>
           )}
-        </Card>
+        </CardStack>
 
         {can.closed ? (
           <NoticeBanner
@@ -414,7 +428,9 @@ function DeskAppointmentScreenBody() {
             icon="alert-circle"
             tone="warning"
             title={t('desk.appointment.unknownStatusTitle')}
-            message={t('desk.appointment.unknownStatusBody', { status: a.status })}
+            message={t('desk.appointment.unknownStatusBody', {
+              status: a.status,
+            })}
           />
         ) : (
           <Card>
@@ -639,13 +655,7 @@ function ReschedulePanel({
         <DateField label={t('desk.book.dateLabel')} value={day} onChange={setDay} />
         <TimeField label={t('desk.book.timeLabel')} value={time} onChange={setTime} error={error} />
         <FieldLabel text={t('desk.slots.title')} />
-        <SlotGrid
-          day={day}
-          value={time}
-          onPick={setTime}
-          taken={book.data ? taken : undefined}
-          disabled={busy}
-        />
+        <SlotGrid day={day} value={time} onPick={setTime} taken={book.data ? taken : undefined} disabled={busy} />
         {book.isError && <Text style={styles.hint}>{t('desk.appointment.bookReadFailed')}</Text>}
       </View>
       <CareButton
@@ -717,9 +727,17 @@ function CancelPanel({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.md },
+    content: {
+      padding: spacing.md,
+      paddingBottom: spacing.xxl,
+      gap: spacing.md,
+    },
 
-    patientRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
+    patientRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+    },
     patientText: { flex: 1, minWidth: 0, gap: 2 },
     patientName: {
       fontFamily: typography.fontFamily.bold,
@@ -734,7 +752,11 @@ const makeStyles = (colors: Palette) =>
     },
 
     actions: { gap: spacing.sm, marginTop: spacing.sm },
-    panelBody: { marginTop: spacing.sm, marginBottom: spacing.sm, gap: spacing.xs },
+    panelBody: {
+      marginTop: spacing.sm,
+      marginBottom: spacing.sm,
+      gap: spacing.xs,
+    },
     hint: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,

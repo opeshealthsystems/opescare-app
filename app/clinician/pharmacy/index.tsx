@@ -34,6 +34,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   Icon,
@@ -108,8 +109,12 @@ function PharmacyDeskBody() {
   const [tab, setTab] = useState<QueueTab>('prescriptions');
   const [stage, setStage] = useState<PrescriptionQueueStatus>('incoming');
   const [resStatus, setResStatus] = useState<ReservationStatus>('pending');
-  const queue = usePrescriptionQueue(stage, { enabled: tab === 'prescriptions' });
-  const reservations = useReservations(resStatus, { enabled: tab === 'reservations' });
+  const queue = usePrescriptionQueue(stage, {
+    enabled: tab === 'prescriptions',
+  });
+  const reservations = useReservations(resStatus, {
+    enabled: tab === 'reservations',
+  });
   const active = tab === 'prescriptions' ? queue : reservations;
 
   // ── Dispense by Health ID ────────────────────────────────────────────
@@ -259,9 +264,7 @@ function PharmacyDeskBody() {
                 count={home.data.counts.low_stock}
                 label={t('pharmacyDesk.home.tileLowStock')}
                 emphasise
-                onPress={() =>
-                  canStock ? router.push(pharmacyRoutes.stock(true)) : openQueue('prescriptions', stage)
-                }
+                onPress={() => (canStock ? router.push(pharmacyRoutes.stock(true)) : openQueue('prescriptions', stage))}
               />
             </View>
           </View>
@@ -333,7 +336,9 @@ function PharmacyDeskBody() {
                       icon="person-search"
                       tint="amber"
                       title={t('pharmacyDesk.lookup.noAnswerTitle')}
-                      message={t('pharmacyDesk.lookup.noAnswerBody', { healthId: request.healthId })}
+                      message={t('pharmacyDesk.lookup.noAnswerBody', {
+                        healthId: request.healthId,
+                      })}
                       actionLabel={t('opesCore.common.retry')}
                       onAction={() => void lookup.refetch()}
                     />
@@ -347,7 +352,9 @@ function PharmacyDeskBody() {
                     icon="person-search"
                     tint="amber"
                     title={t('pharmacyDesk.lookup.noPatientTitle')}
-                    message={t('pharmacyDesk.lookup.noPatientBody', { healthId: request.healthId })}
+                    message={t('pharmacyDesk.lookup.noPatientBody', {
+                      healthId: request.healthId,
+                    })}
                   />
                 </Card>
               ) : (lookup.data?.prescriptions.length ?? 0) === 0 ? (
@@ -356,27 +363,35 @@ function PharmacyDeskBody() {
                     icon="pill"
                     tint="blue"
                     title={t('pharmacyDesk.lookup.emptyTitle')}
-                    message={t('pharmacyDesk.lookup.emptyBody', { healthId: request.healthId })}
+                    message={t('pharmacyDesk.lookup.emptyBody', {
+                      healthId: request.healthId,
+                    })}
                   />
                 </Card>
               ) : (
                 <>
                   <SectionHeader
-                    title={t('pharmacyDesk.lookup.resultsTitle', { count: lookup.data?.prescriptions.length ?? 0 })}
+                    title={t('pharmacyDesk.lookup.resultsTitle', {
+                      count: lookup.data?.prescriptions.length ?? 0,
+                    })}
                     variant="overline"
                   />
-                  <Card variant="flush">
-                    {(lookup.data?.prescriptions ?? []).map((p, i, arr) => (
-                      <PrescriptionRow
-                        key={p.id}
-                        prescription={p}
-                        divider={i < arr.length - 1}
-                        onPress={() =>
-                          router.push(pharmacyRoutes.prescription(p.id, { healthId: request.healthId }))
-                        }
-                      />
+                  <CardStack spacing="sm">
+                    {(lookup.data?.prescriptions ?? []).map((p) => (
+                      <Card key={p.id} variant="flush">
+                        <PrescriptionRow
+                          prescription={p}
+                          onPress={() =>
+                            router.push(
+                              pharmacyRoutes.prescription(p.id, {
+                                healthId: request.healthId,
+                              }),
+                            )
+                          }
+                        />
+                      </Card>
                     ))}
-                  </Card>
+                  </CardStack>
                 </>
               )}
             </View>
@@ -388,8 +403,14 @@ function PharmacyDeskBody() {
           <SectionHeader title={t('pharmacyDesk.queues.title')} />
           <SegmentedTabs
             options={[
-              { key: 'prescriptions', label: t('pharmacyDesk.queues.prescriptions') },
-              { key: 'reservations', label: t('pharmacyDesk.queues.reservations') },
+              {
+                key: 'prescriptions',
+                label: t('pharmacyDesk.queues.prescriptions'),
+              },
+              {
+                key: 'reservations',
+                label: t('pharmacyDesk.queues.reservations'),
+              },
             ]}
             value={tab}
             onChange={(key) => setTab(key as QueueTab)}
@@ -448,16 +469,16 @@ function PharmacyDeskBody() {
                 />
               </Card>
             ) : (
-              <Card variant="flush">
-                {(queue.data ?? []).map((p, i, arr) => (
-                  <PrescriptionRow
-                    key={p.id}
-                    prescription={p}
-                    divider={i < arr.length - 1}
-                    onPress={() => router.push(pharmacyRoutes.prescription(p.id, { status: stage }))}
-                  />
+              <CardStack spacing="sm">
+                {(queue.data ?? []).map((p) => (
+                  <Card key={p.id} variant="flush">
+                    <PrescriptionRow
+                      prescription={p}
+                      onPress={() => router.push(pharmacyRoutes.prescription(p.id, { status: stage }))}
+                    />
+                  </Card>
                 ))}
-              </Card>
+              </CardStack>
             )
           ) : reservations.isPending ? (
             <LoadingBlock label={t('pharmacyDesk.queues.loading')} />
@@ -470,21 +491,23 @@ function PharmacyDeskBody() {
               <EmptyState
                 icon="cart"
                 tint="purple"
-                title={t('pharmacyDesk.reservationsEmpty.title', { status: reservationStatusLabel(resStatus) })}
+                title={t('pharmacyDesk.reservationsEmpty.title', {
+                  status: reservationStatusLabel(resStatus),
+                })}
                 message={t('pharmacyDesk.reservationsEmpty.body')}
               />
             </Card>
           ) : (
-            <Card variant="flush">
-              {(reservations.data ?? []).map((r, i, arr) => (
-                <ReservationRow
-                  key={r.id}
-                  reservation={r}
-                  divider={i < arr.length - 1}
-                  onPress={() => router.push(pharmacyRoutes.reservation(r.id, { status: resStatus }))}
-                />
+            <CardStack spacing="sm">
+              {(reservations.data ?? []).map((r) => (
+                <Card key={r.id} variant="flush">
+                  <ReservationRow
+                    reservation={r}
+                    onPress={() => router.push(pharmacyRoutes.reservation(r.id, { status: resStatus }))}
+                  />
+                </Card>
               ))}
-            </Card>
+            </CardStack>
           )}
         </View>
 
@@ -515,7 +538,12 @@ function countForStage(
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingTop: 0, paddingBottom: spacing.xxl, gap: spacing.md },
+    content: {
+      padding: spacing.md,
+      paddingTop: 0,
+      paddingBottom: spacing.xxl,
+      gap: spacing.md,
+    },
     tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     fieldLabel: {
       fontFamily: typography.fontFamily.medium,
@@ -534,7 +562,11 @@ const makeStyles = (colors: Palette) =>
     action: { flex: 1 },
     lookupResult: { marginTop: spacing.md, gap: spacing.sm },
     tabs: { marginBottom: spacing.sm },
-    chips: { gap: spacing.sm, paddingBottom: spacing.sm, paddingRight: spacing.md },
+    chips: {
+      gap: spacing.sm,
+      paddingBottom: spacing.sm,
+      paddingRight: spacing.md,
+    },
     footer: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,

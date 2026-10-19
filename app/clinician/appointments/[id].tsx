@@ -53,6 +53,7 @@ import { FollowUpSheet } from '@/components/doctor/FollowUpSheet';
 import { useStaffCapability } from '@/lib/staffCapabilities';
 import {
   Card,
+  CardStack,
   EmptyState,
   ScreenHeader,
   SectionHeader,
@@ -91,12 +92,7 @@ import {
   type StaffAppointment,
   isDoctorFeatureUnserved,
 } from '@/lib/api/doctorQueries';
-import {
-  isTelemedicine,
-  patientLine,
-  patientName,
-  staffTypeLabel,
-} from '@/components/doctor/scheduleShared';
+import { isTelemedicine, patientLine, patientName, staffTypeLabel } from '@/components/doctor/scheduleShared';
 import { priorityLabel } from '@/components/doctor/chartShared';
 import { doctorRoutes } from '@/components/doctor/chartRoutes';
 
@@ -122,9 +118,7 @@ type Tx = (key: string, defaultValue: string, params?: Record<string, unknown>) 
 function writeFailureMessage(t: Translate, e: unknown, checkHint: string): string {
   const f = describeFailure(e);
   const outcomeUnknown = f.kind === 'timeout' || f.kind === 'server' || f.kind === 'unknown';
-  return outcomeUnknown
-    ? t('opesCore.errors.unknownOutcome', { message: f.message, checkHint })
-    : f.message;
+  return outcomeUnknown ? t('opesCore.errors.unknownOutcome', { message: f.message, checkHint }) : f.message;
 }
 
 /** The three statuses the writer refuses outright (409) — a closed record. */
@@ -160,12 +154,9 @@ function DoctorAppointmentDetailScreenBody() {
   /** `opesDoctor.<key>` with a readable default until the catalogue lands. */
   const tx = useCallback<Tx>(
     (key, defaultValue, params) => String(t(`opesDoctor.${key}`, { defaultValue, ...params })),
-    [t]
+    [t],
   );
-  const tr = useCallback<Translate>(
-    (key, params) => String(t(key, params as Record<string, unknown>)),
-    [t]
-  );
+  const tr = useCallback<Translate>((key, params) => String(t(key, params as Record<string, unknown>)), [t]);
 
   const appointment = useDoctorAppointment(appointmentId || undefined);
   const { refetch } = appointment;
@@ -188,7 +179,7 @@ function DoctorAppointmentDetailScreenBody() {
 
   const checkHint = tx(
     'appointment.checkHint',
-    'Reopen this appointment to see its current status before trying again.'
+    'Reopen this appointment to see its current status before trying again.',
   );
 
   /**
@@ -209,7 +200,7 @@ function DoctorAppointmentDetailScreenBody() {
         dialog.alert(
           tx('appointment.writeFailedTitle', "We couldn't complete that"),
           writeFailureMessage(tr, e, checkHint),
-          'critical'
+          'critical',
         );
         // The write may or may not have landed — re-read rather than leave a
         // guess about it on screen.
@@ -220,7 +211,7 @@ function DoctorAppointmentDetailScreenBody() {
         setPending(null);
       }
     },
-    [checkHint, dialog, refetch, tr, tx]
+    [checkHint, dialog, refetch, tr, tx],
   );
 
   /** The four facts every confirmation sheet names. */
@@ -237,7 +228,7 @@ function DoctorAppointmentDetailScreenBody() {
       message: tx(
         'appointment.checkInMessage',
         '{{patient}} — {{type}} on {{date}} at {{time}}. This records the patient as arrived and waiting to be seen.',
-        describe(a)
+        describe(a),
       ),
       confirmLabel: tx('appointment.checkIn', 'Check In Patient'),
       tone: 'info',
@@ -253,7 +244,7 @@ function DoctorAppointmentDetailScreenBody() {
       message: tx(
         'appointment.startMessage',
         '{{patient}} — {{type}} on {{date}} at {{time}}. This marks the visit as in progress on the hospital record.',
-        describe(a)
+        describe(a),
       ),
       confirmLabel: tx('appointment.start', 'Start Consultation'),
       tone: 'info',
@@ -269,7 +260,7 @@ function DoctorAppointmentDetailScreenBody() {
       message: tx(
         'appointment.completeMessage',
         '{{patient}} — {{type}} on {{date}} at {{time}}. This closes the appointment; nothing further can be changed here afterwards.',
-        describe(a)
+        describe(a),
       ),
       confirmLabel: tx('appointment.complete', 'Mark Completed'),
       onConfirm: async () => {
@@ -284,7 +275,7 @@ function DoctorAppointmentDetailScreenBody() {
       message: tx(
         'appointment.noShowMessage',
         '{{patient}} — {{type}} on {{date}} at {{time}}. This closes the appointment and records that the patient did not attend.',
-        describe(a)
+        describe(a),
       ),
       confirmLabel: tx('appointment.noShowConfirm', 'Mark No-Show'),
       destructive: true,
@@ -300,7 +291,7 @@ function DoctorAppointmentDetailScreenBody() {
       message: tx(
         'appointment.cancelMessage',
         '{{patient}} — {{type}} on {{date}} at {{time}}. The appointment is cancelled for the patient and cannot be reinstated from here.',
-        describe(a)
+        describe(a),
       ),
       confirmLabel: tx('appointment.cancelConfirm', 'Cancel Appointment'),
       cancelLabel: tx('appointment.cancelKeep', 'Keep It'),
@@ -310,7 +301,7 @@ function DoctorAppointmentDetailScreenBody() {
           cancel.mutateAsync({
             id: a.id,
             reason: tx('appointment.cancelledByClinician', 'Cancelled by the clinician'),
-          })
+          }),
         );
       },
     });
@@ -323,7 +314,7 @@ function DoctorAppointmentDetailScreenBody() {
       message: tx(
         'appointment.moveMessage',
         '{{patient}} moves to {{date}} at {{time}}. The change takes effect immediately — the patient is not asked to approve it.',
-        { patient: patientName(a), date: fmtDateLong(iso), time: fmtTime(iso) }
+        { patient: patientName(a), date: fmtDateLong(iso), time: fmtTime(iso) },
       ),
       confirmLabel: tx('appointment.moveConfirm', 'Move Appointment'),
       onConfirm: async () => {
@@ -332,7 +323,7 @@ function DoctorAppointmentDetailScreenBody() {
             id: a.id,
             when,
             durationMinutes: a.duration_minutes ?? undefined,
-          })
+          }),
         );
         // Only close the grid on a move the server actually made.
         if (moved) setRescheduling(false);
@@ -365,7 +356,7 @@ function DoctorAppointmentDetailScreenBody() {
         title={tx('appointment.missingIdTitle', 'No appointment to show')}
         message={tx(
           'appointment.missingIdBody',
-          'This link does not name an appointment. Open it from your schedule instead.'
+          'This link does not name an appointment. Open it from your schedule instead.',
         )}
         actionLabel={tx('schedule.title', 'My Schedule')}
         onAction={() => router.push(doctorRoutes.schedule)}
@@ -394,7 +385,7 @@ function DoctorAppointmentDetailScreenBody() {
           notServed
             ? tx(
                 'shared.notServedAppointment',
-                "Clinician data isn't connected yet. Appointment records will open here once the clinician service is enabled for this app."
+                "Clinician data isn't connected yet. Appointment records will open here once the clinician service is enabled for this app.",
               )
             : describeFailure(appointment.error).message
         }
@@ -431,45 +422,34 @@ function DoctorAppointmentDetailScreenBody() {
           )}
         </Card>
 
-        <Card>
-          <InfoRow
-            icon="calendar"
-            label={tx('appointment.date', 'Date')}
-            value={fmtDateLong(a.scheduled_at)}
-            divider
-          />
-          <InfoRow
-            icon="clock"
-            label={tx('appointment.time', 'Time')}
-            value={`${fmtTime(a.scheduled_at)}${
-              a.duration_minutes ? ` · ${fmtDuration(a.duration_minutes)}` : ''
-            }`}
-            divider
-          />
-          <InfoRow
-            icon={telemedicine ? 'video' : 'location'}
-            tint={telemedicine ? 'purple' : 'blue'}
-            label={
-              telemedicine
-                ? tx('appointment.visitMode', 'Visit mode')
-                : tx('appointment.where', 'Where')
-            }
-            value={
-              telemedicine
-                ? tx('vocab.telemedicine', 'Telemedicine')
-                : a.room ||
-                  a.location ||
-                  tx('appointment.locationNotRecorded', 'Location not recorded')
-            }
-          />
-        </Card>
+        <CardStack spacing="sm">
+          <Card>
+            <InfoRow icon="calendar" label={tx('appointment.date', 'Date')} value={fmtDateLong(a.scheduled_at)} />
+          </Card>
+          <Card>
+            <InfoRow
+              icon="clock"
+              label={tx('appointment.time', 'Time')}
+              value={`${fmtTime(a.scheduled_at)}${a.duration_minutes ? ` · ${fmtDuration(a.duration_minutes)}` : ''}`}
+            />
+          </Card>
+          <Card>
+            <InfoRow
+              icon={telemedicine ? 'video' : 'location'}
+              tint={telemedicine ? 'purple' : 'blue'}
+              label={telemedicine ? tx('appointment.visitMode', 'Visit mode') : tx('appointment.where', 'Where')}
+              value={
+                telemedicine
+                  ? tx('vocab.telemedicine', 'Telemedicine')
+                  : a.room || a.location || tx('appointment.locationNotRecorded', 'Location not recorded')
+              }
+            />
+          </Card>
+        </CardStack>
 
         <Card>
           <SectionHeader title={tx('appointment.visit', 'Visit')} variant="overline" />
-          <SummaryLine
-            label={tx('appointment.type', 'Type')}
-            value={staffTypeLabel(a.appointment_type)}
-          />
+          <SummaryLine label={tx('appointment.type', 'Type')} value={staffTypeLabel(a.appointment_type)} />
           <SummaryLine
             label={tx('appointment.reason', 'Reason')}
             value={a.reason || tx('vocab.notRecorded', 'Not recorded')}
@@ -479,22 +459,13 @@ function DoctorAppointmentDetailScreenBody() {
             value={a.provider_name || tx('appointment.unassigned', 'Unassigned')}
           />
           {!!a.priority && (
-            <SummaryLine
-              label={tx('appointment.priority', 'Priority')}
-              value={priorityLabel(a.priority)}
-            />
+            <SummaryLine label={tx('appointment.priority', 'Priority')} value={priorityLabel(a.priority)} />
           )}
           {!!a.checked_in_at && (
-            <SummaryLine
-              label={tx('appointment.checkedIn', 'Checked in')}
-              value={fmtTime(a.checked_in_at)}
-            />
+            <SummaryLine label={tx('appointment.checkedIn', 'Checked in')} value={fmtTime(a.checked_in_at)} />
           )}
           {!!a.cancel_reason && (
-            <SummaryLine
-              label={tx('appointment.cancelReason', 'Cancellation reason')}
-              value={a.cancel_reason}
-            />
+            <SummaryLine label={tx('appointment.cancelReason', 'Cancellation reason')} value={a.cancel_reason} />
           )}
         </Card>
 
@@ -505,7 +476,7 @@ function DoctorAppointmentDetailScreenBody() {
             title={tx('appointment.telemedicineTitle', 'Telemedicine visit')}
             message={tx(
               'appointment.telemedicineBody',
-              'This visit is booked as telemedicine. The video session can only be started from the desktop EMR — the mobile API has no clinician telemedicine endpoint yet.'
+              'This visit is booked as telemedicine. The video session can only be started from the desktop EMR — the mobile API has no clinician telemedicine endpoint yet.',
             )}
           />
         )}
@@ -541,7 +512,7 @@ function DoctorAppointmentDetailScreenBody() {
               {tx(
                 'followUp.afterVisitBody',
                 'Book the follow-up while the visit is fresh. It goes into your own diary at this facility, for {{patient}}.',
-                { patient: patientName(a) }
+                { patient: patientName(a) },
               )}
             </Text>
             <View style={styles.actions}>
@@ -645,13 +616,10 @@ function ActionBlock({
         title={tx('appointment.closedTitle', 'This appointment is closed')}
         message={
           a.status === 'completed'
-            ? tx(
-                'appointment.closedCompleted',
-                'The visit is marked completed. Nothing further can be changed here.'
-              )
+            ? tx('appointment.closedCompleted', 'The visit is marked completed. Nothing further can be changed here.')
             : tx(
                 'appointment.closedOther',
-                'The appointment is cancelled or recorded as a no-show and can no longer be changed from the app.'
+                'The appointment is cancelled or recorded as a no-show and can no longer be changed from the app.',
               )
         }
       />
@@ -758,15 +726,13 @@ function RescheduleBlock({
         d.setDate(d.getDate() + i);
         return d;
       }),
-    []
+    [],
   );
 
   const dayKey = isoDay(day);
   // The same paginated envelope as the schedule screen: rows are one level in.
   const diary = useDoctorSchedule({ from: dayKey, to: dayKey, per_page: 100 });
-  const takenRows = (diary.data?.data ?? []).filter(
-    (x) => !['cancelled', 'no_show'].includes(x.status)
-  );
+  const takenRows = (diary.data?.data ?? []).filter((x) => !['cancelled', 'no_show'].includes(x.status));
 
   const slots = useMemo(() => {
     const out: Date[] = [];
@@ -786,7 +752,7 @@ function RescheduleBlock({
       .map((x) => {
         const d = new Date(x.scheduled_at);
         return `${d.getHours()}:${d.getMinutes()}`;
-      })
+      }),
   );
 
   // Marks we could not read are stated, never assumed absent.
@@ -798,7 +764,7 @@ function RescheduleBlock({
       <Text style={styles.hint}>
         {tx(
           'appointment.moveHint',
-          'Times already booked in your own diary for the chosen day are marked. The API publishes no clinic-wide availability, so nothing else is claimed to be free.'
+          'Times already booked in your own diary for the chosen day are marked. The API publishes no clinic-wide availability, so nothing else is claimed to be free.',
         )}
       </Text>
 
@@ -818,9 +784,7 @@ function RescheduleBlock({
               <Text style={[styles.dayName, on && styles.dayTextOn]}>
                 {tx(`weekday.${d.getDay()}`, DEFAULT_WEEKDAY[d.getDay()] ?? '')}
               </Text>
-              <Text style={[styles.dayNum, on && styles.dayTextOn]}>
-                {String(d.getDate()).padStart(2, '0')}
-              </Text>
+              <Text style={[styles.dayNum, on && styles.dayTextOn]}>{String(d.getDate()).padStart(2, '0')}</Text>
             </TouchableOpacity>
           );
         })}
@@ -830,7 +794,7 @@ function RescheduleBlock({
         <Text style={styles.hint}>
           {tx(
             'appointment.diaryFailed',
-            'Your diary for this day could not be loaded, so booked times are not marked.'
+            'Your diary for this day could not be loaded, so booked times are not marked.',
           )}
         </Text>
       )}
@@ -851,9 +815,7 @@ function RescheduleBlock({
               onPress={() => onPick(s)}
               style={[styles.slot, off && styles.slotOff]}
             >
-              <Text style={[styles.slotText, off && styles.slotTextOff]}>
-                {fmtTime(s.toISOString())}
-              </Text>
+              <Text style={[styles.slotText, off && styles.slotTextOff]}>{fmtTime(s.toISOString())}</Text>
               {isTaken && <Text style={styles.slotNote}>{tx('appointment.slotBooked', 'Booked')}</Text>}
             </TouchableOpacity>
           );
@@ -866,9 +828,17 @@ function RescheduleBlock({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
-    content: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.md },
+    content: {
+      padding: spacing.md,
+      paddingBottom: spacing.xxl,
+      gap: spacing.md,
+    },
 
-    patientRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
+    patientRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 4,
+    },
     patientText: { flex: 1, minWidth: 0, gap: 2 },
     patientName: {
       fontFamily: typography.fontFamily.bold,
@@ -916,7 +886,12 @@ const makeStyles = (colors: Palette) =>
     },
     dayTextOn: { color: colors.textOnBrand },
 
-    slots: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
+    slots: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
     slot: {
       minWidth: 92,
       paddingVertical: spacing.sm,

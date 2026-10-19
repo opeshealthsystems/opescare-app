@@ -1,0 +1,23 @@
+{
+  "pharmacyDetail": {
+    "drugsTitle": "Drugs available",
+    "drugsTitleCount": "Drugs available ({{count}})",
+    "searchPlaceholder": "Search this pharmacy's medicines",
+    "searchLabel": "Search medicines at this pharmacy",
+    "emptyTitle": "No stock reported yet",
+    "emptyMessage": "This pharmacy has not reported its medicines to OpesCare. Call ahead to check what they have.",
+    "noMatchTitle": "No match at this pharmacy",
+    "noMatchMessage": "Nothing reported here matches \"{{term}}\". Try another name or the generic name.",
+    "loadError": "We could not load this pharmacy's medicines.",
+    "retry": "Try again",
+    "reported": "Reported {{when}}",
+    "notDated": "Report not dated",
+    "rxRequired": "Prescription",
+    "openHint": "Opens this medicine's details",
+    "note": "Stock as reported by the pharmacy. Confirm by phone before you travel.",
+    "status": {
+      "in_stock": "In stock",
+      "low_stock": "Low stock"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "pharmacyDetail": {
+    "drugsTitle": "Médicaments disponibles",
+    "drugsTitleCount": "Médicaments disponibles ({{count}})",
+    "searchPlaceholder": "Rechercher un médicament dans cette pharmacie",
+    "searchLabel": "Rechercher des médicaments dans cette pharmacie",
+    "emptyTitle": "Aucun stock signalé pour l'instant",
+    "emptyMessage": "Cette pharmacie n'a pas encore signalé ses médicaments à OpesCare. Appelez avant de vous déplacer.",
+    "noMatchTitle": "Aucun résultat dans cette pharmacie",
+    "noMatchMessage": "Aucun médicament signalé ici ne correspond à « {{term}} ». Essayez un autre nom ou la DCI.",
+    "loadError": "Impossible de charger les médicaments de cette pharmacie.",
+    "retry": "Réessayer",
+    "reported": "Signalé le {{when}}",
+    "notDated": "Signalement non daté",
+    "rxRequired": "Ordonnance",
+    "openHint": "Ouvre la fiche de ce médicament",
+    "note": "Stock tel que signalé par la pharmacie. Confirmez par téléphone avant de vous déplacer.",
+    "status": {
+      "in_stock": "En stock",
+      "low_stock": "Stock faible"
+    }
+  }
+}

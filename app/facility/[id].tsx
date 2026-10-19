@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { isAxiosError } from 'axios';
 import { Screen } from '@/components/ui/Screen';
 import { FacilityMap } from '@/components/map/FacilityMap';
+import { PharmacyStockSection } from '@/components/pharmacy/detail/PharmacyStockSection';
 import {
   Card,
   EmptyState,
@@ -36,6 +37,7 @@ import {
   type StatusTone,
   type Tint,
 } from '@/components/opes-ui';
+import { CatalogImage } from '@/components/ui/CatalogImage';
 import {
   CareButton,
   DEPARTMENT_TYPE_ICON,
@@ -856,9 +858,18 @@ export default function FacilityDetailScreen() {
         {/* ── Identity ──────────────────────────────────────────────── */}
         <Card>
           <View style={styles.identity}>
-            <View style={styles.thumb}>
-              <Icon name={facilityTypeIcon(facility.facility_type)} size={34} color={colors.blue} />
-            </View>
+            <CatalogImage
+              uri={facility.logo_url}
+              size={82}
+              radius={radii.md}
+              fit="contain"
+              accessibilityLabel={facility.facility_name}
+              fallback={
+                <View style={styles.thumb}>
+                  <Icon name={facilityTypeIcon(facility.facility_type)} size={34} color={colors.blue} />
+                </View>
+              }
+            />
             <View style={styles.identityBody}>
               <Text style={styles.name} numberOfLines={3} accessibilityRole="header">
                 {facility.facility_name}
@@ -1244,6 +1255,15 @@ export default function FacilityDetailScreen() {
             </ResultList>
           )}
         </View>
+
+        {/* ── Drugs available (pharmacies only; allow-listed live stock) ── */}
+        {facility.facility_type === 'pharmacy' ? (
+          <PharmacyStockSection
+            pharmacyId={facility.id}
+            latitude={facility.latitude ?? null}
+            longitude={facility.longitude ?? null}
+          />
+        ) : null}
 
         {/* ── Services ──────────────────────────────────────────────── */}
         <View>

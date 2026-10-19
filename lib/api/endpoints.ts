@@ -99,6 +99,7 @@ export const endpoints = {
   medicineSearch: '/mobile/pharmacy/medicines',
   medicine: (id: string) => `/mobile/pharmacy/medicines/${id}`,
   pharmacyNearby: '/mobile/pharmacy/nearby',
+  pharmacyStock: (id: string) => `/mobile/pharmacy/pharmacies/${encodeURIComponent(id)}/stock`,
   medicineReservations: '/mobile/pharmacy/reservations',
   cancelMedicineReservation: (id: string) => `/mobile/pharmacy/reservations/${id}/cancel`,
 

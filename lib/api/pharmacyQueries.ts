@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { endpoints } from './endpoints';
 import type { Medicine, MedicineCategoryValue } from './queries';
@@ -146,4 +146,40 @@ export function formatXaf(value: number | null | undefined): string | null {
 export function formatXafBare(value: number | null | undefined): string | null {
   if (value === null || value === undefined || Number.isNaN(value)) return null;
   return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, GROUP);
+}
+
+/**
+ * One pharmacy's reported medicines — the "Drugs available" list on its
+ * detail page. GET /mobile/pharmacy/pharmacies/{id}/stock (q optional).
+ * The backend applies the provenance allow-list; an empty list is a correct
+ * answer, never a reason to show something else.
+ */
+export interface PharmacyStockLine {
+  medicine_id: string;
+  name: string;
+  generic_name: string | null;
+  strength: string | null;
+  form: string | null;
+  prescription_required: boolean;
+  status: string;
+  status_label: string;
+  pack_size: string | null;
+  unit_price: number | null;
+  currency: string | null;
+  last_reported_at: string | null;
+}
+
+export function usePharmacyStock(pharmacyId: string | undefined, q = '', enabled = true) {
+  const term = q.trim();
+  return useQuery({
+    queryKey: ['pharmacy', 'stock', pharmacyId, term],
+    placeholderData: keepPreviousData,
+    enabled: enabled && !!pharmacyId,
+    queryFn: async (): Promise<PharmacyStockLine[]> =>
+      (
+        await apiClient.get<{ data: PharmacyStockLine[] }>(endpoints.pharmacyStock(pharmacyId as string), {
+          params: term ? { q: term } : {},
+        })
+      ).data.data,
+  });
 }

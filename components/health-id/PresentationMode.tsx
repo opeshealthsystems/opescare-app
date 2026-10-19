@@ -35,7 +35,7 @@ import {
 import type { TemporaryQrCode } from '@/lib/api/types';
 import { HEALTH_ID_ART, HEALTH_ID_INDICATORS, anatomicalArt } from './assets';
 import { LivingAnatomy } from './LivingAnatomy';
-import { RotatingDna } from './RotatingDna';
+import { FlowingDna } from './FlowingDna';
 import { Art, CornerBrackets, DECORATIVE, FILL, PulseArt, QrPanel, SealSystem, qrPanelExtent } from './Layers';
 import { formatCountdown, presentOrNull, titleCase, type CredentialModel } from './model';
 
@@ -106,7 +106,7 @@ export function PresentationMode({
         />
         <View pointerEvents="none" style={StyleSheet.absoluteFill} {...DECORATIVE}>
           <Art source={HEALTH_ID_ART.circuitField} style={FILL} resizeMode="cover" opacity={0.36} />
-          <RotatingDna style={styles.bgHelix} opacity={0.4} active={live} />
+          <FlowingDna style={styles.bgHelix} opacity={0.4} active={live} />
           <Art source={HEALTH_ID_ART.holoWave} style={styles.bgWave} resizeMode="cover" opacity={0.42} />
         </View>
 

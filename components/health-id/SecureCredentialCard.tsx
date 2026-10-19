@@ -191,7 +191,7 @@ export function SecureCredentialCard({
             {/* Anatomical WATERMARK: a security/health motif behind the holder's
                 details, never a portrait. 3–7% on the quiet card, 6–12% when the
                 card is presented — it must not compete with patient data. */}
-            <LivingAnatomy profile={model.anatomicalProfile} style={styles.hologram} opacity={presentation ? 0.26 : 0.2} />
+            <LivingAnatomy profile={model.anatomicalProfile} style={styles.hologram} opacity={presentation ? 0.4 : 0.34} />
           </View>
 
           <View style={styles.holderRow}>

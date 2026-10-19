@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   formatDate,
@@ -623,23 +624,26 @@ export default function PrivacyHubScreen() {
         {/* ── The other two rights ───────────────────────────────────────── */}
         <View>
           <SectionHeader title={t('privacy.moreRightsSection')} variant="overline" />
-          <Card variant="flush">
-            <ListRow
-              icon="history"
-              tint="blue"
-              title={t('privacy.accessLogsCard')}
-              subtitle={t('privacy.accessLogsCardDesc')}
-              onPress={() => router.push('/privacy/access-logs')}
-              divider
-            />
-            <ListRow
-              icon="download"
-              tint="purple"
-              title={t('privacy.exportCard')}
-              subtitle={t('privacy.exportCardDesc')}
-              onPress={() => router.push('/privacy/export')}
-            />
-          </Card>
+          <CardStack spacing="sm">
+            <Card variant="flush">
+              <ListRow
+                icon="history"
+                tint="blue"
+                title={t('privacy.accessLogsCard')}
+                subtitle={t('privacy.accessLogsCardDesc')}
+                onPress={() => router.push('/privacy/access-logs')}
+              />
+            </Card>
+            <Card variant="flush">
+              <ListRow
+                icon="download"
+                tint="purple"
+                title={t('privacy.exportCard')}
+                subtitle={t('privacy.exportCardDesc')}
+                onPress={() => router.push('/privacy/export')}
+              />
+            </Card>
+          </CardStack>
         </View>
 
         {/* Kept verbatim: what approving does NOT give away. */}

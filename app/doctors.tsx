@@ -88,6 +88,7 @@ import { useTranslation } from 'react-i18next';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   Icon,
@@ -925,25 +926,28 @@ export default function FindDoctorScreen() {
         {/* The Filters panel: the two refinements this screen really has —
             which facility is being looked inside, and which department. */}
         {filtersOpen && (
-          <Card variant="flush">
-            <ListRow
-              icon={glyph.icon}
-              tint={glyph.tint}
-              title={f.facility_name}
-              meta={[facilityTypeLabel(f.facility_type), joinLocationParts(f.city, f.region)]}
-              value={t('appointments.book.changeFacility')}
-              onPress={changeFacility}
-              accessibilityHint={t('appointments.book.changeFacility')}
-              divider
-            />
-            <ListRow
-              icon="building"
-              tint="blue"
-              title={t('appointments.book.viewFacility')}
-              value={department ?? t('opesCare.findProvider.allDepartments')}
-              onPress={() => router.push(`/facility/${f.id}`)}
-            />
-          </Card>
+          <CardStack spacing="sm">
+            <Card variant="flush">
+              <ListRow
+                icon={glyph.icon}
+                tint={glyph.tint}
+                title={f.facility_name}
+                meta={[facilityTypeLabel(f.facility_type), joinLocationParts(f.city, f.region)]}
+                value={t('appointments.book.changeFacility')}
+                onPress={changeFacility}
+                accessibilityHint={t('appointments.book.changeFacility')}
+              />
+            </Card>
+            <Card variant="flush">
+              <ListRow
+                icon="building"
+                tint="blue"
+                title={t('appointments.book.viewFacility')}
+                value={department ?? t('opesCare.findProvider.allDepartments')}
+                onPress={() => router.push(`/facility/${f.id}`)}
+              />
+            </Card>
+          </CardStack>
         )}
 
         {departments.length > 0 && (

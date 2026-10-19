@@ -52,6 +52,7 @@ import { useTranslation } from 'react-i18next';
 import type { UseQueryResult } from '@tanstack/react-query';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ListRow,
@@ -510,23 +511,26 @@ export default function DoctorHomeScreen() {
         )}
       </DeskSection>
       <SectionHeader style={styles.sectionGap} title={tx('home.deskActions', 'At the desk')} />
-      <Card variant="flush">
-        <ListRow
-          icon="calendar-plus"
-          tint="blue"
-          title={tx('home.bookAppointment', 'Book an appointment')}
-          subtitle={tx('home.bookAppointmentSub', 'By Health ID, with any provider at your facility')}
-          onPress={() => router.push(doctorRoutes.deskNewAppointment())}
-          divider
-        />
-        <ListRow
-          icon="folder-plus"
-          tint="green"
-          title={tx('home.registerPatient', 'Register a patient')}
-          subtitle={tx('home.registerPatientSub', 'For someone with no Health ID yet — a match is never bypassed')}
-          onPress={() => router.push(doctorRoutes.deskRegisterPatient)}
-        />
-      </Card>
+      <CardStack spacing="sm">
+        <Card variant="flush">
+          <ListRow
+            icon="calendar-plus"
+            tint="blue"
+            title={tx('home.bookAppointment', 'Book an appointment')}
+            subtitle={tx('home.bookAppointmentSub', 'By Health ID, with any provider at your facility')}
+            onPress={() => router.push(doctorRoutes.deskNewAppointment())}
+          />
+        </Card>
+        <Card variant="flush">
+          <ListRow
+            icon="folder-plus"
+            tint="green"
+            title={tx('home.registerPatient', 'Register a patient')}
+            subtitle={tx('home.registerPatientSub', 'For someone with no Health ID yet — a match is never bypassed')}
+            onPress={() => router.push(doctorRoutes.deskRegisterPatient)}
+          />
+        </Card>
+      </CardStack>
     </>
   );
 

@@ -26,6 +26,7 @@ export * from './format';
 export * from './components/a11y';
 export * from './components/Icon';
 export * from './components/Card';
+export * from './components/CardStack';
 export * from './components/Chip';
 export * from './components/EmptyState';
 export * from './components/GradientButton';

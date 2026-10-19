@@ -11,6 +11,7 @@ import {
 import { FacilityMap } from '@/components/map/FacilityMap';
 import {
   Card,
+  CardStack,
   Chip,
   GradientButton,
   Icon,
@@ -1066,44 +1067,49 @@ export function SuccessStep({ vm }: { vm: BookingFlowModel }) {
               message={`${t('appointments.book.whatToExpectArrive')}\n${t('appointments.book.whatToExpectBring')}`}
             />
 
-            <Card variant="flush">
+            <CardStack spacing="sm">
               <View style={styles.detailsHead}>
                 <Text style={styles.detailsTitle} accessibilityRole="header">
                   {t('opesCare.confirmed.nextTitle')}
                 </Text>
               </View>
-              <ListRow
-                icon="share"
-                tint="blue"
-                title={t('opesCare.confirmed.shareTitle')}
-                onPress={handleShareAppointment}
-                divider
-              />
-              <ListRow
-                icon="document-text"
-                tint="blue"
-                title={t('opesCare.confirmed.viewDetailsTitle')}
-                subtitle={t('opesCare.confirmed.viewDetailsSub')}
-                onPress={() => router.replace(`/appointments/${bookedAppointment.id}`)}
-                divider
-              />
-              <ListRow
-                icon="calendar"
-                tint="purple"
-                title={t('opesCare.confirmed.seeAllTitle')}
-                onPress={() => router.replace('/appointments')}
-                divider={!!facilityPhone}
-              />
-              {facilityPhone ? (
+              <Card variant="flush">
                 <ListRow
-                  icon="phone"
-                  tint="green"
-                  title={t('appointments.book.callFacility')}
-                  subtitle={facilityPhone}
-                  onPress={handleCallFacility}
+                  icon="share"
+                  tint="blue"
+                  title={t('opesCare.confirmed.shareTitle')}
+                  onPress={handleShareAppointment}
                 />
+              </Card>
+              <Card variant="flush">
+                <ListRow
+                  icon="document-text"
+                  tint="blue"
+                  title={t('opesCare.confirmed.viewDetailsTitle')}
+                  subtitle={t('opesCare.confirmed.viewDetailsSub')}
+                  onPress={() => router.replace(`/appointments/${bookedAppointment.id}`)}
+                />
+              </Card>
+              <Card variant="flush">
+                <ListRow
+                  icon="calendar"
+                  tint="purple"
+                  title={t('opesCare.confirmed.seeAllTitle')}
+                  onPress={() => router.replace('/appointments')}
+                />
+              </Card>
+              {facilityPhone ? (
+                <Card variant="flush">
+                  <ListRow
+                    icon="phone"
+                    tint="green"
+                    title={t('appointments.book.callFacility')}
+                    subtitle={facilityPhone}
+                    onPress={handleCallFacility}
+                  />
+                </Card>
               ) : null}
-            </Card>
+            </CardStack>
 
             <View style={styles.ctaStack}>
               <GradientButton

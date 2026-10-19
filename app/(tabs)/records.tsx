@@ -30,6 +30,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ListRow,
@@ -296,39 +297,44 @@ export default function RecordsScreen() {
             {/* Browse hub — every row is a route that exists under app/. */}
             <View>
               <SectionHeader variant="overline" title={t('records.browse.heading')} />
-              <Card variant="flush">
-                <ListRow
-                  icon="pill"
-                  tint="green"
-                  title={t('records.browse.prescriptions')}
-                  subtitle={t('opesRecords.hub.prescriptionsHint')}
-                  onPress={() => router.push('/prescriptions')}
-                  divider
-                />
-                <ListRow
-                  icon="document-text"
-                  tint="blue"
-                  title={t('records.browse.documents')}
-                  subtitle={t('opesRecords.hub.documentsHint')}
-                  onPress={() => router.push('/documents')}
-                  divider
-                />
-                <ListRow
-                  icon="clipboard"
-                  tint="blue"
-                  title={t('carePlans.title')}
-                  subtitle={t('opesRecords.hub.carePlansHint', { defaultValue: 'Goals and next steps from your care team' })}
-                  onPress={() => router.push('/care-plans')}
-                  divider
-                />
-                <ListRow
-                  icon="send"
-                  tint="purple"
-                  title={t('referrals.title')}
-                  subtitle={t('referrals.subtitle')}
-                  onPress={() => router.push('/referrals')}
-                />
-              </Card>
+              <CardStack spacing="sm">
+                <Card variant="flush">
+                  <ListRow
+                    icon="pill"
+                    tint="green"
+                    title={t('records.browse.prescriptions')}
+                    subtitle={t('opesRecords.hub.prescriptionsHint')}
+                    onPress={() => router.push('/prescriptions')}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <ListRow
+                    icon="document-text"
+                    tint="blue"
+                    title={t('records.browse.documents')}
+                    subtitle={t('opesRecords.hub.documentsHint')}
+                    onPress={() => router.push('/documents')}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <ListRow
+                    icon="clipboard"
+                    tint="blue"
+                    title={t('carePlans.title')}
+                    subtitle={t('opesRecords.hub.carePlansHint', { defaultValue: 'Goals and next steps from your care team' })}
+                    onPress={() => router.push('/care-plans')}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <ListRow
+                    icon="send"
+                    tint="purple"
+                    title={t('referrals.title')}
+                    subtitle={t('referrals.subtitle')}
+                    onPress={() => router.push('/referrals')}
+                  />
+                </Card>
+              </CardStack>
             </View>
 
             {recordIsEmpty ? (

@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   Chip,
   EmptyState,
   GradientButton,
@@ -525,24 +526,27 @@ export default function FamilyScreen() {
           <SectionHeader title={t('family.addTitle')} variant="overline" />
 
           {mode === null ? (
-            <Card variant="flush">
+            <CardStack spacing="sm">
               <Text style={styles.cardIntro}>{t('family.addDesc')}</Text>
-              <ListRow
-                icon="baby"
-                tint="purple"
-                title={t('family.addChildTitle')}
-                subtitle={t('family.addChildDesc')}
-                onPress={() => openForm('register')}
-                divider
-              />
-              <ListRow
-                icon="person-search"
-                tint="blue"
-                title={t('family.inviteAdultTitle')}
-                subtitle={t('family.inviteAdultDesc')}
-                onPress={() => openForm('invite')}
-              />
-            </Card>
+              <Card variant="flush">
+                <ListRow
+                  icon="baby"
+                  tint="purple"
+                  title={t('family.addChildTitle')}
+                  subtitle={t('family.addChildDesc')}
+                  onPress={() => openForm('register')}
+                />
+              </Card>
+              <Card variant="flush">
+                <ListRow
+                  icon="person-search"
+                  tint="blue"
+                  title={t('family.inviteAdultTitle')}
+                  subtitle={t('family.inviteAdultDesc')}
+                  onPress={() => openForm('invite')}
+                />
+              </Card>
+            </CardStack>
           ) : (
             <Card>
               <View style={styles.formHead}>

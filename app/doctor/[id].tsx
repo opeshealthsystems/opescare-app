@@ -24,6 +24,7 @@ import {
 } from '@/components/profile';
 import {
   Card,
+  CardStack,
   EmptyState,
   GradientButton,
   Icon,
@@ -801,56 +802,59 @@ export default function DoctorDetailScreen() {
             subtitle={t('profiles.provider.practiseDesc')}
             style={{ marginBottom: spacing.sm }}
           />
-          <Card variant="flush">
-            <ListRow
-              icon="building"
-              tint="blue"
-              title={provider.facility_name}
-              meta={[facilityTypeLabel, address || null]}
-              onPress={() => goToFacility(provider)}
-              // The opening state lives in the trailing badge, which the row's
-              // own generated label never reads — so it is spelled out here.
-              accessibilityLabel={a11yJoin(
-                provider.facility_name,
-                facilityTypeLabel,
-                address || null,
-                openLabel,
-              )}
-              accessibilityHint={t('doctor.viewFacility')}
-              trailing={
-                openLabel ? (
-                  <StatusBadge
-                    status={
-                      openState.kind === 'open' || openState.kind === 'open24' ? 'open' : 'closed'
-                    }
-                    tone={
-                      openState.kind === 'open' || openState.kind === 'open24'
-                        ? 'normal'
-                        : openState.kind === 'closedNow'
-                          ? 'warning'
-                          : 'neutral'
-                    }
-                    icon="clock"
-                    label={openLabel}
-                    size="sm"
-                  />
-                ) : undefined
-              }
-              divider
-            />
+          <CardStack spacing="sm">
+            <Card variant="flush">
+              <ListRow
+                icon="building"
+                tint="blue"
+                title={provider.facility_name}
+                meta={[facilityTypeLabel, address || null]}
+                onPress={() => goToFacility(provider)}
+                // The opening state lives in the trailing badge, which the row's
+                // own generated label never reads — so it is spelled out here.
+                accessibilityLabel={a11yJoin(
+                  provider.facility_name,
+                  facilityTypeLabel,
+                  address || null,
+                  openLabel,
+                )}
+                accessibilityHint={t('doctor.viewFacility')}
+                trailing={
+                  openLabel ? (
+                    <StatusBadge
+                      status={
+                        openState.kind === 'open' || openState.kind === 'open24' ? 'open' : 'closed'
+                      }
+                      tone={
+                        openState.kind === 'open' || openState.kind === 'open24'
+                          ? 'normal'
+                          : openState.kind === 'closedNow'
+                            ? 'warning'
+                            : 'neutral'
+                      }
+                      icon="clock"
+                      label={openLabel}
+                      size="sm"
+                    />
+                  ) : undefined
+                }
+              />
+            </Card>
             {/* Says "Not listed" rather than disappearing: a patient looking
                 for a number learns the register has none, instead of hunting
                 for a row that was silently dropped. No `onPress`, so there is
                 nothing to tap and no chevron. */}
-            <ListRow
-              icon="phone"
-              tint={facilityPhone ? 'green' : 'blue'}
-              title={t('facility.phone')}
-              subtitle={facilityPhone ?? t('facility.phoneNotListed')}
-              onPress={facilityPhone ? callFacility : undefined}
-              accessibilityHint={facilityPhone ? t('facility.callAction') : undefined}
-            />
-          </Card>
+            <Card variant="flush">
+              <ListRow
+                icon="phone"
+                tint={facilityPhone ? 'green' : 'blue'}
+                title={t('facility.phone')}
+                subtitle={facilityPhone ?? t('facility.phoneNotListed')}
+                onPress={facilityPhone ? callFacility : undefined}
+                accessibilityHint={facilityPhone ? t('facility.callAction') : undefined}
+              />
+            </Card>
+          </CardStack>
         </View>
 
         {/* ── Credentials — the schema's stand-in for a bio ─────────────────── */}

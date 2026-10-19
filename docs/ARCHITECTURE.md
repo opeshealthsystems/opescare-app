@@ -128,6 +128,17 @@ Entirely inert until the patient opts in on `app/offline-access.tsx`.
 - The four Poppins weights are loaded in the root layout before the splash
   hides; a font failure falls back to the system font rather than blocking.
 - Icons: Lucide and the kit's `Icon`, never emoji. Currency is XAF/FCFA.
+- **Card spacing is owned by the stack, never by the card.** Cards placed one
+  under another go in `CardStack` (`components/opes-ui/components/CardStack.tsx`:
+  `spacing="md"` 16pt between sections, `spacing="sm"` 12pt between the rows of
+  one group) or, for search results, `ResultList` (10pt). A tappable row gets
+  its own `Card variant="flush"`; several tappable `ListRow`s are never fused
+  into one card with hairline dividers ("jointed cards", owner bug 2026-10-19).
+  A screen's `ScrollView contentContainerStyle` carries `gap: spacing.md`.
+  `__tests__/noJointedCards.test.ts` scans `app/**` and `components/**` with
+  the TypeScript compiler API and fails, with file:line, on adjacent cards with
+  no stack/gap/margin, on a `.map()` of cards in an unspaced parent, and on one
+  card holding two or more tappable `ListRow`s.
 - Design history: screens were ported from an archived prototype, see
   `docs/DESIGN_REFERENCE.md`.
 

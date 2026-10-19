@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   GradientButton,
   Icon,
   ListRow,
@@ -339,31 +340,35 @@ export default function ExportRecordsScreen() {
         {/* ── Where the neighbouring rights live ───────────────────────── */}
         <View>
           <SectionHeader title={t('exportRecords.relatedTitle')} variant="overline" />
-          <Card variant="flush">
-            <ListRow
-              icon="history"
-              tint="blue"
-              title={t('exportRecords.relatedLogsTitle')}
-              subtitle={t('exportRecords.relatedLogsBody')}
-              onPress={() => router.push('/privacy/access-logs')}
-              divider
-            />
-            <ListRow
-              icon="upload"
-              tint="blue"
-              title={t('importRecords.title')}
-              subtitle={t('importRecords.subtitle')}
-              onPress={() => router.push('/import-records')}
-              divider
-            />
-            <ListRow
-              icon="shield-check"
-              tint="purple"
-              title={t('exportRecords.relatedRequestTitle')}
-              subtitle={t('exportRecords.relatedRequestBody')}
-              onPress={() => router.push('/privacy/export')}
-            />
-          </Card>
+          <CardStack spacing="sm">
+            <Card variant="flush">
+              <ListRow
+                icon="history"
+                tint="blue"
+                title={t('exportRecords.relatedLogsTitle')}
+                subtitle={t('exportRecords.relatedLogsBody')}
+                onPress={() => router.push('/privacy/access-logs')}
+              />
+            </Card>
+            <Card variant="flush">
+              <ListRow
+                icon="upload"
+                tint="blue"
+                title={t('importRecords.title')}
+                subtitle={t('importRecords.subtitle')}
+                onPress={() => router.push('/import-records')}
+              />
+            </Card>
+            <Card variant="flush">
+              <ListRow
+                icon="shield-check"
+                tint="purple"
+                title={t('exportRecords.relatedRequestTitle')}
+                subtitle={t('exportRecords.relatedRequestBody')}
+                onPress={() => router.push('/privacy/export')}
+              />
+            </Card>
+          </CardStack>
         </View>
       </ScrollView>
 

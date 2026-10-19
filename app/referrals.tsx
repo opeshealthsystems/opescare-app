@@ -29,6 +29,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ListRow,
@@ -274,25 +275,28 @@ function WhatYouCanDo() {
         title={t('patientWrites.common.whatYouCanDo', { defaultValue: 'What you can do' })}
         style={s.sectionAfterCard}
       />
-      <Card variant="flush">
-        <ListRow
-          icon="send"
-          tint="purple"
-          title={t('patientWrites.referralRequest.openCta', { defaultValue: 'Ask for a referral' })}
-          subtitle={t('patientWrites.referralRequest.openCtaSubtitle', {
-            defaultValue: 'Tell a clinician why you think you need to see a specialist',
-          })}
-          onPress={() => router.push('/referrals/request')}
-          divider
-        />
-        <ListRow
-          icon="heart-pulse"
-          tint="blue"
-          title={t('patientWrites.vitals.title', { defaultValue: 'Log a reading' })}
-          subtitle={t('patientWrites.vitals.subtitle', { defaultValue: 'A measurement you took yourself' })}
-          onPress={() => router.push('/vitals/log')}
-        />
-      </Card>
+      <CardStack spacing="sm">
+        <Card variant="flush">
+          <ListRow
+            icon="send"
+            tint="purple"
+            title={t('patientWrites.referralRequest.openCta', { defaultValue: 'Ask for a referral' })}
+            subtitle={t('patientWrites.referralRequest.openCtaSubtitle', {
+              defaultValue: 'Tell a clinician why you think you need to see a specialist',
+            })}
+            onPress={() => router.push('/referrals/request')}
+          />
+        </Card>
+        <Card variant="flush">
+          <ListRow
+            icon="heart-pulse"
+            tint="blue"
+            title={t('patientWrites.vitals.title', { defaultValue: 'Log a reading' })}
+            subtitle={t('patientWrites.vitals.subtitle', { defaultValue: 'A measurement you took yourself' })}
+            onPress={() => router.push('/vitals/log')}
+          />
+        </Card>
+      </CardStack>
     </>
   );
 }
@@ -369,35 +373,39 @@ function ReferralCard({ referral }: { referral: Referral }) {
       </Card>
 
       {isOpen ? (
-        <Card variant="flush">
+        <CardStack spacing="sm">
           <View style={s.cardHead}>
             <Icon name="list" size={22} color={colors.blue} />
             <Text style={s.cardTitle}>{t('opesCare.referral.nextSteps', { defaultValue: 'Next steps' })}</Text>
           </View>
-          <ListRow
-            icon="calendar-plus"
-            tint="blue"
-            title={t('opesCare.referral.scheduleTitle', { defaultValue: 'Book an appointment' })}
-            subtitle={t('opesCare.referral.scheduleText', { defaultValue: 'Arrange your visit at the receiving facility.' })}
-            onPress={() => router.push('/appointments/book')}
-            divider
-          />
-          <ListRow
-            icon="clipboard"
-            tint="green"
-            title={t('opesCare.referral.bringTitle', { defaultValue: 'Bring your documents' })}
-            subtitle={t('opesCare.referral.bringText', { defaultValue: 'Carry this referral and any relevant results.' })}
-            onPress={() => router.push('/documents')}
-            divider
-          />
-          <ListRow
-            icon="phone"
-            tint="purple"
-            title={t('opesCare.referral.helpTitle', { defaultValue: 'Need help?' })}
-            subtitle={t('opesCare.referral.helpText', { defaultValue: 'Contact us if you need assistance.' })}
-            onPress={() => router.push('/help')}
-          />
-        </Card>
+          <Card variant="flush">
+            <ListRow
+              icon="calendar-plus"
+              tint="blue"
+              title={t('opesCare.referral.scheduleTitle', { defaultValue: 'Book an appointment' })}
+              subtitle={t('opesCare.referral.scheduleText', { defaultValue: 'Arrange your visit at the receiving facility.' })}
+              onPress={() => router.push('/appointments/book')}
+            />
+          </Card>
+          <Card variant="flush">
+            <ListRow
+              icon="clipboard"
+              tint="green"
+              title={t('opesCare.referral.bringTitle', { defaultValue: 'Bring your documents' })}
+              subtitle={t('opesCare.referral.bringText', { defaultValue: 'Carry this referral and any relevant results.' })}
+              onPress={() => router.push('/documents')}
+            />
+          </Card>
+          <Card variant="flush">
+            <ListRow
+              icon="phone"
+              tint="purple"
+              title={t('opesCare.referral.helpTitle', { defaultValue: 'Need help?' })}
+              subtitle={t('opesCare.referral.helpText', { defaultValue: 'Contact us if you need assistance.' })}
+              onPress={() => router.push('/help')}
+            />
+          </Card>
+        </CardStack>
       ) : null}
     </>
   );

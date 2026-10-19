@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { Avatar } from '@/components/core/shared';
 import {
   Card,
+  CardStack,
   EmptyState,
   Icon,
   ListRow,
@@ -304,23 +305,25 @@ export default function SettingsScreen() {
             {/* ── Account ─────────────────────────────────────────────── */}
             <View>
               <SectionHeader title={t('settings.group.account')} variant="overline" />
-              <Card variant="flush">
-                <ListRow
-                  icon="person"
-                  tint="blue"
-                  title={t('settings.account.personal')}
-                  subtitle={t('settings.account.personalBody')}
-                  onPress={() => router.push(ROUTES.editProfile)}
-                  divider
-                />
-                <ListRow
-                  icon="users"
-                  tint="purple"
-                  title={t('settings.account.family')}
-                  subtitle={t('settings.account.familyBody')}
-                  onPress={() => router.push(ROUTES.family)}
-                  divider
-                />
+              <CardStack spacing="sm">
+                <Card variant="flush">
+                  <ListRow
+                    icon="person"
+                    tint="blue"
+                    title={t('settings.account.personal')}
+                    subtitle={t('settings.account.personalBody')}
+                    onPress={() => router.push(ROUTES.editProfile)}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <ListRow
+                    icon="users"
+                    tint="purple"
+                    title={t('settings.account.family')}
+                    subtitle={t('settings.account.familyBody')}
+                    onPress={() => router.push(ROUTES.family)}
+                  />
+                </Card>
                 {/*
                   Last in the group and red, because it is the destructive one.
                   It opens a disclosure screen, not a confirmation dialog — the
@@ -328,19 +331,21 @@ export default function SettingsScreen() {
                   is RETAINED under a statutory duty before anything happens,
                   and there is a 30-day grace period after that.
                 */}
-                <ListRow
-                  icon="trash"
-                  tint="red"
-                  title={t('accountDeletion.settingsRow', {
-                    defaultValue: 'Close my account',
-                  })}
-                  subtitle={t('accountDeletion.settingsRowBody', {
-                    defaultValue:
-                      'Erase your sign-in and personal details. Your clinical record is kept as the law requires.',
-                  })}
-                  onPress={() => router.push(ROUTES.deleteAccount)}
-                />
-              </Card>
+                <Card variant="flush">
+                  <ListRow
+                    icon="trash"
+                    tint="red"
+                    title={t('accountDeletion.settingsRow', {
+                      defaultValue: 'Close my account',
+                    })}
+                    subtitle={t('accountDeletion.settingsRowBody', {
+                      defaultValue:
+                        'Erase your sign-in and personal details. Your clinical record is kept as the law requires.',
+                    })}
+                    onPress={() => router.push(ROUTES.deleteAccount)}
+                  />
+                </Card>
+              </CardStack>
             </View>
 
             {/* ── Language ────────────────────────────────────────────── */}
@@ -428,25 +433,25 @@ export default function SettingsScreen() {
                   />
                 </Card>
               ) : (
-                <Card variant="flush">
-                  {NOTIFICATION_PREFERENCE_KEYS.map((key, index) => {
+                <CardStack spacing="sm">
+                  {NOTIFICATION_PREFERENCE_KEYS.map((key) => {
                     const meta = PREFERENCE_META[key];
                     return (
-                      <ToggleRow
-                        key={key}
-                        icon={meta.icon}
-                        tint={meta.tint}
-                        title={t(meta.labelKey)}
-                        subtitle={t(meta.bodyKey)}
-                        value={readPreference(settings, key)}
-                        onChange={(next) => toggle(key, next)}
-                        busy={pendingKey === key}
-                        unknownLabel={t('settings.notifications.unavailable')}
-                        divider={index < NOTIFICATION_PREFERENCE_KEYS.length - 1}
-                      />
+                      <Card key={key} variant="flush">
+                        <ToggleRow
+                          icon={meta.icon}
+                          tint={meta.tint}
+                          title={t(meta.labelKey)}
+                          subtitle={t(meta.bodyKey)}
+                          value={readPreference(settings, key)}
+                          onChange={(next) => toggle(key, next)}
+                          busy={pendingKey === key}
+                          unknownLabel={t('settings.notifications.unavailable')}
+                        />
+                      </Card>
                     );
                   })}
-                </Card>
+                </CardStack>
               )}
 
               {prefsError ? (
@@ -471,58 +476,63 @@ export default function SettingsScreen() {
             {/* ── This device ─────────────────────────────────────────── */}
             <View>
               <SectionHeader title={t('settings.group.device')} variant="overline" />
-              <Card variant="flush">
+              <CardStack spacing="sm">
                 {appLockSupported && lockAvailable ? (
-                  <ToggleRow
-                    icon="lock"
-                    tint="blue"
-                    title={t('appLock.settingLabel')}
-                    subtitle={t('appLock.settingBody')}
-                    value={appLock.ready ? appLock.enabled : null}
-                    onChange={(next) => void appLock.setEnabled(next, String(t('appLock.prompt')))}
-                    busy={false}
-                    unknownLabel={t('settings.device.pushChecking')}
-                    divider
-                  />
+                  <Card variant="flush">
+                    <ToggleRow
+                      icon="lock"
+                      tint="blue"
+                      title={t('appLock.settingLabel')}
+                      subtitle={t('appLock.settingBody')}
+                      value={appLock.ready ? appLock.enabled : null}
+                      onChange={(next) => void appLock.setEnabled(next, String(t('appLock.prompt')))}
+                      busy={false}
+                      unknownLabel={t('settings.device.pushChecking')}
+                    />
+                  </Card>
                 ) : null}
-                <ToggleRow
-                  icon="bell"
-                  tint="amber"
-                  title={t('settings.device.pushLabel')}
-                  subtitle={t('settings.device.pushBody')}
-                  value={push.loading ? null : push.enabled}
-                  onChange={(next) => void push.setEnabled(next)}
-                  busy={push.busy}
-                  unknownLabel={t('settings.device.pushChecking')}
-                  divider
-                />
+                <Card variant="flush">
+                  <ToggleRow
+                    icon="bell"
+                    tint="amber"
+                    title={t('settings.device.pushLabel')}
+                    subtitle={t('settings.device.pushBody')}
+                    value={push.loading ? null : push.enabled}
+                    onChange={(next) => void push.setEnabled(next)}
+                    busy={push.busy}
+                    unknownLabel={t('settings.device.pushChecking')}
+                  />
+                </Card>
                 {patient ? (
-                  <ToggleRow
-                    icon="first-aid"
-                    tint="red"
-                    title={t('authRedesign.settings.toggleTitle')}
-                    subtitle={
-                      emergencyOn
-                        ? `${t('authRedesign.settings.toggleBody')} ${t('authRedesign.settings.enabledNote')}`
-                        : t('authRedesign.settings.toggleBody')
-                    }
-                    value={emergencyOn}
-                    onChange={(next) => void toggleEmergency(next)}
-                    busy={emergencyBusy}
-                    unknownLabel={t('settings.device.pushChecking')}
-                    divider
-                  />
+                  <Card variant="flush">
+                    <ToggleRow
+                      icon="first-aid"
+                      tint="red"
+                      title={t('authRedesign.settings.toggleTitle')}
+                      subtitle={
+                        emergencyOn
+                          ? `${t('authRedesign.settings.toggleBody')} ${t('authRedesign.settings.enabledNote')}`
+                          : t('authRedesign.settings.toggleBody')
+                      }
+                      value={emergencyOn}
+                      onChange={(next) => void toggleEmergency(next)}
+                      busy={emergencyBusy}
+                      unknownLabel={t('settings.device.pushChecking')}
+                    />
+                  </Card>
                 ) : null}
-                <ListRow
-                  // No "cloud-off" glyph in the kit; the lock reads as "an
-                  // encrypted copy on this device", which is what the row is.
-                  icon="lock"
-                  tint="amber"
-                  title={t('settings.device.offline')}
-                  subtitle={t('settings.device.offlineBody')}
-                  onPress={() => router.push(ROUTES.offlineAccess)}
-                />
-              </Card>
+                <Card variant="flush">
+                  <ListRow
+                    // No "cloud-off" glyph in the kit; the lock reads as "an
+                    // encrypted copy on this device", which is what the row is.
+                    icon="lock"
+                    tint="amber"
+                    title={t('settings.device.offline')}
+                    subtitle={t('settings.device.offlineBody')}
+                    onPress={() => router.push(ROUTES.offlineAccess)}
+                  />
+                </Card>
+              </CardStack>
 
               {push.error ? (
                 <InlineNotice
@@ -536,121 +546,135 @@ export default function SettingsScreen() {
             {/* ── Privacy & data ──────────────────────────────────────── */}
             <View>
               <SectionHeader title={t('settings.group.privacy')} variant="overline" />
-              <Card variant="flush">
-                <ListRow
-                  icon="shield-check"
-                  tint="green"
-                  title={t('settings.privacy.consent')}
-                  subtitle={t('settings.privacy.consentBody')}
-                  onPress={() => router.push(ROUTES.privacy)}
-                  divider
-                />
-                <ListRow
-                  icon="history"
-                  tint="blue"
-                  title={t('settings.privacy.accessLogs')}
-                  subtitle={t('settings.privacy.accessLogsBody')}
-                  onPress={() => router.push(ROUTES.accessLogs)}
-                  divider
-                />
-                <ListRow
-                  icon="clipboard"
-                  tint="purple"
-                  title={t('settings.privacy.dataRequests')}
-                  subtitle={t('settings.privacy.dataRequestsBody')}
-                  onPress={() => router.push(ROUTES.dataRequests)}
-                  divider
-                />
-                <ListRow
-                  icon="download"
-                  tint="blue"
-                  title={t('settings.privacy.download')}
-                  subtitle={t('settings.privacy.downloadBody')}
-                  onPress={() => router.push(ROUTES.downloadRecords)}
-                />
-              </Card>
+              <CardStack spacing="sm">
+                <Card variant="flush">
+                  <ListRow
+                    icon="shield-check"
+                    tint="green"
+                    title={t('settings.privacy.consent')}
+                    subtitle={t('settings.privacy.consentBody')}
+                    onPress={() => router.push(ROUTES.privacy)}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <ListRow
+                    icon="history"
+                    tint="blue"
+                    title={t('settings.privacy.accessLogs')}
+                    subtitle={t('settings.privacy.accessLogsBody')}
+                    onPress={() => router.push(ROUTES.accessLogs)}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <ListRow
+                    icon="clipboard"
+                    tint="purple"
+                    title={t('settings.privacy.dataRequests')}
+                    subtitle={t('settings.privacy.dataRequestsBody')}
+                    onPress={() => router.push(ROUTES.dataRequests)}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <ListRow
+                    icon="download"
+                    tint="blue"
+                    title={t('settings.privacy.download')}
+                    subtitle={t('settings.privacy.downloadBody')}
+                    onPress={() => router.push(ROUTES.downloadRecords)}
+                  />
+                </Card>
+              </CardStack>
             </View>
 
             {/* ── Care ────────────────────────────────────────────────── */}
             <View>
               <SectionHeader title={t('settings.group.care')} variant="overline" />
-              <Card variant="flush">
-                <ListRow
-                  icon="target"
-                  tint="green"
-                  title={t('settings.care.carePlans')}
-                  subtitle={t('settings.care.carePlansBody')}
-                  onPress={() => router.push(ROUTES.carePlans)}
-                  divider
-                />
-                <ListRow
-                  icon="send"
-                  tint="purple"
-                  title={t('settings.care.referrals')}
-                  subtitle={t('settings.care.referralsBody')}
-                  onPress={() => router.push(ROUTES.referrals)}
-                />
-              </Card>
+              <CardStack spacing="sm">
+                <Card variant="flush">
+                  <ListRow
+                    icon="target"
+                    tint="green"
+                    title={t('settings.care.carePlans')}
+                    subtitle={t('settings.care.carePlansBody')}
+                    onPress={() => router.push(ROUTES.carePlans)}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <ListRow
+                    icon="send"
+                    tint="purple"
+                    title={t('settings.care.referrals')}
+                    subtitle={t('settings.care.referralsBody')}
+                    onPress={() => router.push(ROUTES.referrals)}
+                  />
+                </Card>
+              </CardStack>
             </View>
 
             {/* ── About & support ─────────────────────────────────────── */}
             <View>
               <SectionHeader title={t('settings.group.about')} variant="overline" />
-              <Card variant="flush">
-                <ListRow
-                  icon="info"
-                  tint="blue"
-                  title={t('about.title')}
-                  subtitle={t('settings.about.aboutBody')}
-                  onPress={() => router.push(ROUTES.about)}
-                  divider
-                />
-                <ListRow
-                  icon="help-circle"
-                  tint="blue"
-                  title={t('settings.about.help')}
-                  subtitle={t('settings.about.helpBody')}
-                  onPress={() => router.push(ROUTES.help)}
-                  divider
-                />
+              <CardStack spacing="sm">
+                <Card variant="flush">
+                  <ListRow
+                    icon="info"
+                    tint="blue"
+                    title={t('about.title')}
+                    subtitle={t('settings.about.aboutBody')}
+                    onPress={() => router.push(ROUTES.about)}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <ListRow
+                    icon="help-circle"
+                    tint="blue"
+                    title={t('settings.about.help')}
+                    subtitle={t('settings.about.helpBody')}
+                    onPress={() => router.push(ROUTES.help)}
+                  />
+                </Card>
                 {/* The two legal documents. `legal.*` lives in
                     lib/i18n/pending/legal.{en,fr}.json and is not loaded by
                     lib/i18n/index.ts yet, so every string here carries a
                     defaultValue and starts reading correctly the moment those
                     keys land. */}
-                <ListRow
-                  icon="shield"
-                  tint="blue"
-                  title={t('legal.privacy.title', { defaultValue: 'Privacy Policy' })}
-                  subtitle={t('settings.about.privacyPolicyBody', {
-                    defaultValue: 'What we collect, who can see it, and your rights over it.',
-                  })}
-                  onPress={() => router.push(ROUTES.privacyPolicy)}
-                  divider
-                />
-                <ListRow
-                  icon="document-text"
-                  tint="blue"
-                  title={t('legal.terms.title', { defaultValue: 'Terms of Service' })}
-                  subtitle={t('settings.about.termsBody', {
-                    defaultValue: 'The rules this app runs by, and what it does not do.',
-                  })}
-                  onPress={() => router.push(ROUTES.terms)}
-                  divider
-                />
-                <ListRow
-                  icon="info"
-                  tint="blue"
-                  title={t('settings.about.version')}
-                  subtitle={
-                    updateAvailable
-                      ? t('settings.about.updateAvailable', { version: latestVersion })
-                      : undefined
-                  }
-                  value={installedVersion ?? t('settings.about.versionUnknown')}
-                  valueColor={colors.textSecondary}
-                />
-              </Card>
+                <Card variant="flush">
+                  <ListRow
+                    icon="shield"
+                    tint="blue"
+                    title={t('legal.privacy.title', { defaultValue: 'Privacy Policy' })}
+                    subtitle={t('settings.about.privacyPolicyBody', {
+                      defaultValue: 'What we collect, who can see it, and your rights over it.',
+                    })}
+                    onPress={() => router.push(ROUTES.privacyPolicy)}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <ListRow
+                    icon="document-text"
+                    tint="blue"
+                    title={t('legal.terms.title', { defaultValue: 'Terms of Service' })}
+                    subtitle={t('settings.about.termsBody', {
+                      defaultValue: 'The rules this app runs by, and what it does not do.',
+                    })}
+                    onPress={() => router.push(ROUTES.terms)}
+                  />
+                </Card>
+                <Card variant="flush">
+                  <ListRow
+                    icon="info"
+                    tint="blue"
+                    title={t('settings.about.version')}
+                    subtitle={
+                      updateAvailable
+                        ? t('settings.about.updateAvailable', { version: latestVersion })
+                        : undefined
+                    }
+                    value={installedVersion ?? t('settings.about.versionUnknown')}
+                    valueColor={colors.textSecondary}
+                  />
+                </Card>
+              </CardStack>
             </View>
 
             <InlineNotice

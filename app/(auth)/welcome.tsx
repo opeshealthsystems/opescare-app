@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PaperWave } from '@/components/ui/PaperWave';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -17,6 +17,9 @@ import {
 import { Bullet, Note } from '@/components/enrol/shared';
 import { Screen } from '@/components/ui/Screen';
 import { AnimatedSeal } from '@/components/auth/AnimatedSeal';
+import { consumeSignedOutLanding } from '@/components/auth/signOutLanding';
+import { MedicalIdCard } from '@/components/emergency/MedicalIdCard';
+import { useVisibleEmergencyCard } from '@/lib/emergency/sync';
 
 /**
  * The front door — the OPES kit's CORE-003 Onboarding Welcome, flattened onto
@@ -55,6 +58,15 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const medicalId = useVisibleEmergencyCard();
+  // A confirmed sign-out lands here first (the root layout routes every
+  // signed-out session to welcome); forward it to the signed-out landing.
+  const [forwarding] = useState(consumeSignedOutLanding);
+  useEffect(() => {
+    if (forwarding) router.replace('/(auth)/signed-out');
+  }, [forwarding, router]);
+
+  if (forwarding) return <Screen className="px-0">{null}</Screen>;
 
   return (
     <Screen className="px-0">
@@ -66,6 +78,8 @@ export default function WelcomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.page}
       >
+        {medicalId ? <MedicalIdCard snapshot={medicalId} /> : null}
+
         <View style={styles.logoBlock}>
           <PulseLogo size={104} />
           <Wordmark size="lg" />

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { emergencyCard } from '@/lib/emergency/snapshot';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
@@ -150,6 +151,9 @@ export default function DeleteAccountScreen() {
             credential,
             reason: reason.trim() || undefined,
           });
+          // The opt-in Medical ID outlives sign-out by design, but never the
+          // account: it goes the moment deletion is requested.
+          void emergencyCard.forget();
           // The credential never lingers in component state after use.
           setCredential('');
           setConfirmation('');

@@ -1,0 +1,46 @@
+{
+  "authRedesign": {
+    "eyebrow": "OpesCare Secure",
+    "title": "Sign in",
+    "subtitle": "Your records, appointments and Health ID — protected on this device.",
+    "clinicianTitle": "Clinician or facility staff?",
+    "clinicianBody": "Use your work email and password above. We recognise staff accounts and open the clinician workspace.",
+    "trust": "End-to-end encrypted · Data stays in Cameroon",
+    "medicalId": {
+      "title": "Medical ID",
+      "subtitle": "Shown because the owner of this phone chose to.",
+      "bloodGroup": "Blood group",
+      "age": "Age",
+      "ageValue": "{{count}} yrs",
+      "healthId": "Health ID",
+      "allergies": "Allergies",
+      "noAllergiesListed": "None recorded",
+      "contact": "Emergency contact",
+      "call": "Call {{name}}",
+      "callHint": "Opens the phone dialler"
+    },
+    "signOut": {
+      "title": "Sign out of OpesCare?",
+      "body": "Here is what happens on this phone:",
+      "point1": "Your session ends and the access token is removed.",
+      "point2": "Offline copies of your records, unsent changes and downloaded PDFs are wiped.",
+      "point3": "Phone alerts for this account stop on this device.",
+      "pointEmergency": "Your Medical ID stays on the sign-in screen — turn it off in Settings.",
+      "confirm": "Sign out",
+      "cancel": "Stay signed in",
+      "working": "Signing out…",
+      "failed": "Could not sign out. Check your connection and try again."
+    },
+    "signedOut": {
+      "title": "You are signed out",
+      "body": "Nothing from your session is left on this phone.",
+      "cta": "Sign in again",
+      "redirect": "Returning to sign-in…"
+    },
+    "settings": {
+      "toggleTitle": "Show emergency info on the sign-in screen",
+      "toggleBody": "Blood group, age, allergies and your emergency contact appear on the sign-in and lock screens. Anyone holding this phone can see them.",
+      "enabledNote": "Saved on this device only. Updated each time your profile refreshes."
+    }
+  }
+}

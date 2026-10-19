@@ -49,6 +49,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { SignOutSheet } from '@/components/auth/SignOutSheet';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
@@ -250,7 +251,6 @@ export default function DoctorProfileScreen() {
   const me = useDoctorMe();
   const profileQuery = useDoctorProfile();
   const update = useUpdateDoctorProfile();
-  const logout = useAuthStore((s) => s.logout);
 
   // The signed-in clinician as the auth store knows them — the one thing on
   // this screen that always names the facility the TOKEN is scoped to, which
@@ -261,7 +261,6 @@ export default function DoctorProfileScreen() {
 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<EditForm>(() => formFrom(null));
-  const [signingOut, setSigningOut] = useState(false);
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
 
   const profile = profileQuery.data ?? null;
@@ -405,37 +404,10 @@ export default function DoctorProfileScreen() {
 
   // ── Sign out ────────────────────────────────────────────────────────────
 
-  const signOut = useCallback(async () => {
-    setSigningOut(true);
-    try {
-      await logout();
-    } catch {
-      setSigningOut(false);
-      dialog.alert(
-        tx('profile.failedTitle', 'Could not sign out'),
-        tx(
-          'profile.failedBody',
-          'This session is still open on this device. Check your connection and try again.'
-        ),
-        'critical'
-      );
-    }
-  }, [logout, dialog, tx]);
-
-  const confirmSignOut = useCallback(() => {
-    dialog.confirm({
-      title: tx('profile.confirmTitle', 'Sign out?'),
-      message: tx(
-        'profile.confirmMessage',
-        'You are signed in as {{name}}. Signing out ends this session on this device. You will need to sign in again.',
-        { name: me.data?.name ?? profile?.display_name ?? '—' }
-      ),
-      confirmLabel: tx('profile.confirmCta', 'Sign Out'),
-      cancelLabel: tx('profile.confirmCancel', 'Stay signed in'),
-      destructive: true,
-      onConfirm: signOut,
-    });
-  }, [dialog, tx, me.data?.name, profile?.display_name, signOut]);
+  // The shared sign-out sheet says what leaves the phone, then runs logout()
+  // and reports a failure itself.
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const confirmSignOut = useCallback(() => setSignOutOpen(true), []);
 
   // ── Header ──────────────────────────────────────────────────────────────
 
@@ -888,7 +860,12 @@ export default function DoctorProfileScreen() {
           onPress: editing ? undefined : startEdit,
         },
       }}
-      after={dialog.element}
+      after={
+        <>
+          {dialog.element}
+          <SignOutSheet visible={signOutOpen} onClose={() => setSignOutOpen(false)} />
+        </>
+      }
       keyboardShouldPersistTaps="handled"
       refreshControl={
           <RefreshControl
@@ -1097,8 +1074,8 @@ export default function DoctorProfileScreen() {
               label={tx('profile.signOut', 'Sign Out')}
               variant="danger"
               icon="logout"
-              loading={signingOut}
-              disabled={signingOut}
+              loading={signOutOpen}
+              disabled={signOutOpen}
               onPress={confirmSignOut}
               style={styles.signOutButton}
             />

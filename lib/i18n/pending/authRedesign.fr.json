@@ -1,0 +1,46 @@
+{
+  "authRedesign": {
+    "eyebrow": "OpesCare Secure",
+    "title": "Connexion",
+    "subtitle": "Votre dossier, vos rendez-vous et votre Health ID — protégés sur cet appareil.",
+    "clinicianTitle": "Clinicien ou personnel d'établissement ?",
+    "clinicianBody": "Utilisez votre e-mail et votre mot de passe professionnels ci-dessus. Nous reconnaissons les comptes du personnel et ouvrons l'espace clinicien.",
+    "trust": "Chiffré de bout en bout · Données hébergées au Cameroun",
+    "medicalId": {
+      "title": "Fiche médicale",
+      "subtitle": "Affichée parce que le propriétaire de ce téléphone l'a choisi.",
+      "bloodGroup": "Groupe sanguin",
+      "age": "Âge",
+      "ageValue": "{{count}} ans",
+      "healthId": "Health ID",
+      "allergies": "Allergies",
+      "noAllergiesListed": "Aucune enregistrée",
+      "contact": "Contact d'urgence",
+      "call": "Appeler {{name}}",
+      "callHint": "Ouvre le composeur téléphonique"
+    },
+    "signOut": {
+      "title": "Se déconnecter d'OpesCare ?",
+      "body": "Voici ce qui se passe sur ce téléphone :",
+      "point1": "Votre session se termine et le jeton d'accès est supprimé.",
+      "point2": "Les copies hors ligne de votre dossier, les modifications non envoyées et les PDF téléchargés sont effacés.",
+      "point3": "Les alertes de ce compte s'arrêtent sur cet appareil.",
+      "pointEmergency": "Votre fiche médicale reste sur l'écran de connexion — désactivez-la dans les Réglages.",
+      "confirm": "Se déconnecter",
+      "cancel": "Rester connecté",
+      "working": "Déconnexion…",
+      "failed": "Déconnexion impossible. Vérifiez votre connexion et réessayez."
+    },
+    "signedOut": {
+      "title": "Vous êtes déconnecté",
+      "body": "Plus rien de votre session ne reste sur ce téléphone.",
+      "cta": "Se reconnecter",
+      "redirect": "Retour à la connexion…"
+    },
+    "settings": {
+      "toggleTitle": "Afficher les infos d'urgence sur l'écran de connexion",
+      "toggleBody": "Groupe sanguin, âge, allergies et contact d'urgence apparaissent sur les écrans de connexion et de verrouillage. Toute personne qui tient ce téléphone peut les voir.",
+      "enabledNote": "Enregistré uniquement sur cet appareil. Mis à jour à chaque actualisation de votre profil."
+    }
+  }
+}

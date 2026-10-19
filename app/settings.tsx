@@ -43,6 +43,12 @@ import {
 } from '../lib/api/settingsQueries';
 import { runningVersion, useAppConfig, compareVersions } from '../lib/api/appConfigQueries';
 import { useAuthStore } from '../lib/store/auth';
+import { emergencyCard } from '../lib/emergency/snapshot';
+import { queryClient } from '../lib/session/wipe';
+import { apiClient } from '../lib/api/client';
+import { endpoints } from '../lib/api/endpoints';
+import type { AllergiesResponse } from '../lib/api/types';
+import '../lib/i18n/authRedesignStrings';
 
 /**
  * Settings — the account hub, in the OPES CORE-008 layout: an identity card,
@@ -176,6 +182,43 @@ export default function SettingsScreen() {
   const { settings, query, toggle, pendingKey, isError: prefsError } = useNotificationPreferences();
   const { language, setLanguage, isError: languageError } = useLanguagePreference();
   const push = usePushRegistration();
+
+  // Opt-in Medical ID on the sign-in screen (lib/emergency/snapshot.ts).
+  const [emergencyOn, setEmergencyOn] = useState<boolean | null>(null);
+  const [emergencyBusy, setEmergencyBusy] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void emergencyCard.isEnabled().then((on) => alive && setEmergencyOn(on));
+    const un = emergencyCard.subscribe((_s, on) => setEmergencyOn(on));
+    return () => {
+      alive = false;
+      un();
+    };
+  }, []);
+  const toggleEmergency = useCallback(
+    async (next: boolean) => {
+      setEmergencyBusy(true);
+      try {
+        await emergencyCard.setEnabled(next);
+        if (next && patient) {
+          // Save straight away from what we already have, then once more with
+          // a fresh allergy list so the card is complete on first sight.
+          const cached = queryClient.getQueryData<AllergiesResponse>(['allergies']);
+          await emergencyCard.refresh(patient, cached?.allergies);
+          const fresh = await queryClient
+            .fetchQuery({
+              queryKey: ['allergies'],
+              queryFn: async () => (await apiClient.get<AllergiesResponse>(endpoints.allergies)).data,
+            })
+            .catch(() => undefined);
+          if (fresh) await emergencyCard.refresh(patient, fresh.allergies);
+        }
+      } finally {
+        setEmergencyBusy(false);
+      }
+    },
+    [patient],
+  );
   const appConfig = useAppConfig();
 
   const installedVersion = runningVersion();
@@ -453,6 +496,23 @@ export default function SettingsScreen() {
                   unknownLabel={t('settings.device.pushChecking')}
                   divider
                 />
+                {patient ? (
+                  <ToggleRow
+                    icon="first-aid"
+                    tint="red"
+                    title={t('authRedesign.settings.toggleTitle')}
+                    subtitle={
+                      emergencyOn
+                        ? `${t('authRedesign.settings.toggleBody')} ${t('authRedesign.settings.enabledNote')}`
+                        : t('authRedesign.settings.toggleBody')
+                    }
+                    value={emergencyOn}
+                    onChange={(next) => void toggleEmergency(next)}
+                    busy={emergencyBusy}
+                    unknownLabel={t('settings.device.pushChecking')}
+                    divider
+                  />
+                ) : null}
                 <ListRow
                   // No "cloud-off" glyph in the kit; the lock reads as "an
                   // encrypted copy on this device", which is what the row is.

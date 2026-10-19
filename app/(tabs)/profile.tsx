@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { SignOutSheet } from '@/components/auth/SignOutSheet';
 import { useTranslation } from 'react-i18next';
 import {
   Card,
@@ -61,7 +62,6 @@ export default function ProfileScreen() {
   const styles = useProfileStyles();
   const dialog = useDialog();
   const patient = useAuthStore((s) => s.patient);
-  const logout = useAuthStore((s) => s.logout);
   const authStatus = useAuthStore((s) => s.status);
   const profileState = useAuthStore((s) => s.profileState);
   const fetchMe = useAuthStore((s) => s.fetchMe);
@@ -182,19 +182,11 @@ export default function ProfileScreen() {
     return { filled, total: fields.length, percent: Math.round((filled / fields.length) * 100) };
   }, [patient]);
 
-  // Sign out is confirmed through the kit Dialog rather than `Alert.alert`,
-  // which is a no-op on react-native-web. `logout()` clears the token and the
-  // session; the root layout then routes to the welcome screen.
-  const confirmSignOut = useCallback(() => {
-    dialog.confirm({
-      title: t('profile.signOutConfirmTitle'),
-      message: t('profile.signOutConfirmBody'),
-      confirmLabel: t('profile.signOut'),
-      cancelLabel: t('profile.signOutConfirmCancel'),
-      destructive: true,
-      onConfirm: () => logout(),
-    });
-  }, [dialog, t, logout]);
+  // Sign out opens the shared confirmation sheet, which says what leaves the
+  // phone and runs `logout()`; the root layout then leaves the signed-in area.
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const confirmSignOut = useCallback(() => setSignOutOpen(true), []);
+  const signOutSheet = <SignOutSheet visible={signOutOpen} onClose={() => setSignOutOpen(false)} />;
 
   const goEditProfile = useCallback(() => router.push('/edit-profile'), [router]);
 
@@ -279,6 +271,7 @@ export default function ProfileScreen() {
           </ScrollView>
         )}
         {dialog.element}
+        {signOutSheet}
       </SafeAreaView>
     );
   }
@@ -380,7 +373,12 @@ export default function ProfileScreen() {
           onPress: goEditProfile,
         },
       }}
-      after={dialog.element}
+      after={
+        <>
+          {dialog.element}
+          {signOutSheet}
+        </>
+      }
     >
       {/* ── Page heading, with the motto block the render carries ────── */}
       <ProfileHeading title={t('profile.title')} subtitle={t('profile.subtitle')} />

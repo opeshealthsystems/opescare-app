@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { GradientButton, Icon, Wordmark, spacing, typography, useTheme } from '@/components/opes-ui';
 import { PaperWave } from '@/components/ui/PaperWave';
 import { installAppLockWatcher, useAppLock } from '@/lib/security/appLock';
+import { MedicalIdCard } from '@/components/emergency/MedicalIdCard';
+import { useEmergencySnapshotSync, useVisibleEmergencyCard } from '@/lib/emergency/sync';
 
 /**
  * Full-screen cover shown while the app is locked. Rendered after the Stack
@@ -16,6 +18,10 @@ export function AppLockGate({ active }: { active: boolean }) {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { locked, ready, load, unlock } = useAppLock();
   const prompted = useRef(false);
+  // Always mounted from the root layout, so the opt-in emergency card is kept
+  // in step with the profile from here, and shown on the lock cover.
+  useEmergencySnapshotSync();
+  const medicalId = useVisibleEmergencyCard();
 
   useEffect(() => {
     void load();
@@ -49,6 +55,11 @@ export function AppLockGate({ active }: { active: boolean }) {
       </Text>
       <Text style={styles.body}>{t('appLock.body')}</Text>
       <GradientButton label={t('appLock.unlock')} onPress={tryUnlock} icon="none" />
+      {medicalId ? (
+        <View style={styles.medical}>
+          <MedicalIdCard snapshot={medicalId} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -65,6 +76,7 @@ function makeStyles(c: ReturnType<typeof useTheme>['colors']) {
       overflow: 'hidden',
       zIndex: 1000,
     },
+    medical: { alignSelf: 'stretch', marginTop: spacing.md },
     badge: {
       marginTop: spacing.lg,
       width: 72,

@@ -16,8 +16,8 @@ import {
   GradientButton,
   Icon,
   ListRow,
-  ScreenHeader,
   PillInput,
+  Wordmark,
   StatusBadge,
   radii,
   spacing,
@@ -25,9 +25,12 @@ import {
   useTheme,
   type Palette,
 } from '@/components/opes-ui';
-import { FieldLabel, FormError, Note } from '@/components/enrol/shared';
+import { FieldLabel, FormError } from '@/components/enrol/shared';
 import { Screen } from '@/components/ui/Screen';
-import { AnimatedSeal } from '@/components/auth/AnimatedSeal';
+import { PaperWave } from '@/components/ui/PaperWave';
+import { MedicalIdCard } from '@/components/emergency/MedicalIdCard';
+import { useVisibleEmergencyCard } from '@/lib/emergency/sync';
+import '@/lib/i18n/authRedesignStrings';
 import { routeToClinicianArea, useAuthStore } from '@/lib/store/auth';
 import {
   isProviderAuthUnavailable,
@@ -111,6 +114,8 @@ export default function LoginScreen() {
   /** A failure this screen phrases better than the store can — it takes
    * precedence over `storeError`, which is the raw server wording. */
   const [formError, setFormError] = useState<string | null>(null);
+  /** The opt-in Medical ID, when the phone's owner switched it on. */
+  const medicalId = useVisibleEmergencyCard();
 
   // Prefill the identifier the patient last chose to remember.
   useEffect(() => {
@@ -266,21 +271,39 @@ export default function LoginScreen() {
         style={styles.screen}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScreenHeader
-          title={t('auth.welcomeBack')}
-          subtitle={t('auth.signInSubtitle')}
-          onBack={handleBack}
-        />
-
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.content}
         >
-          {/* The Health ID's seal, straight under "Welcome back". It lives
-              inside the scroll view so it scrolls away once the keyboard is
-              up, instead of squeezing the form on a small phone. */}
-          <AnimatedSeal />
+          {/* Masthead: the Health ID's guilloche paper under the brand, the
+              same document language as My Profile and the Health ID. */}
+          <View style={styles.masthead}>
+            <PaperWave />
+            <View style={styles.topBar}>
+              <TouchableOpacity
+                onPress={handleBack}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.back', { defaultValue: 'Back' })}
+                hitSlop={10}
+                style={styles.backBtn}
+              >
+                <Icon name="chevron-left" size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+              <Wordmark size="md" showTagline={false} />
+              <View style={styles.backBtn} />
+            </View>
+            <View style={styles.eyebrowRow}>
+              <Icon name="shield-check" size={14} color={colors.blue} />
+              <Text style={styles.eyebrow}>{t('authRedesign.eyebrow')}</Text>
+            </View>
+            <Text style={styles.title} accessibilityRole="header">
+              {t('auth.welcomeBack')}
+            </Text>
+            <Text style={styles.subtitle}>{t('authRedesign.subtitle')}</Text>
+          </View>
+
+          {medicalId ? <MedicalIdCard snapshot={medicalId} /> : null}
 
           {SHOW_DEMO_LOGINS ? (
             <DemoAccountPicker
@@ -291,77 +314,79 @@ export default function LoginScreen() {
             />
           ) : null}
 
-          <View>
-            <FieldLabel text={t('auth.emailOrHealthId')} />
-            <PillInput
-              icon={<Icon name="person" size={18} color={colors.blue} />}
-              placeholder={t('auth.emailPlaceholder')}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              textContentType="emailAddress"
-              keyboardType="email-address"
-              returnKeyType="next"
-              value={email}
-              onChangeText={(value) => {
-                setEmail(value);
-                resetErrors();
-              }}
-              error={fieldErrors.email}
-              accessibilityLabel={t('auth.emailOrHealthId')}
-            />
-          </View>
-
-          <View>
-            <View style={styles.labelRow}>
-              <FieldLabel text={t('auth.password')} />
-              <TouchableOpacity
-                onPress={() => router.push('/(auth)/forgot-password')}
-                accessibilityRole="link"
-                hitSlop={8}
-              >
-                <Text style={styles.link}>{t('auth.forgotPassword')}</Text>
-              </TouchableOpacity>
+          <View style={styles.formCard}>
+            <View>
+              <FieldLabel text={t('auth.emailOrHealthId')} />
+              <PillInput
+                icon={<Icon name="person" size={18} color={colors.blue} />}
+                placeholder={t('auth.emailPlaceholder')}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="email"
+                textContentType="emailAddress"
+                keyboardType="email-address"
+                returnKeyType="next"
+                value={email}
+                onChangeText={(value) => {
+                  setEmail(value);
+                  resetErrors();
+                }}
+                error={fieldErrors.email}
+                accessibilityLabel={t('auth.emailOrHealthId')}
+              />
             </View>
-            <PillInput
-              icon={<Icon name="lock" size={18} color={colors.blue} />}
-              placeholder={t('auth.passwordPlaceholder')}
-              isPassword
-              autoCapitalize="none"
-              autoComplete="current-password"
-              textContentType="password"
-              returnKeyType="go"
-              value={password}
-              onChangeText={(value) => {
-                setPassword(value);
-                resetErrors();
-              }}
-              onSubmitEditing={handleSignIn}
-              error={fieldErrors.password}
-              accessibilityLabel={t('auth.password')}
-            />
-          </View>
 
-          <TouchableOpacity
-            onPress={() => setRememberMe((v) => !v)}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: rememberMe }}
-            accessibilityLabel={t('auth.rememberEmail')}
-            hitSlop={6}
-            activeOpacity={0.7}
-            style={styles.remember}
-          >
-            <View style={[styles.checkbox, rememberMe && styles.checkboxOn]}>
-              {rememberMe ? (
-                <Icon name="check" size={13} color={colors.textOnBrand} strokeWidth={2.6} />
-              ) : null}
+            <View>
+              <View style={styles.labelRow}>
+                <FieldLabel text={t('auth.password')} />
+                <TouchableOpacity
+                  onPress={() => router.push('/(auth)/forgot-password')}
+                  accessibilityRole="link"
+                  hitSlop={8}
+                >
+                  <Text style={styles.link}>{t('auth.forgotPassword')}</Text>
+                </TouchableOpacity>
+              </View>
+              <PillInput
+                icon={<Icon name="lock" size={18} color={colors.blue} />}
+                placeholder={t('auth.passwordPlaceholder')}
+                isPassword
+                autoCapitalize="none"
+                autoComplete="current-password"
+                textContentType="password"
+                returnKeyType="go"
+                value={password}
+                onChangeText={(value) => {
+                  setPassword(value);
+                  resetErrors();
+                }}
+                onSubmitEditing={handleSignIn}
+                error={fieldErrors.password}
+                accessibilityLabel={t('auth.password')}
+              />
             </View>
-            <Text style={styles.rememberText}>{t('auth.rememberEmail')}</Text>
-          </TouchableOpacity>
 
-          <FormError message={formError ?? storeError ?? null} />
+            <TouchableOpacity
+              onPress={() => setRememberMe((v) => !v)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: rememberMe }}
+              accessibilityLabel={t('auth.rememberEmail')}
+              hitSlop={6}
+              activeOpacity={0.7}
+              style={styles.remember}
+            >
+              <View style={[styles.checkbox, rememberMe && styles.checkboxOn]}>
+                {rememberMe ? (
+                  <Icon name="check" size={13} color={colors.textOnBrand} strokeWidth={2.6} />
+                ) : null}
+              </View>
+              <Text style={styles.rememberText}>{t('auth.rememberEmail')}</Text>
+            </TouchableOpacity>
 
-          <GradientButton label={t('auth.signIn')} onPress={handleSignIn} loading={submitting} />
+            <FormError message={formError ?? storeError ?? null} />
+
+            <GradientButton label={t('auth.signIn')} onPress={handleSignIn} loading={submitting} />
+          </View>
 
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
@@ -387,7 +412,15 @@ export default function LoginScreen() {
             />
           </Card>
 
-          <Note icon="lock" text={t('auth.encryptionNote')} />
+          {/* Clinicians use the same form: handleSignIn falls through to the
+              provider login when the account has no patient chart. */}
+          <View style={styles.clinician}>
+            <Icon name="first-aid" size={16} color={colors.textSecondary} />
+            <View style={styles.flex1}>
+              <Text style={styles.clinicianTitle}>{t('authRedesign.clinicianTitle')}</Text>
+              <Text style={styles.clinicianBody}>{t('authRedesign.clinicianBody')}</Text>
+            </View>
+          </View>
 
           <TouchableOpacity
             onPress={() => router.push('/(auth)/signup')}
@@ -395,10 +428,15 @@ export default function LoginScreen() {
             style={styles.footerLink}
             hitSlop={8}
           >
-            <Text style={styles.footerText}>{t('auth.noAccount')} </Text>
-            <Text style={styles.link}>{t('auth.createAccount')}</Text>
-            <Icon name="chevron-right" size={16} color={colors.link} />
+            <Text style={[styles.footerText, styles.footerCenter]}>
+              {t('auth.noAccount')} <Text style={styles.link}>{t('auth.createAccount')}</Text>
+            </Text>
           </TouchableOpacity>
+
+          <View style={styles.trust} accessible accessibilityLabel={t('auth.encryptionNote')}>
+            <Icon name="lock" size={12} color={colors.textMuted} />
+            <Text style={styles.trustText}>{t('auth.encryptionNote')}</Text>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -470,7 +508,74 @@ function DemoAccountPicker({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1 },
-    content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm },
+    content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.md },
+    flex1: { flex: 1 },
+    footerCenter: { textAlign: 'center', flexShrink: 1 },
+
+    masthead: { paddingTop: spacing.sm, paddingBottom: spacing.xs, gap: 6 },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.md,
+    },
+    backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+    eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    eyebrow: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: 11,
+      letterSpacing: 1.4,
+      textTransform: 'uppercase',
+      color: colors.blue,
+    },
+    title: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.xl + 4,
+      lineHeight: typography.size.xl + 12,
+      color: colors.textPrimary,
+    },
+    subtitle: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.sm,
+      lineHeight: typography.lineHeight.sm,
+      color: colors.textSecondary,
+      maxWidth: 320,
+    },
+    formCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: spacing.md,
+      gap: spacing.sm,
+    },
+    clinician: {
+      flexDirection: 'row',
+      gap: spacing.sm + 2,
+      padding: spacing.md,
+      borderRadius: radii.md,
+      backgroundColor: colors.surfaceMuted,
+    },
+    clinicianTitle: {
+      fontFamily: typography.fontFamily.semiBold,
+      fontSize: typography.size.sm,
+      color: colors.textPrimary,
+    },
+    clinicianBody: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    trust: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: spacing.md },
+    trustText: {
+      flexShrink: 1,
+      fontFamily: typography.fontFamily.regular,
+      fontSize: 11,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
 
     labelRow: {
       flexDirection: 'row',

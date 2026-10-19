@@ -175,13 +175,20 @@ export default function BecomeDonorScreen() {
     );
   };
 
+  const statusFailed = () =>
+    dialog.alert(t('donor.statusFailedTitle'), t('donor.statusFailedBody'));
+
   const confirmWithdraw = () =>
     dialog.confirm({
       title: t('donor.withdrawTitle'),
       message: t('donor.withdrawBody'),
       confirmLabel: t('donor.withdrawAction'),
       destructive: true,
-      onConfirm: () => setStatus.mutate('withdrawn', { onSuccess: () => setListed(false) }),
+      onConfirm: () =>
+        setStatus.mutate('withdrawn', {
+          onSuccess: () => setListed(false),
+          onError: statusFailed,
+        }),
     });
 
   return (
@@ -265,7 +272,9 @@ export default function BecomeDonorScreen() {
                       size="sm"
                       disabled={setStatus.isPending}
                       onPress={() =>
-                        setStatus.mutate(current.status === 'paused' ? 'active' : 'paused')
+                        setStatus.mutate(current.status === 'paused' ? 'active' : 'paused', {
+                          onError: statusFailed,
+                        })
                       }
                       style={styles.statusAction}
                     />

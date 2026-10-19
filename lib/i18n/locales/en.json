@@ -8069,7 +8069,9 @@
       "call": "Call",
       "directions": "Directions"
     },
-    "neededByUnchanged": "Leave as is"
+    "neededByUnchanged": "Leave as is",
+    "cancelFailedTitle": "Could not cancel this request",
+    "cancelFailedBody": "The request is still active. Check your connection and try again."
   },
   "donor": {
     "joinTitle": "Become a donor",
@@ -8163,7 +8165,9 @@
         "title": "Never sold",
         "sub": "Voluntary and unpaid."
       }
-    }
+    },
+    "statusFailedTitle": "Could not update your donor status",
+    "statusFailedBody": "Nothing was changed. Check your connection and try again."
   },
   "donorSearch": {
     "title": "Find donors",

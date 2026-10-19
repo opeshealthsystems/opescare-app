@@ -278,7 +278,14 @@ export default function ModifyBloodRequestScreen() {
       confirmLabel: t('bloodModify.cancelConfirmAction'),
       destructive: true,
       onConfirm: () =>
-        cancel.mutate({ id: data.id }, { onSuccess: () => router.replace('/blood-finder') }),
+        cancel.mutate(
+          { id: data.id },
+          {
+            onSuccess: () => router.replace('/blood-finder'),
+            onError: () =>
+              dialog.alert(t('bloodModify.cancelFailedTitle'), t('bloodModify.cancelFailedBody')),
+          },
+        ),
     });
 
   /** The 3x3 overview grid — nine real fields of the payload. */

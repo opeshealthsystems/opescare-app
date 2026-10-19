@@ -80,7 +80,14 @@ export function VerificationCentre({ status }: { status: CredentialStatus }) {
   }, [code]);
 
   const present = useCallback(async () => {
-    const minted = await mint.mutateAsync();
+    let minted;
+    try {
+      minted = await mint.mutateAsync();
+    } catch {
+      // mint.isError drives the on-screen "mintFailed" line; swallowing here
+      // stops `void present()` leaking an unhandled promise rejection.
+      return;
+    }
     const payload = minted.qr_payload ?? minted.verify_url;
     if (!assertOpaquePayload(payload)) return; // never render a leaky payload
     setCode({ payload, expiresAt: Date.now() + Math.max(1, minted.expires_in ?? 60) * 1000 });

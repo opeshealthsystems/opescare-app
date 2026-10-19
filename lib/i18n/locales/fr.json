@@ -8070,7 +8070,9 @@
       "call": "Appeler",
       "directions": "Itinéraire"
     },
-    "neededByUnchanged": "Ne pas changer"
+    "neededByUnchanged": "Ne pas changer",
+    "cancelFailedTitle": "Impossible d'annuler cette demande",
+    "cancelFailedBody": "La demande est toujours active. Vérifiez votre connexion et réessayez."
   },
   "donor": {
     "joinTitle": "Devenir donneur",
@@ -8164,7 +8166,9 @@
         "title": "Jamais vendu",
         "sub": "Volontaire et non rémunéré."
       }
-    }
+    },
+    "statusFailedTitle": "Impossible de mettre à jour votre statut de donneur",
+    "statusFailedBody": "Rien n'a été modifié. Vérifiez votre connexion et réessayez."
   },
   "donorSearch": {
     "title": "Trouver des donneurs",

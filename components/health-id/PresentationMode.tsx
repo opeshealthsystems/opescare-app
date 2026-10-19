@@ -106,7 +106,7 @@ export function PresentationMode({
         />
         <View pointerEvents="none" style={StyleSheet.absoluteFill} {...DECORATIVE}>
           <Art source={HEALTH_ID_ART.circuitField} style={FILL} resizeMode="cover" opacity={0.36} />
-          <RotatingDna style={styles.bgHelix} opacity={0.4} active={live} />
+          <RotatingDna style={styles.bgHelix} opacity={0.5} active={live} />
           <Art source={HEALTH_ID_ART.holoWave} style={styles.bgWave} resizeMode="cover" opacity={0.42} />
         </View>
 

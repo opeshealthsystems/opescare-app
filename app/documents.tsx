@@ -20,6 +20,7 @@
  */
 import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
 import { openExternal } from '@/lib/openExternal';
+import { downloadPdfWithRefresh } from '@/lib/pdfDownload';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -87,7 +88,7 @@ export default function DocumentsScreen() {
   const [selected, setSelected] = useState<OfficialDocument | null>(null);
   const [detail, setDetail] = useState<OfficialDocumentDetail | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
-  const [busy, setBusy] = useState<'open' | 'share' | null>(null);
+  const [busy, setBusy] = useState<'open' | 'share' | 'download' | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [query, setQuery] = useState('');
 
@@ -136,9 +137,11 @@ export default function DocumentsScreen() {
   };
 
   /**
-   * Documents the server renders on request carry their own signed link, so
-   * there is nothing to fetch first — the sheet is built when the link is
-   * opened. It goes to the system browser because that is what can save a file.
+   * Documents the server renders on request carry their own signed link. The
+   * PDF is fetched into the app's cache and offered through the share sheet
+   * (lib/pdfDownload) — handing the link to the browser left Android patients
+   * with nothing visible. The link lives 15 minutes, so an expired one is
+   * re-minted by refetching the list and retried once.
    */
   const handleDownload = async (doc: OfficialDocument) => {
     setNotice(null);
@@ -146,10 +149,19 @@ export default function DocumentsScreen() {
       setNotice({ tone: 'critical', message: t('documents.viewError') });
       return;
     }
+    setBusy('download');
     try {
-      await openExternal(doc.download_url);
+      await downloadPdfWithRefresh(
+        { url: doc.download_url, filename: doc.document_number ?? doc.title, shareTitle: doc.title },
+        async () => {
+          const fresh = await library.refetch();
+          return fresh.data?.documents.find((d) => d.id === doc.id)?.download_url ?? null;
+        },
+      );
     } catch {
       setNotice({ tone: 'critical', message: t('documents.viewError') });
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -379,7 +391,7 @@ function PreviewPanel({
   doc: OfficialDocument;
   detail: OfficialDocumentDetail | null;
   notice: Notice | null;
-  busy: 'open' | 'share' | null;
+  busy: 'open' | 'share' | 'download' | null;
   typeLabel: string;
   onOpen: () => void;
   onShare: () => void;
@@ -402,7 +414,7 @@ function PreviewPanel({
       {/* Hero */}
       <View style={s.hero}>
         <View style={[s.heroIcon, { backgroundColor: tint.bg }]}>
-          <Icon name={meta.icon} size={28} color={tint.fg} />
+          <Icon name={meta.icon} size={32} color={tint.fg} />
         </View>
         <View style={s.heroBody}>
           {/* The document title is the facility's — never translated. */}
@@ -537,8 +549,9 @@ function PreviewPanel({
             tint="green"
             title={t('documents.download')}
             subtitle={t('documents.downloadSub')}
-            onPress={onDownload}
-            chevron
+            onPress={busy ? undefined : onDownload}
+            chevron={busy !== 'download'}
+            trailing={busy === 'download' ? <ActivityIndicator size="small" color={colors.blue} /> : undefined}
           />
         ) : null}
         {doc.download_url ? null : <ListRow

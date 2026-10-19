@@ -30,7 +30,7 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
  * A failed read renders
  * the kit `EmptyState` (`LabsUnavailable`), never a crash or an endless spinner.
  */
-import { openExternal } from '@/lib/openExternal';
+import { downloadPdfWithRefresh } from '@/lib/pdfDownload';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   RefreshControl,
@@ -175,7 +175,12 @@ export default function LabReportFullScreen() {
         return;
       }
       try {
-        await openExternal(document.download_url);
+        // Fetched into the cache and offered via the share sheet; the signed
+        // link lives 15 minutes, so an expired one is re-minted once.
+        await downloadPdfWithRefresh(
+          { url: document.download_url, filename: `lab-report-${document.label ?? document.id}`, shareTitle: document.label ?? undefined },
+          async () => (await query.refetch()).data?.document?.download_url ?? null,
+        );
       } catch (e) {
         dialog.alert(
           tx('report.failOpenTitle', 'The report would not open'),
@@ -186,7 +191,7 @@ export default function LabReportFullScreen() {
         );
       }
     },
-    [dialog, tx, closeLabel]
+    [dialog, tx, closeLabel, query]
   );
 
   /**

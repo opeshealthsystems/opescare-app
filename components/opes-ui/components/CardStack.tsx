@@ -14,7 +14,7 @@
  * `ResultList` is the same idea for search results (a tighter 10pt gap).
  * `__tests__/noJointedCards.test.ts` fails the build on adjacent cards that
  * have no stack, no `gap` and no margin between them, and on a card that joins
- * several tappable navigation rows into one slab.
+ * two or more rows (of any kind, tappable or not) into one slab.
  */
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { spacing } from '../theme';

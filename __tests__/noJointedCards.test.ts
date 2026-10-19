@@ -12,8 +12,14 @@
  *   - a `.map(...)` that returns a <Card> directly,
  * whose effective parent (fragments are looked through) has no gap in its
  * `style` / `contentContainerStyle`, when neither card carries a margin.
- *   - a single <Card> holding two or more tappable <ListRow>s (rows fused into
- *     one slab: give each its own card inside a <CardStack spacing="sm">).
+ *   - a single <Card> holding two or more row components (`ListRow`,
+ *     `ToggleRow`, `InfoRow`, any `*Row`), tappable or not, or a `.map(...)`
+ *     that produces rows inside one card: give each row its own card inside
+ *     a <CardStack spacing="sm"> (owner's rule: nothing is jointed),
+ *   - any `*Row` rendered with a truthy `divider` prop (a hairline between
+ *     items), and
+ *   - an `ItemSeparatorComponent` that draws a line (hairline, border, a
+ *     1pt-high view or a Divider) instead of a plain gap.
  * Style references are resolved by key (`styles.foo` -> any `foo: {...}`
  * object literal in the same file).
  */
@@ -143,6 +149,57 @@ function children(n: ts.Node): ts.Node[] {
   return out;
 }
 
+/** Any `*Row` or `*Tile` component: ListRow, ToggleRow, InfoRow, CountTile... */
+const ROW = /^([A-Z]\w*Row|CountTile)$/;
+const LINE = /hairline|borderBottomWidth|borderTopWidth|Divider|height:\s*(1\b|StyleSheet)/;
+
+function hasDivider(n: ts.Node): boolean {
+  const a = attrs(n);
+  if (!a) return false;
+  return a.properties.some(
+    (p) =>
+      ts.isJsxAttribute(p) &&
+      p.name.getText() === 'divider' &&
+      (!p.initializer || p.initializer.getText() !== '{false}'),
+  );
+}
+
+/**
+ * Row components inside a card, not descending into a nested Card. A row
+ * produced by `.map(...)` counts as a list (2+) on its own.
+ */
+function rowsInCard(card: ts.Node): {
+  count: number;
+  mapped: boolean;
+  nodes: ts.Node[];
+} {
+  const nodes: ts.Node[] = [];
+  let mapped = false;
+  const visit = (n: ts.Node, inMap: boolean) => {
+    if (n !== card && isCard(n)) return;
+    const t = tagName(n);
+    if (t && ROW.test(t)) {
+      nodes.push(n);
+      if (inMap) mapped = true;
+    }
+    let nowInMap = inMap;
+    if (
+      ts.isCallExpression(n) &&
+      ts.isPropertyAccessExpression(n.expression) &&
+      n.expression.name.getText() === 'map'
+    ) {
+      nowInMap = true;
+    }
+    ts.forEachChild(n, (k) => visit(k, nowInMap));
+  };
+  visit(card, false);
+  return {
+    count: mapped ? Math.max(2, nodes.length) : nodes.length,
+    mapped,
+    nodes,
+  };
+}
+
 export function scanFile(file: string, src = fs.readFileSync(file, 'utf8')): string[] {
   const sf = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const idx = styleIndex(sf);
@@ -153,19 +210,27 @@ export function scanFile(file: string, src = fs.readFileSync(file, 'utf8')): str
 
   const visit = (n: ts.Node) => {
     if (ts.isJsxElement(n) && isCard(n)) {
-      const navRows = children(n).filter(
-        (k) =>
-          (tagName(k) === 'ListRow' && attrs(k)!.getText(sf).includes('onPress')) || tagName(k) === 'ToggleRow',
-      );
-      if (navRows.length >= 2) {
-        problems.push(`${rel}:${line(n)} JOINED ${navRows.length} tappable rows share one <Card>`);
+      const rows = rowsInCard(n);
+      if (rows.count >= 2) {
+        problems.push(
+          `${rel}:${line(n)} JOINED ${rows.mapped ? 'a mapped list of' : rows.count} rows share one <Card>`,
+        );
+      }
+    }
+    {
+      const t = tagName(n);
+      if (t && ROW.test(t) && hasDivider(n)) {
+        problems.push(`${rel}:${line(n)} <${t} divider> draws a hairline between items`);
+      }
+    }
+    if (ts.isJsxAttribute(n) && n.name.getText() === 'ItemSeparatorComponent' && n.initializer) {
+      if (LINE.test(n.initializer.getText())) {
+        problems.push(`${rel}:${line(n)} ItemSeparatorComponent draws a line between items`);
       }
     }
     if (ts.isJsxElement(n)) {
       const tag = tagName(n)!;
-      const parentSpaced =
-        STACK_TAGS.has(tag) ||
-        styleHas(attrText(n, ['style', 'contentContainerStyle']), idx, GAP);
+      const parentSpaced = STACK_TAGS.has(tag) || styleHas(attrText(n, ['style', 'contentContainerStyle']), idx, GAP);
       if (!parentSpaced) {
         const kids = children(n);
         for (let i = 0; i < kids.length; i++) {
@@ -195,7 +260,15 @@ describe('no jointed cards', () => {
       const styles = StyleSheet.create({ s: { gap: 12 } });`;
     expect(scanFile(path.join(ROOT, 'app/x.tsx'), good)).toEqual([]);
     const joined = `const C = () => (<Card variant="flush"><ListRow onPress={a} divider /><ListRow onPress={b} /></Card>);`;
-    expect(scanFile(path.join(ROOT, 'app/x.tsx'), joined)).toHaveLength(1);
+    // two rows joined + a hairline on the first
+    expect(scanFile(path.join(ROOT, 'app/x.tsx'), joined)).toHaveLength(2);
+    const info = `const D = () => (<Card><InfoRow label="a" /><InfoRow label="b" /></Card>);
+      const E = () => (<Card>{xs.map((x) => <FactRow key={x} />)}</Card>);
+      const F = () => (<FlatList ItemSeparatorComponent={() => <View style={{ height: StyleSheet.hairlineWidth }} />} />);`;
+    expect(scanFile(path.join(ROOT, 'app/x.tsx'), info)).toHaveLength(3);
+    const split = `const G = () => (<CardStack spacing="sm">{xs.map((x) => (<Card key={x} variant="flush"><ListRow divider={false} /></Card>))}</CardStack>);
+      const H = () => (<FlatList ItemSeparatorComponent={() => <View style={{ height: 12 }} />} />);`;
+    expect(scanFile(path.join(ROOT, 'app/x.tsx'), split)).toEqual([]);
   });
 
   it('has no adjacent <Card>s without spacing in app/** or components/**', () => {
@@ -203,9 +276,7 @@ describe('no jointed cards', () => {
     for (const d of SCAN_DIRS) walk(path.join(ROOT, d), files);
     const problems = files.flatMap((f) => scanFile(f));
     if (problems.length) {
-      throw new Error(
-        'Jointed cards (wrap them in <CardStack> or give the parent `gap`):\n  ' + problems.join('\n  '),
-      );
+      throw new Error('Jointed cards (wrap them in <CardStack> or give the parent `gap`):\n  ' + problems.join('\n  '));
     }
   });
 });

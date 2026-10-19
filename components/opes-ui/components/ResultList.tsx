@@ -1,51 +1,29 @@
 /**
- * A list of RESULTS — things a person compares and picks between.
+ * A list of separate cards � the default (and only) way to show a list.
  *
- * ── Why this exists ───────────────────────────────────────────────────────
- * The kit has one list idiom: a `Card variant="flush"` holding rows divided by
- * hairlines. That idiom is right for a group of SETTINGS or a key/value table,
- * where the rows belong to one another and the hairline is what says so.
+ * Owner's rule (2026-10-19): nothing in the app is "jointed". No two rows or
+ * items ever share one card behind hairline dividers � not results, not
+ * settings, not key/value facts, not logs. Each item is its own card and the
+ * gap between cards is what separates them. This replaces the older note that
+ * kept settings groups, fact tables and logs as one flush card.
  *
- * It is wrong for results. Nine medicines, six blood banks or twelve
- * facilities are not one object with twelve properties — they are twelve
- * separate things, each with its own name, status and action, and the reader's
- * job is to compare them and choose. Joined into a single slab they read as a
- * settings screen: the eye finds no boundary, and the row it is about to tap
- * is not visibly a unit.
- *
- * So: each result gets its own card, and the gap between them is the thing
- * that says "these are separate". Nothing else changes — each row keeps its
- * own padding, because each card here is itself `flush`.
- *
- * ── How to use it ─────────────────────────────────────────────────────────
  *   <ResultList>
  *     {rows.map((row) => (
  *       <Card key={row.id} variant="flush">
- *         <SomeRow row={row} divider={false} onPress={...} />
+ *         <SomeRow row={row} onPress={...} />
  *       </Card>
  *     ))}
  *   </ResultList>
  *
- * Note `divider={false}` on every row: the hairline was doing the separating,
- * and the gap does it now. Leaving it on draws a rule along the bottom edge of
- * every card, inside the border, which reads as a mistake.
- *
- * ── When NOT to use it ────────────────────────────────────────────────────
- * Leave `Card variant="flush"` exactly as it is for: settings and preference
- * groups, navigation menus, option pickers, key/value fact tables, timelines
- * and steppers, and log tables. Those rows really are one group, and spacing
- * them apart would break a convention the whole platform follows.
+ * Rows never carry `divider`: the gap does the separating, and a hairline
+ * inside a lone card reads as a mistake. `CardStack spacing="sm"` is the same
+ * idea for any other dense list. `__tests__/noJointedCards.test.ts` enforces
+ * all of this.
  */
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { spacing } from '../theme';
 
-export function ResultList({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: StyleProp<ViewStyle>;
-}) {
+export function ResultList({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   return <View style={[styles.list, style]}>{children}</View>;
 }
 

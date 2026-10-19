@@ -822,10 +822,11 @@ function IssuerCard({
             <Text style={styles.patientName} numberOfLines={1}>
               {patient.name}
             </Text>
+            {/* Under the name: beside it the ID squeezed "Patient" to "Patien / t". */}
+            <Text style={styles.patientId} numberOfLines={1}>
+              {patient.healthId}
+            </Text>
           </View>
-          <Text style={styles.patientId} numberOfLines={1}>
-            {patient.healthId}
-          </Text>
         </View>
       ) : null}
     </Card>
@@ -1400,29 +1401,31 @@ function MedicationItem({
               {t('prescriptions.drugCode', { code: item.drug_code })}
             </Text>
           ) : null}
-        </View>
-        <View style={styles.itemStatus}>
-          <StatusBadge
-            status={item.status || state}
-            tone={tone}
-            label={label}
-            icon={LINE_ICON[state]}
-            size="sm"
-          />
-          {dispensedOn ? (
-            <Text style={styles.itemMeta} numberOfLines={2}>
-              {vocab.tx(
-                state === 'cancelled'
-                  ? 'prescriptions.itemUpdatedOn'
-                  : 'prescriptions.itemCollectedOn',
-                {
-                  date: dispensedOn,
-                  defaultValue:
-                    state === 'cancelled' ? 'Updated {{date}}' : 'Collected {{date}}',
-                },
-              )}
-            </Text>
-          ) : null}
+          {/* Under the name, not beside it: beside it the badge squeezed
+              "Metformin" to "Met / fo…" on narrow phones. */}
+          <View style={styles.itemStatus}>
+            <StatusBadge
+              status={item.status || state}
+              tone={tone}
+              label={label}
+              icon={LINE_ICON[state]}
+              size="sm"
+            />
+            {dispensedOn ? (
+              <Text style={styles.itemMeta} numberOfLines={2}>
+                {vocab.tx(
+                  state === 'cancelled'
+                    ? 'prescriptions.itemUpdatedOn'
+                    : 'prescriptions.itemCollectedOn',
+                  {
+                    date: dispensedOn,
+                    defaultValue:
+                      state === 'cancelled' ? 'Updated {{date}}' : 'Collected {{date}}',
+                  },
+                )}
+              </Text>
+            ) : null}
+          </View>
         </View>
       </View>
 
@@ -1805,9 +1808,9 @@ const makeStyles = (c: Palette) =>
       fontSize: typography.size.xs,
       color: c.textMuted,
     },
-    itemStatus: { alignItems: 'flex-end', gap: 3, maxWidth: 124 },
+    itemStatus: { alignItems: 'flex-start', gap: 3, marginTop: 6 },
     itemMeta: {
-      textAlign: 'right',
+      textAlign: 'left',
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
       color: c.textMuted,

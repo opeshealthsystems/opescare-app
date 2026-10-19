@@ -25,7 +25,7 @@ import { usePrivateScreen } from '@/lib/security/usePrivateScreen';
  * the kit `EmptyState` (`LabsUnavailable`), never a crash or an endless spinner.
  */
 import React, { useCallback, useMemo } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -98,6 +98,8 @@ export default function LabResultDetailScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Four facts in one row overlapped their dates below 400dp ("05 Sep 202605 Sep"); go 2×2 there.
+  const factsTwoUp = useWindowDimensions().width < 400;
   const params = useLocalSearchParams<{ id: string }>();
   const orderId = Array.isArray(params.id) ? params.id[0] : params.id;
 
@@ -155,14 +157,15 @@ export default function LabResultDetailScreen() {
               <Text style={styles.identityTitle}>{order.name}</Text>
               <View style={styles.identityChip}>
                 <Text style={styles.identityChipText}>
-                  {order.status === 'completed' ? tx('result.finalResult', 'Final Result') : titleCase(order.status)}
+                  {order.status === 'completed' ? tx('result.finalResult', 'Final Result') : t(`opesDoctor.vocab.orderStatus.${order.status}`, { defaultValue: titleCase(order.status) })}
                 </Text>
               </View>
             </View>
           </View>
 
-          <View style={styles.factRow}>
+          <View style={[styles.factRow, factsTwoUp && styles.factRowWrap]}>
             <Fact
+              twoUp={factsTwoUp}
               label={tx('result.orderId', 'Order ID')}
               value={order.code ?? order.id.slice(0, 8).toUpperCase()}
               valueColor={colors.link}
@@ -170,13 +173,16 @@ export default function LabResultDetailScreen() {
               colors={colors}
             />
             <Fact
+              twoUp={factsTwoUp}
               label={tx('result.sampleDate', 'Sample Date')}
+              endOfLine={factsTwoUp}
               value={fmtDate(order.ordered_at)}
               icon
               styles={styles}
               colors={colors}
             />
             <Fact
+              twoUp={factsTwoUp}
               label={tx('result.resultDate', 'Result Date')}
               value={fmtDate(resultDate(order))}
               icon
@@ -184,8 +190,9 @@ export default function LabResultDetailScreen() {
               colors={colors}
             />
             <Fact
+              twoUp={factsTwoUp}
               label={tx('result.status', 'Status')}
-              value={titleCase(order.status)}
+              value={t(`opesDoctor.vocab.orderStatus.${order.status}`, { defaultValue: titleCase(order.status) })}
               valueColor={order.status === 'completed' ? colors.statusNormal : colors.statusPending}
               last
               styles={styles}
@@ -225,7 +232,7 @@ export default function LabResultDetailScreen() {
               <Icon name="stethoscope" size={24} color={colors.blue} />
             </View>
             <View style={styles.providerBody}>
-              <Text style={styles.providerName} numberOfLines={1}>
+              <Text style={styles.providerName} numberOfLines={2}>
                 {order.ordered_by_name ?? tx('result.careTeam', 'Care team')}
               </Text>
               <Text style={styles.providerRole}>{tx('result.orderingClinician', 'Ordering clinician')}</Text>
@@ -481,6 +488,8 @@ function Fact({
   valueColor,
   icon,
   last,
+  twoUp,
+  endOfLine,
   styles,
   colors,
 }: {
@@ -489,11 +498,14 @@ function Fact({
   valueColor?: string;
   icon?: boolean;
   last?: boolean;
+  twoUp?: boolean;
+  /** Last cell of its visual row when wrapped: no right-hand divider. */
+  endOfLine?: boolean;
   styles: ReturnType<typeof makeStyles>;
   colors: Palette;
 }) {
   return (
-    <View style={[styles.fact, !last && styles.factDivided]} accessible accessibilityLabel={a11yJoin(label, value)}>
+    <View style={[styles.fact, twoUp && styles.factHalf, !last && !endOfLine && styles.factDivided]} accessible accessibilityLabel={a11yJoin(label, value)}>
       <Text style={styles.factLabel} numberOfLines={1}>
         {label}
       </Text>
@@ -550,6 +562,8 @@ const makeStyles = (colors: Palette) =>
       borderTopColor: colors.divider,
     },
     fact: { flex: 1, alignItems: 'center', paddingHorizontal: 2, gap: 4 },
+    factRowWrap: { flexWrap: 'wrap', rowGap: spacing.md },
+    factHalf: { flexBasis: '50%', flexGrow: 0, flexShrink: 0 },
     factDivided: { borderRightWidth: 1, borderRightColor: colors.divider },
     factLabel: {
       fontFamily: typography.fontFamily.regular,
@@ -591,7 +605,8 @@ const makeStyles = (colors: Palette) =>
 
     overlineGap: { marginBottom: spacing.sm + 2 },
 
-    providerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
+    // Wraps: beside a long "Contacter" the role broke into "Soignan / t / prescrip / teur".
+    providerRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm + 4 },
     avatar: {
       width: 48,
       height: 48,
@@ -600,7 +615,7 @@ const makeStyles = (colors: Palette) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    providerBody: { flex: 1, minWidth: 0 },
+    providerBody: { flexGrow: 1, flexShrink: 1, flexBasis: 150, minWidth: 0 },
     providerName: {
       fontFamily: typography.fontFamily.bold,
       fontSize: typography.size.md,

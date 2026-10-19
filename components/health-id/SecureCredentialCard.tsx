@@ -296,7 +296,7 @@ function Field({
 }) {
   return (
     <View style={[styles.field, half && styles.fieldHalf]}>
-      <Text style={styles.fieldLabel} numberOfLines={1}>
+      <Text style={styles.fieldLabel} numberOfLines={2}>
         {label}
       </Text>
       <Text style={styles.fieldValue} numberOfLines={2}>
@@ -409,7 +409,7 @@ const makeStyles = (colors: Palette) =>
     fields: { flex: 1, minWidth: 0, gap: 8 },
     field: { minWidth: 0 },
     fieldHalf: { flex: 1 },
-    fieldRow: { flexDirection: 'row', gap: 8 },
+    fieldRow: { flexDirection: 'row', gap: 14 },
     fieldLabel: {
       fontFamily: typography.fontFamily.medium,
       fontSize: 8.5,

@@ -34,7 +34,7 @@
  */
 import { PaperWave } from '@/components/ui/PaperWave';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -194,6 +194,9 @@ export default function HomeScreen() {
   const router = useRouter();
   const { colors, tintMap, statusMap } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Four summary cells leave ~55pt each below 380dp, which broke labels
+  // mid-word ("Prescripti / ons"); there the band goes two-by-two.
+  const summaryTwoUp = useWindowDimensions().width < 380;
 
   const patient = useAuthStore((s) => s.patient);
   const authStatus = useAuthStore((s) => s.status);
@@ -406,8 +409,9 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.bandInner}>
+            <View style={[styles.bandInner, summaryTwoUp && styles.bandInnerWrap]}>
               <SummaryCell
+                half={summaryTwoUp}
                 styles={styles}
                 tintMap={tintMap}
                 label={t('home.healthId.bloodGroup')}
@@ -421,6 +425,7 @@ export default function HomeScreen() {
                 onPress={() => router.push('/(tabs)/health-id')}
               />
               <SummaryCell
+                half={summaryTwoUp}
                 styles={styles}
                 tintMap={tintMap}
                 divided
@@ -440,9 +445,10 @@ export default function HomeScreen() {
                 }
               />
               <SummaryCell
+                half={summaryTwoUp}
                 styles={styles}
                 tintMap={tintMap}
-                divided
+                divided={!summaryTwoUp}
                 label={t('home.quickActions.prescriptions')}
                 icon="capsule"
                 tint="green"
@@ -457,6 +463,7 @@ export default function HomeScreen() {
                 onPress={() => router.push('/prescriptions')}
               />
               <SummaryCell
+                half={summaryTwoUp}
                 styles={styles}
                 tintMap={tintMap}
                 divided
@@ -681,6 +688,7 @@ function SummaryCell({
   valueColor,
   caption,
   divided,
+  half,
   onPress,
 }: {
   styles: Styles;
@@ -692,6 +700,7 @@ function SummaryCell({
   valueColor?: string;
   caption: string;
   divided?: boolean;
+  half?: boolean;
   onPress?: () => void;
 }) {
   const body = (
@@ -711,10 +720,10 @@ function SummaryCell({
     </>
   );
 
-  if (!onPress) return <View style={[styles.cell, divided && styles.cellDivided]}>{body}</View>;
+  if (!onPress) return <View style={[styles.cell, half && styles.cellHalf, divided && styles.cellDivided]}>{body}</View>;
   return (
     <TouchableOpacity
-      style={[styles.cell, divided && styles.cellDivided]}
+      style={[styles.cell, half && styles.cellHalf, divided && styles.cellDivided]}
       onPress={onPress}
       activeOpacity={0.75}
       accessibilityRole="button"
@@ -850,6 +859,8 @@ const makeStyles = (colors: Palette) =>
       paddingHorizontal: 4,
       gap: 6,
     },
+    bandInnerWrap: { flexWrap: 'wrap', rowGap: 14 },
+    cellHalf: { flexBasis: '50%', flexGrow: 0, flexShrink: 0 },
     cellDivided: {
       borderLeftWidth: 1,
       borderLeftColor: colors.divider,

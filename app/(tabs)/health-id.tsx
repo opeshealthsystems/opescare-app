@@ -39,6 +39,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -91,6 +92,8 @@ export default function HealthIdScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { colors, statusMap, tintMap } = useTheme();
+  // Below 400dp the trust-chip text squeezed the title into "Heal / th ID"; keep the shield only.
+  const compactHeader = useWindowDimensions().width < 400;
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const healthId = useHealthIdCard();
@@ -223,9 +226,11 @@ export default function HealthIdScreen() {
           <View style={styles.headerRight}>
             <View style={styles.trustPill} accessibilityRole="text">
               <Icon name="shield-check" size={13} color={colors.blue} strokeWidth={2} />
-              <Text style={styles.trustPillText} numberOfLines={1}>
-                {t('healthId.secure.trustChip')}
-              </Text>
+              {compactHeader ? null : (
+                <Text style={styles.trustPillText} numberOfLines={1}>
+                  {t('healthId.secure.trustChip')}
+                </Text>
+              )}
             </View>
             <TouchableOpacity
               onPress={() => router.push('/privacy')}

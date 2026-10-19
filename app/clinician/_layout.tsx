@@ -65,7 +65,7 @@
  * `components/doctor/chartRoutes.ts`, which is the map all of us build to.
  */
 import { useCallback } from 'react';
-import type { ColorValue } from 'react-native';
+import { useWindowDimensions, type ColorValue } from 'react-native';
 import { Tabs } from 'expo-router/js-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -109,6 +109,8 @@ function DoctorTabs() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  // Five tabs at 320dp cut "Messages" to "Messag…" at 11pt; 10pt fits.
+  const narrowTabs = useWindowDimensions().width < 360;
 
   // ── Which slots this ROLE gets (`lib/staffCapabilities.ts`) ─────────────
   const realSession = useHasProviderSession();
@@ -160,7 +162,7 @@ function DoctorTabs() {
         },
         tabBarLabelStyle: {
           fontFamily: typography.fontFamily.medium,
-          fontSize: 11,
+          fontSize: narrowTabs ? 10 : 11,
         },
         tabBarBadgeStyle: {
           backgroundColor: colors.badge,

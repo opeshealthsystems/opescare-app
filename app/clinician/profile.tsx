@@ -801,7 +801,10 @@ export default function DoctorProfileScreen() {
                 title={facility.name}
                 meta={[
                   facility.role_label || facility.role || undefined,
-                  facility.type || undefined,
+                  // Through careMap.types: the raw code read "pharmacy" / "hospital" in lowercase.
+                  facility.type
+                    ? t(`careMap.types.${facility.type}`, { defaultValue: facility.type })
+                    : undefined,
                 ]}
                 chevron={tappable}
                 onPress={tappable ? () => confirmSwitch(facility) : undefined}

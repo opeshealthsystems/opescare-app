@@ -259,7 +259,7 @@ export default function DoctorHomeScreen() {
 
   const identifySection = (
     <>
-      <SectionHeader title={tx('home.identifySection', 'Identify')} />
+      <SectionHeader style={styles.sectionGap} title={tx('home.identifySection', 'Identify')} />
       <Card variant="flush">
         <ListRow
           icon="qr"
@@ -279,7 +279,7 @@ export default function DoctorHomeScreen() {
   // to write a prescription at all. Writing one needs nothing from the summary.
   const writeSection = !canPrescribe ? null : (
     <>
-      <SectionHeader title={tx('home.writeSection', 'Write')} />
+      <SectionHeader style={styles.sectionGap} title={tx('home.writeSection', 'Write')} />
       <Card variant="flush">
         <ListRow
           icon="pill"
@@ -361,7 +361,7 @@ export default function DoctorHomeScreen() {
   // counts are asked for — one honest row into the stock screen.
   const stockSection = !stockOnly ? null : (
     <>
-      <SectionHeader title={tx('home.stockSection', 'Pharmacy stock')} />
+      <SectionHeader style={styles.sectionGap} title={tx('home.stockSection', 'Pharmacy stock')} />
       <Card variant="flush">
         <ListRow
           icon="archive"
@@ -441,7 +441,7 @@ export default function DoctorHomeScreen() {
     // Sample collection only: the lab home route is lab_results-gated, so no
     // counts are asked for — one honest row into the bench.
     <>
-      <SectionHeader title={tx('home.labSection', 'Laboratory bench')} />
+      <SectionHeader style={styles.sectionGap} title={tx('home.labSection', 'Laboratory bench')} />
       <Card variant="flush">
         <ListRow
           icon="syringe"
@@ -509,7 +509,7 @@ export default function DoctorHomeScreen() {
           </Card>
         )}
       </DeskSection>
-      <SectionHeader title={tx('home.deskActions', 'At the desk')} />
+      <SectionHeader style={styles.sectionGap} title={tx('home.deskActions', 'At the desk')} />
       <Card variant="flush">
         <ListRow
           icon="calendar-plus"
@@ -535,7 +535,7 @@ export default function DoctorHomeScreen() {
   // is a link without a number — never a zero.
   const messagesSection = isClinician || !canMessage ? null : (
     <>
-      <SectionHeader title={tx('home.messagesSection', 'Messages')} />
+      <SectionHeader style={styles.sectionGap} title={tx('home.messagesSection', 'Messages')} />
       <Card variant="flush">
         {unread.data ? (
           <CountTile
@@ -614,7 +614,7 @@ export default function DoctorHomeScreen() {
 
         {waitingTiles && (
           <>
-            <SectionHeader title={tx('home.waitingOnYou', 'Waiting on you')} />
+            <SectionHeader style={styles.sectionGap} title={tx('home.waitingOnYou', 'Waiting on you')} />
             <Card variant="flush">
               {canResults && (
                 <CountTile
@@ -673,6 +673,7 @@ export default function DoctorHomeScreen() {
         {canResults && data.urgent_results.length > 0 && (
           <>
             <SectionHeader
+              style={styles.sectionGap}
               title={tx('home.urgentResults', 'Most urgent results')}
               actionLabel={tx('home.viewAll', 'View all')}
               onAction={() => router.push(doctorRoutes.results)}
@@ -690,6 +691,7 @@ export default function DoctorHomeScreen() {
         {canSchedule && (
           <>
             <SectionHeader
+              style={styles.sectionGap}
               title={tx('home.nextToday', 'Next today')}
               actionLabel={
                 data.counts.appointments_today > 0 ? tx('home.fullSchedule', 'Full schedule') : undefined
@@ -849,6 +851,7 @@ function DeskSection<T>({
   return (
     <>
       <SectionHeader
+        style={{ marginTop: spacing.md }}
         title={title}
         actionLabel={
           failed && !unserved ? tx('home.retry', 'Retry') : tx('home.openDeskAction', 'Open')
@@ -922,6 +925,9 @@ const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.page },
     content: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
+    // Headings sat 8px under the card above but 18px over their own card, so
+    // each read as a caption of the previous block; this restores the grouping.
+    sectionGap: { marginTop: spacing.md },
 
 
     footer: {

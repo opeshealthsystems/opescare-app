@@ -2,10 +2,8 @@
  * Large JSX sections of the medicine detail screen (app/pharmacy/[medicineId].tsx).
  * Each renders only once the medicine has loaded, as it did inline.
  */
-import { Fragment } from 'react';
 import {
   ActivityIndicator,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -1041,36 +1039,25 @@ export function InfoPanelsSection({ vm }: { vm: MedicineDetailModel }) {
         </View>
       </Card>
 
-      {/* MED-04's four-step strip with chevrons between the steps. It
-          scrolls sideways: four legible steps do not fit in 343pt, and
-          the alternative is body text nobody can read. Numbered because
-          it genuinely is a sequence, and it ends on the step the app
-          cannot do for you. */}
+      {/* MED-04: the four steps as a 2x2 grid — every step readable at
+          once, no sideways scrolling. Numbered because it is a sequence,
+          read left-to-right then down, ending on the step the app cannot
+          do for you. */}
       <Card>
         <SectionHeader title={t('pharmacy.howToTitle')} />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.howRail}
-          contentContainerStyle={styles.howStrip}
-        >
+        <View style={styles.howGrid}>
           {(['search', 'compare', 'reserve', 'collect'] as const).map((key, index) => (
-            <Fragment key={key}>
-              {index > 0 ? (
-                <Icon name="chevron-right" size={16} color={colors.textMuted} />
-              ) : null}
-              <View style={styles.howStep}>
-                <View style={styles.howMark}>
-                  <Icon name={HOW_ICONS[key]} size={20} color={colors.statusNormal} />
-                </View>
-                <Text style={styles.howTitle} numberOfLines={2}>
-                  {`${index + 1}. ${t(`pharmacy.howTo.${key}.title`)}`}
-                </Text>
-                <Text style={styles.howText}>{t(`pharmacy.howTo.${key}.body`)}</Text>
+            <View key={key} style={styles.howStep}>
+              <View style={styles.howMark}>
+                <Icon name={HOW_ICONS[key]} size={22} color={colors.statusNormal} />
               </View>
-            </Fragment>
+              <Text style={styles.howTitle} numberOfLines={2}>
+                {`${index + 1}. ${t(`pharmacy.howTo.${key}.title`)}`}
+              </Text>
+              <Text style={styles.howText}>{t(`pharmacy.howTo.${key}.body`)}</Text>
+            </View>
           ))}
-        </ScrollView>
+        </View>
       </Card>
 
       {loadedAt > 0 ? <LastUpdatedLine loadedAt={new Date(loadedAt)} /> : null}

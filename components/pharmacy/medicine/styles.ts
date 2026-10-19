@@ -157,15 +157,15 @@ export const makeStyles = (c: Palette) =>
       color: c.textSecondary,
     },
 
-    /* MED-04 how to get your medicine — horizontal strip with chevrons. */
-    howRail: { marginHorizontal: -spacing.md, marginTop: spacing.xs },
-    howStrip: {
+    /* MED-04 how to get your medicine — 2x2 grid. */
+    howGrid: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.sm,
-      paddingHorizontal: spacing.md,
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      rowGap: spacing.md,
+      marginTop: spacing.xs,
     },
-    howStep: { width: 118, gap: 5 },
+    howStep: { width: '48%', gap: 5 },
     howMark: {
       width: 36,
       height: 36,

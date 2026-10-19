@@ -339,6 +339,7 @@ export default function SignupScreen() {
           subtitle={t('signup.subtitle')}
           onBack={goBack}
           right={
+            compact ? undefined : (
             <StatusBadge
               status="verified"
               tone="normal"
@@ -346,6 +347,7 @@ export default function SignupScreen() {
               label={t('signup.secureBadge')}
               size="sm"
             />
+            )
           }
         />
 

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Icon, radii, spacing, typography, useTheme, type Palette } from '@/components/opes-ui';
@@ -11,8 +11,17 @@ import '@/lib/i18n/authRedesignStrings';
  * seconds. Every row is optional — a field the patient never recorded is not
  * drawn at all, never shown as a guess.
  */
-export function MedicalIdCard({ snapshot }: { snapshot: EmergencySnapshot }) {
+export function MedicalIdCard({
+  snapshot,
+  collapsible = false,
+}: {
+  snapshot: EmergencySnapshot;
+  /** Start as a one-line strip that expands on tap — used on short screens so
+   * the card never pushes the sign-in form below the fold. */
+  collapsible?: boolean;
+}) {
   const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(!collapsible);
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const age = ageFromDob(snapshot.dob);
@@ -21,11 +30,30 @@ export function MedicalIdCard({ snapshot }: { snapshot: EmergencySnapshot }) {
 
   return (
     <View style={s.card} accessibilityRole="summary" accessibilityLabel={t('authRedesign.medicalId.title')}>
-      <View style={s.head}>
-        <Icon name="first-aid" size={16} color="#FFFFFF" />
-        <Text style={s.headText}>{t('authRedesign.medicalId.title')}</Text>
-      </View>
+      {collapsible ? (
+        <TouchableOpacity
+          onPress={() => setExpanded((v) => !v)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded }}
+          accessibilityLabel={t('authRedesign.medicalId.title')}
+          activeOpacity={0.8}
+          style={[s.head, s.headTap]}
+        >
+          <Icon name="first-aid" size={16} color="#FFFFFF" />
+          <Text style={[s.headText, { flex: 1 }]} numberOfLines={1}>
+            {t('authRedesign.medicalId.title')}
+            {snapshot.bloodGroup ? `  ·  ${snapshot.bloodGroup}` : ''}
+          </Text>
+          <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#FFFFFF" />
+        </TouchableOpacity>
+      ) : (
+        <View style={s.head}>
+          <Icon name="first-aid" size={16} color="#FFFFFF" />
+          <Text style={s.headText}>{t('authRedesign.medicalId.title')}</Text>
+        </View>
+      )}
 
+      {expanded ? (
       <View style={s.body}>
         <View style={s.stats}>
           {snapshot.bloodGroup ? (
@@ -85,6 +113,7 @@ export function MedicalIdCard({ snapshot }: { snapshot: EmergencySnapshot }) {
 
         <Text style={s.foot}>{t('authRedesign.medicalId.subtitle')}</Text>
       </View>
+      ) : null}
     </View>
   );
 }
@@ -130,6 +159,7 @@ const makeStyles = (c: Palette) =>
       paddingHorizontal: spacing.md,
       paddingVertical: 8,
     },
+    headTap: { minHeight: 44 },
     headText: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.xs,

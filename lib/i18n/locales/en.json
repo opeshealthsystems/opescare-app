@@ -57,21 +57,8 @@
     "pinPlaceholder": "••••••",
     "invalidEmail": "Enter a valid email or Health ID",
     "invalidPassword": "Password is required",
-    "demoLoginLabel": "Try the demo — sign in with one tap",
-    "demoLoginPatient": "Demo patient — female, provisional ID",
-    "demoLoginDoctor": "Demo doctor",
-    "demoDoctorNotice": "Signed in as the demo patient, showing the clinician screens. Clinician data is not connected on this server yet, so those screens will be empty.",
     "clinicianSignInUnavailable": "Clinician sign-in isn’t available on this server yet.",
-    "demoLoginReviewer": "Demo patient — male, verified ID, full record",
-    "demoLoginNurse": "Demo nurse",
-    "demoLoginPharmacist": "Demo pharmacist",
-    "demoLoginReceptionist": "Demo receptionist",
-    "demoLoginBoy": "Demo boy — child, verified ID",
-    "demoLoginGirl": "Demo girl — child, verified ID",
-    "demoLoginGuardian": "Demo guardian — parent of the two children",
-    "demoLoginGrandmother": "Demo grandmother — older person, read-only to her son",
-    "sealCaption": "OpesCare Secure Health ID",
-    "demoLoginLabtech": "Demo lab technician"
+    "sealCaption": "OpesCare Secure Health ID"
   },
   "signup": {
     "stepIndicator": "Step {{current}} of {{total}}",

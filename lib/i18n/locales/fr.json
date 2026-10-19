@@ -57,21 +57,8 @@
     "pinPlaceholder": "••••••",
     "invalidEmail": "Entrez un e-mail ou identifiant santé valide",
     "invalidPassword": "Le mot de passe est requis",
-    "demoLoginLabel": "Essayer la démo — connexion en un geste",
-    "demoLoginPatient": "Patiente de démonstration — identité provisoire",
-    "demoLoginDoctor": "Médecin de démonstration",
-    "demoDoctorNotice": "Connecté en tant que patient de démonstration, avec les écrans soignant affichés. Les données soignant ne sont pas encore connectées sur ce serveur : ces écrans seront vides.",
     "clinicianSignInUnavailable": "La connexion clinicien n’est pas encore disponible sur ce serveur.",
-    "demoLoginReviewer": "Patient de démonstration (homme) — identité vérifiée, dossier complet",
-    "demoLoginNurse": "Infirmière de démonstration",
-    "demoLoginPharmacist": "Pharmacienne de démonstration",
-    "demoLoginReceptionist": "Réceptionniste de démonstration",
-    "demoLoginBoy": "Garçon de démonstration — enfant, identité vérifiée",
-    "demoLoginGirl": "Fille de démonstration — enfant, identité vérifiée",
-    "demoLoginGuardian": "Tuteur de démonstration — parent des deux enfants",
-    "demoLoginGrandmother": "Grand-mère de démonstration — personne âgée, lecture seule pour son fils",
-    "sealCaption": "Identifiant Santé OpesCare Secure",
-    "demoLoginLabtech": "Technicien de laboratoire de démonstration"
+    "sealCaption": "Identifiant Santé OpesCare Secure"
   },
   "signup": {
     "stepIndicator": "Étape {{current}} sur {{total}}",

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PaperWave } from '@/components/ui/PaperWave';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
@@ -59,6 +59,8 @@ export default function WelcomeScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const medicalId = useVisibleEmergencyCard();
+  const { height } = useWindowDimensions();
+  const compact = height < 760;
   // A confirmed sign-out lands here first (the root layout routes every
   // signed-out session to welcome); forward it to the signed-out landing.
   const [forwarding] = useState(consumeSignedOutLanding);
@@ -76,12 +78,12 @@ export default function WelcomeScreen() {
       <ScrollView
         style={styles.pager}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.page}
+        contentContainerStyle={[styles.page, compact && styles.pageCompact]}
       >
-        {medicalId ? <MedicalIdCard snapshot={medicalId} /> : null}
+        {medicalId ? <MedicalIdCard snapshot={medicalId} collapsible={compact} /> : null}
 
         <View style={styles.logoBlock}>
-          <PulseLogo size={104} />
+          <PulseLogo size={compact ? 72 : 104} />
           <Wordmark size="lg" />
         </View>
 
@@ -93,7 +95,7 @@ export default function WelcomeScreen() {
 
         {/* The Health ID's own seal stands where a generic hero glyph used to,
             so the front door shows the artwork the credential carries. */}
-        <AnimatedSeal style={styles.seal} />
+        {compact ? null : <AnimatedSeal style={styles.seal} />}
 
         <Text style={styles.sectionTitle}>{t('opesCore.onboarding.valuesTitle')}</Text>
         <View style={styles.valueList}>
@@ -126,7 +128,16 @@ export default function WelcomeScreen() {
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     pager: { flex: 1 },
-    page: { padding: spacing.lg, paddingBottom: spacing.lg, gap: spacing.sm },
+    page: {
+      flexGrow: 1,
+      width: '100%',
+      maxWidth: 480,
+      alignSelf: 'center',
+      padding: spacing.lg,
+      paddingBottom: spacing.lg,
+      gap: spacing.sm,
+    },
+    pageCompact: { padding: spacing.md, gap: 6 },
 
     logoBlock: { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
 

@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -37,26 +38,6 @@ import {
   isProviderCredentialsRejected,
   looksLikeProviderAccount,
 } from '@/lib/api/providerQueries';
-import type { DemoAccount } from '@/lib/auth/demoAccounts';
-
-/**
- * Demo sign-in is visible in development, and in any build exported with
- * EXPO_PUBLIC_DEMO_LOGINS=1 — which is how finder.opescare.cloud/app is built.
- * A real production build sets neither and never renders it.
- */
-const SHOW_DEMO_LOGINS =
-  __DEV__ ||
-  process.env.EXPO_PUBLIC_DEMO_LOGINS === '1' ||
-  process.env.EXPO_PUBLIC_DEMO_LOGINS === 'true';
-
-/** The patient account the clinician preview falls back onto — on a server with
- * no provider auth it is the only way into the app at all. */
-const DEMO_ACCOUNTS: readonly DemoAccount[] = SHOW_DEMO_LOGINS
-  ? // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('@/lib/auth/demoAccounts').DEMO_ACCOUNTS
-  : [];
-const DEMO_PATIENT: DemoAccount | undefined = DEMO_ACCOUNTS[0];
-
 /**
  * "Remember my email" persistence. Only the identifier is stored — never the
  * password — and it is kept separately from the session token so clearing it
@@ -109,13 +90,14 @@ export default function LoginScreen() {
   const [rememberMe, setRememberMe] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
-  const [demoMenuOpen, setDemoMenuOpen] = useState(false);
-  const [demoNotice, setDemoNotice] = useState<string | null>(null);
   /** A failure this screen phrases better than the store can — it takes
    * precedence over `storeError`, which is the raw server wording. */
   const [formError, setFormError] = useState<string | null>(null);
   /** The opt-in Medical ID, when the phone's owner switched it on. */
   const medicalId = useVisibleEmergencyCard();
+  /** Short phones (320x568, 360x640): tighter rhythm, collapsed Medical ID. */
+  const { height } = useWindowDimensions();
+  const compact = height < 760;
 
   // Prefill the identifier the patient last chose to remember.
   useEffect(() => {
@@ -147,68 +129,6 @@ export default function LoginScreen() {
       else await rememberedEmail.clear();
     } catch {
       // Best-effort convenience only — never block a successful sign-in.
-    }
-  };
-
-  const handleSelectDemoAccount = async (account: DemoAccount) => {
-    setDemoMenuOpen(false);
-    if (!account.email || !account.password) return;
-
-    // Fill the fields too, so the tap is legible and a failure leaves the
-    // form ready to retry by hand rather than mysteriously empty.
-    setEmail(account.email);
-    setPassword(account.password);
-    resetErrors();
-    setDemoNotice(null);
-
-    // Whatever a previous tap left switched on, this one decides again from
-    // scratch — a preview must never leak into the next session, of either kind.
-    useAuthStore.getState().previewClinician(false);
-
-    setSubmitting(true);
-    try {
-      if (!account.clinician) {
-        await loginWithEmail(account.email, account.password);
-        return;
-      }
-
-      // The clinician demo is a real provider sign-in first.
-      try {
-        await loginAsProvider(account.email, account.password);
-        return;
-      } catch (err) {
-        // A server that HAS provider auth and refused these credentials has
-        // given a real answer: the demo clinician is not seeded here, or the
-        // credentials are wrong. Say so (the store already holds the server's
-        // words) rather than quietly showing an empty imitation of the app.
-        if (!isProviderAuthUnavailable(err)) return;
-      }
-
-      // No provider auth on this server at all. Fall back to what this screen
-      // did before there was any: the demo PATIENT session, with the clinician
-      // screens switched on for a look. The notice below says so in plain
-      // words, because this session carries no clinician data whatsoever.
-      clearError();
-      setFormError(null);
-      setDemoNotice(t('auth.demoDoctorNotice'));
-      useAuthStore.getState().previewClinician(true);
-      try {
-        if (!DEMO_PATIENT) return;
-        await loginWithEmail(DEMO_PATIENT.email, DEMO_PATIENT.password);
-        // Only jump to the clinician side once the session has actually
-        // settled. A first-run device lands on the permissions primer instead,
-        // and yanking it away from that would strand the router.
-        if (useAuthStore.getState().status === 'authenticated') routeToClinicianArea();
-      } catch {
-        // Even the patient demo is refused — leave nothing pretending otherwise.
-        useAuthStore.getState().previewClinician(false);
-        setDemoNotice(null);
-      }
-    } catch {
-      // The store surfaces the reason; leave the filled form for a manual retry.
-      useAuthStore.getState().previewClinician(false);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -274,13 +194,13 @@ export default function LoginScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, compact && styles.contentCompact]}
         >
           {/* Masthead: the Health ID's guilloche paper under the brand, the
               same document language as My Profile and the Health ID. */}
           <View style={styles.masthead}>
             <PaperWave />
-            <View style={styles.topBar}>
+            <View style={[styles.topBar, compact && styles.topBarCompact]}>
               <TouchableOpacity
                 onPress={handleBack}
                 accessibilityRole="button"
@@ -293,26 +213,19 @@ export default function LoginScreen() {
               <Wordmark size="md" showTagline={false} />
               <View style={styles.backBtn} />
             </View>
-            <View style={styles.eyebrowRow}>
-              <Icon name="shield-check" size={14} color={colors.blue} />
-              <Text style={styles.eyebrow}>{t('authRedesign.eyebrow')}</Text>
-            </View>
+            {compact ? null : (
+              <View style={styles.eyebrowRow}>
+                <Icon name="shield-check" size={14} color={colors.blue} />
+                <Text style={styles.eyebrow}>{t('authRedesign.eyebrow')}</Text>
+              </View>
+            )}
             <Text style={styles.title} accessibilityRole="header">
               {t('auth.welcomeBack')}
             </Text>
-            <Text style={styles.subtitle}>{t('authRedesign.subtitle')}</Text>
+            {compact ? null : <Text style={styles.subtitle}>{t('authRedesign.subtitle')}</Text>}
           </View>
 
-          {medicalId ? <MedicalIdCard snapshot={medicalId} /> : null}
-
-          {SHOW_DEMO_LOGINS ? (
-            <DemoAccountPicker
-              open={demoMenuOpen}
-              notice={demoNotice}
-              onToggle={() => setDemoMenuOpen((v) => !v)}
-              onSelect={handleSelectDemoAccount}
-            />
-          ) : null}
+          {medicalId ? <MedicalIdCard snapshot={medicalId} collapsible={compact} /> : null}
 
           <View style={styles.formCard}>
             <View>
@@ -443,72 +356,19 @@ export default function LoginScreen() {
   );
 }
 
-/** __DEV__-only credential shortcut. Deliberately understated — dashed hairline
- * border, muted type, lab-flask glyph — so it reads as scaffolding sitting on
- * top of the screen, never as part of the shipped product chrome. */
-function DemoAccountPicker({
-  open,
-  notice,
-  onToggle,
-  onSelect,
-}: {
-  open: boolean;
-  notice: string | null;
-  onToggle: () => void;
-  onSelect: (account: DemoAccount) => void;
-}) {
-  const { t } = useTranslation();
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-
-  return (
-    <View style={styles.demo}>
-      <TouchableOpacity
-        onPress={onToggle}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
-        activeOpacity={0.7}
-        style={styles.demoToggle}
-      >
-        <Icon name="flask" size={13} color={colors.textMuted} />
-        <Text style={styles.demoLabel} numberOfLines={1}>
-          {t('auth.demoLoginLabel')}
-        </Text>
-        <Icon name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textMuted} />
-      </TouchableOpacity>
-
-      {open ? (
-        <View style={styles.demoMenu}>
-          {DEMO_ACCOUNTS.map((account, index) => (
-            <TouchableOpacity
-              key={account.key}
-              onPress={() => onSelect(account)}
-              accessibilityRole="button"
-              activeOpacity={0.7}
-              style={[styles.demoRow, index > 0 && styles.demoRowDivider]}
-            >
-              <Icon name={account.icon} size={14} color={colors.textMuted} />
-              <Text style={styles.demoRowText} numberOfLines={1}>
-                {t(account.labelKey)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      ) : null}
-
-      {notice ? (
-        <View style={styles.demoNotice}>
-          <Text style={styles.demoNoticeText}>{notice}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1 },
-    content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.md },
+    content: {
+      flexGrow: 1,
+      width: '100%',
+      maxWidth: 480,
+      alignSelf: 'center',
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.lg,
+      gap: spacing.md,
+    },
+    contentCompact: { gap: spacing.sm, paddingBottom: spacing.md },
     flex1: { flex: 1 },
     footerCenter: { textAlign: 'center', flexShrink: 1 },
 
@@ -519,6 +379,7 @@ const makeStyles = (colors: Palette) =>
       justifyContent: 'space-between',
       marginBottom: spacing.md,
     },
+    topBarCompact: { marginBottom: spacing.xs },
     backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
     eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     eyebrow: {
@@ -657,61 +518,4 @@ const makeStyles = (colors: Palette) =>
       color: colors.textSecondary,
     },
 
-    demo: { marginBottom: spacing.sm },
-    demoToggle: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      borderWidth: 1,
-      borderStyle: 'dashed',
-      borderColor: colors.border,
-      borderRadius: radii.md,
-      paddingHorizontal: spacing.sm + 4,
-      paddingVertical: spacing.sm,
-    },
-    demoLabel: {
-      flex: 1,
-      fontFamily: typography.fontFamily.semiBold,
-      fontSize: 10,
-      letterSpacing: 1,
-      textTransform: 'uppercase',
-      color: colors.textMuted,
-    },
-    demoMenu: {
-      marginTop: spacing.sm,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderStyle: 'dashed',
-      borderColor: colors.border,
-      borderRadius: radii.md,
-      backgroundColor: colors.surfaceMuted,
-    },
-    demoRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      paddingHorizontal: spacing.sm + 4,
-      paddingVertical: 10,
-    },
-    demoRowDivider: { borderTopWidth: 1, borderTopColor: colors.border },
-    demoRowText: {
-      flex: 1,
-      fontFamily: typography.fontFamily.regular,
-      fontSize: typography.size.xs,
-      color: colors.textSecondary,
-    },
-    demoNotice: {
-      marginTop: spacing.sm,
-      borderWidth: 1,
-      borderStyle: 'dashed',
-      borderColor: colors.border,
-      borderRadius: radii.md,
-      padding: spacing.sm + 4,
-    },
-    demoNoticeText: {
-      fontFamily: typography.fontFamily.regular,
-      fontSize: typography.size.xs,
-      lineHeight: typography.lineHeight.xs,
-      color: colors.textSecondary,
-    },
   });

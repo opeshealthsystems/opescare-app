@@ -2152,7 +2152,12 @@
       "dental": "Dental",
       "diagnostic_center": "Diagnostic Centre",
       "imaging_center": "Imaging Centre",
-      "blood_bank": "Blood Bank"
+      "blood_bank": "Blood Bank",
+      "eye_clinic": "Eye Clinic",
+      "maternity": "Maternity",
+      "nursing_home": "Nursing Home",
+      "physiotherapy": "Physiotherapy",
+      "dialysis": "Dialysis Centre"
     },
     "directions": "Directions",
     "call": "Call",
@@ -4945,7 +4950,8 @@
       "actionBook1": "Book",
       "actionBook2": "Imaging",
       "latestPanel": "Latest panel",
-      "latestMeta": "{{date}} · {{count}} results",
+      "latestMeta_one": "{{date}} · {{count}} result",
+      "latestMeta_other": "{{date}} · {{count}} results",
       "openResultDetail": "Open Result Detail",
       "actionFindLab1": "Find a",
       "actionFindLab2": "Laboratory",
@@ -7071,6 +7077,7 @@
       "radiologist": "Radiologist",
       "receptionist": "Front desk",
       "facility_admin": "Facility administrator",
+      "specialist": "Specialist",
       "clinician": "Clinician"
     }
   },

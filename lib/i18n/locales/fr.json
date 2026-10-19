@@ -2152,7 +2152,12 @@
       "dental": "Dentaire",
       "diagnostic_center": "Centre de diagnostic",
       "imaging_center": "Centre d'imagerie",
-      "blood_bank": "Banque de sang"
+      "blood_bank": "Banque de sang",
+      "eye_clinic": "Clinique ophtalmologique",
+      "maternity": "Maternité",
+      "nursing_home": "Maison de soins",
+      "physiotherapy": "Kinésithérapie",
+      "dialysis": "Centre de dialyse"
     },
     "directions": "Itinéraire",
     "call": "Appeler",
@@ -4945,7 +4950,8 @@
       "actionBook1": "Réserver",
       "actionBook2": "une imagerie",
       "latestPanel": "Dernier bilan",
-      "latestMeta": "{{date}} · {{count}} résultats",
+      "latestMeta_one": "{{date}} · {{count}} résultat",
+      "latestMeta_other": "{{date}} · {{count}} résultats",
       "openResultDetail": "Ouvrir le détail du résultat",
       "actionFindLab1": "Trouver un",
       "actionFindLab2": "laboratoire",
@@ -7072,6 +7078,7 @@
       "radiologist": "Radiologue",
       "receptionist": "Accueil",
       "facility_admin": "Administrateur·rice de l'établissement",
+      "specialist": "Spécialiste",
       "clinician": "Soignant·e"
     }
   },

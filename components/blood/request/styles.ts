@@ -153,8 +153,9 @@ export const makeStyles = (c: Palette) =>
     forBlock: { marginTop: spacing.sm + 4 },
 
     /* Field boxes / dropdowns. */
-    fieldRow: { flexDirection: 'row', gap: spacing.sm },
-    fieldCol: { flex: 1, minWidth: 0 },
+    fieldRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    // Basis 140 so a pair stacks below ~360dp instead of truncating to "Choos…".
+    fieldCol: { flexGrow: 1, flexShrink: 1, flexBasis: 140, minWidth: 0 },
     fieldStacked: { marginTop: spacing.sm + 4 },
     fieldLabel: {
       marginBottom: 6,

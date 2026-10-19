@@ -152,7 +152,7 @@ export default function BloodFinderScreen() {
             <Icon name="droplet" size={30} color={colors.blue} />
           </View>
           <View style={styles.heroBody}>
-            <Text style={styles.heroTitle} numberOfLines={1}>
+            <Text style={styles.heroTitle} numberOfLines={2}>
               {t('bloodFinder.title')}
             </Text>
             <Text style={styles.heroSubtitle}>{t('bloodFinder.heroSubtitle')}</Text>

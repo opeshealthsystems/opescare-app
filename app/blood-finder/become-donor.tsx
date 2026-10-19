@@ -835,8 +835,9 @@ const makeStyles = (c: Palette) =>
     statusActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
     statusAction: { flex: 1 },
 
-    fieldRow: { flexDirection: 'row', gap: spacing.sm },
-    fieldCell: { flex: 1, minWidth: 0 },
+    fieldRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    // Basis 140 so a pair stacks below ~360dp instead of truncating to "Choos…".
+    fieldCell: { flexGrow: 1, flexShrink: 1, flexBasis: 140, minWidth: 0 },
     fieldLabel: {
       fontFamily: typography.fontFamily.medium,
       // 11px, not `size.xs`: two labels have to sit side by side in half a

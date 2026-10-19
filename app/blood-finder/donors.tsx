@@ -712,8 +712,9 @@ const makeStyles = (c: Palette) =>
       color: c.textPrimary,
     },
 
-    fieldRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
-    fieldCell: { flex: 1, minWidth: 0 },
+    fieldRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+    // Basis 140 so a pair stacks below ~360dp instead of truncating to "Choos…".
+    fieldCell: { flexGrow: 1, flexShrink: 1, flexBasis: 140, minWidth: 0 },
     fieldCellAction: { justifyContent: 'flex-end' },
     fieldLabel: {
       fontFamily: typography.fontFamily.medium,

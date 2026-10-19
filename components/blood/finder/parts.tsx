@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 
 
 import { useTranslation } from 'react-i18next';
@@ -156,6 +156,9 @@ export function QuickAction({
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Four-up leaves ~50pt of label width below 380dp and "Emergency" broke
+  // mid-word; go two-by-two there.
+  const twoUp = useWindowDimensions().width < 380;
   const tone = tint === 'red' ? colors.statusCritical : colors.blue;
   const toneBg = tint === 'red' ? colors.statusCriticalBg : colors.tintBlueBg;
 
@@ -165,7 +168,7 @@ export function QuickAction({
       activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={styles.quickTile}
+      style={[styles.quickTile, twoUp && styles.quickTileTwoUp]}
     >
       <View style={[styles.quickMark, { backgroundColor: toneBg }]}>
         <Icon name={icon} size={17} color={tone} />

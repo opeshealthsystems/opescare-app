@@ -933,8 +933,9 @@ const makeStyles = (c: Palette) =>
     /* Two columns at 375pt is ~140pt of field each — enough for a group
        select and a ward line, which is why the reference's three-up field
        rows are rebalanced to two. */
-    fieldRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start', marginTop: spacing.md },
-    fieldCol: { flex: 1, minWidth: 0 },
+    fieldRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, alignItems: 'flex-start', marginTop: spacing.md },
+    // Basis 140 so a pair stacks below ~360dp instead of truncating to "Choos…".
+    fieldCol: { flexGrow: 1, flexShrink: 1, flexBasis: 140, minWidth: 0 },
 
     underlineWrap: {
       flexDirection: 'row',

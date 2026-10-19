@@ -4,6 +4,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { FacilityMap } from '@/components/map/FacilityMap';
 import {
@@ -38,6 +39,9 @@ import {
 import type { BloodFinderModel } from './useBloodFinder';
 
 export function FinderCard({ vm }: { vm: BloodFinderModel }) {
+  // Below 380dp the side-by-side fields and icon+label urgency chips were cut
+  // to "Compone…", "Wh ole…" and "Emerge…"; stack the fields, drop the chip icons.
+  const narrow = useWindowDimensions().width < 380;
   const { t, colors, styles, bloodGroup, setBloodGroup, componentType, setComponentType, city, setCity, deviceCoords, setDeviceCoords, locating, locationDenied, radiusKm, setRadiusKm, urgency, setUrgency, sheet, setSheet, scrollRef, resultsY, originLabel, options, groupOptions, selectedComponentLabel, visibleGroups, componentChoices, handleUseMyLocation } = vm;
   return (
     <>
@@ -47,8 +51,8 @@ export function FinderCard({ vm }: { vm: BloodFinderModel }) {
       <Card>
         <View style={styles.finderStack}>
           {/* ── 1 | 2 ────────────────────────────────────────────────── */}
-          <View style={styles.fieldRow}>
-            <View style={styles.fieldWide}>
+          <View style={[styles.fieldRow, narrow && styles.fieldRowStacked]}>
+            <View style={[styles.fieldWide, narrow && styles.fieldFull]}>
               <FieldLabel index={1} label={t('bloodFinder.stepGroup')} />
               {options.isPending ? (
                 <LoadingBlock label={t('bloodFinder.searching')} />
@@ -111,7 +115,7 @@ export function FinderCard({ vm }: { vm: BloodFinderModel }) {
               )}
             </View>
 
-            <View style={styles.fieldNarrow}>
+            <View style={[styles.fieldNarrow, narrow && styles.fieldFull]}>
               <FieldLabel index={2} label={t('bloodFinder.stepComponent')} />
               <FieldSelect
                 icon="droplet"
@@ -213,17 +217,17 @@ export function FinderCard({ vm }: { vm: BloodFinderModel }) {
                       },
                     ]}
                   >
-                    <Icon
+                    {narrow ? null : <Icon
                       name={option.icon}
                       size={16}
                       color={active ? tone : colors.textSecondary}
-                    />
+                    />}
                     <Text
                       style={[
                         styles.urgencyText,
                         { color: active ? tone : colors.textPrimary },
                       ]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                     >
                       {t(`bloodFinder.urgency.${option.value}`)}
                     </Text>
@@ -234,8 +238,8 @@ export function FinderCard({ vm }: { vm: BloodFinderModel }) {
           </View>
 
           {/* ── 4 | 5 ────────────────────────────────────────────────── */}
-          <View style={styles.fieldRow}>
-            <View style={styles.fieldWide}>
+          <View style={[styles.fieldRow, narrow && styles.fieldRowStacked]}>
+            <View style={[styles.fieldWide, narrow && styles.fieldFull]}>
               <FieldLabel index={4} label={t('bloodFinder.stepWhere')} />
               <View style={[styles.locationField, { borderColor: colors.border }]}>
                 <Icon name="location" size={17} color={colors.textSecondary} />
@@ -270,7 +274,7 @@ export function FinderCard({ vm }: { vm: BloodFinderModel }) {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.fieldNarrow}>
+            <View style={[styles.fieldNarrow, narrow && styles.fieldFull]}>
               <FieldLabel index={5} label={t('bloodFinder.stepRange')} />
               <FieldSelect
                 value={t('bloodFinder.radius', { km: radiusKm })}

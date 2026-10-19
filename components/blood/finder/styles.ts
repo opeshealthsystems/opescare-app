@@ -25,6 +25,8 @@ export const makeStyles = (c: Palette) =>
   StyleSheet.create({
     /* PM-BLOOD-01 finder card */
     fieldRow: { flexDirection: 'row', gap: spacing.sm },
+    fieldRowStacked: { flexDirection: 'column', gap: spacing.md },
+    fieldFull: { flex: 0, flexGrow: 0, flexShrink: 0, flexBasis: 'auto', alignSelf: 'stretch' },
     // The reference splits step 1 / step 2 about 60:40, not 55:45 — five
     // group tiles need the room, and the component dropdown does not.
     fieldWide: { flex: 1.55, minWidth: 0 },
@@ -99,6 +101,7 @@ export const makeStyles = (c: Palette) =>
       paddingHorizontal: 3,
     },
     urgencyText: {
+      textAlign: 'center',
       flexShrink: 1,
       fontFamily: typography.fontFamily.semiBold,
       fontSize: 11,
@@ -375,6 +378,7 @@ export const makeStyles = (c: Palette) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    quickTileTwoUp: { flexBasis: '40%' },
     quickMark: {
       width: 30,
       height: 30,

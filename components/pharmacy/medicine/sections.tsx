@@ -748,7 +748,7 @@ export function QuantityAndPrescriptionSection({ vm }: { vm: MedicineDetailModel
         <Card style={styles.rxCard}>
           <View style={styles.rxHead}>
             <View style={styles.rxMark}>
-              <Icon name="document-text" size={22} color={colors.statusWarning} />
+              <Icon name="document-text" size={24} color={colors.statusWarning} />
             </View>
             <View style={styles.rxBody}>
               <Text style={styles.rxTitle}>{t('pharmacy.prescriptionExplainerTitle')}</Text>
@@ -1030,7 +1030,7 @@ export function InfoPanelsSection({ vm }: { vm: MedicineDetailModel }) {
           {(['brand', 'pack', 'costs', 'demand'] as const).map((key) => (
             <View key={key} style={styles.whyCell}>
               <View style={styles.whyMark}>
-                <Icon name={WHY_ICONS[key]} size={18} color={colors.statusNormal} />
+                <Icon name={WHY_ICONS[key]} size={24} color={colors.statusNormal} />
               </View>
               <Text style={styles.whyLabel}>{t(`pharmacy.whyPricesShort.${key}`)}</Text>
               <Text style={styles.whyText}>{t(`pharmacy.whyPrices.${key}`)}</Text>
@@ -1049,7 +1049,7 @@ export function InfoPanelsSection({ vm }: { vm: MedicineDetailModel }) {
           {(['search', 'compare', 'reserve', 'collect'] as const).map((key, index) => (
             <View key={key} style={styles.howStep}>
               <View style={styles.howMark}>
-                <Icon name={HOW_ICONS[key]} size={22} color={colors.statusNormal} />
+                <Icon name={HOW_ICONS[key]} size={24} color={colors.statusNormal} />
               </View>
               <Text style={styles.howTitle} numberOfLines={2}>
                 {`${index + 1}. ${t(`pharmacy.howTo.${key}.title`)}`}
@@ -1066,7 +1066,7 @@ export function InfoPanelsSection({ vm }: { vm: MedicineDetailModel }) {
           destination here — the patient's own privacy screen. */}
       <View style={styles.notice} accessibilityRole="summary">
         <View style={styles.noticeMark}>
-          <Icon name="lock" size={20} color={colors.blue} />
+          <Icon name="lock" size={24} color={colors.blue} />
         </View>
         <View style={styles.noticeBody}>
           <Text style={styles.noticeTitle}>{t('pharmacy.privacyTitle')}</Text>

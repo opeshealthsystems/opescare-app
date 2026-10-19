@@ -174,8 +174,8 @@ export default function BloodEducationScreen() {
                   accessibilityLabel={t(`bloodEducation.quick.${item.key}.title`)}
                   style={styles.quickTile}
                 >
-                  <View style={[styles.quickMark, { backgroundColor: tone.bg }]}>
-                    <Icon name={item.icon} size={19} color={tone.fg} />
+                  <View style={styles.quickMark}>
+                    <Icon name={item.icon} size={26} color={tone.fg} />
                   </View>
                   <Text style={styles.quickTitle} numberOfLines={2}>
                     {t(`bloodEducation.quick.${item.key}.title`)}
@@ -197,8 +197,8 @@ export default function BloodEducationScreen() {
             return (
               <Card key={topic.key}>
                 <View style={styles.topicRow}>
-                  <View style={[styles.topicMark, { backgroundColor: tone.bg }]}>
-                    <Icon name={topic.icon} size={19} color={tone.fg} />
+                  <View style={styles.topicMark}>
+                    <Icon name={topic.icon} size={26} color={tone.fg} />
                   </View>
                   <View style={styles.topicBody}>
                     <Text style={styles.topicTitle}>
@@ -287,7 +287,7 @@ export default function BloodEducationScreen() {
         <Card style={styles.ctaCard}>
           <View style={styles.ctaRow}>
             <View style={styles.ctaMark}>
-              <Icon name="heart-pulse" size={20} color={colors.statusCritical} />
+              <Icon name="heart-pulse" size={24} color={colors.statusCritical} />
             </View>
             <View style={styles.ctaBody}>
               <Text style={styles.ctaTitle}>{t('bloodEducation.ctaTitle')}</Text>
@@ -342,8 +342,6 @@ const makeStyles = (c: Palette) =>
     heroArt: {
       width: 68,
       height: 68,
-      borderRadius: 34,
-      backgroundColor: c.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -364,7 +362,6 @@ const makeStyles = (c: Palette) =>
     quickMark: {
       width: 34,
       height: 34,
-      borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -386,8 +383,6 @@ const makeStyles = (c: Palette) =>
     ctaMark: {
       width: 40,
       height: 40,
-      borderRadius: 20,
-      backgroundColor: c.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -430,7 +425,6 @@ const makeStyles = (c: Palette) =>
     topicMark: {
       width: 38,
       height: 38,
-      borderRadius: radii.sm,
       alignItems: 'center',
       justifyContent: 'center',
     },

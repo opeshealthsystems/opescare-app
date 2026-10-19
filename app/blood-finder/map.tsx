@@ -250,7 +250,7 @@ export default function BloodMapScreen() {
         >
           <View style={styles.infoRow}>
             <View style={styles.infoMark}>
-              <Icon name="info" size={18} color={colors.statusPending} />
+              <Icon name="info" size={24} color={colors.statusPending} />
             </View>
             <View style={styles.infoBody}>
               <Text style={styles.infoTitle}>{t('bloodMap.realtimeTitle')}</Text>
@@ -491,8 +491,8 @@ export default function BloodMapScreen() {
                         accessibilityLabel={facility.name}
                         style={styles.bankHead}
                       >
-                        <View style={[styles.bankMark, { backgroundColor: colors.statusCriticalBg }]}>
-                          <Icon name="droplet" size={19} color={colors.statusCritical} />
+                        <View style={styles.bankMark}>
+                          <Icon name="droplet" size={26} color={colors.statusCritical} />
                           {/* Two-state, like the legend: reported / not reported. */}
                           <View
                             style={[
@@ -580,17 +580,11 @@ export default function BloodMapScreen() {
                           accessibilityRole="button"
                           accessibilityLabel={t('bloodMap.callA11y', { name: facility.name })}
                           accessibilityState={{ disabled: !number }}
-                          style={[
-                            styles.bankCall,
-                            {
-                              borderColor: number ? colors.statusCritical : colors.border,
-                              backgroundColor: number ? colors.statusCriticalBg : colors.surfaceMuted,
-                            },
-                          ]}
+                          style={styles.bankCall}
                         >
                           <Icon
                             name="phone"
-                            size={16}
+                            size={24}
                             color={number ? colors.statusCritical : colors.textMuted}
                           />
                         </TouchableOpacity>
@@ -607,7 +601,7 @@ export default function BloodMapScreen() {
         <View style={styles.cta}>
           <View style={styles.ctaRow}>
             <View style={styles.ctaMark}>
-              <Icon name="bell" size={18} color={colors.statusCritical} />
+              <Icon name="bell" size={24} color={colors.statusCritical} />
             </View>
             <View style={styles.ctaBody}>
               <Text style={styles.ctaTitle}>{t('bloodMap.ctaTitle')}</Text>
@@ -647,8 +641,6 @@ const makeStyles = (c: Palette) =>
     infoMark: {
       width: 34,
       height: 34,
-      borderRadius: 17,
-      backgroundColor: c.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -806,7 +798,6 @@ const makeStyles = (c: Palette) =>
     bankMark: {
       width: 40,
       height: 40,
-      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -852,10 +843,8 @@ const makeStyles = (c: Palette) =>
 
     bankFoot: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     bankCall: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      borderWidth: 1,
+      width: 44,
+      height: 44,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -894,8 +883,6 @@ const makeStyles = (c: Palette) =>
     ctaMark: {
       width: 34,
       height: 34,
-      borderRadius: 17,
-      backgroundColor: c.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },

@@ -90,7 +90,7 @@ export function AttachmentCardView({
           return (
             <View key={attachment.id ?? `${attachment.file_name}-${index}`} style={styles.file}>
               <View style={styles.fileIcon}>
-                <Icon name="document-text" size={18} color={colors.tintBlue} />
+                <Icon name="document-text" size={26} color={colors.tintBlue} />
               </View>
               <View style={styles.fileBody}>
                 <Text style={styles.fileName} numberOfLines={1}>
@@ -202,7 +202,6 @@ const makeStyles = (colors: Palette) =>
       width: 36,
       height: 36,
       borderRadius: radii.sm,
-      backgroundColor: colors.tintBlueBg,
       alignItems: 'center',
       justifyContent: 'center',
     },

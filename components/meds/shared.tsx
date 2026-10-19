@@ -594,7 +594,6 @@ export function TintCircle({
         width: size,
         height: size,
         borderRadius: square ? radii.md : size / 2,
-        backgroundColor: tintMap[tint].bg,
         alignItems: 'center',
         justifyContent: 'center',
       }}

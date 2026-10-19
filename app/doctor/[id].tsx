@@ -224,7 +224,7 @@ function CircleAction({
       accessibilityState={{ disabled: !!disabled }}
     >
       <View style={styles.actionCircle}>
-        <Icon name={icon} size={22} color={colors.blue} />
+        <Icon name={icon} size={26} color={colors.blue} />
       </View>
       <Text style={styles.actionLabel}>{label}</Text>
     </TouchableOpacity>
@@ -1134,8 +1134,6 @@ const makeStyles = (colors: Palette) =>
     actionCircle: {
       width: 48,
       height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
     },

@@ -108,17 +108,10 @@ export function IdentityCard({ medicine }: { medicine: Medicine }) {
           radius={radii.md}
           accessibilityLabel={medicine.name}
           fallback={
-            <View
-              style={[
-                styles.identityShot,
-                {
-                  backgroundColor: medicine.is_controlled ? colors.tintAmberBg : colors.tintGreenBg,
-                },
-              ]}
-            >
+            <View style={styles.identityShot}>
               <Icon
                 name={CATEGORY_ICONS[medicine.category_icon] ?? 'pill'}
-                size={38}
+                size={40}
                 color={medicine.is_controlled ? colors.tintAmber : colors.tintGreen}
               />
             </View>
@@ -322,15 +315,10 @@ export function PharmacyOptionRow({
           size={54}
           radius={radii.md}
           fallback={
-            <View
-              style={[
-                styles.stockShot,
-                { backgroundColor: selected ? colors.tintGreenBg : colors.tintBlueBg },
-              ]}
-            >
+            <View style={styles.stockShot}>
               <Icon
                 name={selected ? 'check' : 'store'}
-                size={24}
+                size={40}
                 color={selected ? colors.tintGreen : colors.tintBlue}
               />
             </View>

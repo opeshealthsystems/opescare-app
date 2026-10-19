@@ -8,7 +8,6 @@ import {
   ScreenHeader,
   SectionHeader,
   spacing,
-  radii,
   typography,
   useTheme,
   type IconName,
@@ -302,7 +301,7 @@ export default function PrivacyPolicyScreen() {
             <Card>
               <View style={styles.iconRow}>
                 <View style={styles.iconCircle}>
-                  <Icon name={section.icon} size={18} color={colors.blue} />
+                  <Icon name={section.icon} size={24} color={colors.blue} />
                 </View>
               </View>
               {section.body.map((paragraph, index) => (
@@ -363,8 +362,6 @@ const makeStyles = (colors: Palette) =>
     iconCircle: {
       width: 36,
       height: 36,
-      borderRadius: radii.pill,
-      backgroundColor: colors.divider,
       alignItems: 'center',
       justifyContent: 'center',
     },

@@ -344,8 +344,8 @@ export default function HealthIdScreen() {
               </View>
 
               <View style={styles.panelIntro}>
-                <View style={[styles.panelIcon, { backgroundColor: tintMap.blue.bg }]}>
-                  <Icon name="clock" size={20} color={tintMap.blue.fg} />
+                <View style={styles.panelIcon}>
+                  <Icon name="clock" size={24} color={tintMap.blue.fg} />
                 </View>
                 <Text style={styles.panelBody}>{t('healthId.temporaryQrBody')}</Text>
                 {tempQr ? (
@@ -714,7 +714,6 @@ const makeStyles = (colors: Palette) =>
     panelIcon: {
       width: 40,
       height: 40,
-      borderRadius: radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
     },

@@ -231,8 +231,8 @@ export function FollowUpSheet({ visible, patientId, patientLabel, onClose, onBoo
             // ── Booked: what the SERVER stored, never what was asked for ──
             <>
               <View style={styles.head}>
-                <View style={[styles.mark, { backgroundColor: okSkin.bg }]}>
-                  <Icon name="calendar-check" size={22} color={okSkin.fg} />
+                <View style={styles.mark}>
+                  <Icon name="calendar-check" size={24} color={okSkin.fg} />
                 </View>
                 <View style={styles.headText}>
                   <Text style={styles.title}>{tx('followUp.bookedTitle', 'Follow-up booked')}</Text>
@@ -264,8 +264,8 @@ export function FollowUpSheet({ visible, patientId, patientLabel, onClose, onBoo
             // ── The form ────────────────────────────────────────────────
             <>
               <View style={styles.head}>
-                <View style={[styles.mark, { backgroundColor: infoSkin.bg }]}>
-                  <Icon name="calendar-plus" size={22} color={infoSkin.fg} />
+                <View style={styles.mark}>
+                  <Icon name="calendar-plus" size={24} color={infoSkin.fg} />
                 </View>
                 <View style={styles.headText}>
                   <Text style={styles.title}>{tx('followUp.title', 'Book a follow-up')}</Text>

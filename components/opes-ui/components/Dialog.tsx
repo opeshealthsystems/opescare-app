@@ -206,8 +206,8 @@ function DialogSheet({
       >
         <View style={styles.grab} />
         <View style={styles.head}>
-          <View style={[styles.mark, { backgroundColor: skin.bg }]}>
-            <Icon name={TONE_ICON[tone]} size={22} color={skin.fg} />
+          <View style={styles.mark}>
+            <Icon name={TONE_ICON[tone]} size={28} color={skin.fg} />
           </View>
           <View style={styles.headText}>
             <Text style={styles.title}>{request.title}</Text>
@@ -310,7 +310,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     marginBottom: spacing.sm,
   },
   head: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4, paddingBottom: spacing.sm },
-  mark: { width: 44, height: 44, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center' },
+  mark: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headText: { flex: 1, minWidth: 0 },
   title: {
     fontFamily: typography.fontFamily.bold,

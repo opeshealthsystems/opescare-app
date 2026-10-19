@@ -160,7 +160,6 @@ export function QuickAction({
   // mid-word; go two-by-two there.
   const twoUp = useWindowDimensions().width < 380;
   const tone = tint === 'red' ? colors.statusCritical : colors.blue;
-  const toneBg = tint === 'red' ? colors.statusCriticalBg : colors.tintBlueBg;
 
   return (
     <TouchableOpacity
@@ -170,8 +169,8 @@ export function QuickAction({
       accessibilityLabel={label}
       style={[styles.quickTile, twoUp && styles.quickTileTwoUp]}
     >
-      <View style={[styles.quickMark, { backgroundColor: toneBg }]}>
-        <Icon name={icon} size={17} color={tone} />
+      <View style={styles.quickMark}>
+        <Icon name={icon} size={24} color={tone} />
       </View>
       <Text style={styles.quickLabel} numberOfLines={3}>
         {label}
@@ -308,8 +307,8 @@ export function BloodBankCard({
         {/* Round mark, where the reference puts each bank's own logo. This
             platform stores no facility logos, so the mark is the blood glyph
             rather than an invented crest. */}
-        <View style={[styles.bankMark, { backgroundColor: colors.statusCriticalBg }]}>
-          <Icon name="droplet" size={22} color={colors.statusCritical} />
+        <View style={styles.bankMark}>
+          <Icon name="droplet" size={26} color={colors.statusCritical} />
         </View>
 
         <View style={styles.bankBody}>

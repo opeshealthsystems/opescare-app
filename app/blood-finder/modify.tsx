@@ -482,8 +482,8 @@ export default function ModifyBloodRequestScreen() {
               accessibilityHint={t('bloodModify.choose.modifyBody')}
             >
               <View style={styles.choiceHead}>
-                <View style={[styles.choiceIcon, { backgroundColor: colors.tintBlueBg }]}>
-                  <Icon name="pencil" size={17} color={colors.blue} />
+                <View style={styles.choiceIcon}>
+                  <Icon name="pencil" size={24} color={colors.blue} />
                 </View>
                 <View
                   style={[
@@ -533,8 +533,8 @@ export default function ModifyBloodRequestScreen() {
               accessibilityHint={t('bloodModify.cancelPoints.undone')}
             >
               <View style={styles.choiceHead}>
-                <View style={[styles.choiceIcon, { backgroundColor: colors.surface }]}>
-                  <Icon name="trash" size={17} color={colors.statusCritical} />
+                <View style={styles.choiceIcon}>
+                  <Icon name="trash" size={24} color={colors.statusCritical} />
                 </View>
                 <View
                   style={[
@@ -871,7 +871,6 @@ const makeStyles = (c: Palette) =>
     choiceIcon: {
       width: 34,
       height: 34,
-      borderRadius: 17,
       alignItems: 'center',
       justifyContent: 'center',
     },

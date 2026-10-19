@@ -348,7 +348,7 @@ export default function SettingsScreen() {
               <SectionHeader title={t('settings.group.language')} variant="overline" />
               <Card>
                 <View style={styles.languageHead}>
-                  <View style={[styles.circle, { backgroundColor: tintMap.blue.bg }]}>
+                  <View style={styles.circle}>
                     <Icon name="globe" size={24} color={tintMap.blue.fg} />
                   </View>
                   <View style={styles.languageText}>
@@ -756,7 +756,7 @@ function InlineNotice({
       accessibilityRole="text"
       accessibilityLiveRegion="polite"
     >
-      <View style={[styles.noticeIcon, { backgroundColor: colors.surface }]}>
+      <View style={styles.noticeIcon}>
         <Icon name={icon} size={20} color={skin.fg} />
       </View>
       <View style={styles.noticeBody}>

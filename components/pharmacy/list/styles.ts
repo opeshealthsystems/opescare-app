@@ -282,7 +282,6 @@ export const makeStyles = (c: Palette) =>
       borderRadius: radii.md,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: c.tintBlueBg,
     },
     phBody: { flex: 1, minWidth: 0, gap: 2 },
     phTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

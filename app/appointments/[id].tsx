@@ -434,7 +434,7 @@ function DetailBody({
       {/* Summary card */}
       <Card>
         <View style={styles.summaryTop}>
-          <View style={[styles.summaryIcon, { backgroundColor: tint.bg }]}>
+          <View style={styles.summaryIcon}>
             <Icon name={typeIconOf(a.appointment_type)} size={26} color={tint.fg} />
           </View>
           <View style={styles.summaryHead}>
@@ -1015,10 +1015,10 @@ function CircleAction({
       accessibilityLabel={label}
       accessibilityState={{ expanded: !!selected }}
     >
-      <View style={[styles.circleActionCircle, selected && styles.circleActionCircleOn]}>
-        <Icon name={icon} size={22} color={color} />
+      <View style={styles.circleActionCircle}>
+        <Icon name={icon} size={26} color={color} />
       </View>
-      <Text style={styles.circleActionLabel}>{label}</Text>
+      <Text style={[styles.circleActionLabel, selected && styles.circleActionLabelOn]}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -1033,7 +1033,7 @@ const makeStyles = (colors: Palette) =>
     content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxl },
 
     summaryTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-    summaryIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+    summaryIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
     summaryHead: { flex: 1, minWidth: 0, gap: 4 },
     summaryTitle: {
       fontFamily: typography.fontFamily.bold,
@@ -1091,19 +1091,15 @@ const makeStyles = (colors: Palette) =>
     circleActionCircle: {
       width: 46,
       height: 46,
-      borderRadius: 23,
-      backgroundColor: colors.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: colors.primarySoft,
     },
-    circleActionCircleOn: { borderColor: colors.blue },
     circleActionLabel: {
       fontFamily: typography.fontFamily.semiBold,
       fontSize: typography.size.xs,
       color: colors.textPrimary,
     },
+    circleActionLabelOn: { color: colors.blue },
 
     composer: { marginTop: spacing.md, gap: spacing.sm + 2 },
     composerInput: {

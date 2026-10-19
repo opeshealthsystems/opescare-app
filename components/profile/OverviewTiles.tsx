@@ -106,8 +106,8 @@ export function OverviewCard({ tile, width }: { tile: OverviewTile; width: numbe
   const body = (
     <>
       <View style={styles.overviewTop}>
-        <View style={[styles.overviewMark, { backgroundColor: skin.bg }]}>
-          <Icon name={tile.icon} size={17} color={skin.fg} />
+        <View style={styles.overviewMark}>
+          <Icon name={tile.icon} size={28} color={skin.fg} />
         </View>
         {tile.onPress ? <Icon name="chevron-right" size={14} color={colors.textMuted} /> : null}
       </View>

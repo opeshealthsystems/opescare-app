@@ -236,7 +236,7 @@ export default function ScanPatientScreen() {
               <LoadingBlock label={tx('preparing', 'Preparing the camera…')} />
             ) : !permission.granted ? (
               <View style={styles.permission}>
-                <Icon name="camera" size={34} color={colors.blue} />
+                <Icon name="camera" size={40} color={colors.blue} />
                 <Text style={styles.permissionTitle}>{tx('permissionTitle', 'Camera access needed')}</Text>
                 <Text style={styles.permissionBody}>
                   {tx('permissionBody', 'OpesCare only uses the camera to read the patient’s Health ID code. Nothing is photographed or stored.')}
@@ -289,7 +289,7 @@ export default function ScanPatientScreen() {
           <Card>
             <View style={styles.matchHead}>
               <View style={styles.matchGlyph}>
-                <Icon name="shield" size={22} color={colors.statusNormal} />
+                <Icon name="shield" size={24} color={colors.statusNormal} />
               </View>
               <View style={styles.matchText}>
                 <Text style={styles.matchTitle}>{tx('matchedTitle', 'Health ID confirmed')}</Text>
@@ -534,7 +534,7 @@ const makeStyles = (colors: Palette) =>
     permissionTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: 16, color: colors.textPrimary, textAlign: 'center' },
     permissionBody: { fontFamily: typography.fontFamily.regular, fontSize: 13, lineHeight: 19, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.sm },
     matchHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    matchGlyph: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.statusNormalBg, alignItems: 'center', justifyContent: 'center' },
+    matchGlyph: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
     matchText: { flex: 1 },
     matchTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: 15, color: colors.statusNormal },
     matchRef: { fontFamily: typography.fontFamily.regular, fontSize: 12, color: colors.textMuted, marginTop: 1 },

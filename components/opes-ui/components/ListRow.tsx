@@ -6,9 +6,9 @@ import { a11yJoin } from './a11y';
 import { Icon, IconName } from './Icon';
 
 export type ListRowProps = {
-  /** Icon shown inside the pastel tint circle. */
+  /** Plain glyph shown at the start of the row (no backdrop). */
   icon?: IconName;
-  /** Tint circle palette. Default `blue`. */
+  /** Glyph colour, from the tint palette's ink. Default `blue`. */
   tint?: Tint;
   /** Replace the tint circle entirely (avatar, date block, custom mark). */
   leading?: React.ReactNode;
@@ -100,8 +100,9 @@ export function ListRow({
   const body = (
     <View style={[styles.row, divider && styles.divider, style]}>
       {leading ?? (icon ? (
-        <View style={[styles.circle, { backgroundColor: t.bg }]}>
-          <Icon name={icon} size={24} color={t.fg} />
+        // A plain glyph in the tint's ink — no pastel chip behind it.
+        <View style={styles.circle}>
+          <Icon name={icon} size={26} color={t.fg} />
         </View>
       ) : null)}
 
@@ -163,9 +164,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   circle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },

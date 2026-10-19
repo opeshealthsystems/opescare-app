@@ -386,8 +386,8 @@ function CreatedView({
     <>
       <Card>
         <View style={styles.createdHead}>
-          <View style={[styles.createdMark, { backgroundColor: tintMap.green.bg }]}>
-            <Icon name="check-circle" size={26} color={tintMap.green.fg} />
+          <View style={styles.createdMark}>
+            <Icon name="check-circle" size={40} color={tintMap.green.fg} />
           </View>
           <View style={styles.createdText}>
             <Text style={styles.createdTitle}>{t('desk.register.successTitle')}</Text>
@@ -453,7 +453,7 @@ const makeStyles = (colors: Palette) =>
     },
 
     createdHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4 },
-    createdMark: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+    createdMark: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
     createdText: { flex: 1, minWidth: 0, gap: 2 },
     createdTitle: {
       fontFamily: typography.fontFamily.bold,

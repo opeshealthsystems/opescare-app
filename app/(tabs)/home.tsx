@@ -338,14 +338,14 @@ export default function HomeScreen() {
                     {healthIdValue ? (
                       <TouchableOpacity
                         onPress={onCopyHealthId}
-                        hitSlop={8}
+                        hitSlop={11}
                         accessibilityRole="button"
                         accessibilityLabel={t('home.healthId.copy')}
                         style={styles.copyButton}
                       >
                         <Icon
                           name={copyState === 'copied' ? 'check' : 'copy'}
-                          size={13}
+                          size={20}
                           color={copyState === 'copied' ? colors.statusNormal : colors.link}
                           strokeWidth={iconStroke.bold}
                         />
@@ -655,7 +655,7 @@ export default function HomeScreen() {
             accessibilityHint={t('home.insights.cta')}
           >
             <View style={styles.promoHeader}>
-              <View style={[styles.promoIcon, { backgroundColor: tintMap.blue.bg }]}>
+              <View style={styles.promoIcon}>
                 <Icon name="target" size={24} color={tintMap.blue.fg} />
               </View>
               <Text style={styles.promoTitle} numberOfLines={2}>
@@ -708,8 +708,8 @@ function SummaryCell({
       <Text style={styles.cellLabel} numberOfLines={2}>
         {label}
       </Text>
-      <View style={[styles.cellCircle, { backgroundColor: tintMap[tint].bg }]}>
-        <Icon name={icon} size={26} color={tintMap[tint].fg} />
+      <View style={styles.cellCircle}>
+        <Icon name={icon} size={28} color={tintMap[tint].fg} />
       </View>
       <Text style={[styles.cellValue, valueColor ? { color: valueColor } : null]} numberOfLines={1}>
         {value}
@@ -794,8 +794,6 @@ const makeStyles = (colors: Palette) =>
     copyButton: {
       width: 22,
       height: 22,
-      borderRadius: radii.sm,
-      backgroundColor: colors.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -876,7 +874,6 @@ const makeStyles = (colors: Palette) =>
     cellCircle: {
       width: 44,
       height: 44,
-      borderRadius: radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
       marginVertical: 6,
@@ -920,7 +917,6 @@ const makeStyles = (colors: Palette) =>
     promoIcon: {
       width: 40,
       height: 40,
-      borderRadius: radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
     },

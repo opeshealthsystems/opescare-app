@@ -454,10 +454,10 @@ function EmptyReferrals() {
 function StepRow({ icon, title, body, divider }: { icon: IconName; title: string; body: string; divider: boolean }) {
   const { colors, tintMap } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const tint = tintMap.purple;
+  const tint = tintMap.blue;
   return (
     <View style={[s.stepRow, divider && s.rowDivider]} accessible accessibilityLabel={`${title}. ${body}`}>
-      <View style={[s.stepMark, { backgroundColor: tint.bg }]}>
+      <View style={s.stepMark}>
         <Icon name={icon} size={24} color={tint.fg} />
       </View>
       <View style={s.stepBody}>

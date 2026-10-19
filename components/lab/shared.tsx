@@ -259,8 +259,8 @@ export function LabOrderRow({
       accessibilityLabel={a11yJoin(title, urgencyLabel(tx, order.urgency), patient, ordered, results)}
       style={[styles.row, divider && styles.rowDivider]}
     >
-      <View style={[styles.circle, { backgroundColor: tint.bg }]}>
-        <Icon name="flask" size={24} color={tint.fg} />
+      <View style={styles.circle}>
+        <Icon name="flask" size={26} color={tint.fg} />
       </View>
       <View style={styles.center}>
         <View style={styles.titleLine}>
@@ -313,8 +313,8 @@ export function LabTile({
       accessibilityRole="button"
       accessibilityLabel={a11yJoin(label, value)}
     >
-      <View style={[styles.tileIcon, { backgroundColor: skin.bg }]}>
-        <Icon name={icon} size={16} color={skin.fg} />
+      <View style={styles.tileIcon}>
+        <Icon name={icon} size={28} color={skin.fg} />
       </View>
       <Text
         style={[styles.tileValue, emphasise && count !== null && count > 0 && { color: colors.statusCritical }]}
@@ -478,8 +478,8 @@ const makeStyles = (colors: Palette) =>
       gap: 4,
     },
     tileIcon: {
-      width: 28,
-      height: 28,
+      width: 32,
+      height: 32,
       borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',

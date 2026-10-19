@@ -142,7 +142,6 @@ export const makeStyles = (c: Palette) =>
       borderRadius: radii.sm,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: c.statusNormalBg,
     },
     whyLabel: {
       fontFamily: typography.fontFamily.semiBold,
@@ -172,7 +171,6 @@ export const makeStyles = (c: Palette) =>
       borderRadius: radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: c.statusNormalBg,
     },
     howTitle: {
       fontFamily: typography.fontFamily.semiBold,
@@ -625,7 +623,6 @@ export const makeStyles = (c: Palette) =>
       borderRadius: radii.md,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: c.surface,
     },
     rxBody: { flex: 1, minWidth: 0, gap: 4 },
     rxTitle: {
@@ -674,7 +671,6 @@ export const makeStyles = (c: Palette) =>
       borderRadius: radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: c.surface,
     },
     noticeLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4 },
     noticeLink: {

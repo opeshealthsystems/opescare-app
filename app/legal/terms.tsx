@@ -8,7 +8,6 @@ import {
   ScreenHeader,
   SectionHeader,
   spacing,
-  radii,
   typography,
   useTheme,
   type IconName,
@@ -235,15 +234,10 @@ export default function TermsOfServiceScreen() {
                 every other section the neutral blue one. */}
             <Card accentColor={sectionIndex === 0 ? colors.tintRed : undefined}>
               <View style={styles.iconRow}>
-                <View
-                  style={[
-                    styles.iconCircle,
-                    sectionIndex === 0 && { backgroundColor: colors.tintRedBg },
-                  ]}
-                >
+                <View style={styles.iconCircle}>
                   <Icon
                     name={section.icon}
-                    size={18}
+                    size={24}
                     color={sectionIndex === 0 ? colors.tintRed : colors.blue}
                   />
                 </View>
@@ -305,8 +299,6 @@ const makeStyles = (colors: Palette) =>
     iconCircle: {
       width: 36,
       height: 36,
-      borderRadius: radii.pill,
-      backgroundColor: colors.divider,
       alignItems: 'center',
       justifyContent: 'center',
     },

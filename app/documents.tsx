@@ -413,8 +413,8 @@ function PreviewPanel({
     <>
       {/* Hero */}
       <View style={s.hero}>
-        <View style={[s.heroIcon, { backgroundColor: tint.bg }]}>
-          <Icon name={meta.icon} size={32} color={tint.fg} />
+        <View style={s.heroIcon}>
+          <Icon name={meta.icon} size={40} color={tint.fg} />
         </View>
         <View style={s.heroBody}>
           {/* The document title is the facility's — never translated. */}
@@ -466,8 +466,8 @@ function PreviewPanel({
           </View>
           <View style={s.previewBody}>
             <View style={s.previewHead}>
-              <View style={[s.fileIcon, { backgroundColor: statusMap.critical.bg }]}>
-                <Icon name="document-text" size={20} color={statusMap.critical.fg} />
+              <View style={s.fileIcon}>
+                <Icon name="document-text" size={26} color={statusMap.critical.fg} />
               </View>
               <View style={s.previewNameBox}>
                 <Text style={s.previewName} numberOfLines={2}>
@@ -605,8 +605,8 @@ function PrivacyBlock({ onManageAccess }: { onManageAccess: () => void }) {
   return (
     <Card>
       <View style={s.privacyRow}>
-        <View style={[s.privacyMark, { backgroundColor: tintMap.blue.bg }]}>
-          <Icon name="lock" size={20} color={tintMap.blue.fg} />
+        <View style={s.privacyMark}>
+          <Icon name="lock" size={24} color={tintMap.blue.fg} />
         </View>
         <View style={s.privacyBody}>
           <Text style={s.privacyTitle}>{t('documents.privacyBlockTitle')}</Text>
@@ -631,7 +631,6 @@ const makeStyles = (colors: Palette) =>
     heroIcon: {
       width: 56,
       height: 56,
-      borderRadius: radii.md,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -665,7 +664,6 @@ const makeStyles = (colors: Palette) =>
     fileIcon: {
       width: 40,
       height: 40,
-      borderRadius: radii.sm,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -697,7 +695,6 @@ const makeStyles = (colors: Palette) =>
     privacyMark: {
       width: 40,
       height: 40,
-      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
     },

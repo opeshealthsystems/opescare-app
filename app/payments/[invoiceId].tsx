@@ -533,7 +533,7 @@ function PendingStep(props: { amountDisplay: string; methodLabel: string; masked
     <View style={styles.block}>
       <Card style={styles.pendingCard}>
         <View style={styles.pendingIcon}>
-          <Icon name="phone" size={30} color={colors.primary} />
+          <Icon name="phone" size={40} color={colors.primary} />
         </View>
         <Text style={styles.resultTitle} accessibilityRole="header">
           {t('payments.pendingTitle')}
@@ -577,10 +577,10 @@ function ResultStep(props: {
   return (
     <View style={styles.block}>
       <Card style={styles.pendingCard}>
-        <View style={[styles.pendingIcon, paid ? styles.iconOk : styles.iconBad]}>
+        <View style={styles.pendingIcon}>
           <Icon
             name={paid ? 'check-circle' : expired ? 'clock' : 'x-circle'}
-            size={30}
+            size={40}
             color={paid ? colors.statusNormal : colors.statusCritical}
           />
         </View>
@@ -818,10 +818,7 @@ const makeStyles = (colors: Palette) =>
       borderRadius: radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.primarySoft,
     },
-    iconOk: { backgroundColor: colors.statusNormalBg },
-    iconBad: { backgroundColor: colors.statusCriticalBg },
     resultTitle: {
       fontFamily: typography.fontFamily.bold,
       fontSize: typography.size.lg,

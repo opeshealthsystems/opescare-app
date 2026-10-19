@@ -232,7 +232,7 @@ export default function LabResultDetailScreen() {
           <Overline label={tx('result.orderingProvider', 'Ordering Provider')} style={styles.overlineGap} />
           <View style={styles.providerRow}>
             <View style={styles.avatar} {...decorative}>
-              <Icon name="stethoscope" size={24} color={colors.blue} />
+              <Icon name="stethoscope" size={26} color={colors.blue} />
             </View>
             <View style={styles.providerBody}>
               <Text style={styles.providerName} numberOfLines={2}>
@@ -563,8 +563,6 @@ const makeStyles = (colors: Palette) =>
     identityCircle: {
       width: 52,
       height: 52,
-      borderRadius: 26,
-      backgroundColor: colors.tintGreenBg,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -645,8 +643,6 @@ const makeStyles = (colors: Palette) =>
     avatar: {
       width: 48,
       height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.tintBlueBg,
       alignItems: 'center',
       justifyContent: 'center',
     },

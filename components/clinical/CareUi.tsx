@@ -58,8 +58,8 @@ export function ScreenHeader({
         ) : null}
       </View>
       {TrailingIcon ? (
-        <View className="ml-3 h-11 w-11 items-center justify-center rounded-full bg-brand-50">
-          <TrailingIcon size={19} color={colors.brand[600]} />
+        <View className="ml-3 h-11 w-11 items-center justify-center">
+          <TrailingIcon size={24} color={colors.brand[600]} />
         </View>
       ) : null}
     </View>
@@ -78,7 +78,7 @@ export function StatusPill({ label, tone }: { label: string; tone: Tone }) {
   );
 }
 
-/** Rounded-square tinted icon tile that leads a list row (see Health Goals ref). */
+/** Plain icon glyph (no backdrop) that leads a list row (see Health Goals ref). */
 export function IconTile({
   icon: Icon,
   tone = 'neutral',
@@ -91,11 +91,8 @@ export function IconTile({
   const palette =
     tone === 'gold' ? { bg: colors.brand[50], fg: colors.brand[600] } : TONE[tone];
   return (
-    <View
-      className="items-center justify-center rounded-xl"
-      style={{ width: size, height: size, backgroundColor: palette.bg }}
-    >
-      <Icon size={Math.round(size * 0.47)} color={palette.fg} />
+    <View className="items-center justify-center" style={{ width: size, height: size }}>
+      <Icon size={Math.max(26, Math.round(size * 0.47))} color={palette.fg} />
     </View>
   );
 }
@@ -217,11 +214,8 @@ export function StateHeading({
     tone === 'gold' ? { bg: colors.brand[50], fg: colors.brand[600] } : TONE[tone];
   return (
     <View className="items-center">
-      <View
-        className="h-20 w-20 items-center justify-center rounded-full"
-        style={{ backgroundColor: palette.bg }}
-      >
-        <Icon size={32} color={palette.fg} />
+      <View className="items-center justify-center">
+        <Icon size={40} color={palette.fg} />
       </View>
       <Text className="mt-4 text-center text-lg font-extrabold text-navy-text">{title}</Text>
       <Text className="mt-1.5 text-center text-sm leading-6 text-navy-secondary">{body}</Text>

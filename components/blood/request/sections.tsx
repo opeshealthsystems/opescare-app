@@ -230,7 +230,7 @@ export function ConfirmedView({ vm }: { vm: BloodRequestFormModel }) {
         <Card variant="flush">
           <View style={styles.hero} accessibilityLiveRegion="polite">
             <View style={styles.heroMark}>
-              <Icon name="check" size={30} color={colors.statusNormal} />
+              <Icon name="check" size={40} color={colors.statusNormal} />
             </View>
             <View style={styles.heroText}>
               <Text style={styles.heroTitle} accessibilityRole="header">
@@ -455,7 +455,7 @@ export function PatientSection({ vm }: { vm: BloodRequestView }) {
         </Text>
         <View style={styles.patientRow}>
           <View style={styles.avatar}>
-            <Icon name="person" size={24} color={colors.tintBlue} />
+            <Icon name="person" size={26} color={colors.tintBlue} />
           </View>
           <View style={styles.patientText}>
             <Text style={styles.patientName} numberOfLines={2}>

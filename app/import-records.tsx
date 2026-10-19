@@ -136,7 +136,7 @@ export default function ImportRecordsScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Said before anything is picked: patient-provided, never clinician-verified. */}
         <View style={[styles.notice, { backgroundColor: warn.bg }]} accessibilityRole="text">
-          <View style={[styles.noticeIcon, { backgroundColor: colors.surface }]}>
+          <View style={styles.noticeIcon}>
             <Icon name="info" size={20} color={warn.fg} />
           </View>
           <View style={styles.noticeBody}>

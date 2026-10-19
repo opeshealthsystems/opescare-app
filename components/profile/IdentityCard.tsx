@@ -300,8 +300,8 @@ export function CredentialPanelContent({
   return (
     <>
       <PanelHead title={title} />
-      <View style={[styles.idPanelQr, { backgroundColor: skin.bg, borderColor: skin.bg }]}>
-        <Icon name={icon} size={34} color={skin.fg} />
+      <View style={styles.idPanelGlyph}>
+        <Icon name={icon} size={40} color={skin.fg} />
       </View>
       <Text style={[styles.idPanelCode, { color: skin.fg }]} numberOfLines={2}>
         {status}

@@ -303,8 +303,8 @@ export function DeskTiles({
             accessibilityLabel={`${tile.label}: ${tile.value}`}
             style={[styles.tile, on && { borderColor: skin.fg }]}
           >
-            <View style={[styles.tileIcon, { backgroundColor: skin.bg }]}>
-              <Icon name={tile.icon} size={16} color={skin.fg} />
+            <View style={styles.tileIcon}>
+              <Icon name={tile.icon} size={28} color={skin.fg} />
             </View>
             <Text style={[styles.tileValue, { color: skin.fg }]}>{tile.value}</Text>
             <Text style={styles.tileLabel} numberOfLines={2}>
@@ -410,8 +410,8 @@ export function FactRow({
       accessible
       accessibilityLabel={`${label}, ${value}`}
     >
-      <View style={[styles.factCircle, { backgroundColor: skin.bg }]}>
-        <Icon name={icon} size={18} color={skin.fg} />
+      <View style={styles.factCircle}>
+        <Icon name={icon} size={26} color={skin.fg} />
       </View>
       <View style={styles.factText}>
         <Text style={styles.factLabel}>{label}</Text>
@@ -484,8 +484,8 @@ const makeStyles = (colors: Palette) =>
       gap: 4,
     },
     tileIcon: {
-      width: 28,
-      height: 28,
+      width: 32,
+      height: 32,
       borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',

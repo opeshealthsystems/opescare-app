@@ -125,7 +125,7 @@ export function SummaryTile({ icon, value, label }: { icon: IconName; value: str
   return (
     <View style={styles.tile} accessible accessibilityLabel={`${label} ${value}`}>
       <View style={styles.tileIcon}>
-        <Icon name={icon} size={16} color={colors.blue} />
+        <Icon name={icon} size={28} color={colors.blue} />
       </View>
       <Text style={styles.tileValue}>{value}</Text>
       <Text style={styles.tileLabel} numberOfLines={2}>
@@ -248,10 +248,9 @@ const makeStyles = (colors: Palette) =>
       gap: 4,
     },
     tileIcon: {
-      width: 28,
-      height: 28,
+      width: 32,
+      height: 32,
       borderRadius: 14,
-      backgroundColor: colors.tintBlueBg,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 2,

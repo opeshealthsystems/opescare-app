@@ -58,7 +58,7 @@ export function PanelHeader({
   return (
     <View style={[styles.panelHead, style]}>
       <View style={styles.panelMark}>
-        <Icon name={icon} size={19} color={colors.textOnBrand} />
+        <Icon name={icon} size={24} color={colors.blue} />
       </View>
       <View style={styles.panelHeadText}>
         <Text style={styles.panelTitle} numberOfLines={2}>
@@ -176,8 +176,8 @@ export function FactCell({ fact, rule }: { fact: Fact; rule: boolean }) {
   const skin = tintMap[fact.tint];
   const body = (
     <>
-      <View style={[styles.factMark, { backgroundColor: skin.bg }]}>
-        <Icon name={fact.icon} size={16} color={skin.fg} />
+      <View style={styles.factMark}>
+        <Icon name={fact.icon} size={26} color={skin.fg} />
       </View>
       <View style={styles.factBody}>
         <Text style={styles.factLabel} numberOfLines={1}>

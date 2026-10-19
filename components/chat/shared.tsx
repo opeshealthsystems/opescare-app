@@ -539,8 +539,8 @@ export function CardHeading({
   const tone = tintMap[tint];
   return (
     <View style={styles.cardHeading}>
-      <View style={[styles.cardHeadingCircle, { backgroundColor: tone.bg }]}>
-        <Icon name={icon} size={20} color={tone.fg} />
+      <View style={styles.cardHeadingCircle}>
+        <Icon name={icon} size={24} color={tone.fg} />
       </View>
       <View style={styles.cardHeadingBody}>
         <Text style={styles.cardHeadingTitle} numberOfLines={2}>
@@ -635,8 +635,8 @@ export function QuickActionStrip({
             accessibilityRole="button"
             accessibilityLabel={a.label}
           >
-            <View style={[styles.quickCircle, { backgroundColor: tone.bg }]}>
-              <Icon name={a.icon} size={18} color={tone.fg} />
+            <View style={styles.quickCircle}>
+              <Icon name={a.icon} size={26} color={tone.fg} />
             </View>
             <Text style={styles.quickLabel} numberOfLines={2}>
               {a.label}

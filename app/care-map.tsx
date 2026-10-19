@@ -201,7 +201,7 @@ function LocationPrompt({
       <View style={styles.assist}>
         <View style={styles.assistTop}>
           <View style={styles.assistIcon}>
-            <Icon name="location" size={20} color={colors.textOnBrand} />
+            <Icon name="location" size={24} color={colors.blue} />
           </View>
           <View style={styles.assistBody}>
             <Text style={styles.assistTitle}>
@@ -233,7 +233,7 @@ function LocationPrompt({
     <View style={styles.assist}>
       <View style={styles.assistTop}>
         <View style={styles.assistIcon}>
-          <Icon name="location" size={20} color={colors.textOnBrand} />
+          <Icon name="location" size={24} color={colors.blue} />
         </View>
         <View style={styles.assistBody}>
           <Text style={styles.assistTitle}>{t('careMap.locationCta.title')}</Text>
@@ -328,7 +328,7 @@ function FacilityListRow({
           accessibilityLabel={a11yJoin(String(t('careMap.call')), facility.facility_name)}
           style={styles.callButton}
         >
-          <Icon name="phone" size={16} color={tintMap.green.fg} />
+          <Icon name="phone" size={24} color={tintMap.green.fg} />
         </TouchableOpacity>
       ) : (
         <Icon name="chevron-right" size={18} color={colors.textMuted} />
@@ -345,7 +345,7 @@ function FacilityListRow({
           radius={radii.sm}
           fit="contain"
           fallback={
-            <View style={[styles.mark, { backgroundColor: tintMap[facilityTint(facility.facility_type)].bg }]}>
+            <View style={styles.mark}>
               <Icon
                 name={facilityIcon(facility.facility_type)}
                 size={26}
@@ -1129,7 +1129,7 @@ export default function CareMapScreen() {
           <View style={styles.assist}>
             <View style={styles.assistTop}>
               <View style={styles.assistIcon}>
-                <Icon name="person-search" size={20} color={colors.textOnBrand} />
+                <Icon name="person-search" size={24} color={colors.blue} />
               </View>
               <View style={styles.assistBody}>
                 <Text style={styles.assistTitle}>{t('opesCare.findProvider.assistTitle')}</Text>
@@ -1212,7 +1212,6 @@ const styles = StyleSheet.create({
   mark: {
     width: 64,
     height: 64,
-    borderRadius: radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1238,8 +1237,6 @@ const styles = StyleSheet.create({
   callButton: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: tintMap.green.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1262,8 +1259,6 @@ const styles = StyleSheet.create({
   assistIcon: {
     width: 38,
     height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.blue,
     alignItems: 'center',
     justifyContent: 'center',
   },

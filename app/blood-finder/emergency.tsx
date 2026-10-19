@@ -171,7 +171,7 @@ function SectionCard({
     <Card variant="flush">
       <View style={styles.sectionHead}>
         <View style={styles.sectionMark}>
-          <Icon name={icon} size={16} color={colors.textOnBrand} />
+          <Icon name={icon} size={24} color={colors.statusCritical} />
         </View>
         <Text style={styles.sectionTitle} numberOfLines={2} accessibilityRole="header">
           {title}
@@ -436,7 +436,7 @@ export default function EmergencyBloodRequestScreen() {
               {/* The reference's mark is an alarm siren, not a warning
                   triangle. The kit has no siren (see Icon.tsx GLYPHS); `bell`
                   is the nearest alarm glyph it does have. */}
-              <Icon name="bell" size={22} color={colors.statusCritical} />
+              <Icon name="bell" size={24} color={colors.statusCritical} />
             </View>
             <View style={styles.leadBody}>
               <Text style={styles.leadTitle}>{t('bloodEmergency.leadTitle')}</Text>
@@ -467,8 +467,8 @@ export default function EmergencyBloodRequestScreen() {
           onAction={useMyProfile}
         >
           <View style={styles.patientRow}>
-            <View style={[styles.patientMark, { backgroundColor: colors.tintBlueBg }]}>
-              <Icon name="person" size={20} color={colors.blue} />
+            <View style={styles.patientMark}>
+              <Icon name="person" size={26} color={colors.blue} />
             </View>
             <View style={styles.patientBody}>
               <Text style={styles.patientName}>
@@ -790,7 +790,7 @@ export default function EmergencyBloodRequestScreen() {
           accessibilityLabel={`${t('bloodEmergency.importantTitle')}. ${t('bloodEmergency.importantBody')}`}
         >
           <View style={styles.importantMark}>
-            <Icon name="shield-check" size={18} color={colors.textOnBrand} />
+            <Icon name="shield-check" size={24} color={colors.statusWarning} />
           </View>
           <View style={styles.importantBody}>
             <Text style={styles.importantTitle}>{t('bloodEmergency.importantTitle')}</Text>
@@ -844,8 +844,6 @@ const makeStyles = (c: Palette) =>
     leadMark: {
       width: 44,
       height: 44,
-      borderRadius: 22,
-      backgroundColor: c.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -890,8 +888,6 @@ const makeStyles = (c: Palette) =>
     sectionMark: {
       width: 26,
       height: 26,
-      borderRadius: 13,
-      backgroundColor: c.statusCritical,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -912,7 +908,6 @@ const makeStyles = (c: Palette) =>
     patientMark: {
       width: 42,
       height: 42,
-      borderRadius: 21,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -1111,8 +1106,6 @@ const makeStyles = (c: Palette) =>
     importantMark: {
       width: 34,
       height: 34,
-      borderRadius: 17,
-      backgroundColor: c.statusWarning,
       alignItems: 'center',
       justifyContent: 'center',
     },

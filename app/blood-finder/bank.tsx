@@ -504,8 +504,8 @@ export default function BloodBankDetailScreen() {
           <View style={styles.availabilityRow}>
             <View style={styles.availabilityMain}>
               <View style={styles.availabilityHead}>
-                <View style={[styles.statusMark, { backgroundColor: colors.tintGreenBg }]}>
-                  <Icon name="check" size={20} color={colors.statusNormal} />
+                <View style={styles.statusMark}>
+                  <Icon name="check" size={24} color={colors.statusNormal} />
                 </View>
                 <View style={styles.availabilityText}>
                   <Text style={[styles.availabilityWord, { color: colors.statusNormal }]}>
@@ -834,7 +834,6 @@ const makeStyles = (c: Palette) =>
     statusMark: {
       width: 38,
       height: 38,
-      borderRadius: radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
     },

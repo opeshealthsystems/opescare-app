@@ -326,8 +326,8 @@ export function DeskTile({
       accessibilityHint={t('pharmacyDesk.home.tileHint')}
       style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
     >
-      <View style={[styles.tileIcon, { backgroundColor: skin.bg }]}>
-        <Icon name={icon} size={18} color={skin.fg} />
+      <View style={styles.tileIcon}>
+        <Icon name={icon} size={24} color={skin.fg} />
       </View>
       <Text
         style={[

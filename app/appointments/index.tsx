@@ -277,7 +277,7 @@ function NextAppointmentHero({
       <Card>
         <View style={styles.heroEmpty}>
           <View style={styles.heroEmptyCircle}>
-            <Icon name="calendar" size={24} color={colors.blue} />
+            <Icon name="calendar" size={40} color={colors.blue} />
           </View>
           <View style={styles.heroEmptyBody}>
             <Text style={styles.heroEmptyTitle}>{t('opesCare.home.heroEmptyTitle')}</Text>
@@ -301,7 +301,7 @@ function NextAppointmentHero({
     <View style={styles.hero}>
       <View style={styles.heroLeft}>
         <View style={styles.heroIcon}>
-          <Icon name="calendar" size={26} color={colors.textOnBrand} />
+          <Icon name="calendar" size={40} color={colors.textOnBrand} />
         </View>
         <Text style={styles.heroKicker}>{t('opesCare.home.heroKicker')}</Text>
         <Text style={styles.heroDay} numberOfLines={2}>
@@ -430,8 +430,6 @@ const makeStyles = (colors: Palette) =>
     heroIcon: {
       width: 62,
       height: 62,
-      borderRadius: 31,
-      backgroundColor: colors.blueLight,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: spacing.sm + 2,
@@ -477,8 +475,6 @@ const makeStyles = (colors: Palette) =>
     heroEmptyCircle: {
       width: 48,
       height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
     },

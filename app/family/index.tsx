@@ -419,7 +419,7 @@ export default function FamilyScreen() {
         <Card>
           <View style={styles.summaryHead}>
             <View style={styles.summaryCircle}>
-              <Icon name="users" size={20} color={colors.blue} />
+              <Icon name="users" size={24} color={colors.blue} />
             </View>
             <View style={styles.summaryText}>
               <Text style={styles.summaryTitle}>{t('family.summaryTitle')}</Text>
@@ -546,16 +546,11 @@ export default function FamilyScreen() {
           ) : (
             <Card>
               <View style={styles.formHead}>
-                <View
-                  style={[
-                    styles.formCircle,
-                    mode === 'register' && { backgroundColor: colors.tintPurpleBg },
-                  ]}
-                >
+                <View style={styles.formCircle}>
                   <Icon
                     name={mode === 'invite' ? 'person-search' : 'baby'}
-                    size={20}
-                    color={mode === 'invite' ? colors.tintBlue : colors.tintPurple}
+                    size={24}
+                    color={colors.tintBlue}
                   />
                 </View>
                 <View style={styles.formHeadText}>
@@ -844,8 +839,6 @@ const makeStyles = (colors: Palette) =>
     summaryCircle: {
       width: 40,
       height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.tintBlueBg,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -907,8 +900,6 @@ const makeStyles = (colors: Palette) =>
     formCircle: {
       width: 40,
       height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.tintBlueBg,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -928,8 +919,6 @@ const makeStyles = (colors: Palette) =>
     formClose: {
       width: 32,
       height: 32,
-      borderRadius: 16,
-      backgroundColor: colors.surfaceMuted,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -966,8 +955,6 @@ const makeStyles = (colors: Palette) =>
     cancelButton: {
       width: 32,
       height: 32,
-      borderRadius: 16,
-      backgroundColor: colors.statusCriticalBg,
       alignItems: 'center',
       justifyContent: 'center',
     },

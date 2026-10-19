@@ -17,7 +17,7 @@ export type EmptyStateProps = {
   actionHint?: string;
 };
 
-/** Centred empty / zero-data state with a tint circle, copy, and optional CTA. */
+/** Centred empty / zero-data state with a plain glyph (no backdrop), copy, and optional CTA. */
 export function EmptyState({
   icon = 'folder',
   tint = 'blue',
@@ -37,8 +37,8 @@ export function EmptyState({
     // spinner. Polite, so it waits its turn rather than cutting off whatever
     // the screen reader is mid-sentence on.
     <View style={[styles.wrap, style]} accessibilityLiveRegion="polite">
-      <View style={[styles.circle, { backgroundColor: t.bg }]}>
-        <Icon name={icon} size={36} color={t.fg} />
+      <View style={styles.circle}>
+        <Icon name={icon} size={40} color={t.fg} />
       </View>
       <Text style={styles.title} accessibilityRole="header">
         {title}
@@ -68,9 +68,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   circle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,

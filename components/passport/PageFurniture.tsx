@@ -76,7 +76,7 @@ export function HolderStrip({
   return (
     <View style={styles.holder}>
       <View style={styles.avatar}>
-        <Icon name="person" size={20} color={c.primary} />
+        <Icon name="person" size={26} color={c.primary} />
       </View>
 
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -142,8 +142,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.92)',
   },
   avatar: {
-    width: 40, height: 40, borderRadius: 12, backgroundColor: c.primaryLight,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D5E7F3',
+    width: 40, height: 40,
+    alignItems: 'center', justifyContent: 'center',
   },
   holderLabel: { fontSize: 7, fontWeight: '900', letterSpacing: 1.2, color: c.teal },
   holderName: { fontSize: 14, fontWeight: '900', color: c.text, marginTop: 1 },

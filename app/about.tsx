@@ -9,7 +9,6 @@ import {
   Icon,
   ScreenHeader,
   SectionHeader,
-  radii,
   spacing,
   typography,
   useTheme,
@@ -109,8 +108,8 @@ export default function AboutScreen() {
                   },
                 ]}
               >
-                <View style={[styles.principleMark, { backgroundColor: colors.tintBlueBg }]}>
-                  <Icon name={item.icon} size={18} color={colors.blue} />
+                <View style={styles.principleMark}>
+                  <Icon name={item.icon} size={26} color={colors.blue} />
                 </View>
                 <View style={styles.principleBody}>
                   <Text style={styles.principleTitle}>
@@ -223,7 +222,6 @@ const makeStyles = (c: Palette) =>
     principleMark: {
       width: 36,
       height: 36,
-      borderRadius: radii.sm,
       alignItems: 'center',
       justifyContent: 'center',
     },

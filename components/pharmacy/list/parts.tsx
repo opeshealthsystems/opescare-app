@@ -189,8 +189,8 @@ export function CategoryTile({
         },
       ]}
     >
-      <View style={[styles.catMark, { backgroundColor: selected ? colors.surface : fill }]}>
-        <Icon name={icon} size={19} color={stroke} />
+      <View style={styles.catMark}>
+        <Icon name={icon} size={24} color={stroke} />
       </View>
       <Text
         style={[styles.catLabel, selected && { color: colors.textPrimary }]}
@@ -356,21 +356,10 @@ export function MedicineRow({
           size={62}
           radius={radii.md}
           fallback={
-            <View
-              style={[
-                styles.medShot,
-                {
-                  backgroundColor: medicine.is_controlled
-                    ? colors.tintAmberBg
-                    : available
-                      ? colors.tintGreenBg
-                      : colors.tintBlueBg,
-                },
-              ]}
-            >
+            <View style={styles.medShot}>
               <Icon
                 name={CATEGORY_ICONS[medicine.category_icon] ?? 'pill'}
-                size={30}
+                size={40}
                 color={
                   medicine.is_controlled
                     ? colors.tintAmber
@@ -576,7 +565,7 @@ export function PharmacyRow({
         radius={radii.md}
         fallback={
           <View style={styles.phShot}>
-            <Icon name="store" size={26} color={colors.tintBlue} />
+            <Icon name="store" size={40} color={colors.tintBlue} />
           </View>
         }
       />

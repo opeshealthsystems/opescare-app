@@ -281,8 +281,8 @@ export default function ExportRecordsScreen() {
 
           <Card style={styles.audienceCard}>
             <View style={styles.audienceRow}>
-              <View style={[styles.circle, { backgroundColor: tintMap[selected.tint].bg }]}>
-                <Icon name={selected.icon} size={24} color={tintMap[selected.tint].fg} />
+              <View style={styles.circle}>
+                <Icon name={selected.icon} size={26} color={tintMap[selected.tint].fg} />
               </View>
               <Text style={styles.audienceText}>{t(selected.audienceKey)}</Text>
             </View>
@@ -395,8 +395,8 @@ function Notice({
       accessibilityRole="text"
       accessibilityLiveRegion="polite"
     >
-      <View style={[styles.noticeIcon, { backgroundColor: colors.surface }]}>
-        <Icon name={icon} size={20} color={skin.fg} />
+      <View style={styles.noticeIcon}>
+        <Icon name={icon} size={24} color={skin.fg} />
       </View>
       <View style={styles.noticeBody}>
         <Text style={[styles.noticeTitle, { color: skin.fg }]}>{title}</Text>
@@ -432,7 +432,6 @@ const makeStyles = (colors: Palette) =>
     circle: {
       width: 40,
       height: 40,
-      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -470,7 +469,6 @@ const makeStyles = (colors: Palette) =>
     noticeIcon: {
       width: 40,
       height: 40,
-      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
     },

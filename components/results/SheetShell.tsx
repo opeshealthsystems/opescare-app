@@ -105,8 +105,8 @@ export function SheetShell({
         >
           <View style={styles.grab} />
           <View style={styles.head}>
-            <View style={[styles.mark, { backgroundColor: skin.bg }]}>
-              <Icon name={icon} size={22} color={skin.fg} />
+            <View style={styles.mark}>
+              <Icon name={icon} size={24} color={skin.fg} />
             </View>
             <View style={styles.headText}>
               <Text style={styles.title} accessibilityRole="header">

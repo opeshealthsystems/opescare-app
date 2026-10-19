@@ -217,7 +217,7 @@ export default function BecomeDonorScreen() {
         <View style={styles.leadPanel}>
           <View style={styles.leadRow}>
             <View style={styles.leadMark}>
-              <Icon name="droplet" size={22} color={colors.statusCritical} />
+              <Icon name="droplet" size={24} color={colors.statusCritical} />
             </View>
             <View style={styles.leadBody}>
               <Text style={styles.leadTitle}>{t('donor.leadTitle')}</Text>
@@ -514,7 +514,7 @@ export default function BecomeDonorScreen() {
             <View style={styles.whyPanel}>
               <View style={styles.whyHead}>
                 <View style={styles.whyMark}>
-                  <Icon name="heart-pulse" size={18} color={colors.statusNormal} />
+                  <Icon name="heart-pulse" size={24} color={colors.statusNormal} />
                 </View>
                 <Text style={styles.whyTitle}>{t('donor.why.title')}</Text>
               </View>
@@ -525,7 +525,7 @@ export default function BecomeDonorScreen() {
                     {index > 0 && <View style={styles.whyDivider} />}
                     <View style={styles.whyCell}>
                       <View style={styles.whyIcon}>
-                        <Icon name={item.icon} size={16} color={colors.statusNormal} />
+                        <Icon name={item.icon} size={26} color={colors.statusNormal} />
                       </View>
                       <Text style={styles.whyCellTitle} numberOfLines={2}>
                         {t(`donor.why.${item.key}.title`)}
@@ -597,7 +597,7 @@ function SectionHead({ icon, title }: { icon: IconName; title: string }) {
   return (
     <View style={styles.cardHead}>
       <View style={styles.cardHeadMark}>
-        <Icon name={icon} size={15} color={colors.statusCritical} />
+        <Icon name={icon} size={24} color={colors.statusCritical} />
       </View>
       <Text style={styles.cardHeadTitle} accessibilityRole="header">
         {title}
@@ -731,8 +731,6 @@ const makeStyles = (c: Palette) =>
     leadMark: {
       width: 44,
       height: 44,
-      borderRadius: radii.pill,
-      backgroundColor: c.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -811,8 +809,6 @@ const makeStyles = (c: Palette) =>
     cardHeadMark: {
       width: 28,
       height: 28,
-      borderRadius: 14,
-      backgroundColor: c.statusCriticalBg,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -960,8 +956,6 @@ const makeStyles = (c: Palette) =>
     whyMark: {
       width: 32,
       height: 32,
-      borderRadius: 16,
-      backgroundColor: c.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -992,8 +986,6 @@ const makeStyles = (c: Palette) =>
     whyIcon: {
       width: 32,
       height: 32,
-      borderRadius: 16,
-      backgroundColor: c.surface,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 6,

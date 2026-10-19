@@ -262,8 +262,8 @@ export default function OfflineAccessScreen() {
             {/* ── What this is, and whether it is on ───────────────────── */}
             <Card>
               <View style={styles.head}>
-                <View style={[styles.circle, { backgroundColor: tintMap.blue.bg }]}>
-                  <Icon name="lock" size={20} color={tintMap.blue.fg} />
+                <View style={styles.circle}>
+                  <Icon name="lock" size={24} color={tintMap.blue.fg} />
                 </View>
                 <View style={styles.headText}>
                   <Text style={styles.headTitle}>

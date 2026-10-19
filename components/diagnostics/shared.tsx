@@ -570,8 +570,8 @@ export function StatGrid({ tiles, wrap }: { tiles: StatTile[]; wrap?: boolean })
         ];
         const inner = (
           <>
-            <View style={[styles.statCircle, { backgroundColor: skin.bg }]}>
-              <Icon name={tile.icon} size={20} color={skin.fg} />
+            <View style={styles.statCircle}>
+              <Icon name={tile.icon} size={28} color={skin.fg} />
             </View>
             <Text style={styles.statLabel} numberOfLines={2}>
               {tile.label}
@@ -725,7 +725,6 @@ const styles = StyleSheet.create({
     borderRadius: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
   },
 
   overline: {

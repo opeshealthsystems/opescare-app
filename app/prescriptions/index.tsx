@@ -329,7 +329,7 @@ function SummaryHero({
         <Text style={[styles.heroNumber, styles.heroNumberGreen]}>{pad(medications)}</Text>
       </View>
       <View style={styles.heroMark}>
-        <Icon name="pill" size={28} color={colors.textOnBrand} />
+        <Icon name="pill" size={40} color={colors.textOnBrand} />
       </View>
     </View>
   );
@@ -733,8 +733,6 @@ const makeStyles = (c: Palette) =>
     heroMark: {
       width: 56,
       height: 56,
-      borderRadius: 28,
-      backgroundColor: c.navyLight,
       alignItems: 'center',
       justifyContent: 'center',
     },

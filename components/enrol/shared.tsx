@@ -38,7 +38,7 @@ export function Bullet({ icon, text }: { icon: IconName; text: string }) {
   return (
     <View style={styles.bullet}>
       <View style={styles.bulletMark}>
-        <Icon name={icon} size={16} color={colors.blue} />
+        <Icon name={icon} size={20} color={colors.blue} />
       </View>
       <Text style={styles.bulletText}>{text}</Text>
     </View>
@@ -169,7 +169,6 @@ const makeStyles = (colors: Palette) =>
       width: 28,
       height: 28,
       borderRadius: radii.pill,
-      backgroundColor: colors.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
     },

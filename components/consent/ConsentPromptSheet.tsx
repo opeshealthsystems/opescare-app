@@ -190,7 +190,7 @@ export function ConsentPromptSheet({
 
         <View style={styles.head}>
           <View style={styles.mark}>
-            <Icon name="shield-check" size={22} color={colors.tintBlue} />
+            <Icon name="shield-check" size={24} color={colors.tintBlue} />
           </View>
           <View style={styles.headText}>
             <Text style={styles.overline}>{t('consentPrompt.overline')}</Text>
@@ -435,7 +435,6 @@ const makeStyles = (colors: Palette) =>
       width: 44,
       height: 44,
       borderRadius: radii.pill,
-      backgroundColor: colors.tintBlueBg,
       alignItems: 'center',
       justifyContent: 'center',
     },

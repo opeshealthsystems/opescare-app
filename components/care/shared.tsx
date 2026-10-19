@@ -1014,8 +1014,8 @@ export function DateBlock({
       <Text style={styles.dateDay}>{valid ? String(d.getDate()).padStart(2, '0') : '--'}</Text>
       <Text style={styles.dateWeekday}>{valid ? capsWeekday(d) : ''}</Text>
       {check && (
-        <View style={[styles.dateCheck, { backgroundColor: skin.fg }]}>
-          <Icon name="check" size={12} color={colors.textOnBrand} />
+        <View style={styles.dateCheck}>
+          <Icon name="check" size={20} color={skin.fg} />
         </View>
       )}
     </View>
@@ -1150,8 +1150,8 @@ export function InfoRow({
     // that says "Date, 16 May 2026"; ungrouped it is two, and the second one
     // is a bare date with nothing saying what it is the date of.
     <View style={[styles.infoRow, divider && styles.infoDivider]} accessible accessibilityLabel={a11yJoin(label, value)}>
-      <View style={[styles.infoCircle, { backgroundColor: skin.bg }]}>
-        <Icon name={icon} size={20} color={skin.fg} />
+      <View style={styles.infoCircle}>
+        <Icon name={icon} size={26} color={skin.fg} />
       </View>
       <View style={styles.infoText}>
         <Text style={styles.infoLabel}>{label}</Text>
@@ -1356,8 +1356,6 @@ export const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.surface,
   },
 
   // The wrapper exists so the row and its actions control can be siblings

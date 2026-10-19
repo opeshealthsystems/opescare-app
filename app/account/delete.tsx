@@ -304,8 +304,8 @@ export default function DeleteAccountScreen() {
             <>
               <Card accentColor={colors.warning} style={styles.panel}>
                 <View style={styles.panelHead}>
-                  <View style={[styles.badge, { backgroundColor: colors.statusWarningBg }]}>
-                    <Icon name="clock" size={20} color={colors.warning} />
+                  <View style={styles.badge}>
+                    <Icon name="clock" size={24} color={colors.warning} />
                   </View>
                   <View style={styles.flex}>
                     <Text style={styles.panelTitle}>{closure.headline}</Text>
@@ -321,8 +321,8 @@ export default function DeleteAccountScreen() {
 
               <Card style={styles.panel}>
                 <View style={styles.panelHead}>
-                  <View style={[styles.badge, { backgroundColor: colors.primarySoft }]}>
-                    <Icon name="info" size={20} color={colors.primary} />
+                  <View style={styles.badge}>
+                    <Icon name="info" size={24} color={colors.primary} />
                   </View>
                   <Text style={[styles.panelTitle, styles.flex]}>
                     {t('accountDeletion.stillSignedInTitle', {
@@ -510,8 +510,8 @@ function Disclosure({
       {/* Retained — the section that carries the real numbers. */}
       <Card accentColor={colors.primary} style={styles.panel}>
         <View style={styles.panelHead}>
-          <View style={[styles.badge, { backgroundColor: colors.primarySoft }]}>
-            <Icon name="archive" size={20} color={colors.primary} />
+          <View style={styles.badge}>
+            <Icon name="archive" size={24} color={colors.primary} />
           </View>
           <Text style={[styles.panelTitle, styles.flex]}>{disclosure.retained.title}</Text>
         </View>
@@ -575,8 +575,8 @@ function Block({
   return (
     <Card accentColor={accent} style={styles.panel}>
       <View style={styles.panelHead}>
-        <View style={[styles.badge, { backgroundColor: colors.surfaceMuted }]}>
-          <Icon name={icon} size={20} color={accent} />
+        <View style={styles.badge}>
+          <Icon name={icon} size={24} color={accent} />
         </View>
         <Text style={[styles.panelTitle, styles.flex]}>{title}</Text>
       </View>
@@ -666,7 +666,7 @@ const makeStyles = (c: Palette) =>
 
     panel: { marginBottom: spacing.md },
     panelHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
-    badge: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+    badge: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
     panelTitle: { ...bodyStrong, fontSize: typography.size.md, color: c.textPrimary },
     panelBody: { ...body, color: c.textSecondary },
     headline: {

@@ -187,7 +187,7 @@ export default function SampleCollectionScreen() {
                 />
                 <View style={styles.personRow}>
                   <View style={styles.avatar} {...decorative}>
-                    <Icon name="person" size={24} color={colors.blue} />
+                    <Icon name="person" size={26} color={colors.blue} />
                   </View>
                   <View style={styles.personBody}>
                     <Text style={styles.personName} numberOfLines={1}>
@@ -221,7 +221,7 @@ export default function SampleCollectionScreen() {
               <Overline label={tx('collection.orderDetails', 'Order Details')} style={styles.overlineGap} />
               <View style={styles.personRow}>
                 <View style={styles.avatar} {...decorative}>
-                  <Icon name="stethoscope" size={24} color={colors.blue} />
+                  <Icon name="stethoscope" size={26} color={colors.blue} />
                 </View>
                 <View style={styles.personBody}>
                   <Text style={styles.personName} numberOfLines={1}>
@@ -254,7 +254,7 @@ export default function SampleCollectionScreen() {
               <Overline label={tx('collection.location', 'Location')} style={styles.overlineGap} />
               <View style={styles.personRow}>
                 <View style={styles.avatar} {...decorative}>
-                  <Icon name="location" size={24} color={colors.blue} />
+                  <Icon name="location" size={26} color={colors.blue} />
                 </View>
                 <View style={styles.personBody}>
                   <Text style={styles.personName} numberOfLines={2}>
@@ -440,8 +440,6 @@ const makeStyles = (colors: Palette) =>
     whenIcon: {
       width: 48,
       height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.tintGreenBg,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -470,8 +468,6 @@ const makeStyles = (colors: Palette) =>
     avatar: {
       width: 48,
       height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.tintBlueBg,
       alignItems: 'center',
       justifyContent: 'center',
     },

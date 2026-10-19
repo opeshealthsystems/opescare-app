@@ -500,8 +500,6 @@ const makeStyles = (colors: Palette) =>
     headCircle: {
       width: 52,
       height: 52,
-      borderRadius: 26,
-      backgroundColor: colors.tintGreenBg,
       alignItems: 'center',
       justifyContent: 'center',
     },

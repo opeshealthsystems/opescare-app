@@ -189,7 +189,7 @@ export default function FindDonorsScreen() {
         <View style={styles.leadPanel}>
           <View style={styles.leadRow}>
             <View style={styles.leadMark}>
-              <Icon name="droplet" size={22} color={colors.statusCritical} />
+              <Icon name="droplet" size={24} color={colors.statusCritical} />
             </View>
             <View style={styles.leadBody}>
               <Text style={styles.leadTitle}>{t('donorSearch.leadTitle')}</Text>
@@ -409,7 +409,7 @@ export default function FindDonorsScreen() {
         <View style={styles.leadPanel}>
           <View style={styles.leadRow}>
             <View style={styles.leadMark}>
-              <Icon name="heart-pulse" size={22} color={colors.statusCritical} />
+              <Icon name="heart-pulse" size={24} color={colors.statusCritical} />
             </View>
             <View style={styles.leadBody}>
               <Text style={styles.leadTitle}>{t('donorSearch.noLuckTitle')}</Text>
@@ -678,8 +678,6 @@ const makeStyles = (c: Palette) =>
     leadMark: {
       width: 44,
       height: 44,
-      borderRadius: radii.pill,
-      backgroundColor: c.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },

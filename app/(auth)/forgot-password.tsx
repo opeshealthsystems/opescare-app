@@ -505,7 +505,7 @@ function SecurePrivateCard() {
   return (
     <Card style={styles.reassure}>
       <View style={styles.tintCircle}>
-        <Icon name="shield-check" size={20} color={colors.tintBlue} />
+        <Icon name="shield-check" size={24} color={colors.tintBlue} />
       </View>
       <View style={styles.reassureBody}>
         <Text style={styles.reassureTitle}>{t('forgotPassword.securePrivateTitle')}</Text>
@@ -582,7 +582,15 @@ function PasswordStrength({ score, checks }: { score: 0 | 1 | 2 | 3 | 4; checks:
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1 },
-    content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm },
+    content: {
+      flexGrow: 1,
+      width: '100%',
+      maxWidth: 480,
+      alignSelf: 'center',
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.lg,
+      gap: spacing.sm,
+    },
     stepBody: { gap: spacing.sm },
 
     stepIndicator: {
@@ -684,8 +692,6 @@ const makeStyles = (colors: Palette) =>
     tintCircle: {
       width: 40,
       height: 40,
-      borderRadius: radii.pill,
-      backgroundColor: colors.tintBlueBg,
       alignItems: 'center',
       justifyContent: 'center',
     },

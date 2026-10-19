@@ -696,7 +696,7 @@ function Notice({
       accessibilityRole="text"
       accessibilityLiveRegion="polite"
     >
-      <View style={[styles.noticeIcon, { backgroundColor: colors.surface }]}>
+      <View style={styles.noticeIcon}>
         <Icon name={icon} size={20} color={skin.fg} />
       </View>
       <View style={styles.noticeBody}>

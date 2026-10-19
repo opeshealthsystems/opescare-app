@@ -148,8 +148,8 @@ export default function BloodFinderScreen() {
         {/* Hero, as the reference draws it: the droplet tile, the name at
             full size, the tagline, and the assurance badge beside it. */}
         <View style={styles.hero}>
-          <View style={[styles.heroMark, { backgroundColor: colors.tintBlueBg }]}>
-            <Icon name="droplet" size={30} color={colors.blue} />
+          <View style={styles.heroMark}>
+            <Icon name="droplet" size={40} color={colors.blue} />
           </View>
           <View style={styles.heroBody}>
             <Text style={styles.heroTitle} numberOfLines={2}>

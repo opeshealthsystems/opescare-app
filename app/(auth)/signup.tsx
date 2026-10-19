@@ -3,6 +3,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  useWindowDimensions,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -174,6 +175,8 @@ export default function SignupScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const registerPatient = useRegisterPatient();
   const scrollRef = useRef<ScrollView>(null);
+  /** Short phones: drop the decorative seal so the first field sits above the fold. */
+  const compact = useWindowDimensions().height < 760;
 
   const [step, setStep] = useState<StepNumber>(1);
 
@@ -355,7 +358,7 @@ export default function SignupScreen() {
           {/* The emblem the Health ID being created will carry, under the
               "Create your Health ID" header. A notch smaller than on sign-in
               so the step rail and the first field stay above the fold. */}
-          <AnimatedSeal size={64} />
+          {compact ? null : <AnimatedSeal size={64} />}
 
           <StepProgress
             steps={STEPS.map((value) => ({
@@ -391,7 +394,7 @@ export default function SignupScreen() {
           <Card>
             <View style={styles.stepHeader}>
               <View style={styles.tintCircle}>
-                <Icon name={STEP_ICONS[step]} size={20} color={colors.tintBlue} />
+                <Icon name={STEP_ICONS[step]} size={24} color={colors.tintBlue} />
               </View>
               <View style={styles.stepHeaderBody}>
                 <Text style={styles.stepTitle}>{stepTitle}</Text>
@@ -842,7 +845,15 @@ function RelationshipField({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1 },
-    content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm },
+    content: {
+      flexGrow: 1,
+      width: '100%',
+      maxWidth: 480,
+      alignSelf: 'center',
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.lg,
+      gap: spacing.sm,
+    },
 
     stepIndicator: {
       marginTop: spacing.xs,
@@ -880,8 +891,6 @@ const makeStyles = (colors: Palette) =>
     tintCircle: {
       width: 40,
       height: 40,
-      borderRadius: radii.pill,
-      backgroundColor: colors.tintBlueBg,
       alignItems: 'center',
       justifyContent: 'center',
     },

@@ -258,8 +258,8 @@ export default function HelpScreen() {
         {/* ── How can we help? — the real channels ──────────────────────── */}
         <Card>
           <View style={styles.head}>
-            <View style={[styles.circle, { backgroundColor: tintMap.blue.bg }]}>
-              <Icon name="headset" size={20} color={tintMap.blue.fg} />
+            <View style={styles.circle}>
+              <Icon name="headset" size={24} color={tintMap.blue.fg} />
             </View>
             <View style={styles.headText}>
               <Text style={styles.headTitle}>{t('help.contact.title')}</Text>
@@ -558,8 +558,8 @@ function FaqRow({
         accessibilityLabel={question}
         style={styles.faqRow}
       >
-        <View style={[styles.circle, { backgroundColor: tintMap.blue.bg }]}>
-          <Icon name="help-circle" size={20} color={tintMap.blue.fg} />
+        <View style={styles.circle}>
+          <Icon name="help-circle" size={26} color={tintMap.blue.fg} />
         </View>
         <Text style={styles.faqQuestion}>{question}</Text>
         <Icon
@@ -847,7 +847,6 @@ const makeStyles = (colors: Palette) =>
     circle: {
       width: 40,
       height: 40,
-      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -1012,8 +1011,6 @@ const makeStyles = (colors: Palette) =>
     sheetClose: {
       width: 32,
       height: 32,
-      borderRadius: 16,
-      backgroundColor: colors.surfaceMuted,
       alignItems: 'center',
       justifyContent: 'center',
     },

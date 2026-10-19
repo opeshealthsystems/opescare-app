@@ -48,7 +48,7 @@ export function AppLockGate({ active }: { active: boolean }) {
       <PaperWave />
       <Wordmark size="lg" />
       <View style={styles.badge}>
-        <Icon name="lock" size={32} color={colors.blue} />
+        <Icon name="lock" size={40} color={colors.blue} />
       </View>
       <Text style={styles.title} accessibilityRole="header">
         {t('appLock.title')}
@@ -84,7 +84,6 @@ function makeStyles(c: ReturnType<typeof useTheme>['colors']) {
       borderRadius: 36,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: c.tintBlueBg,
     },
     title: {
       fontFamily: typography.fontFamily.semiBold,

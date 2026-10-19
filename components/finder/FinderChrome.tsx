@@ -368,7 +368,7 @@ export function HelpPanel({
   return (
     <View style={styles.help}>
       <View style={styles.helpMark}>
-        <Icon name="info" size={20} color={colors.blue} />
+        <Icon name="info" size={24} color={colors.blue} />
       </View>
       <View style={styles.helpBody}>
         <Text style={styles.helpTitle}>{title}</Text>
@@ -581,7 +581,6 @@ const makeStyles = (c: Palette) =>
       borderRadius: 18,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: c.surface,
     },
     helpBody: { flex: 1, minWidth: 150, gap: 2 },
     helpTitle: {

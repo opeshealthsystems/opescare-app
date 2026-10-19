@@ -7,7 +7,7 @@ import { radii } from '@/components/opes-ui/theme';
  *
  * The API hands out a signed, absolute, hour-stable link (`logo_url`,
  * `image_url`, `facility_logo_url`) or null. This component:
- *  - renders `fallback` (the screen's existing icon chip / initials) when the
+ *  - renders `fallback` (a plain icon glyph with no backdrop, or initials) when the
  *    link is absent, or when the image fails to load: never a broken box;
  *  - remembers failed links for the session, so a list does not retry a dead
  *    link on every re-render or scroll;

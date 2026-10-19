@@ -233,7 +233,7 @@ function PlanCard({
       {plan.description ? (
         <View style={s.overview}>
           <View style={s.overviewMark}>
-            <Icon name="info" size={16} color={colors.textOnBrand} />
+            <Icon name="info" size={24} color={colors.blue} />
           </View>
           <View style={s.overviewBody}>
             <Text style={s.overviewTitle}>
@@ -250,21 +250,18 @@ function PlanCard({
       <View style={s.stats}>
         <StatTile
           icon="target"
-          bg={statusMap.normal.bg}
           fg={statusMap.normal.fg}
           value={String(goals.length)}
           label={t('carePlans.goals')}
         />
         <StatTile
           icon="check-double"
-          bg={colors.primarySoft}
           fg={colors.blue}
           value={String(interventions.length)}
           label={t('carePlans.interventions')}
         />
         <StatTile
           icon="calendar"
-          bg={statusMap.info.bg}
           fg={statusMap.info.fg}
           value={weeks === null ? '—' : String(weeks)}
           unit={weeks === null ? undefined : t('opesCare.carePlan.weeks', { defaultValue: 'wks' })}
@@ -369,8 +366,8 @@ function GoalRow({ goal, index, divider }: { goal: CarePlanGoal; index: number; 
       <View style={s.goalIndex}>
         <Text style={s.goalIndexText}>{index + 1}</Text>
       </View>
-      <View style={[s.goalMark, { backgroundColor: tint.bg }]}>
-        <Icon name={GOAL_ICON[goal.status] ?? 'target'} size={24} color={tint.fg} />
+      <View style={s.goalMark}>
+        <Icon name={GOAL_ICON[goal.status] ?? 'target'} size={26} color={tint.fg} />
       </View>
       <View style={s.goalBody}>
         <Text style={s.goalTitle}>{goal.goal_text}</Text>
@@ -388,14 +385,12 @@ function GoalRow({ goal, index, divider }: { goal: CarePlanGoal; index: number; 
 
 function StatTile({
   icon,
-  bg,
   fg,
   value,
   unit,
   label,
 }: {
   icon: IconName;
-  bg: string;
   fg: string;
   value: string;
   unit?: string;
@@ -405,8 +400,8 @@ function StatTile({
   const s = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={s.stat} accessible accessibilityLabel={`${label}: ${value}${unit ? ` ${unit}` : ''}`}>
-      <View style={[s.statMark, { backgroundColor: bg }]}>
-        <Icon name={icon} size={20} color={fg} />
+      <View style={s.statMark}>
+        <Icon name={icon} size={28} color={fg} />
       </View>
       <View style={s.statBody}>
         <Text style={s.statValue} numberOfLines={1}>
@@ -456,8 +451,8 @@ function StepRow({ icon, title, body, divider }: { icon: IconName; title: string
   const tint = tintMap.blue;
   return (
     <View style={[s.stepRow, divider && s.rowDivider]} accessible accessibilityLabel={`${title}. ${body}`}>
-      <View style={[s.goalMark, { backgroundColor: tint.bg }]}>
-        <Icon name={icon} size={24} color={tint.fg} />
+      <View style={s.goalMark}>
+        <Icon name={icon} size={26} color={tint.fg} />
       </View>
       <View style={s.goalBody}>
         <Text style={s.goalTitle}>{title}</Text>
@@ -490,8 +485,6 @@ const makeStyles = (colors: Palette) =>
     overviewMark: {
       width: 26,
       height: 26,
-      borderRadius: 13,
-      backgroundColor: colors.blue,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -522,7 +515,6 @@ const makeStyles = (colors: Palette) =>
     statMark: {
       width: 34,
       height: 34,
-      borderRadius: radii.sm + 2,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -600,7 +592,6 @@ const makeStyles = (colors: Palette) =>
     goalMark: {
       width: 40,
       height: 40,
-      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
     },

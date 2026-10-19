@@ -455,7 +455,7 @@ export default function LabReportFullScreen() {
           {document ? (
             <View style={styles.fileRow}>
               <View style={styles.fileIcon} {...decorative}>
-                <Icon name="document-text" size={22} color={colors.blue} />
+                <Icon name="document-text" size={26} color={colors.blue} />
               </View>
               <View style={styles.fileBody}>
                 <Text style={styles.fileName} numberOfLines={2}>
@@ -761,8 +761,6 @@ const makeStyles = (colors: Palette) =>
     fileIcon: {
       width: 44,
       height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.tintBlueBg,
       alignItems: 'center',
       justifyContent: 'center',
     },

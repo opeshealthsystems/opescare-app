@@ -404,7 +404,7 @@ function DoctorMessageThreadScreenBody() {
             accessibilityLabel={tx('thread.openChart', 'Open patient chart')}
           >
             <View style={styles.chartCircle}>
-              <Icon name="clipboard" size={18} color={colors.tintBlue} />
+              <Icon name="clipboard" size={26} color={colors.tintBlue} />
             </View>
             <View style={styles.chartBody}>
               <Text style={styles.chartTitle} numberOfLines={1}>
@@ -519,10 +519,8 @@ const makeStyles = (colors: Palette) =>
     chartCircle: {
       width: 34,
       height: 34,
-      borderRadius: radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.tintBlueBg,
     },
     chartBody: { flex: 1, minWidth: 0 },
     chartTitle: {

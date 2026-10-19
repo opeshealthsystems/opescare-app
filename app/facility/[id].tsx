@@ -299,7 +299,7 @@ function CircleAction({
       accessibilityState={{ disabled: !!disabled }}
     >
       <View style={styles.actionCircle}>
-        <Icon name={icon} size={22} color={colors.blue} />
+        <Icon name={icon} size={26} color={colors.blue} />
       </View>
       <Text style={styles.actionLabel} numberOfLines={1}>
         {label}
@@ -866,7 +866,7 @@ export default function FacilityDetailScreen() {
               accessibilityLabel={facility.facility_name}
               fallback={
                 <View style={styles.thumb}>
-                  <Icon name={facilityTypeIcon(facility.facility_type)} size={34} color={colors.blue} />
+                  <Icon name={facilityTypeIcon(facility.facility_type)} size={40} color={colors.blue} />
                 </View>
               }
             />
@@ -1431,8 +1431,6 @@ const makeStyles = (colors: Palette) =>
     thumb: {
       width: 82,
       height: 82,
-      borderRadius: radii.md,
-      backgroundColor: colors.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -1469,8 +1467,6 @@ const makeStyles = (colors: Palette) =>
     actionCircle: {
       width: 48,
       height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
     },

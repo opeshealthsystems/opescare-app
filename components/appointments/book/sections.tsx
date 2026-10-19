@@ -708,7 +708,7 @@ export function SlotStep({ vm }: { vm: BookingFlowModel }) {
               <Card style={styles.footerCard}>
                 <View style={styles.footerRow}>
                   <View style={styles.footerIcon}>
-                    <Icon name="calendar-check" size={24} color={colors.blue} />
+                    <Icon name="calendar-check" size={26} color={colors.blue} />
                   </View>
                   <View style={styles.footerBody}>
                     <Text style={styles.footerTitle} numberOfLines={1}>
@@ -755,7 +755,7 @@ export function ConfirmStep({ vm }: { vm: BookingFlowModel }) {
         >
           <View style={styles.almost}>
             <View style={styles.almostIcon}>
-              <Icon name="check" size={20} color={colors.textOnBrand} />
+              <Icon name="check" size={24} color={colors.statusNormal} />
             </View>
             <View style={styles.almostBody}>
               <Text style={styles.almostTitle}>{t('opesCare.review.almostTitle')}</Text>
@@ -931,7 +931,7 @@ export function SuccessStep({ vm }: { vm: BookingFlowModel }) {
           >
             <View style={styles.hero} accessibilityLiveRegion="polite">
               <View style={styles.heroMark}>
-                <Icon name="check" size={38} color={colors.textOnBrand} />
+                <Icon name="check" size={40} color={colors.statusNormal} />
               </View>
               <Text style={styles.heroTitle} accessibilityRole="header">
                 {t('opesCare.confirmed.heroTitle')}

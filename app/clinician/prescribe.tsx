@@ -735,7 +735,7 @@ function PatientCard({ patient, tx }: { patient: PrescribingPatient; tx: Tx }) {
     <Card>
       <View style={styles.patientHead}>
         <View style={styles.patientMark}>
-          <Icon name="person" size={22} color={colors.blue} />
+          <Icon name="person" size={24} color={colors.blue} />
         </View>
         <View style={styles.patientHeadText}>
           <Text style={styles.patientName}>
@@ -1162,7 +1162,7 @@ function ReviewBlock({
           <View key={line.key} style={index > 0 ? styles.reviewLine : undefined}>
             <View style={styles.reviewLineHead}>
               <View style={styles.reviewLineMark}>
-                <Icon name="pill" size={16} color={colors.blue} />
+                <Icon name="pill" size={26} color={colors.blue} />
               </View>
               <Text style={styles.reviewDrug}>{line.drug_name.trim()}</Text>
             </View>
@@ -1246,7 +1246,7 @@ function IssuedBlock({
       <Card>
         <View style={styles.issuedHead}>
           <View style={styles.issuedMark}>
-            <Icon name="check-circle" size={26} color={colors.statusNormal} />
+            <Icon name="check-circle" size={40} color={colors.statusNormal} />
           </View>
           <Text style={styles.issuedTitle}>{tx('prescribe.issuedTitle', 'Prescription issued')}</Text>
         </View>
@@ -1670,10 +1670,8 @@ const makeStyles = (colors: Palette) =>
     patientMark: {
       width: 46,
       height: 46,
-      borderRadius: 23,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.tintBlueBg,
     },
     patientHeadText: { flex: 1, minWidth: 0 },
     patientName: {
@@ -1755,10 +1753,8 @@ const makeStyles = (colors: Palette) =>
     reviewLineMark: {
       width: 30,
       height: 30,
-      borderRadius: 15,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.tintBlueBg,
     },
     reviewDrug: {
       flex: 1,
@@ -1787,10 +1783,8 @@ const makeStyles = (colors: Palette) =>
     issuedMark: {
       width: 46,
       height: 46,
-      borderRadius: 23,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.statusNormalBg,
     },
     issuedTitle: {
       flex: 1,

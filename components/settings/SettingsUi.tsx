@@ -355,13 +355,11 @@ export function ToggleRow({
         style={{
           width: sizing.tile.sm,
           height: sizing.tile.sm,
-          borderRadius: radii.tile,
-          backgroundColor: colors.brand[50],
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <Icon color={colors.brand[600]} size={22} />
+        <Icon color={colors.brand[600]} size={26} />
       </View>
 
       <View style={{ flex: 1, marginLeft: spacing.md }}>

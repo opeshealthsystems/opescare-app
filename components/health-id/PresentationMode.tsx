@@ -254,7 +254,7 @@ export function PresentationMode({
           {/* ── Provider access ─────────────────────────────────────────── */}
           <View style={styles.provider}>
             <View style={styles.providerIcon}>
-              <Icon name="lock" size={18} color={colors.textOnBrand} />
+              <Icon name="lock" size={24} color={colors.textOnBrand} />
             </View>
             <View style={styles.providerCopy}>
               <Text style={styles.providerTitle}>{t('healthId.secure.providerAccessTitle')}</Text>
@@ -550,9 +550,6 @@ const makeStyles = (colors: Palette) =>
       borderRadius: radii.pill,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'rgba(255,255,255,0.12)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.25)',
     },
     providerCopy: { flex: 1, minWidth: 0 },
     providerTitle: {

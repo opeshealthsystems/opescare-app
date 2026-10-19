@@ -50,8 +50,8 @@ export function SectionHead({ section }: { section: PassportSection }) {
   const a = accentOf(section);
   return (
     <View style={styles.head}>
-      <View style={[styles.disc, { backgroundColor: a.ink }]}>
-        <Icon name={(section.icon as IconName) ?? 'document-text'} size={13} color="#FFFFFF" />
+      <View style={styles.disc}>
+        <Icon name={(section.icon as IconName) ?? 'document-text'} size={24} color={a.ink} />
       </View>
       <Text style={[styles.headTitle, { color: a.ink }]} numberOfLines={2}>
         {section.title.toUpperCase()}
@@ -168,8 +168,8 @@ function CalloutCard({ section }: { section: PassportSection }) {
   const a = accentOf(section);
   return (
     <View style={[styles.callout, { backgroundColor: a.tint, borderColor: a.rule }]}>
-      <View style={[styles.calloutMark, { backgroundColor: a.ink }]}>
-        <Icon name={(section.icon as IconName) ?? 'check-circle'} size={15} color="#FFFFFF" />
+      <View style={styles.calloutMark}>
+        <Icon name={(section.icon as IconName) ?? 'check-circle'} size={24} color={a.ink} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={[styles.calloutTitle, { color: a.ink }]}>{section.title.toUpperCase()}</Text>

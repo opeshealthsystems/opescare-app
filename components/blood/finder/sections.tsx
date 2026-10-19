@@ -405,8 +405,8 @@ export function TrustAndEmergency({ vm }: { vm: BloodFinderModel }) {
           numbers. */}
       <Card accentColor={colors.statusCritical}>
         <View style={styles.emergencyHead}>
-          <View style={[styles.emergencyMark, { backgroundColor: colors.statusCriticalBg }]}>
-            <Icon name="alert-triangle" size={20} color={colors.statusCritical} />
+          <View style={styles.emergencyMark}>
+            <Icon name="alert-triangle" size={24} color={colors.statusCritical} />
           </View>
           <View style={styles.emergencyBody}>
             <Text style={[styles.emergencyTitle, { color: colors.statusCritical }]}>

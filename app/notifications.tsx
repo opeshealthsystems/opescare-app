@@ -544,8 +544,8 @@ export default function NotificationsScreen() {
             {/* Privacy assurance — the reference closes the list on this. */}
             <Card>
               <View style={styles.privacy}>
-                <View style={[styles.privacyCircle, { backgroundColor: tintMap.blue.bg }]}>
-                  <Icon name="lock" size={20} color={tintMap.blue.fg} />
+                <View style={styles.privacyCircle}>
+                  <Icon name="lock" size={24} color={tintMap.blue.fg} />
                 </View>
                 <View style={styles.privacyBody}>
                   <Text style={styles.privacyTitle}>{t('notifications.privacyTitle')}</Text>

@@ -617,8 +617,8 @@ function StepRow({ icon, title, body, divider }: { icon: IconName; title: string
   const tint = tintMap.blue;
   return (
     <View style={[s.stepRow, divider && s.rowDivider]} accessible accessibilityLabel={`${title}. ${body}`}>
-      <View style={[s.stepMark, { backgroundColor: tint.bg }]}>
-        <Icon name={icon} size={24} color={tint.fg} />
+      <View style={s.stepMark}>
+        <Icon name={icon} size={26} color={tint.fg} />
       </View>
       <View style={s.stepBody}>
         <Text style={s.stepTitle}>{title}</Text>
@@ -647,7 +647,6 @@ const makeStyles = (colors: Palette) =>
     stepMark: {
       width: 40,
       height: 40,
-      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
     },

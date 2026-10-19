@@ -370,7 +370,7 @@ function GoalRow({ goal, index, divider }: { goal: CarePlanGoal; index: number; 
         <Text style={s.goalIndexText}>{index + 1}</Text>
       </View>
       <View style={[s.goalMark, { backgroundColor: tint.bg }]}>
-        <Icon name={GOAL_ICON[goal.status] ?? 'target'} size={20} color={tint.fg} />
+        <Icon name={GOAL_ICON[goal.status] ?? 'target'} size={24} color={tint.fg} />
       </View>
       <View style={s.goalBody}>
         <Text style={s.goalTitle}>{goal.goal_text}</Text>
@@ -457,7 +457,7 @@ function StepRow({ icon, title, body, divider }: { icon: IconName; title: string
   return (
     <View style={[s.stepRow, divider && s.rowDivider]} accessible accessibilityLabel={`${title}. ${body}`}>
       <View style={[s.goalMark, { backgroundColor: tint.bg }]}>
-        <Icon name={icon} size={20} color={tint.fg} />
+        <Icon name={icon} size={24} color={tint.fg} />
       </View>
       <View style={s.goalBody}>
         <Text style={s.goalTitle}>{title}</Text>

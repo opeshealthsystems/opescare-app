@@ -185,7 +185,7 @@ export function ActionTile({ icon, label, caption, onPress }: ActionTileProps) {
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <Icon name={icon} size={26} color={colors.blue} strokeWidth={iconStroke.regular} />
+      <Icon name={icon} size={28} color={colors.blue} strokeWidth={iconStroke.regular} />
       <Text style={styles.tileLabel} numberOfLines={2}>
         {label}
       </Text>

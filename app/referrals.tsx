@@ -458,7 +458,7 @@ function StepRow({ icon, title, body, divider }: { icon: IconName; title: string
   return (
     <View style={[s.stepRow, divider && s.rowDivider]} accessible accessibilityLabel={`${title}. ${body}`}>
       <View style={[s.stepMark, { backgroundColor: tint.bg }]}>
-        <Icon name={icon} size={20} color={tint.fg} />
+        <Icon name={icon} size={24} color={tint.fg} />
       </View>
       <View style={s.stepBody}>
         <Text style={s.stepTitle}>{title}</Text>

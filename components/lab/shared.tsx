@@ -260,7 +260,7 @@ export function LabOrderRow({
       style={[styles.row, divider && styles.rowDivider]}
     >
       <View style={[styles.circle, { backgroundColor: tint.bg }]}>
-        <Icon name="flask" size={20} color={tint.fg} />
+        <Icon name="flask" size={24} color={tint.fg} />
       </View>
       <View style={styles.center}>
         <View style={styles.titleLine}>

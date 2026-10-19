@@ -538,7 +538,7 @@ function SelfReportedRow({
   return (
     <View style={[s.row, divider && s.rowDivider]}>
       <View style={[s.rowMark, { backgroundColor: tint.bg }]}>
-        <Icon name={MEASURE_ICON[reading.measure]} size={20} color={tint.fg} />
+        <Icon name={MEASURE_ICON[reading.measure]} size={24} color={tint.fg} />
       </View>
 
       <View style={s.rowBody}>
@@ -612,7 +612,7 @@ function ClinicalRow({ measure, divider }: { measure: VitalMeasure; divider: boo
   return (
     <View style={[s.row, divider && s.rowDivider]}>
       <View style={[s.rowMark, { backgroundColor: tint.bg }]}>
-        <Icon name="shield-check" size={20} color={tint.fg} />
+        <Icon name="shield-check" size={24} color={tint.fg} />
       </View>
       <View style={s.rowBody}>
         <View style={s.rowTop}>

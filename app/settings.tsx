@@ -349,7 +349,7 @@ export default function SettingsScreen() {
               <Card>
                 <View style={styles.languageHead}>
                   <View style={[styles.circle, { backgroundColor: tintMap.blue.bg }]}>
-                    <Icon name="globe" size={20} color={tintMap.blue.fg} />
+                    <Icon name="globe" size={24} color={tintMap.blue.fg} />
                   </View>
                   <View style={styles.languageText}>
                     <Text style={styles.rowTitle}>{t('settings.language.title')}</Text>

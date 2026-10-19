@@ -282,7 +282,7 @@ export default function ExportRecordsScreen() {
           <Card style={styles.audienceCard}>
             <View style={styles.audienceRow}>
               <View style={[styles.circle, { backgroundColor: tintMap[selected.tint].bg }]}>
-                <Icon name={selected.icon} size={20} color={tintMap[selected.tint].fg} />
+                <Icon name={selected.icon} size={24} color={tintMap[selected.tint].fg} />
               </View>
               <Text style={styles.audienceText}>{t(selected.audienceKey)}</Text>
             </View>

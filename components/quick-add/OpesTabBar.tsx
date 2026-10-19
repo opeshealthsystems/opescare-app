@@ -23,7 +23,6 @@ import {
   Icon,
   iconStroke,
   radii,
-  shadow,
   typography,
   useTheme,
   type Palette,
@@ -38,10 +37,10 @@ export const QUICK_ADD_SLOT = '__quick_add__';
 
 /** Bar height excluding the safe-area inset (§11). */
 const BAR_HEIGHT = 62;
-const ICON_SIZE = 24;
+const ICON_SIZE = 26;
 const FAB_SIZE = 52;
 const FAB_RING = 4;
-const FAB_ICON = 26;
+const FAB_ICON = 30;
 /** How far the FAB breaks the bar's top edge (§11). */
 const FAB_LIFT = -18;
 const BADGE_MAX = 99;
@@ -266,9 +265,8 @@ const makeStyles = (colors: Palette) =>
       backgroundColor: colors.blue,
       alignItems: 'center',
       justifyContent: 'center',
-      ...shadow.fab,
-      // Keep the glow on-brand for whichever palette is active.
-      shadowColor: colors.blue,
+      // Flat on purpose: no coloured shadow/glow around the icon. The surface
+      // ring (fabRing) already separates the FAB from the bar.
     },
     fabPressed: { opacity: 0.85 },
     fabLabel: { color: colors.textMuted, marginTop: 2 },

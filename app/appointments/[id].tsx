@@ -434,7 +434,7 @@ function DetailBody({
       <Card>
         <View style={styles.summaryTop}>
           <View style={[styles.summaryIcon, { backgroundColor: tint.bg }]}>
-            <Icon name={typeIconOf(a.appointment_type)} size={22} color={tint.fg} />
+            <Icon name={typeIconOf(a.appointment_type)} size={26} color={tint.fg} />
           </View>
           <View style={styles.summaryHead}>
             <StatusBadge

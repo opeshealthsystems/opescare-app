@@ -656,7 +656,7 @@ export default function HomeScreen() {
           >
             <View style={styles.promoHeader}>
               <View style={[styles.promoIcon, { backgroundColor: tintMap.blue.bg }]}>
-                <Icon name="target" size={20} color={tintMap.blue.fg} />
+                <Icon name="target" size={24} color={tintMap.blue.fg} />
               </View>
               <Text style={styles.promoTitle} numberOfLines={2}>
                 {t('home.insights.title')}
@@ -709,7 +709,7 @@ function SummaryCell({
         {label}
       </Text>
       <View style={[styles.cellCircle, { backgroundColor: tintMap[tint].bg }]}>
-        <Icon name={icon} size={20} color={tintMap[tint].fg} />
+        <Icon name={icon} size={26} color={tintMap[tint].fg} />
       </View>
       <Text style={[styles.cellValue, valueColor ? { color: valueColor } : null]} numberOfLines={1}>
         {value}

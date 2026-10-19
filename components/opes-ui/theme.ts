@@ -287,13 +287,21 @@ export const makeShadow = (c: Palette): Record<'card' | 'button' | 'fab', Shadow
   },
   /** Raised circular centre FAB in the tab bar. */
   fab: {
+    // Flat: icons never glow. Kept as a token so old imports still resolve.
     shadowColor: c.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.32,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
 });
+
+/**
+ * Icon glyph sizes (Material / iOS HIG). Icons are flat: no glow, halo,
+ * coloured shadow or blur. A tint chip is a flat soft-tint disc with the
+ * glyph at ~60% of the chip: 40 -> 24, 44 -> 26, 56 -> 32, 64 -> 36.
+ */
+export const iconSize = { inline: 20, list: 24, tab: 26, tile: 30 } as const;
 
 /** Icon stroke weight measured off the reference renders. */
 export const iconStroke = {

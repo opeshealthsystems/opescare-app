@@ -361,7 +361,7 @@ export function ToggleRow({
           justifyContent: 'center',
         }}
       >
-        <Icon color={colors.brand[600]} size={sizing.icon.md} />
+        <Icon color={colors.brand[600]} size={22} />
       </View>
 
       <View style={{ flex: 1, marginLeft: spacing.md }}>

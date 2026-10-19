@@ -38,7 +38,7 @@ export function EmptyState({
     // the screen reader is mid-sentence on.
     <View style={[styles.wrap, style]} accessibilityLiveRegion="polite">
       <View style={[styles.circle, { backgroundColor: t.bg }]}>
-        <Icon name={icon} size={30} color={t.fg} />
+        <Icon name={icon} size={36} color={t.fg} />
       </View>
       <Text style={styles.title} accessibilityRole="header">
         {title}

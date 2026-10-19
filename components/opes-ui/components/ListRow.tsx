@@ -101,7 +101,7 @@ export function ListRow({
     <View style={[styles.row, divider && styles.divider, style]}>
       {leading ?? (icon ? (
         <View style={[styles.circle, { backgroundColor: t.bg }]}>
-          <Icon name={icon} size={20} color={t.fg} />
+          <Icon name={icon} size={24} color={t.fg} />
         </View>
       ) : null)}
 

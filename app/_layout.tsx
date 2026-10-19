@@ -21,6 +21,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuthStore } from '../lib/store/auth';
 import { AppUpdateGate } from '../components/AppUpdateGate';
 import { UpdateReadyBanner } from '../components/UpdateReadyBanner';
+import { AnimatedSplash } from '../components/AnimatedSplash';
 import { initOfflineMode } from '../lib/offline';
 import { OfflineBanner } from '../components/offline/OfflineBanner';
 import { PushListeners } from '../lib/push/PushListeners';
@@ -241,6 +242,9 @@ export default function RootLayout() {
         ) : null}
         {/* Last, so it covers everything — the version gate included. */}
         <AppLockGate active={status === 'authenticated'} />
+        {/* Animated splash over everything on launch and on return; fades to
+            whatever is underneath (the lock cover included). */}
+        <AnimatedSplash ready={status !== 'booting' && fontsSettled && palette !== null} />
       </QueryClientProvider>
       </AppBackground>
       </ThemeProvider>

@@ -36,6 +36,7 @@ import {
   type Palette,
   type TFunction,
 } from '@/components/opes-ui';
+import { CatalogImage } from '@/components/ui/CatalogImage';
 import {
   AppointmentRow,
   CareButton,
@@ -322,7 +323,13 @@ function NextAppointmentHero({
           </View>
         )}
         <View style={styles.heroMetaRow}>
-          <Icon name="building" size={18} color={colors.textSecondary} />
+          <CatalogImage
+            uri={a.facility_logo_url}
+            size={18}
+            radius={4}
+            fit="contain"
+            fallback={<Icon name="building" size={18} color={colors.textSecondary} />}
+          />
           <Text style={styles.heroMeta} numberOfLines={2}>
             {a.facility_name ?? t('opesCare.appt.facilityTbd')}
           </Text>

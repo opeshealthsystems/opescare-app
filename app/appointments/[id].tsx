@@ -58,6 +58,7 @@ import {
   type Palette,
   type TFunction,
 } from '@/components/opes-ui';
+import { CatalogImage } from '@/components/ui/CatalogImage';
 import {
   CareButton,
   InfoRow,
@@ -486,7 +487,13 @@ function DetailBody({
               {a.provider_name ?? t('opesCare.appt.providerTbd')}
             </Text>
             <View style={styles.providerMetaRow}>
-              <Icon name="building" size={16} color={colors.textSecondary} />
+              <CatalogImage
+                uri={a.facility_logo_url}
+                size={16}
+                radius={4}
+                fit="contain"
+                fallback={<Icon name="building" size={16} color={colors.textSecondary} />}
+              />
               <Text style={styles.providerMeta} numberOfLines={2}>
                 {a.facility_name ?? t('opesCare.appt.facilityTbd')}
               </Text>

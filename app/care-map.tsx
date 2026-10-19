@@ -59,6 +59,7 @@ import {
   type IconName,
   type Tint,
 } from '@/components/opes-ui';
+import { CatalogImage } from '@/components/ui/CatalogImage';
 import {
   CardMetaRow,
   CardPill,
@@ -338,13 +339,21 @@ function FacilityListRow({
   return (
     <ResultCard
       mark={
-        <View style={[styles.mark, { backgroundColor: tintMap[facilityTint(facility.facility_type)].bg }]}>
-          <Icon
-            name={facilityIcon(facility.facility_type)}
-            size={26}
-            color={tintMap[facilityTint(facility.facility_type)].fg}
-          />
-        </View>
+        <CatalogImage
+          uri={facility.logo_url}
+          size={64}
+          radius={radii.sm}
+          fit="contain"
+          fallback={
+            <View style={[styles.mark, { backgroundColor: tintMap[facilityTint(facility.facility_type)].bg }]}>
+              <Icon
+                name={facilityIcon(facility.facility_type)}
+                size={26}
+                color={tintMap[facilityTint(facility.facility_type)].fg}
+              />
+            </View>
+          }
+        />
       }
       trailing={trailing}
       onPress={onOpen}

@@ -68,6 +68,8 @@ export interface Appointment {
   appointment_type: string;
   status: string;
   facility_name: string | null;
+  /** Signed, absolute logo of the facility's directory listing; null when none. */
+  facility_logo_url?: string | null;
   provider_name: string | null;
   scheduled_at: string | null;
   checked_in_at: string | null;

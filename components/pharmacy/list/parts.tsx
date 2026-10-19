@@ -34,6 +34,8 @@ import {
   strengthForm,
   callablePhone,
 } from './helpers';
+import { CatalogImage } from '@/components/ui/CatalogImage';
+import { radii } from '@/components/opes-ui/theme';
 import { makeStyles } from './styles';
 /** Split verbatim out of app/pharmacy.tsx. */
 
@@ -348,31 +350,38 @@ export function MedicineRow({
       ]}
     >
       <View style={styles.medHead}>
-        {/* Product mark — the render's photograph has no payload behind it. */}
-        <View
-          style={[
-            styles.medShot,
-            {
-              backgroundColor: medicine.is_controlled
-                ? colors.tintAmberBg
-                : available
-                  ? colors.tintGreenBg
-                  : colors.tintBlueBg,
-            },
-          ]}
-        >
-          <Icon
-            name={CATEGORY_ICONS[medicine.category_icon] ?? 'pill'}
-            size={30}
-            color={
-              medicine.is_controlled
-                ? colors.tintAmber
-                : available
-                  ? colors.tintGreen
-                  : colors.tintBlue
-            }
-          />
-        </View>
+        {/* Product photo when the catalogue has one; otherwise the category mark. */}
+        <CatalogImage
+          uri={medicine.image_url}
+          size={62}
+          radius={radii.md}
+          fallback={
+            <View
+              style={[
+                styles.medShot,
+                {
+                  backgroundColor: medicine.is_controlled
+                    ? colors.tintAmberBg
+                    : available
+                      ? colors.tintGreenBg
+                      : colors.tintBlueBg,
+                },
+              ]}
+            >
+              <Icon
+                name={CATEGORY_ICONS[medicine.category_icon] ?? 'pill'}
+                size={30}
+                color={
+                  medicine.is_controlled
+                    ? colors.tintAmber
+                    : available
+                      ? colors.tintGreen
+                      : colors.tintBlue
+                }
+              />
+            </View>
+          }
+        />
 
         <View style={styles.medBody}>
           <Text style={styles.medName} numberOfLines={3}>
@@ -560,10 +569,17 @@ export function PharmacyRow({
       accessibilityHint={t('pharmacy.viewPharmacy')}
       style={[styles.phRow, divider && styles.phRowDivider]}
     >
-      {/* Storefront mark. The render shows a photo; no payload carries one. */}
-      <View style={styles.phShot}>
-        <Icon name="store" size={26} color={colors.tintBlue} />
-      </View>
+      {/* The pharmacy's own logo when it uploaded one; otherwise the storefront mark. */}
+      <CatalogImage
+        uri={pharmacy.logo_url}
+        size={56}
+        radius={radii.md}
+        fallback={
+          <View style={styles.phShot}>
+            <Icon name="store" size={26} color={colors.tintBlue} />
+          </View>
+        }
+      />
 
       <View style={styles.phBody}>
         <View style={styles.phTitleRow}>
@@ -661,7 +677,12 @@ export function HoldCard({
   return (
     <Card>
       <View style={styles.holdHead}>
-        <TintCircle icon="receipt" tint={expired ? 'red' : 'amber'} />
+        <CatalogImage
+          uri={reservation.medicine?.image_url}
+          size={40}
+          radius={20}
+          fallback={<TintCircle icon="receipt" tint={expired ? 'red' : 'amber'} />}
+        />
         <View style={styles.holdBody}>
           <Text style={styles.holdTitle} numberOfLines={2}>
             {reservation.medicine?.name ?? t('pharmacy.selectedMedicine')}

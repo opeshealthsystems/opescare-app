@@ -89,6 +89,8 @@ export interface CareFacilitySummary {
   id: string;
   facility_name: string;
   facility_type: string;
+  /** Signed, absolute logo link; null when the facility has none. */
+  logo_url?: string | null;
   ownership_type: string | null;
   city: string | null;
   region: string | null;
@@ -1122,6 +1124,8 @@ export interface Medicine {
   id: string;
   name: string;
   generic_name: string;
+  /** Signed, absolute catalogue image link; null when none was uploaded. */
+  image_url?: string | null;
   brand_name: string | null;
   strength: string | null;
   form: string | null;
@@ -1155,6 +1159,8 @@ export interface PharmacyStock {
 export interface NearbyPharmacy {
   id: string;
   name: string;
+  /** Signed, absolute logo link; null when the pharmacy has none. */
+  logo_url?: string | null;
   city: string | null;
   region: string | null;
   address: string | null;
@@ -1187,8 +1193,8 @@ export interface MedicineReservation {
   pharmacy_note: string | null;
   expires_at: string | null;
   created_at: string | null;
-  medicine: { id: string; name: string; generic_name: string } | null;
-  pharmacy: { id: string; name: string; city: string | null; phone: string | null } | null;
+  medicine: { id: string; name: string; generic_name: string; image_url?: string | null } | null;
+  pharmacy: { id: string; name: string; city: string | null; phone: string | null; logo_url?: string | null } | null;
 }
 
 export interface PharmacyPrescriptionOption {

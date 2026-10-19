@@ -29,6 +29,8 @@ import {
   freshness,
   callablePhone,
 } from './helpers';
+import { CatalogImage } from '@/components/ui/CatalogImage';
+import { radii } from '@/components/opes-ui/theme';
 import { makeStyles } from './styles';
 /** Split verbatim out of app/pharmacy/[medicineId].tsx. */
 
@@ -100,20 +102,28 @@ export function IdentityCard({ medicine }: { medicine: Medicine }) {
   return (
     <Card style={is_available ? styles.identityCardAvailable : undefined}>
       <View style={styles.identity}>
-        <View
-          style={[
-            styles.identityShot,
-            {
-              backgroundColor: medicine.is_controlled ? colors.tintAmberBg : colors.tintGreenBg,
-            },
-          ]}
-        >
-          <Icon
-            name={CATEGORY_ICONS[medicine.category_icon] ?? 'pill'}
-            size={38}
-            color={medicine.is_controlled ? colors.tintAmber : colors.tintGreen}
-          />
-        </View>
+        <CatalogImage
+          uri={medicine.image_url}
+          size={78}
+          radius={radii.md}
+          accessibilityLabel={medicine.name}
+          fallback={
+            <View
+              style={[
+                styles.identityShot,
+                {
+                  backgroundColor: medicine.is_controlled ? colors.tintAmberBg : colors.tintGreenBg,
+                },
+              ]}
+            >
+              <Icon
+                name={CATEGORY_ICONS[medicine.category_icon] ?? 'pill'}
+                size={38}
+                color={medicine.is_controlled ? colors.tintAmber : colors.tintGreen}
+              />
+            </View>
+          }
+        />
 
         <View style={styles.identityBody}>
           <Text style={styles.drugName} numberOfLines={3}>
@@ -306,19 +316,26 @@ export function PharmacyOptionRow({
       style={[styles.stockRow, selected && styles.selectedRow, divider && styles.stockRowDivider]}
     >
       <View style={styles.stockHead}>
-        {/* Storefront mark — the render's photo has no payload behind it. */}
-        <View
-          style={[
-            styles.stockShot,
-            { backgroundColor: selected ? colors.tintGreenBg : colors.tintBlueBg },
-          ]}
-        >
-          <Icon
-            name={selected ? 'check' : 'store'}
-            size={24}
-            color={selected ? colors.tintGreen : colors.tintBlue}
-          />
-        </View>
+        {/* Pharmacy logo when it has one (the tick wins once selected). */}
+        <CatalogImage
+          uri={selected ? null : pharmacy.logo_url}
+          size={54}
+          radius={radii.md}
+          fallback={
+            <View
+              style={[
+                styles.stockShot,
+                { backgroundColor: selected ? colors.tintGreenBg : colors.tintBlueBg },
+              ]}
+            >
+              <Icon
+                name={selected ? 'check' : 'store'}
+                size={24}
+                color={selected ? colors.tintGreen : colors.tintBlue}
+              />
+            </View>
+          }
+        />
 
         <View style={styles.stockBody}>
           <View style={styles.stockTitleRow}>

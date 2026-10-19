@@ -157,7 +157,7 @@ export function SecureCredentialCard({
             high={0.85}
             duration={presentation ? 1700 : 3600}
           />
-          <RotatingDna style={styles.dnaHelix} opacity={1} />
+          <RotatingDna style={styles.dnaHelix} opacity={0.9} />
           <Art source={HEALTH_ID_ART.dnaMicrodata} style={styles.dnaMicro} resizeMode="cover" opacity={0.55} />
         </View>
         <CornerBrackets color={colors.primarySoft} active={presentation} size={20} inset={8} radius={10} />

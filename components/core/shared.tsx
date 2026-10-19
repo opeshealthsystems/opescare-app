@@ -271,7 +271,8 @@ const makeStyles = (colors: Palette) =>
       flex: 1,
       minHeight: 92,
       paddingVertical: 14,
-      paddingHorizontal: 6,
+      // 3, not 6: at 320dp "Appointment" lost its last letters to the padding.
+      paddingHorizontal: 3,
       backgroundColor: colors.surface,
       borderRadius: radii.md,
       borderWidth: 1,
@@ -284,6 +285,7 @@ const makeStyles = (colors: Palette) =>
       fontFamily: typography.fontFamily.semiBold,
       fontSize: 12,
       lineHeight: 16,
+      letterSpacing: -0.2,
       textAlign: 'center',
       color: colors.textPrimary,
     },

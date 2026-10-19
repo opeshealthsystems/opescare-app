@@ -115,7 +115,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     marginTop: 6,
     textAlign: 'center',
     fontFamily: typography.fontFamily.medium,
-    fontSize: 11,
+    // 10, not 11: a 76pt column broke FR "Établissement" into "Établissemen / t".
+    fontSize: 10,
+    letterSpacing: -0.1,
     color: colors.textMuted,
   },
   labelCurrent: {

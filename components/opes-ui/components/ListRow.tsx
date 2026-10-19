@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle, useWindowDimensions } from 'react-native';
 import { spacing, Tint, typography, type Palette } from '../theme';
 import { useTheme } from '../ThemeProvider';
 import { a11yJoin } from './a11y';
@@ -84,6 +84,18 @@ export function ListRow({
   const showChevron = chevron ?? !!onPress;
   const t = tintMap[tint];
   const metaText = meta ? meta.filter(Boolean).join('  •  ') : undefined;
+  // Below 380dp a trailing badge/value beside the title squeezed it to one or
+  // two words a line ("Demo / Grand…", "Lipid / Panel"). There the trailing
+  // content moves under the text and only the chevron stays on the right.
+  const narrow = useWindowDimensions().width < 380;
+  const trailingContent =
+    trailing ??
+    (value ? (
+      <Text style={[styles.value, !!valueColor && { color: valueColor }]} numberOfLines={1}>
+        {value}
+      </Text>
+    ) : null);
+  const stackTrailing = narrow && trailingContent != null;
 
   const body = (
     <View style={[styles.row, divider && styles.divider, style]}>
@@ -105,17 +117,17 @@ export function ListRow({
             {metaText ?? subtitle}
           </Text>
         )}
+        {stackTrailing ? <View style={styles.trailingStacked}>{trailingContent}</View> : null}
       </View>
 
-      <View style={styles.trailing}>
-        {trailing ??
-          (value ? (
-            <Text style={[styles.value, !!valueColor && { color: valueColor }]} numberOfLines={1}>
-              {value}
-            </Text>
-          ) : null)}
-        {showChevron && <Icon name="chevron-right" size={18} color={colors.textMuted} />}
-      </View>
+      {stackTrailing ? (
+        showChevron ? <Icon name="chevron-right" size={18} color={colors.textMuted} /> : null
+      ) : (
+        <View style={styles.trailing}>
+          {trailingContent}
+          {showChevron && <Icon name="chevron-right" size={18} color={colors.textMuted} />}
+        </View>
+      )}
     </View>
   );
 
@@ -180,6 +192,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     // receive messages" on the recipient picker). Shrinking lets the badge
     // give its own text a narrower box to wrap in instead.
     flexShrink: 1,
+  },
+  trailingStacked: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: 6,
   },
   value: {
     fontFamily: typography.fontFamily.semiBold,

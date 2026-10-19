@@ -220,6 +220,10 @@ const makeStyles = (colors: Palette) =>
     },
     item: {
       flex: 1,
+      // minWidth 0 + a stretched label: a long FR label ("Identifiant santé")
+      // ran under the Quick-Add label beside it instead of truncating.
+      minWidth: 0,
+      paddingHorizontal: 2,
       alignItems: 'center',
       justifyContent: 'flex-start',
       paddingTop: 9,
@@ -236,10 +240,12 @@ const makeStyles = (colors: Palette) =>
       fontSize: 11,
       lineHeight: 14,
       textAlign: 'center',
+      alignSelf: 'stretch',
     },
 
     fabSlot: {
       flex: 1,
+      minWidth: 0,
       alignItems: 'center',
       justifyContent: 'flex-start',
       overflow: 'visible',

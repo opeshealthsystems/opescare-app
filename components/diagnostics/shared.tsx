@@ -573,7 +573,7 @@ export function StatGrid({ tiles, wrap }: { tiles: StatTile[]; wrap?: boolean })
             <View style={[styles.statCircle, { backgroundColor: skin.bg }]}>
               <Icon name={tile.icon} size={20} color={skin.fg} />
             </View>
-            <Text style={styles.statLabel} numberOfLines={1}>
+            <Text style={styles.statLabel} numberOfLines={2}>
               {tile.label}
             </Text>
             <Text style={[styles.statValue, { color: skin.fg }]}>{tile.value}</Text>
@@ -794,6 +794,8 @@ const styles = StyleSheet.create({
   },
   statCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   statLabel: {
+    // Two centred lines: at 320dp a quarter-row tile cut "Lab Orders" to "Lab Ord…".
+    textAlign: 'center',
     fontFamily: typography.fontFamily.regular,
     fontSize: typography.size.xs,
     color: colors.textSecondary,

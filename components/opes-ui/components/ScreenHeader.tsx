@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { PaperWave } from '@/components/ui/PaperWave';
-import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle, useWindowDimensions } from 'react-native';
 import { useTranslation } from '../i18n';
 import { spacing, typography, type Palette } from '../theme';
 import { useTheme } from '../ThemeProvider';
@@ -64,6 +64,9 @@ export function ScreenHeader({
 }: ScreenHeaderProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // On narrow phones (320–379dp) a 24px title next to a right-hand action broke
+  // mid-word ("Appointm / ents"); step down to the lg size there.
+  const narrow = useWindowDimensions().width < 380;
   const { t } = useTranslation();
   const backHandler = onBack ?? defaultBackHandler;
 
@@ -92,7 +95,7 @@ export function ScreenHeader({
 
         <View style={[styles.titleWrap, align === 'center' && styles.titleWrapCenter]}>
           <Text
-            style={[styles.title, align === 'center' && styles.titleCenter]}
+            style={[styles.title, narrow && styles.titleNarrow, align === 'center' && styles.titleCenter]}
             // Two lines, not one. A title like "Emergency blood request" is
             // longer than the bar at 375pt and was being cut to "Emergency
             // blood req…" — the screen no longer said what it was for.
@@ -163,6 +166,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     lineHeight: Math.round(typography.size.xl * 1.25),
     color: colors.textPrimary,
   },
+  titleNarrow: { fontSize: typography.size.lg, lineHeight: Math.round(typography.size.lg * 1.25) },
   titleCenter: { textAlign: 'center' },
   right: {
     flexDirection: 'row',

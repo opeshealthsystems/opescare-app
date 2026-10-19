@@ -19,7 +19,7 @@ export function Wordmark({ size = 'lg', showTagline = true }: Props) {
   const fontSize = size === 'lg' ? 34 : 24;
 
   return (
-    <View>
+    <View style={styles.root}>
       <Text style={styles.row}>
         <Text style={[styles.opes, { fontSize }]}>Opes</Text>
         <Text style={[styles.emr, { fontSize }]}>Care</Text>
@@ -47,6 +47,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     color: colors.blue,
     fontFamily: typography.fontFamily.bold,
   },
+  // Shrinkable so a long tagline (FR: "Des soins connectés.") wraps inside the
+  // header instead of running off the right edge at 320dp.
+  root: { flexShrink: 1, minWidth: 0 },
   taglineRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -59,6 +62,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     backgroundColor: colors.border,
   },
   tagline: {
+    flexShrink: 1,
     fontFamily: typography.fontFamily.medium,
     fontSize: 10,
     // 1.5 on a 10px face stretched "One Health ID. Connected Care." to 204pt

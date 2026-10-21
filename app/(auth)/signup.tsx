@@ -4,6 +4,7 @@ import {
   Platform,
   ScrollView,
   useWindowDimensions,
+  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -28,8 +29,9 @@ import {
   type Palette,
 } from '@/components/opes-ui';
 import { FieldLabel, FormError, Note, SecondaryButton } from '@/components/enrol/shared';
+import '@/lib/i18n/authRedesignStrings';
 import { Screen } from '@/components/ui/Screen';
-import { AnimatedSeal } from '@/components/auth/AnimatedSeal';
+import { HEALTH_ID_ART } from '@/components/health-id/assets';
 import { resolvePostAuthStatus, useAuthStore } from '@/lib/store/auth';
 import { tokenStorage } from '@/lib/api/tokenStorage';
 import { useRegisterPatient } from '@/lib/api/queries';
@@ -38,6 +40,17 @@ import type { ApiValidationErrorBody, RegisterPatientPayload } from '@/lib/api/t
 
 type Sex = 'male' | 'female';
 type StepNumber = 1 | 2 | 3;
+
+/** Who the new Health ID is for. Anyone but "self" is added from the
+ * account holder's Family screen once their own account exists — a guardian
+ * or caregiver always signs in as themselves. */
+type Audience = 'self' | 'child' | 'elder' | 'care';
+const AUDIENCES: { key: Audience; icon: IconName }[] = [
+  { key: 'self', icon: 'user-round' },
+  { key: 'child', icon: 'baby-face' },
+  { key: 'elder', icon: 'users' },
+  { key: 'care', icon: 'heart-handshake' },
+];
 const TOTAL_STEPS = 3;
 const STEPS: StepNumber[] = [1, 2, 3];
 
@@ -178,6 +191,8 @@ export default function SignupScreen() {
   /** Short phones: drop the decorative seal so the first field sits above the fold. */
   const compact = useWindowDimensions().height < 760;
 
+  const [audience, setAudience] = useState<Audience | null>(null);
+  const [choice, setChoice] = useState<Audience>('self');
   const [step, setStep] = useState<StepNumber>(1);
 
   const [firstName, setFirstName] = useState('');
@@ -272,7 +287,9 @@ export default function SignupScreen() {
 
   const goBack = () => {
     clearBanners();
-    if (step === 1) {
+    if (step === 1 && audience) {
+      setAudience(null);
+    } else if (step === 1) {
       router.back();
     } else {
       goToStep((step - 1) as StepNumber);
@@ -305,6 +322,7 @@ export default function SignupScreen() {
       const nextStatus = await resolvePostAuthStatus();
       useAuthStore.setState({ status: nextStatus });
       if (nextStatus === 'permissions_pending') router.replace('/(auth)/permissions');
+      else if (audience && audience !== 'self') router.replace('/family');
       // Otherwise the root layout redirects to /(tabs)/home once status flips to authenticated.
     } catch (err) {
       const failure = classifySubmitError(err);
@@ -360,7 +378,46 @@ export default function SignupScreen() {
           {/* The emblem the Health ID being created will carry, under the
               "Create your Health ID" header. A notch smaller than on sign-in
               so the step rail and the first field stay above the fold. */}
-          {compact ? null : <AnimatedSeal size={64} />}
+          {compact ? null : (
+            <Image source={HEALTH_ID_ART.seal} style={styles.seal} accessibilityLabel="OpesCare" />
+          )}
+
+          {audience === null ? (
+            <>
+              <Text style={styles.audienceTitle} accessibilityRole="header">
+                {t('signupAudience.title')}
+              </Text>
+              {AUDIENCES.map((a) => {
+                const selected = choice === a.key;
+                return (
+                  <TouchableOpacity
+                    key={a.key}
+                    onPress={() => setChoice(a.key)}
+                    activeOpacity={0.8}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    style={[styles.option, selected && styles.optionOn]}
+                  >
+                    <Icon name={a.icon} size={26} color={colors.blue} strokeWidth={1.6} />
+                    <View style={styles.optionBody}>
+                      <Text style={styles.optionTitle}>{t(`signupAudience.${a.key}Title`)}</Text>
+                      <Text style={styles.optionText}>{t(`signupAudience.${a.key}Body`)}</Text>
+                    </View>
+                    <View style={[styles.radio, selected && styles.radioOn]} />
+                  </TouchableOpacity>
+                );
+              })}
+              {choice !== 'self' ? <Note icon="info" text={t('signupAudience.guardianNote')} /> : null}
+              <GradientButton label={t('signup.continue')} onPress={() => setAudience(choice)} />
+              <View style={styles.textButton}>
+                <Text style={styles.footerText}>{t('signup.alreadyHaveAccount')} </Text>
+                <TouchableOpacity onPress={() => router.replace('/(auth)/login')} hitSlop={8} accessibilityRole="link">
+                  <Text style={styles.link}>{t('auth.signIn')}</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+          <>
 
           <StepProgress
             steps={STEPS.map((value) => ({
@@ -640,6 +697,9 @@ export default function SignupScreen() {
             </View>
           ) : null}
 
+          </>
+          )}
+
           <Note icon="shield-check" text={t('auth.securityNote')} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -857,6 +917,34 @@ const makeStyles = (colors: Palette) =>
       gap: spacing.sm,
     },
 
+    seal: { width: 64, height: 64, alignSelf: 'center' },
+    audienceTitle: {
+      fontFamily: typography.fontFamily.bold,
+      fontSize: typography.size.lg,
+      color: colors.textPrimary,
+    },
+    option: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      padding: spacing.md,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    optionOn: { borderColor: colors.blue, borderWidth: 1.5 },
+    optionBody: { flex: 1 },
+    optionTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.md, color: colors.textPrimary },
+    optionText: {
+      fontFamily: typography.fontFamily.regular,
+      fontSize: typography.size.xs,
+      lineHeight: typography.lineHeight.xs,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: colors.textMuted },
+    radioOn: { borderWidth: 6, borderColor: colors.blue },
     stepIndicator: {
       marginTop: spacing.xs,
       marginBottom: spacing.xs,

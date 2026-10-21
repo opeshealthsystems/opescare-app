@@ -48,5 +48,17 @@
     "svcBlood": "Sang",
     "svcAppointments": "Rendez-vous",
     "svcFacilities": "Établissements"
+  },
+  "signupAudience": {
+    "title": "Pour qui est ce Health ID ?",
+    "selfTitle": "Moi-même",
+    "selfBody": "Mes dossiers, rendez-vous et Health ID",
+    "childTitle": "Mon enfant",
+    "childBody": "Moins de 18 ans. Vous le gérez jusqu’à sa majorité",
+    "elderTitle": "Un parent ou proche âgé",
+    "elderBody": "Aide pour les rendez-vous, médicaments et rappels, avec son accord",
+    "careTitle": "Une personne dont je m’occupe",
+    "careBody": "Un adulte qui a besoin de soutien. Accès famille ou aidant",
+    "guardianNote": "Créez d’abord votre propre compte. Vous l’ajouterez ensuite depuis Famille."
   }
 }

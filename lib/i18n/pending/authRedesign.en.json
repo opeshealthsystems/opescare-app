@@ -48,5 +48,17 @@
     "svcBlood": "Blood",
     "svcAppointments": "Appointments",
     "svcFacilities": "Facilities"
+  },
+  "signupAudience": {
+    "title": "Who is this Health ID for?",
+    "selfTitle": "Myself",
+    "selfBody": "My own records, appointments and Health ID",
+    "childTitle": "My child",
+    "childBody": "Under 18. You manage it until they come of age",
+    "elderTitle": "An older parent or relative",
+    "elderBody": "Help with bookings, medicines and reminders, with their consent",
+    "careTitle": "Someone I care for",
+    "careBody": "An adult who needs support. Family or caregiver access",
+    "guardianNote": "First create your own account. You will add them from Family straight after."
   }
 }

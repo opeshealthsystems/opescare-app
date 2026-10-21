@@ -4,6 +4,8 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Animated,
+  Image,
   Text,
   TouchableOpacity,
   View,
@@ -18,7 +20,6 @@ import {
   Icon,
   ListRow,
   PillInput,
-  Wordmark,
   StatusBadge,
   radii,
   spacing,
@@ -28,7 +29,10 @@ import {
 } from '@/components/opes-ui';
 import { FieldLabel, FormError } from '@/components/enrol/shared';
 import { Screen } from '@/components/ui/Screen';
-import { PaperWave } from '@/components/ui/PaperWave';
+import { HEALTH_ID_ART } from '@/components/health-id/assets';
+import { DECORATIVE } from '@/components/health-id/Layers';
+import { LiveEcg } from '@/components/health-id/LivingAnatomy';
+import { breathe, useLoop } from '@/components/health-id/motion';
 import { MedicalIdCard } from '@/components/emergency/MedicalIdCard';
 import { useVisibleEmergencyCard } from '@/lib/emergency/sync';
 import '@/lib/i18n/authRedesignStrings';
@@ -75,6 +79,15 @@ const rememberedEmail: RememberedEmailStore =
         clear: () => SecureStore.deleteItemAsync(REMEMBERED_EMAIL_KEY),
       };
 
+/** The four services, as plain brand glyphs (no tinted backgrounds). */
+const SERVICES = [
+  { key: 'svcMedicines', icon: 'pill' },
+  { key: 'svcBlood', icon: 'droplet' },
+  { key: 'svcAppointments', icon: 'calendar-check' },
+  { key: 'svcFacilities', icon: 'building' },
+] as const;
+
+
 export default function LoginScreen() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -98,6 +111,8 @@ export default function LoginScreen() {
   /** Short phones (320x568, 360x640): tighter rhythm, collapsed Medical ID. */
   const { height } = useWindowDimensions();
   const compact = height < 760;
+  /** Slow breath for the anatomy figures; holds still under reduced motion. */
+  const pulse = useLoop(4500);
 
   // Prefill the identifier the patient last chose to remember.
   useEffect(() => {
@@ -196,11 +211,22 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={[styles.content, compact && styles.contentCompact]}
         >
-          {/* Masthead: the Health ID's guilloche paper under the brand, the
-              same document language as My Profile and the Health ID. */}
-          <View style={styles.masthead}>
-            <PaperWave />
-            <View style={[styles.topBar, compact && styles.topBarCompact]}>
+          {/* Masthead: the platform seal (still) over two softly breathing
+              anatomy figures and a live ECG trace, then the four services. */}
+          <View style={[styles.hero, compact && styles.heroCompact]}>
+            <Animated.Image
+              source={HEALTH_ID_ART.anatomyWatermark}
+              style={[styles.anatomy, styles.anatomyLeft, { opacity: breathe(pulse, 0.12, 0.22) }]}
+              resizeMode="contain"
+              {...DECORATIVE}
+            />
+            <Animated.Image
+              source={HEALTH_ID_ART.anatomyWatermark}
+              style={[styles.anatomy, styles.anatomyRight, { opacity: breathe(pulse, 0.12, 0.22) }]}
+              resizeMode="contain"
+              {...DECORATIVE}
+            />
+            <View style={styles.topBar}>
               <TouchableOpacity
                 onPress={handleBack}
                 accessibilityRole="button"
@@ -210,20 +236,32 @@ export default function LoginScreen() {
               >
                 <Icon name="chevron-left" size={22} color={colors.textPrimary} />
               </TouchableOpacity>
-              <Wordmark size="md" showTagline={false} />
-              <View style={styles.backBtn} />
             </View>
-            {compact ? null : (
-              <View style={styles.eyebrowRow}>
-                <Icon name="shield-check" size={14} color={colors.blue} />
-                <Text style={styles.eyebrow}>{t('authRedesign.eyebrow')}</Text>
-              </View>
-            )}
-            <Text style={styles.title} accessibilityRole="header">
-              {t('auth.welcomeBack')}
-            </Text>
-            {compact ? null : <Text style={styles.subtitle}>{t('authRedesign.subtitle')}</Text>}
+            <Image
+              source={HEALTH_ID_ART.seal}
+              style={styles.seal}
+              accessibilityRole="image"
+              accessibilityLabel="OpesCare"
+            />
+            <LiveEcg source={HEALTH_ID_ART.ecgLine} style={styles.ecg} />
+            <Text style={styles.brand}>{t('authRedesign.brand')}</Text>
+            <Text style={styles.tagline}>{t('authRedesign.tagline')}</Text>
           </View>
+
+          <View style={styles.services} accessible accessibilityRole="summary">
+            {SERVICES.map((svc) => (
+              <View key={svc.key} style={styles.service}>
+                <Icon name={svc.icon} size={28} color={colors.blue} strokeWidth={2} />
+                <Text style={styles.serviceLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                  {t(`authRedesign.${svc.key}`)}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={styles.title} accessibilityRole="header">
+            {t('authRedesign.title')}
+          </Text>
 
           {medicalId ? <MedicalIdCard snapshot={medicalId} collapsible={compact} /> : null}
 
@@ -327,13 +365,9 @@ export default function LoginScreen() {
 
           {/* Clinicians use the same form: handleSignIn falls through to the
               provider login when the account has no patient chart. */}
-          <View style={styles.clinician}>
-            <Icon name="first-aid" size={16} color={colors.textSecondary} />
-            <View style={styles.flex1}>
-              <Text style={styles.clinicianTitle}>{t('authRedesign.clinicianTitle')}</Text>
-              <Text style={styles.clinicianBody}>{t('authRedesign.clinicianBody')}</Text>
-            </View>
-          </View>
+          <Text style={styles.clinicianNote}>
+            {t('authRedesign.clinicianTitle')} {t('authRedesign.clinicianBody')}
+          </Text>
 
           <TouchableOpacity
             onPress={() => router.push('/(auth)/signup')}
@@ -372,35 +406,32 @@ const makeStyles = (colors: Palette) =>
     flex1: { flex: 1 },
     footerCenter: { textAlign: 'center', flexShrink: 1 },
 
-    masthead: { paddingTop: spacing.sm, paddingBottom: spacing.xs, gap: 6 },
-    topBar: {
-      flexDirection: 'row',
+    hero: {
+      marginHorizontal: -spacing.md,
+      paddingBottom: spacing.md,
       alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: spacing.md,
+      overflow: 'hidden',
+      backgroundColor: colors.surfaceMuted,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
     },
-    topBarCompact: { marginBottom: spacing.xs },
-    backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    eyebrow: {
-      fontFamily: typography.fontFamily.semiBold,
-      fontSize: 11,
-      letterSpacing: 1.4,
-      textTransform: 'uppercase',
-      color: colors.blue,
-    },
-    title: {
+    heroCompact: { paddingBottom: spacing.sm },
+    anatomy: { position: 'absolute', top: 6, width: 120, height: 240 },
+    anatomyLeft: { left: -50 },
+    anatomyRight: { right: -50 },
+    topBar: { alignSelf: 'stretch', flexDirection: 'row', paddingHorizontal: spacing.sm, paddingTop: spacing.xs },
+    seal: { width: 88, height: 88, marginTop: -spacing.xs },
+    ecg: { width: '100%', height: 28, marginTop: spacing.xs, opacity: 0.6 },
+    brand: { fontFamily: typography.fontFamily.bold, fontSize: 15, letterSpacing: 2.6, color: colors.blue, marginTop: spacing.xs },
+    tagline: { fontFamily: typography.fontFamily.regular, fontSize: typography.size.xs, color: colors.textSecondary, marginTop: 2 },
+    services: { flexDirection: 'row', justifyContent: 'space-between' },
+    service: { flex: 1, alignItems: 'center', gap: 6 },
+    serviceLabel: { fontFamily: typography.fontFamily.semiBold, fontSize: 10.5, letterSpacing: -0.1, color: colors.textPrimary },
+    backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },    title: {
       fontFamily: typography.fontFamily.bold,
       fontSize: typography.size.xl + 4,
       lineHeight: typography.size.xl + 12,
       color: colors.textPrimary,
-    },
-    subtitle: {
-      fontFamily: typography.fontFamily.regular,
-      fontSize: typography.size.sm,
-      lineHeight: typography.lineHeight.sm,
-      color: colors.textSecondary,
-      maxWidth: 320,
     },
     formCard: {
       backgroundColor: colors.surface,
@@ -410,24 +441,13 @@ const makeStyles = (colors: Palette) =>
       padding: spacing.md,
       gap: spacing.sm,
     },
-    clinician: {
-      flexDirection: 'row',
-      gap: spacing.sm + 2,
-      padding: spacing.md,
-      borderRadius: radii.md,
-      backgroundColor: colors.surfaceMuted,
-    },
-    clinicianTitle: {
-      fontFamily: typography.fontFamily.semiBold,
-      fontSize: typography.size.sm,
-      color: colors.textPrimary,
-    },
-    clinicianBody: {
+    clinicianNote: {
       fontFamily: typography.fontFamily.regular,
       fontSize: typography.size.xs,
       lineHeight: typography.lineHeight.xs,
-      color: colors.textSecondary,
-      marginTop: 2,
+      color: colors.textMuted,
+      textAlign: 'center',
+      paddingHorizontal: spacing.md,
     },
     trust: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: spacing.md },
     trustText: {

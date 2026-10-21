@@ -41,6 +41,12 @@
       "toggleTitle": "Show emergency info on the sign-in screen",
       "toggleBody": "Blood group, age, allergies and your emergency contact appear on the sign-in and lock screens. Anyone holding this phone can see them.",
       "enabledNote": "Saved on this device only. Updated each time your profile refreshes."
-    }
+    },
+    "brand": "OPESCARE HEALTH ID",
+    "tagline": "Your health, secured for life",
+    "svcMedicines": "Medicines",
+    "svcBlood": "Blood",
+    "svcAppointments": "Appointments",
+    "svcFacilities": "Facilities"
   }
 }

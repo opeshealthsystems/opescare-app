@@ -41,6 +41,12 @@
       "toggleTitle": "Afficher les infos d'urgence sur l'écran de connexion",
       "toggleBody": "Groupe sanguin, âge, allergies et contact d'urgence apparaissent sur les écrans de connexion et de verrouillage. Toute personne qui tient ce téléphone peut les voir.",
       "enabledNote": "Enregistré uniquement sur cet appareil. Mis à jour à chaque actualisation de votre profil."
-    }
+    },
+    "brand": "OPESCARE HEALTH ID",
+    "tagline": "Votre santé, protégée à vie",
+    "svcMedicines": "Médicaments",
+    "svcBlood": "Sang",
+    "svcAppointments": "Rendez-vous",
+    "svcFacilities": "Établissements"
   }
 }

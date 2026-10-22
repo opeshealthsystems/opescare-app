@@ -387,6 +387,17 @@ export default function RecordsScreen() {
                     onPress={() => router.push('/referrals')}
                   />
                 </Card>
+                {/* Partner-reported readings live on their own screen and are
+                    never merged into the vitals/labs below (owner decision). */}
+                <Card variant="flush">
+                  <ListRow
+                    icon="share"
+                    tint="amber"
+                    title={t('partnerReadings.title')}
+                    subtitle={t('partnerReadings.hubHint')}
+                    onPress={() => router.push('/records/partner-readings')}
+                  />
+                </Card>
               </CardStack>
             </View>
 

@@ -8355,5 +8355,22 @@
     "prompt": "Unlock OpesCare",
     "settingLabel": "App lock",
     "settingBody": "Ask for your fingerprint, face or phone PIN when OpesCare opens."
+  },
+  "partnerReadings": {
+    "title": "Partner-reported readings",
+    "subtitle": "Sent in by partner systems, not taken at your facility",
+    "noteFallback": "These readings were sent by partner systems. They are shown apart from readings taken at a facility.",
+    "badge": "Partner-reported",
+    "sentBy": "Sent by {{facility}} · {{system}}",
+    "unknownFacility": "Unknown facility",
+    "unknownSystem": "Unknown system",
+    "untitled": "Reading",
+    "referenceRange": "Reference range: {{range}}",
+    "emptyTitle": "Nothing here yet",
+    "emptyBody": "No readings have been sent by partner systems yet.",
+    "errorTitle": "Could not load partner readings",
+    "errorBody": "Check your connection and try again.",
+    "retry": "Try again",
+    "hubHint": "Readings sent by partner systems, kept apart"
   }
 }

@@ -8356,5 +8356,22 @@
     "prompt": "Déverrouiller OpesCare",
     "settingLabel": "Verrouillage de l'application",
     "settingBody": "Demander votre empreinte, votre visage ou le code du téléphone à l'ouverture d'OpesCare."
+  },
+  "partnerReadings": {
+    "title": "Mesures transmises par des partenaires",
+    "subtitle": "Envoyées par des systèmes partenaires, pas prises dans votre établissement",
+    "noteFallback": "Ces mesures ont été envoyées par des systèmes partenaires. Elles sont présentées à part des mesures prises dans un établissement.",
+    "badge": "Transmis par un partenaire",
+    "sentBy": "Envoyé par {{facility}} · {{system}}",
+    "unknownFacility": "Établissement inconnu",
+    "unknownSystem": "Système inconnu",
+    "untitled": "Mesure",
+    "referenceRange": "Valeurs de référence : {{range}}",
+    "emptyTitle": "Rien pour l’instant",
+    "emptyBody": "Aucune mesure n’a encore été envoyée par des systèmes partenaires.",
+    "errorTitle": "Impossible de charger les mesures des partenaires",
+    "errorBody": "Vérifiez votre connexion et réessayez.",
+    "retry": "Réessayer",
+    "hubHint": "Mesures envoyées par des partenaires, présentées à part"
   }
 }
